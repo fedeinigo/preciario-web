@@ -1,9 +1,8 @@
-// Extensiones de NextAuth para incluir el rol
-
 import "next-auth";
 
 declare module "next-auth" {
   interface User {
+    id?: string;
     role?: "admin" | "comercial";
   }
 
@@ -15,13 +14,9 @@ declare module "next-auth" {
       role?: "admin" | "comercial";
     };
   }
-}
 
-// Extender también el token JWT
-import "next-auth/jwt";
-
-declare module "next-auth/jwt" {
   interface JWT {
     role?: "admin" | "comercial";
+    sub?: string; // id del usuario
   }
 }

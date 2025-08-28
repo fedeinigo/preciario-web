@@ -1,5 +1,6 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { createHash } from "crypto";
 import { UserRole } from "@/lib/auth";
 
 interface AuthUser {
@@ -7,6 +8,12 @@ interface AuthUser {
   name: string;
   email: string;
   role: UserRole;
+}
+
+// ID estable por email (solo para comerciales)
+function idFromEmail(email: string) {
+  const h = createHash("sha256").update(email).digest("hex").slice(0, 8);
+  return "USR-" + parseInt(h, 16).toString(36).toUpperCase();
 }
 
 export const authOptions: NextAuthOptions = {
@@ -18,47 +25,44 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials): Promise<AuthUser | null> {
-        if (!credentials?.email || !credentials?.password) return null;
+        const email = credentials?.email?.trim().toLowerCase();
+        const password = credentials?.password;
+        if (!email || !password) return null;
+        if (password !== "1234") return null;
 
-        if (
-          credentials.email === "admin@test.com" &&
-          credentials.password === "1234"
-        ) {
-          return {
-            id: "1",
-            name: "Admin",
-            email: "admin@test.com",
-            role: "admin",
-          };
+        // Admin estricto
+        if (email === "admin@wisecx.com") {
+          return { id: "USR-ADMIN-0001", name: "Admin", email, role: "admin" };
         }
 
-        if (
-          credentials.email === "comercial@test.com" &&
-          credentials.password === "1234"
-        ) {
-          return {
-            id: "2",
-            name: "Comercial",
-            email: "comercial@test.com",
-            role: "comercial",
-          };
-        }
-
-        return null;
+        // Comercial: cualquier email
+        return {
+          id: idFromEmail(email),
+          name: email.split("@")[0],
+          email,
+          role: "comercial",
+        };
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.role = (user as AuthUser).role;
+      if (user) {
+        token.role = (user as AuthUser).role;
+        token.sub = (user as AuthUser).id; // id del usuario
+      }
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token.role) {
-        (session.user as AuthUser).role = token.role as UserRole;
+      if (session.user) {
+        session.user.role = token.role as UserRole | undefined;
+        session.user.id = (token.sub as string) || session.user.id;
       }
       return session;
     },
+  },
+  pages: {
+    signIn: "/auth/signin",
   },
 };
 
