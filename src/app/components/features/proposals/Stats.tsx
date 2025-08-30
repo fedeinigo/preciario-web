@@ -1,0 +1,144 @@
+"use client";
+
+import React, { useMemo, useState, useEffect } from "react";
+import { readProposals } from "./lib/storage";
+import { countryIdFromName } from "./lib/catalogs";
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-white px-5 py-4 shadow-soft">
+      <div className="text-sm text-gray-600">{label}</div>
+      <div className="text-3xl font-extrabold text-primary">{value}</div>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-6">
+      <h3 className="font-semibold mb-2">{title}</h3>
+      <div className="overflow-x-auto rounded-lg border">{children}</div>
+    </div>
+  );
+}
+
+export default function Stats({
+  isAdmin,
+  currentEmail,
+}: {
+  isAdmin: boolean;
+  currentEmail: string;
+}) {
+  const [from, setFrom] = useState("");
+  const [to, setTo]     = useState("");
+  const [all, setAll]   = useState(readProposals());
+
+  useEffect(()=>{ setAll(readProposals()); }, []);
+
+  const subset = useMemo(() => {
+    return all.filter((p) => {
+      const scope = isAdmin ? true : p.userEmail === currentEmail;
+      if (!scope) return false;
+      const t = new Date(p.createdAt).getTime();
+      const f = from ? new Date(from).getTime() : -Infinity;
+      const tt = to ? new Date(to).getTime() + 24*3600*1000 - 1 : Infinity;
+      return t >= f && t <= tt;
+    });
+  }, [all, isAdmin, currentEmail, from, to]);
+
+  const uniqueUsers = new Set(subset.map(p => p.userEmail)).size;
+  const uniqueCompanies = new Set(subset.map(p => p.companyName)).size;
+
+  const bySku = Object.entries(
+    subset.reduce<Record<string, {name:string; qty:number}>>((acc, p) => {
+      p.items.forEach(it => {
+        const cur = acc[it.sku] ?? { name: it.name, qty: 0 };
+        cur.qty += it.quantity;
+        cur.name = cur.name || it.name;
+        acc[it.sku] = cur;
+      });
+      return acc;
+    }, {})
+  ).sort((a,b)=>b[1].qty - a[1].qty);
+
+  const byCountry = Object.entries(
+    subset.reduce<Record<string, number>>((acc, p) => {
+      acc[p.country] = (acc[p.country] ?? 0) + 1;
+      return acc;
+    }, {})
+  ).sort((a,b)=>b[1]-a[1]);
+
+  return (
+    <div className="p-6">
+      <div className="card border border-gray-100">
+        <h2 className="text-2xl font-bold mb-4">Estadísticas</h2>
+
+        <div className="rounded-lg border bg-white p-4 shadow-soft mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Desde</label>
+              <input type="date" className="input" value={from} onChange={(e)=>setFrom(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Hasta</label>
+              <input type="date" className="input" value={to} onChange={(e)=>setTo(e.target.value)} />
+            </div>
+            <div className="flex items-end">
+              <button className="btn-ghost" onClick={()=>{ setFrom(""); setTo(""); }}>
+                Limpiar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <StatCard label="Propuestas generadas" value={String(subset.length)} />
+          <StatCard label="Usuarios únicos" value={String(uniqueUsers)} />
+          <StatCard label="Empresas distintas" value={String(uniqueCompanies)} />
+        </div>
+
+        <Section title="Ítems más cotizados (por SKU)">
+          <table className="min-w-full bg-white">
+            <thead>
+              <tr>
+                <th className="table-th">SKU</th>
+                <th className="table-th">Ítem</th>
+                <th className="table-th w-40 text-right">Cantidad total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bySku.map(([sku, info]) => (
+                <tr key={sku}>
+                  <td className="table-td"><span className="text-gray-500 font-mono">{sku}</span></td>
+                  <td className="table-td">{info.name}</td>
+                  <td className="table-td text-right font-semibold">{info.qty}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+
+        <Section title="Propuestas por país">
+          <table className="min-w-full bg-white">
+            <thead>
+              <tr>
+                <th className="table-th">País</th>
+                <th className="table-th w-40 text-right">Cantidad</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byCountry.map(([c, n]) => (
+                <tr key={c}>
+                  <td className="table-td">
+                    {c} <span className="text-xs text-gray-500">({countryIdFromName(c)})</span>
+                  </td>
+                  <td className="table-td text-right font-semibold">{n}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      </div>
+    </div>
+  );
+}
