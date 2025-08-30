@@ -32,11 +32,15 @@ async function ensureUser(email: string, defaultRole: Role) {
   const up = await prisma.user.upsert({
     where: { email },
     create: { email, role: defaultRole, createdAt: now, updatedAt: now },
-    // importante: no tocar role en updates
-    update: { updatedAt: now },
+    update: { updatedAt: now }, // NO tocar role en updates
     select: { id: true, role: true },
   });
   return { id: up.id, role: up.role as Role };
+}
+
+// Para extender con "role" sin usar `any`
+interface UserWithRole extends AdapterUser {
+  role?: Role;
 }
 
 export const authOptions: NextAuthOptions = {
@@ -47,9 +51,26 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      authorization: { params: { scope: "openid email profile" } },
+      // ✅ Forzamos refresh_token y pedimos scopes (Drive+Docs+Sheets readonly)
+      authorization: {
+        params: {
+          access_type: "offline",
+          prompt: "consent",
+          include_granted_scopes: "true",
+          scope: [
+            "openid",
+            "email",
+            "profile",
+            // Drive completo para copiar en Mi unidad / unidades compartidas
+            "https://www.googleapis.com/auth/drive",
+            // BatchUpdate de Google Docs
+            "https://www.googleapis.com/auth/documents",
+            // Lectura de Google Sheets (condiciones/whatsapp)
+            "https://www.googleapis.com/auth/spreadsheets.readonly",
+          ].join(" "),
+        },
+      },
       allowDangerousEmailAccountLinking: true,
-      // ✅ Tipado correcto: GoogleProfile (sin `any`)
       profile(p: GoogleProfile) {
         return {
           id: p.sub,
@@ -73,7 +94,6 @@ export const authOptions: NextAuthOptions = {
         const defaultRole = DEMO_USERS[email];
         if (!defaultRole || pass !== DEMO_PASSWORD) return null;
 
-        // Usar SIEMPRE el rol que está en la BD (por si un admin lo cambió)
         const { id, role } = await ensureUser(email, defaultRole);
         return { id, name: email.split("@")[0], email, role };
       },
@@ -108,11 +128,11 @@ export const authOptions: NextAuthOptions = {
       token: JWT;
       user?: User | AdapterUser | null;
     }) {
-      type MaybeRole = { role?: Role };
+      const u = user as UserWithRole | null | undefined;
 
-      if (user?.id) token.sub = user.id as string;
-      if ((user as MaybeRole | undefined)?.role) {
-        (token as JWT & { role?: Role }).role = (user as MaybeRole).role!;
+      if (u?.id) token.sub = u.id as string;
+      if (u?.role) {
+        (token as JWT & { role?: Role }).role = u.role;
       }
 
       // Si falta role o id, completarlo desde la BD
@@ -143,9 +163,9 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: "/auth/signin" },
 };
 
-// Handler App Router (v4)
+// Handler App Router
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
 
-// Envoltura para poder usar `auth()` en otros endpoints (como /api/admin/users)
+// Envoltura para poder usar `auth()` en otros endpoints
 export const auth = () => getServerSession(authOptions);

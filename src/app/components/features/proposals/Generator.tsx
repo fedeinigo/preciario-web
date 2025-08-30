@@ -18,59 +18,26 @@ import { saveProposal } from "./lib/storage";
 import type { Item, ProposalRecord } from "./lib/types";
 
 const DEFAULT_ITEMS: Item[] = [
-  {
-    id: 1,
-    sku: "SKU-001",
-    name: "Canal WhatsApp",
-    description: "Implementación y configuración inicial",
-    quantity: 1,
-    unitPrice: 100,
-    devHours: 10,
-    selected: false,
-  },
-  {
-    id: 2,
-    sku: "SKU-002",
-    name: "Crédito WhatsApp - Calculadora",
-    description: "Módulo de cálculo de consumos",
-    quantity: 1,
-    unitPrice: 100,
-    devHours: 1,
-    selected: false,
-  },
-  {
-    id: 3,
-    sku: "SKU-003",
-    name: "Canal META",
-    description: "Integración de campañas + tracking",
-    quantity: 2,
-    unitPrice: 100,
-    devHours: 1,
-    selected: false,
-  },
-  {
-    id: 4,
-    sku: "SKU-004",
-    name: "Canal Email",
-    description: "Plantillas y tracking básico",
-    quantity: 1,
-    unitPrice: 100,
-    devHours: 1,
-    selected: false,
-  },
-  {
-    id: 5,
-    sku: "SKU-005",
-    name: "Canal LinkedIn",
-    description: "Automatizaciones y contenidos",
-    quantity: 1,
-    unitPrice: 100,
-    devHours: 1,
-    selected: false,
-  },
+  { id: 1, sku: "SKU-001", name: "Canal WhatsApp", description: "Implementación y configuración inicial", quantity: 1, unitPrice: 100, devHours: 10, selected: false },
+  { id: 2, sku: "SKU-002", name: "Crédito WhatsApp - Calculadora", description: "Módulo de cálculo de consumos", quantity: 1, unitPrice: 100, devHours: 1, selected: false },
+  { id: 3, sku: "SKU-003", name: "Canal META", description: "Integración de campañas + tracking", quantity: 2, unitPrice: 100, devHours: 1, selected: false },
+  { id: 4, sku: "SKU-004", name: "Canal Email", description: "Plantillas y tracking básico", quantity: 1, unitPrice: 100, devHours: 1, selected: false },
+  { id: 5, sku: "SKU-005", name: "Canal LinkedIn", description: "Automatizaciones y contenidos", quantity: 1, unitPrice: 100, devHours: 1, selected: false },
 ];
 
 initSkuCounterIfNeeded(DEFAULT_ITEMS);
+
+// ---- Helpers para parsear la respuesta del endpoint sin usar `any`
+function getStringProp<T extends string>(
+  obj: unknown,
+  key: T
+): string | undefined {
+  if (typeof obj === "object" && obj !== null) {
+    const value = (obj as Record<string, unknown>)[key];
+    return typeof value === "string" ? value : undefined;
+  }
+  return undefined;
+}
 
 export default function Generator({
   isAdmin,
@@ -95,6 +62,8 @@ export default function Generator({
   const [itemFormMode, setItemFormMode] = useState<"create" | "edit">("create");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingInitial, setEditingInitial] = useState<ItemFormData | undefined>(undefined);
+
+  const [creatingDoc, setCreatingDoc] = useState(false);
 
   const handleInput =
     (setter: React.Dispatch<React.SetStateAction<string>>) =>
@@ -187,31 +156,80 @@ export default function Generator({
     setOpenSummary(true);
   };
 
-  const finalizeProposal = () => {
-    const record: ProposalRecord = {
-      id: getNextProposalId(),
-      userId,
-      userEmail,
-      createdAt: new Date().toISOString(),
-      companyName,
-      country,
-      countryId: countryIdFromName(country),
-      subsidiary,
-      subsidiaryId: subsidiaryIdFromName(subsidiary),
-      items: selectedItems.map((it) => ({
-        sku: it.sku,
-        name: it.name,
-        quantity: it.quantity,
-        unitPrice: it.unitPrice,
-        devHours: it.devHours,
-      })),
-      totalAmount,
-      totalHours,
-      oneShot: totalHours * 50,
-    };
-    saveProposal(record);
-    setOpenSummary(false);
-    onSaved(record.id);
+  const finalizeProposal = async () => {
+    setCreatingDoc(true);
+    try {
+      const record: ProposalRecord = {
+        id: getNextProposalId(),
+        userId,
+        userEmail,
+        createdAt: new Date().toISOString(),
+        companyName,
+        country,
+        countryId: countryIdFromName(country),
+        subsidiary,
+        subsidiaryId: subsidiaryIdFromName(subsidiary),
+        items: selectedItems.map((it) => ({
+          sku: it.sku,
+          name: it.name,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          devHours: it.devHours,
+        })),
+        totalAmount,
+        totalHours,
+        oneShot: totalHours * 50, // ajusta si cambia tu “valor hora”
+      };
+
+      // Llamada al endpoint que genera el Docs en el Drive del usuario
+      const res = await fetch("/api/docs/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyName: record.companyName,
+          country: record.country,
+          subsidiary: record.subsidiary,
+          items: record.items.map(({ name, quantity, unitPrice, devHours }) => ({
+            name, quantity, unitPrice, devHours,
+          })),
+          totals: {
+            monthly: record.totalAmount,
+            oneShot: record.oneShot,
+            hours: record.totalHours,
+          },
+        }),
+      });
+
+      const raw = await res.text();
+      const parsed: unknown = (() => {
+        try {
+          return JSON.parse(raw) as unknown;
+        } catch {
+          throw new Error(`Respuesta no-JSON del servidor: ${raw.slice(0, 300)}`);
+        }
+      })();
+
+      if (!res.ok) {
+        const serverErr = getStringProp(parsed, "error");
+        throw new Error(serverErr ?? JSON.stringify(parsed));
+      }
+
+      // Guardar localmente y abrir Docs
+      saveProposal(record);
+      onSaved(record.id);
+
+      const url = getStringProp(parsed, "url");
+      if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+
+      setOpenSummary(false);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Error desconocido";
+      alert(`Error creando documento: ${msg}`);
+    } finally {
+      setCreatingDoc(false);
+    }
   };
 
   const resetAll = () => {
@@ -399,11 +417,11 @@ export default function Generator({
         title="Resumen de la Propuesta"
         footer={
           <div className="flex justify-end gap-3">
-            <button className="btn-ghost" onClick={() => setOpenSummary(false)}>
+            <button className="btn-ghost" onClick={() => setOpenSummary(false)} disabled={creatingDoc}>
               Cerrar
             </button>
-            <button className="btn-primary" onClick={finalizeProposal}>
-              Generar Documento
+            <button className="btn-primary" onClick={finalizeProposal} disabled={creatingDoc}>
+              {creatingDoc ? "Generando…" : "Generar Documento"}
             </button>
           </div>
         }
