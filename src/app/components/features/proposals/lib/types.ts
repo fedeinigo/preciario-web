@@ -3,6 +3,7 @@ export type Role = "admin" | "comercial";
 export interface Item {
   id: number;
   sku: string;
+  category: string;
   name: string;
   description: string;
   quantity: number;
@@ -13,17 +14,19 @@ export interface Item {
 
 export interface StoredItem {
   sku: string;
+  category: string;
   name: string;
   quantity: number;
   unitPrice: number;
   devHours: number;
+  meta?: Record<string, string | number | boolean>;
 }
 
 export interface ProposalRecord {
-  id: string;              // PPT-#########
+  id: string;
   userId: string;
   userEmail: string;
-  createdAt: string;       // ISO
+  createdAt: string;
   companyName: string;
   country: string;
   countryId: string;
@@ -33,6 +36,7 @@ export interface ProposalRecord {
   totalAmount: number;
   totalHours: number;
   oneShot: number;
+  docUrl?: string | undefined;
 }
 
 export interface UserEntry {

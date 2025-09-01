@@ -7,6 +7,12 @@ import { countryIdFromName, subsidiaryIdFromName } from "./lib/catalogs";
 import { formatUSD } from "./lib/format";
 import type { ProposalRecord, UserEntry } from "./lib/types";
 
+const TitleBar = ({ children }: { children: React.ReactNode }) => (
+  <div className="bg-primary text-white font-semibold px-3 py-2 text-sm">
+    {children}
+  </div>
+);
+
 export default function History({
   isAdmin,
   currentEmail,
@@ -78,183 +84,185 @@ export default function History({
   ]);
 
   return (
-    <div className="p-6">
-      <div className="card border border-gray-100">
-        <h2 className="text-2xl font-bold mb-4">Histórico</h2>
+    <div className="p-4">
+      <div className="border bg-white">
+        <TitleBar>Histórico</TitleBar>
 
-        {isAdmin ? (
-          <div className="mb-4">
-            <h3 className="font-semibold mb-2">Usuarios</h3>
-            <div className="flex flex-wrap gap-2">
-              <button
-                className={`btn ${selectedUser === null ? "tab-active" : "tab-inactive"} border`}
-                onClick={() => setSelectedUser(null)}
-              >
-                Todos
-              </button>
-              {users.map((u) => (
+        <div className="p-3">
+          {isAdmin ? (
+            <div className="mb-4">
+              <h3 className="font-medium mb-2">Usuarios</h3>
+              <div className="flex flex-wrap gap-2">
                 <button
-                  key={u.email}
-                  className={`btn ${
-                    selectedUser?.email === u.email ? "tab-active" : "tab-inactive"
-                  } border`}
-                  onClick={() => setSelectedUser(u)}
-                  title={u.userId}
+                  className={`btn ${selectedUser === null ? "tab-active" : "tab-inactive"} border`}
+                  onClick={() => setSelectedUser(null)}
                 >
-                  {u.email}
-                  <span className="ml-2 text-xs text-gray-500">({u.userId})</span>
+                  Todos
                 </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="mb-4 text-sm text-gray-600">
-            Viendo histórico de <span className="font-medium">{currentEmail}</span>
-          </div>
-        )}
-
-        <div className="rounded-lg border bg-white p-3 shadow-soft mb-2">
-          <div className="grid grid-cols-7 gap-2 items-end">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">ID (PPT)</label>
-              <input
-                className="input"
-                placeholder="PPT-000000123"
-                value={filterId}
-                onChange={(e) => setFilterId(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Empresa</label>
-              <input
-                className="input"
-                placeholder="Buscar…"
-                value={filterCompany}
-                onChange={(e) => setFilterCompany(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">País</label>
-              <select
-                className="select"
-                value={filterCountry}
-                onChange={(e) => setFilterCountry(e.target.value)}
-              >
-                <option value="">Todos</option>
-                {Array.from(new Set(proposals.map((p) => p.country))).map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
+                {users.map((u) => (
+                  <button
+                    key={u.email}
+                    className={`btn ${
+                      selectedUser?.email === u.email ? "tab-active" : "tab-inactive"
+                    } border`}
+                    onClick={() => setSelectedUser(u)}
+                    title={u.userId}
+                  >
+                    {u.email}
+                    <span className="ml-2 text-xs text-gray-500">({u.userId})</span>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Filial</label>
-              <select
-                className="select"
-                value={filterSubsidiary}
-                onChange={(e) => setFilterSubsidiary(e.target.value)}
-              >
-                <option value="">Todas</option>
-                {Array.from(new Set(proposals.map((p) => p.subsidiary))).map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+          ) : (
+            <div className="mb-4 text-sm text-gray-600">
+              Viendo histórico de <span className="font-medium">{currentEmail}</span>
             </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Orden por mensual</label>
-              <select
-                className="select"
-                value={sortTotal}
-                onChange={(e) =>
-                  setSortTotal(e.target.value as "none" | "asc" | "desc")
-                }
-              >
-                <option value="none">—</option>
-                <option value="asc">Asc</option>
-                <option value="desc">Desc</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Fecha (día)</label>
-              <input
-                type="date"
-                className="input"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                className="btn-ghost"
-                onClick={() => {
-                  setFilterId("");
-                  setFilterCompany("");
-                  setFilterCountry("");
-                  setFilterSubsidiary("");
-                  setFilterDate("");
-                  setSortTotal("none");
-                }}
-              >
-                Limpiar filtros
-              </button>
+          )}
+
+          <div className="border bg-white p-3 mb-2">
+            <div className="grid grid-cols-7 gap-2 items-end">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">ID (PPT)</label>
+                <input
+                  className="input"
+                  placeholder="PPT-000000123"
+                  value={filterId}
+                  onChange={(e) => setFilterId(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Empresa</label>
+                <input
+                  className="input"
+                  placeholder="Buscar…"
+                  value={filterCompany}
+                  onChange={(e) => setFilterCompany(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">País</label>
+                <select
+                  className="select"
+                  value={filterCountry}
+                  onChange={(e) => setFilterCountry(e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  {Array.from(new Set(proposals.map((p) => p.country))).map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Filial</label>
+                <select
+                  className="select"
+                  value={filterSubsidiary}
+                  onChange={(e) => setFilterSubsidiary(e.target.value)}
+                >
+                  <option value="">Todas</option>
+                  {Array.from(new Set(proposals.map((p) => p.subsidiary))).map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Orden por mensual</label>
+                <select
+                  className="select"
+                  value={sortTotal}
+                  onChange={(e) =>
+                    setSortTotal(e.target.value as "none" | "asc" | "desc")
+                  }
+                >
+                  <option value="none">—</option>
+                  <option value="asc">Asc</option>
+                  <option value="desc">Desc</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Fecha (día)</label>
+                <input
+                  type="date"
+                  className="input"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  className="btn-ghost"
+                  onClick={() => {
+                    setFilterId("");
+                    setFilterCompany("");
+                    setFilterCountry("");
+                    setFilterSubsidiary("");
+                    setFilterDate("");
+                    setSortTotal("none");
+                  }}
+                >
+                  Limpiar filtros
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="overflow-x-auto border rounded-lg">
-          <table className="min-w-full bg-white">
-            <thead>
-              <tr>
-                <th className="table-th">ID Propuesta</th>
-                <th className="table-th">Empresa</th>
-                <th className="table-th">País</th>
-                <th className="table-th">Filial</th>
-                <th className="table-th text-right">Mensual</th>
-                <th className="table-th">Fecha</th>
-                <th className="table-th w-40 text-center">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scopeFiltered.map((p) => (
-                <tr key={p.id}>
-                  <td className="table-td">
-                    <span className="text-gray-500 font-mono">{p.id}</span>
-                  </td>
-                  <td className="table-td">{p.companyName}</td>
-                  <td className="table-td">
-                    {p.country}{" "}
-                    <span className="text-xs text-gray-500">
-                      ({countryIdFromName(p.country)})
-                    </span>
-                  </td>
-                  <td className="table-td">
-                    {p.subsidiary}{" "}
-                    <span className="text-xs text-gray-500">
-                      ({subsidiaryIdFromName(p.subsidiary)})
-                    </span>
-                  </td>
-                  <td className="table-td text-right">{formatUSD(p.totalAmount)}</td>
-                  <td className="table-td">
-                    {new Date(p.createdAt).toLocaleString()}
-                  </td>
-                  <td className="table-td text-center">
-                    <button
-                      className="btn-ghost"
-                      onClick={() => {
-                        setRedirectOpen(true);
-                        setTimeout(() => setRedirectOpen(false), 2000);
-                      }}
-                    >
-                      Ver propuesta
-                    </button>
-                  </td>
+          <div className="overflow-x-auto border">
+            <table className="min-w-full bg-white">
+              <thead>
+                <tr>
+                  <th className="table-th">ID Propuesta</th>
+                  <th className="table-th">Empresa</th>
+                  <th className="table-th">País</th>
+                  <th className="table-th">Filial</th>
+                  <th className="table-th text-right">Mensual</th>
+                  <th className="table-th">Fecha</th>
+                  <th className="table-th w-40 text-center">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {scopeFiltered.map((p) => (
+                  <tr key={p.id}>
+                    <td className="table-td">
+                      <span className="text-gray-500 font-mono">{p.id}</span>
+                    </td>
+                    <td className="table-td">{p.companyName}</td>
+                    <td className="table-td">
+                      {p.country}{" "}
+                      <span className="text-xs text-gray-500">
+                        ({countryIdFromName(p.country)})
+                      </span>
+                    </td>
+                    <td className="table-td">
+                      {p.subsidiary}{" "}
+                      <span className="text-xs text-gray-500">
+                        ({subsidiaryIdFromName(p.subsidiary)})
+                      </span>
+                    </td>
+                    <td className="table-td text-right">{formatUSD(p.totalAmount)}</td>
+                    <td className="table-td">
+                      {new Date(p.createdAt).toLocaleString()}
+                    </td>
+                    <td className="table-td text-center">
+                      <button
+                        className="btn-ghost"
+                        onClick={() => {
+                          setRedirectOpen(true);
+                          setTimeout(() => setRedirectOpen(false), 2000);
+                        }}
+                      >
+                        Ver propuesta
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 

@@ -1,43 +1,34 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import Modal from "@/app/components/ui/Modal";
 import Combobox from "@/app/components/ui/Combobox";
 import ItemForm, { ItemFormData } from "@/app/components/ui/ItemForm";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { formatUSD } from "./lib/format";
-import {
-  COUNTRY_NAMES,
-  SUBSIDIARIES,
-  countryIdFromName,
-  subsidiaryIdFromName,
-} from "./lib/catalogs";
-import { getNextSku, getNextProposalId, initSkuCounterIfNeeded } from "./lib/ids";
-import { saveProposal } from "./lib/storage";
-import type { Item, ProposalRecord } from "./lib/types";
+import { COUNTRY_NAMES, SUBSIDIARIES, countryIdFromName, subsidiaryIdFromName } from "./lib/catalogs";
+import { getNextProposalId } from "./lib/ids";
+import { saveProposal, type ProposalRecord } from "./lib/storage";
+import type { Item } from "./lib/types";
 
-const DEFAULT_ITEMS: Item[] = [
-  { id: 1, sku: "SKU-001", name: "Canal WhatsApp", description: "Implementación y configuración inicial", quantity: 1, unitPrice: 100, devHours: 10, selected: false },
-  { id: 2, sku: "SKU-002", name: "Crédito WhatsApp - Calculadora", description: "Módulo de cálculo de consumos", quantity: 1, unitPrice: 100, devHours: 1, selected: false },
-  { id: 3, sku: "SKU-003", name: "Canal META", description: "Integración de campañas + tracking", quantity: 2, unitPrice: 100, devHours: 1, selected: false },
-  { id: 4, sku: "SKU-004", name: "Canal Email", description: "Plantillas y tracking básico", quantity: 1, unitPrice: 100, devHours: 1, selected: false },
-  { id: 5, sku: "SKU-005", name: "Canal LinkedIn", description: "Automatizaciones y contenidos", quantity: 1, unitPrice: 100, devHours: 1, selected: false },
-];
+import { SEED_ITEMS, hydrate } from "./lib/items";
+import { isWppAuth, isWppMarketing, isWppUtility, isMinutesIn, isMinutesOut, isWiserPro } from "./lib/itemKinds";
+import { priceMinutes, priceWhatsApp } from "./lib/pricingClient";
 
-initSkuCounterIfNeeded(DEFAULT_ITEMS);
+import { ItemsTable } from "./components/ItemsTable";
+import { SummaryModal } from "./components/SummaryModal";
+import { WhatsAppModal, type WppKind } from "./components/WhatsAppModal";
+import { MinutesModal, type MinutesKind } from "./components/MinutesModal";
+import { WiserModal } from "./components/WiserModal";
+import { FilialesSidebar, GlossarySidebar } from "./components/Sidebars";
 
-// ---- Helpers para parsear la respuesta del endpoint sin usar `any`
-function getStringProp<T extends string>(
-  obj: unknown,
-  key: T
-): string | undefined {
-  if (typeof obj === "object" && obj !== null) {
-    const value = (obj as Record<string, unknown>)[key];
-    return typeof value === "string" ? value : undefined;
-  }
-  return undefined;
-}
+import { useFiliales } from "./hooks/useFiliales";
+import { useGlossary } from "./hooks/useGlossary";
+import { useProposalTotals } from "./hooks/useProposalTotals";
+
+/* ===== Tipos de formularios locales (UI) ===== */
+type WppForm = { qty: number; destCountry: string; subsidiary: string };
+type MinForm = { qty: number; destCountry: string; subsidiary: string };
 
 export default function Generator({
   isAdmin,
@@ -50,56 +41,79 @@ export default function Generator({
   userEmail: string;
   onSaved: (id: string) => void;
 }) {
+  // ===== Estado general
   const [companyName, setCompanyName] = useState("");
   const [country, setCountry] = useState("");
   const [subsidiary, setSubsidiary] = useState("");
+
   const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
 
-  const [items, setItems] = useState<Item[]>(DEFAULT_ITEMS);
+  const [items, setItems] = useState<Item[]>(() => SEED_ITEMS.map(hydrate));
 
+  // Sidebars (hooks)
+  const {
+    filiales,
+    addFilial,
+    editFilialTitle,
+    removeFilial,
+    addCountry,
+    editCountry,
+    removeCountry,
+  } = useFiliales();
+
+  const { glossary, addLink, editLink, removeLink } = useGlossary();
+
+  // Resumen
   const [openSummary, setOpenSummary] = useState(false);
+  const [creatingDoc, setCreatingDoc] = useState(false);
+
+  // ItemForm (crear/editar)
   const [itemFormOpen, setItemFormOpen] = useState(false);
   const [itemFormMode, setItemFormMode] = useState<"create" | "edit">("create");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingInitial, setEditingInitial] = useState<ItemFormData | undefined>(undefined);
 
-  const [creatingDoc, setCreatingDoc] = useState(false);
+  // Modales pricing + ítem/variante pendiente
+  const [pendingItemId, setPendingItemId] = useState<number | null>(null);
 
-  const handleInput =
-    (setter: React.Dispatch<React.SetStateAction<string>>) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setter(e.target.value);
+  // WhatsApp modal
+  const [openWpp, setOpenWpp] = useState(false);
+  const [wppKind, setWppKind] = useState<WppKind>("marketing");
+  const [wppForm, setWppForm] = useState<WppForm>({ qty: 0, destCountry: "", subsidiary: "" });
+  const [wppError, setWppError] = useState("");
 
+  // Minutes modal
+  const [openMin, setOpenMin] = useState(false);
+  const [minKind, setMinKind] = useState<MinutesKind>("out");
+  const [minForm, setMinForm] = useState<MinForm>({ qty: 0, destCountry: "", subsidiary: "" });
+  const [minError, setMinError] = useState("");
+
+  // Wiser modal
+  const [openWiser, setOpenWiser] = useState(false);
+
+  // ===== Filtros + Totales
   const filtered = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    return items.filter(
-      (item) =>
-        item.name.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q) ||
-        item.sku.toLowerCase().includes(q)
-    );
-  }, [items, searchTerm]);
+    return items.filter((it) => {
+      const matchesText =
+        it.name.toLowerCase().includes(q) ||
+        it.description.toLowerCase().includes(q) ||
+        it.sku.toLowerCase().includes(q);
+      const matchesCat = !categoryFilter || it.category === categoryFilter;
+      return matchesText && matchesCat;
+    });
+  }, [items, searchTerm, categoryFilter]);
 
-  const { selectedItems, totalAmount, totalHours } = useMemo(() => {
-    const sel = items.filter((i) => i.selected);
-    const totalAmt = sel.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
-    const totalHrs = sel.reduce((s, it) => s + it.devHours * it.quantity, 0);
-    return { selectedItems: sel, totalAmount: totalAmt, totalHours: totalHrs };
-  }, [items]);
+  const { selectedItems, totalAmount, totalHours } = useProposalTotals(items);
 
+  // ===== Handlers menores
   const openCreateForm = () => {
     setItemFormMode("create");
     setEditingId(null);
-    setEditingInitial({
-      sku: getNextSku(),
-      name: "",
-      description: "",
-      devHours: 1,
-      unitPrice: 100,
-    });
+    setEditingInitial({ sku: "", name: "", description: "", devHours: 1, unitPrice: 100 });
     setItemFormOpen(true);
   };
-
   const openEditForm = (it: Item) => {
     setItemFormMode("edit");
     setEditingId(it.id);
@@ -112,12 +126,12 @@ export default function Generator({
     });
     setItemFormOpen(true);
   };
-
   const handleSaveItem = (data: ItemFormData) => {
     if (itemFormMode === "create") {
-      const newItem: Item = {
+      const now: Item = {
         id: Date.now(),
-        sku: data.sku || getNextSku(),
+        sku: data.sku || "",
+        category: "Otros",
         name: data.name,
         description: data.description,
         devHours: data.devHours,
@@ -125,41 +139,37 @@ export default function Generator({
         quantity: 1,
         selected: false,
       };
-      setItems((prev) => [newItem, ...prev]);
+      setItems((prev) => [now, ...prev]);
     } else if (itemFormMode === "edit" && editingId != null) {
       setItems((prev) =>
-        prev.map((i) =>
-          i.id === editingId
-            ? {
-                ...i,
-                sku: data.sku || i.sku,
-                name: data.name,
-                description: data.description,
-                devHours: data.devHours,
-                unitPrice: data.unitPrice,
-              }
-            : i
-        )
+        prev.map((i) => (i.id === editingId ? { ...i, ...data, sku: data.sku || i.sku } : i))
       );
     }
     setItemFormOpen(false);
   };
 
+  // ===== Generación
   const generate = () => {
-    const validCountry = COUNTRY_NAMES.some(
-      (n) => n.toLowerCase() === country.toLowerCase()
-    );
-    if (selectedItems.length === 0 || !companyName || !validCountry || !subsidiary) {
-      alert("Completa empresa, país (desde la lista), filial y selecciona al menos un ítem.");
+    if (selectedItems.length === 0 || !companyName || !country || !subsidiary) {
+      alert("Completa empresa, país, filial y selecciona al menos un ítem.");
       return;
     }
     setOpenSummary(true);
+  };
+  const resetAll = () => {
+    setCompanyName("");
+    setCountry("");
+    setSubsidiary("");
+    setSearchTerm("");
+    setCategoryFilter("");
+    setItems((prev) => prev.map((i) => ({ ...i, selected: false, quantity: 1 })));
+    setOpenSummary(false);
   };
 
   const finalizeProposal = async () => {
     setCreatingDoc(true);
     try {
-      const record: ProposalRecord = {
+      const recordBase: Omit<ProposalRecord, "docUrl"> = {
         id: getNextProposalId(),
         userId,
         userEmail,
@@ -171,6 +181,7 @@ export default function Generator({
         subsidiaryId: subsidiaryIdFromName(subsidiary),
         items: selectedItems.map((it) => ({
           sku: it.sku,
+          category: it.category,
           name: it.name,
           quantity: it.quantity,
           unitPrice: it.unitPrice,
@@ -178,342 +189,277 @@ export default function Generator({
         })),
         totalAmount,
         totalHours,
-        oneShot: totalHours * 50, // ajusta si cambia tu “valor hora”
+        oneShot: totalHours * 50,
       };
 
-      // Llamada al endpoint que genera el Docs en el Drive del usuario
       const res = await fetch("/api/docs/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          companyName: record.companyName,
-          country: record.country,
-          subsidiary: record.subsidiary,
-          items: record.items.map(({ name, quantity, unitPrice, devHours }) => ({
-            name, quantity, unitPrice, devHours,
+          companyName: recordBase.companyName,
+          country: recordBase.country,
+          subsidiary: recordBase.subsidiary,
+          items: recordBase.items.map(({ name, quantity, unitPrice, devHours }) => ({
+            name,
+            quantity,
+            unitPrice,
+            devHours,
           })),
           totals: {
-            monthly: record.totalAmount,
-            oneShot: record.oneShot,
-            hours: record.totalHours,
+            monthly: recordBase.totalAmount,
+            oneShot: recordBase.oneShot,
+            hours: recordBase.totalHours,
           },
         }),
       });
 
       const raw = await res.text();
-      const parsed: unknown = (() => {
-        try {
-          return JSON.parse(raw) as unknown;
-        } catch {
-          throw new Error(`Respuesta no-JSON del servidor: ${raw.slice(0, 300)}`);
-        }
-      })();
+      const parsed = JSON.parse(raw) as { url?: string; error?: string };
+      if (!res.ok) throw new Error(parsed.error ?? raw);
 
-      if (!res.ok) {
-        const serverErr = getStringProp(parsed, "error");
-        throw new Error(serverErr ?? JSON.stringify(parsed));
-      }
-
-      // Guardar localmente y abrir Docs
+      const record: ProposalRecord = { ...recordBase, docUrl: parsed.url };
       saveProposal(record);
       onSaved(record.id);
-
-      const url = getStringProp(parsed, "url");
-      if (url) {
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
-
       setOpenSummary(false);
+      if (parsed.url) window.open(parsed.url, "_blank", "noopener,noreferrer");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Error desconocido";
-      alert(`Error creando documento: ${msg}`);
+      alert(`Error creando documento: ${e instanceof Error ? e.message : "Error desconocido"}`);
     } finally {
       setCreatingDoc(false);
     }
   };
 
-  const resetAll = () => {
-    setCompanyName("");
-    setCountry("");
-    setSubsidiary("");
-    setSearchTerm("");
-    setItems((prev) => prev.map((i) => ({ ...i, selected: false })));
-    setOpenSummary(false);
+  // ===== Toggle de ítems especiales
+  const handleToggleItem = (item: Item, checked: boolean) => {
+    if (!checked) {
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, selected: false } : i)));
+      return;
+    }
+
+    // WhatsApp
+    if (isWppUtility(item.name) || isWppMarketing(item.name) || isWppAuth(item.name)) {
+      setPendingItemId(item.id);
+      setWppForm({ qty: 0, destCountry: country || "", subsidiary: subsidiary || "" });
+      setWppError("");
+      setWppKind(isWppUtility(item.name) ? "utility" : isWppMarketing(item.name) ? "marketing" : "auth");
+      setOpenWpp(true);
+      return;
+    }
+
+    // Minutos
+    if (isMinutesOut(item.name) || isMinutesIn(item.name)) {
+      setPendingItemId(item.id);
+      setMinForm({ qty: 0, destCountry: country || "", subsidiary: subsidiary || "" });
+      setMinError("");
+      setMinKind(isMinutesOut(item.name) ? "out" : "in");
+      setOpenMin(true);
+      return;
+    }
+
+    // Wiser
+    if (isWiserPro(item.name)) {
+      setPendingItemId(item.id);
+      setOpenWiser(true);
+      return;
+    }
+
+    // Comunes
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, selected: true } : i)));
   };
 
+  // ===== Aplicar pricing
+  const applyWhatsApp = async () => {
+    if (!pendingItemId) return;
+    try {
+      setWppError("");
+      const data = await priceWhatsApp({
+        subsidiary: wppForm.subsidiary || subsidiary,
+        destCountry: wppForm.destCountry || country,
+        kind: wppKind,
+        qty: Number(wppForm.qty) || 0,
+      });
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === pendingItemId
+            ? { ...i, selected: true, quantity: data.totalQty, unitPrice: data.unitPrice, devHours: 0 }
+            : i
+        )
+      );
+      setOpenWpp(false);
+      setPendingItemId(null);
+    } catch (e) {
+      setWppError(e instanceof Error ? e.message : "Error");
+    }
+  };
+
+  const applyMinutes = async () => {
+    if (!pendingItemId) return;
+    try {
+      setMinError("");
+      const data = await priceMinutes({
+        subsidiary: minForm.subsidiary || subsidiary,
+        destCountry: minForm.destCountry || country,
+        kind: minKind,
+        qty: Number(minForm.qty) || 0,
+      });
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === pendingItemId
+            ? { ...i, selected: true, quantity: data.totalQty, unitPrice: data.unitPrice, devHours: 0 }
+            : i
+        )
+      );
+      setOpenMin(false);
+      setPendingItemId(null);
+    } catch (e) {
+      setMinError(e instanceof Error ? e.message : "Error");
+    }
+  };
+
+  const applyWiser = () => {
+    if (!pendingItemId) return;
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === pendingItemId ? { ...i, selected: true, quantity: 1, unitPrice: 0, devHours: 0 } : i
+      )
+    );
+    setOpenWiser(false);
+    setPendingItemId(null);
+  };
+
+  // ===== Render
   return (
     <div className="p-6">
-      <div className="card border border-gray-100">
-        <h2 className="text-2xl font-bold mb-6">Generador de Propuestas</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <input
-            className="input"
-            placeholder="Nombre de la empresa"
-            value={companyName}
-            onChange={handleInput(setCompanyName)}
+      <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)_280px] gap-6">
+        {/* Left */}
+        <aside className="hidden xl:block">
+          <FilialesSidebar
+            isAdmin={isAdmin}
+            filiales={filiales}
+            addFilial={addFilial}
+            editFilialTitle={editFilialTitle}
+            removeFilial={removeFilial}
+            addCountry={addCountry}
+            editCountry={editCountry}
+            removeCountry={removeCountry}
           />
-          <Combobox
-            options={COUNTRY_NAMES}
-            value={country}
-            onChange={setCountry}
-            placeholder="Seleccione un país"
-          />
-          <select
-            className="select"
-            value={subsidiary}
-            onChange={handleInput(setSubsidiary)}
-          >
-            <option value="">Seleccione una filial</option>
-            {SUBSIDIARIES.map((s) => (
-              <option key={s.id} value={s.name}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        </aside>
 
-        <div className="flex flex-wrap gap-3 mb-6">
-          <button onClick={generate} className="btn-primary">
-            Generar Propuesta
-          </button>
-          <button onClick={resetAll} className="btn-ghost">
-            Resetear
-          </button>
-        </div>
+        {/* Center */}
+        <section>
+          <div className="card border">
+            <div className="bg-primary text-white font-semibold px-3 py-2 text-sm mb-4">Generador de Propuestas</div>
 
-        <div className="flex items-center gap-3 mb-3">
-          <input
-            className="input"
-            placeholder="Escriba para filtrar ítems… (por nombre, descripción o SKU)"
-            value={searchTerm}
-            onChange={handleInput(setSearchTerm)}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <input className="input" placeholder="Nombre de la empresa" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+              <Combobox options={COUNTRY_NAMES} value={country} onChange={setCountry} placeholder="Seleccione un país" />
+              <select className="select" value={subsidiary} onChange={(e) => setSubsidiary(e.target.value)}>
+                <option value="">Seleccione una filial</option>
+                {SUBSIDIARIES.map((s) => (<option key={s.id} value={s.name}>{s.name}</option>))}
+              </select>
+            </div>
+
+            <div className="flex flex-wrap gap-3 mb-4">
+              <button onClick={generate} className="btn-primary">Generar Propuesta</button>
+              <button onClick={resetAll} className="btn-ghost">Resetear</button>
+            </div>
+
+            <div className="flex flex-wrap gap-3 mb-3">
+              <select className="select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                <option value="">Todas las categorías</option>
+                {Array.from(new Set(items.map((i) => i.category))).map((c) => (<option key={c} value={c}>{c}</option>))}
+              </select>
+
+              <input className="input min-w-[260px]" placeholder="Filtrar por texto (nombre, descripción o SKU)" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+
+              {isAdmin && (
+                <button onClick={openCreateForm} className="btn-ghost">
+                  <Plus className="mr-2 h-4 w-4" /> Agregar ítem
+                </button>
+              )}
+            </div>
+
+            <ItemsTable
+              items={useMemo(() => filtered, [filtered])}
+              isAdmin={isAdmin}
+              onToggle={handleToggleItem}
+              onChangeQty={(item, qty) =>
+                setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, quantity: qty } : i)))
+              }
+              onEdit={openEditForm}
+              onDelete={(item) => setItems((prev) => prev.filter((i) => i.id !== item.id))}
+            />
+
+            <div className="mt-3 flex justify-end">
+              <div className="rounded-sm border bg-white px-5 py-3 shadow-soft text-right">
+                <div className="text-sm text-gray-500">Total mensual</div>
+                <div className="text-[22px] font-semibold text-primary">{formatUSD(totalAmount)}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Modales */}
+          <SummaryModal
+            open={openSummary}
+            creating={creatingDoc}
+            onClose={() => setOpenSummary(false)}
+            onGenerate={finalizeProposal}
+            companyName={companyName}
+            country={country}
+            subsidiary={subsidiary}
+            selectedItems={selectedItems}
+            totalHours={totalHours}
+            totalAmount={totalAmount}
           />
+
+          <WhatsAppModal
+            open={openWpp}
+            kind={wppKind}
+            form={wppForm}
+            onChange={(n) => setWppForm((p) => ({ ...p, ...n }))}
+            onApply={applyWhatsApp}
+            onClose={() => { setOpenWpp(false); setPendingItemId(null); }}
+            error={wppError}
+          />
+
+          <MinutesModal
+            open={openMin}
+            kind={minKind}
+            form={minForm}
+            onChange={(n) => setMinForm((p) => ({ ...p, ...n }))}
+            onApply={applyMinutes}
+            onClose={() => { setOpenMin(false); setPendingItemId(null); }}
+            error={minError}
+          />
+
+          <WiserModal
+            open={openWiser}
+            onConfirm={applyWiser}
+            onClose={() => { setOpenWiser(false); setPendingItemId(null); }}
+          />
+
           {isAdmin && (
-            <button onClick={openCreateForm} className="btn-ghost">
-              <Plus className="mr-2 h-4 w-4" /> Agregar ítem
-            </button>
+            <ItemForm
+              open={itemFormOpen}
+              mode={itemFormMode}
+              initial={editingInitial}
+              onClose={() => setItemFormOpen(false)}
+              onSave={handleSaveItem}
+            />
           )}
-        </div>
+        </section>
 
-        <div className="overflow-x-auto border border-gray-200 rounded-lg">
-          <table className="min-w-full bg-white">
-            <thead>
-              <tr>
-                <th className="table-th w-16 text-center">Sel.</th>
-                <th className="table-th w-32">SKU</th>
-                <th className="table-th">Nombre del ítem</th>
-                <th className="table-th">Descripción</th>
-                <th className="table-th w-36 text-center">Horas</th>
-                <th className="table-th w-36 text-center">Cantidad</th>
-                <th className="table-th w-40 text-center">Precio (US$)</th>
-                <th className="table-th w-32 text-center">Subtotal</th>
-                {isAdmin && <th className="table-th w-24 text-center">Acciones</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((item) => (
-                <tr key={item.id} className="odd:bg-primarySoft/40">
-                  <td className="table-td text-center">
-                    <input
-                      type="checkbox"
-                      className="h-5 w-5 accent-primary cursor-pointer"
-                      checked={item.selected}
-                      onChange={(e) =>
-                        setItems((prev) =>
-                          prev.map((i) =>
-                            i.id === item.id ? { ...i, selected: e.target.checked } : i
-                          )
-                        )
-                      }
-                    />
-                  </td>
-                  <td className="table-td">
-                    <span className="text-xs text-gray-500 font-mono">{item.sku}</span>
-                  </td>
-                  <td className="table-td">
-                    <div className="py-2">{item.name}</div>
-                  </td>
-                  <td className="table-td">
-                    <div className="py-2 text-gray-700">{item.description}</div>
-                  </td>
-                  <td className="table-td text-center">
-                    <div className="py-2">{item.devHours}</div>
-                  </td>
-                  <td className="table-td text-center">
-                    <input
-                      type="number"
-                      min={1}
-                      className="input text-center"
-                      value={item.quantity}
-                      onChange={(e) =>
-                        setItems((prev) =>
-                          prev.map((i) =>
-                            i.id === item.id
-                              ? { ...i, quantity: Number(e.target.value) }
-                              : i
-                          )
-                        )
-                      }
-                    />
-                  </td>
-                  <td className="table-td text-center">
-                    <div className="py-2">{formatUSD(item.unitPrice)}</div>
-                  </td>
-                  <td className="table-td text-center font-semibold">
-                    {formatUSD(item.quantity * item.unitPrice)}
-                  </td>
-                  {isAdmin && (
-                    <td className="table-td text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          className="btn-ghost"
-                          title="Editar"
-                          onClick={() => openEditForm(item)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          className="btn-ghost"
-                          title="Eliminar"
-                          onClick={() =>
-                            setItems((prev) => prev.filter((i) => i.id !== item.id))
-                          }
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="mt-3 flex justify-end">
-          <div className="rounded-lg border bg-white px-5 py-3 shadow-soft text-right">
-            <div className="text-sm text-gray-500">Total mensual</div>
-            <div className="text-2xl font-extrabold text-primary">
-              {formatUSD(totalAmount)}
-            </div>
-          </div>
-        </div>
+        {/* Right */}
+        <aside className="hidden xl:block">
+          <GlossarySidebar
+            isAdmin={isAdmin}
+            glossary={glossary}
+            addLink={addLink}
+            editLink={editLink}
+            removeLink={removeLink}
+          />
+        </aside>
       </div>
-
-      {isAdmin && (
-        <ItemForm
-          open={itemFormOpen}
-          mode={itemFormMode}
-          initial={editingInitial}
-          onClose={() => setItemFormOpen(false)}
-          onSave={handleSaveItem}
-        />
-      )}
-
-      <Modal
-        open={openSummary}
-        onClose={() => setOpenSummary(false)}
-        title="Resumen de la Propuesta"
-        footer={
-          <div className="flex justify-end gap-3">
-            <button className="btn-ghost" onClick={() => setOpenSummary(false)} disabled={creatingDoc}>
-              Cerrar
-            </button>
-            <button className="btn-primary" onClick={finalizeProposal} disabled={creatingDoc}>
-              {creatingDoc ? "Generando…" : "Generar Documento"}
-            </button>
-          </div>
-        }
-      >
-        <div className="mb-6">
-          <h4 className="font-semibold mb-3">Información General</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <InfoCard label="Empresa" value={companyName} />
-            <InfoCard
-              label="País"
-              value={
-                <>
-                  {country}{" "}
-                  <span className="text-xs text-gray-500">
-                    ({countryIdFromName(country)})
-                  </span>
-                </>
-              }
-            />
-            <InfoCard
-              label="Filial"
-              value={
-                <>
-                  {subsidiary}{" "}
-                  <span className="text-xs text-gray-500">
-                    ({subsidiaryIdFromName(subsidiary)})
-                  </span>
-                </>
-              }
-            />
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <h4 className="font-semibold mb-3">Ítems Seleccionados</h4>
-          <div className="overflow-x-auto border border-gray-200 rounded-lg">
-            <table className="min-w-full bg-white">
-              <thead>
-                <tr>
-                  <th className="table-th">SKU</th>
-                  <th className="table-th">Ítem</th>
-                  <th className="table-th w-24 text-center">Horas</th>
-                  <th className="table-th w-24 text-center">Cantidad</th>
-                  <th className="table-th w-36 text-center">Precio Unit. (US$)</th>
-                  <th className="table-th w-32 text-center">Subtotal (US$)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedItems.map((it) => (
-                  <tr key={it.id}>
-                    <td className="table-td">
-                      <span className="text-gray-500 font-mono text-xs">{it.sku}</span>
-                    </td>
-                    <td className="table-td">{it.name}</td>
-                    <td className="table-td text-center">{it.devHours}</td>
-                    <td className="table-td text-center">{it.quantity}</td>
-                    <td className="table-td text-center">{formatUSD(it.unitPrice)}</td>
-                    <td className="table-td text-center font-semibold">
-                      {formatUSD(it.quantity * it.unitPrice)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-3 flex flex-col sm:flex-row sm:items-stretch sm:justify-between gap-3">
-            <div className="flex gap-3">
-              <TotalCard label="Horas de desarrollo" value={String(totalHours)} />
-              <TotalCard label="Total OneShot" value={formatUSD(totalHours * 50)} />
-            </div>
-            <TotalCard label="Total mensual" value={formatUSD(totalAmount)} />
-          </div>
-        </div>
-      </Modal>
-    </div>
-  );
-}
-
-function InfoCard({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border bg-white px-4 py-3 shadow-soft">
-      <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
-      <div className="text-base font-semibold text-gray-900 truncate">{value}</div>
-    </div>
-  );
-}
-function TotalCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border bg-white px-5 py-3 shadow-soft text-right">
-      <div className="text-sm text-gray-500">{label}</div>
-      <div className="text-2xl font-extrabold text-primary">{value}</div>
     </div>
   );
 }

@@ -1,22 +1,11 @@
 // src/app/page.tsx
+import ProposalApp from "@/app/components/features/proposals";
 
-import Navbar from "@/app/components/Navbar";
-import Footer from "@/app/components/Footer";
-import { Card } from "@/app/components/ui/card";
-
-// 👇 importamos el feature (tiene default export)
-import ProposalsFeature from "@/app/components/features/proposals";
-
-export default function Home() {
+export default function HomePage() {
+  // Ancho completo; solo un padding lateral mínimo para respiración
   return (
-    <>
-      <Navbar />
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <Card className="p-0">
-          <ProposalsFeature />
-        </Card>
-      </main>
-      <Footer />
-    </>
+    <div className="w-full px-2 md:px-4">
+      <ProposalApp />
+    </div>
   );
 }

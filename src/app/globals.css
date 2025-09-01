@@ -2,21 +2,148 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Tokens base */
-:root { --color-primary: #3c038c; }
+/* ================================
+   BASE THEME — sobrio y rectangular
+   ================================ */
+@layer base {
+  :root {
+    /* Paleta neutral sobria */
+    --bg: 246 246 247;       /* #F6F6F7 */
+    --paper: 255 255 255;    /* #FFFFFF */
+    --ink: 17 24 39;         /* slate-900 */
+    --muted: 107 114 128;    /* slate-500 */
+    --border: 226 232 240;   /* slate-200 */
+    --primary: 55 65 81;     /* slate-700 */
+    --primary-ink: 255 255 255;
+    --primary-soft: 243 244 246;  /* slate-100 */
 
-/* Fondo + tipografía global */
-body { @apply bg-gray-100 text-gray-800 antialiased; }
+    /* Sombra sutil */
+    --shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 20px rgba(15, 23, 42, 0.04);
 
-/* Helpers de UI */
-.card { @apply bg-white shadow-soft rounded-xl p-6; }
-.btn { @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition; }
-.btn-primary { @apply btn text-white bg-primary hover:bg-primaryDark; }
-.btn-ghost { @apply btn bg-white border border-gray-200 hover:bg-gray-50; }
-.input { @apply w-full bg-white border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary; }
-.select { @apply input; }
-.tab { @apply px-6 py-2 rounded-t-lg font-medium border border-b-0; }
-.tab-active { @apply bg-white text-primary border-gray-200; }
-.tab-inactive { @apply bg-transparent text-gray-600 border-transparent hover:text-primary; }
-.table-th { @apply text-left text-gray-600 text-sm font-semibold px-4 py-2 bg-gray-50; }
-.table-td { @apply border-t px-4 py-2; }
+    /* Radio más rectangular */
+    --radius: 6px;
+
+    /* Tamaños tipográficos discretos */
+    --fs-h1: 22px;
+    --fs-h2: 18px;
+    --fs-h3: 15px;
+    --fs-body: 14px;
+    --fs-xs: 12px;
+
+    /* Altos de línea */
+    --lh-tight: 1.2;
+    --lh-body: 1.5;
+  }
+
+  html, body {
+    @apply bg-[rgb(var(--bg))] text-[rgb(var(--ink))];
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+  }
+
+  h1 { font-size: var(--fs-h1); line-height: var(--lh-tight); font-weight: 700; }
+  h2 { font-size: var(--fs-h2); line-height: var(--lh-tight); font-weight: 700; }
+  h3 { font-size: var(--fs-h3); line-height: var(--lh-tight); font-weight: 600; }
+
+  /* Scrollbar sobrio (opcional) */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: rgb(var(--border)); border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+}
+
+/* ================================
+   COMPONENTS — redefinimos tus utilidades
+   ================================ */
+@layer components {
+  /* Tarjetas y contenedores */
+  .card {
+    @apply bg-[rgb(var(--paper))] border border-[rgb(var(--border))]
+           rounded-[var(--radius)] shadow-[var(--shadow)]
+           px-4 py-3; /* más compacto */
+  }
+  .shadow-soft { box-shadow: var(--shadow); }
+
+  /* Inputs/selects */
+  .input, .select, .textarea {
+    @apply w-full bg-white border border-[rgb(var(--border))]
+           rounded-[var(--radius)] px-3 py-2
+           text-[13.5px] placeholder:text-[rgb(var(--muted))]
+           outline-none;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .input:focus, .select:focus, .textarea:focus {
+    @apply border-[rgb(var(--primary))] ring-1 ring-[rgb(var(--primary))];
+    box-shadow: 0 0 0 3px rgba(55, 65, 81, .12);
+  }
+
+  /* Botones */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2
+           rounded-[var(--radius)] border border-[rgb(var(--border))]
+           px-3 py-2 text-[13.5px] font-medium select-none;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+  }
+  .btn-primary {
+    @apply btn bg-[rgb(var(--primary))] text-[rgb(var(--primary-ink))] border-transparent;
+  }
+  .btn-primary:hover { filter: brightness(0.95); }
+  .btn-ghost {
+    @apply btn bg-white text-[rgb(var(--ink))];
+  }
+  .btn-ghost:hover { @apply border-[rgb(var(--ink))]; }
+
+  /* Tabs */
+  .tab {
+    @apply inline-flex items-center gap-2 px-3 py-2 rounded-[var(--radius)]
+           border text-[13.5px];
+  }
+  .tab-active {
+    @apply bg-[rgb(var(--primary))] text-[rgb(var(--primary-ink))] border-transparent;
+  }
+  .tab-inactive {
+    @apply bg-white text-[rgb(var(--ink))] border-[rgb(var(--border))];
+  }
+
+  /* Tabla */
+  .table-th {
+    @apply text-left text-[12px] uppercase tracking-wide text-[rgb(var(--muted))]
+           bg-[rgb(var(--primary-soft))] border-b border-[rgb(var(--border))]
+           px-3 py-2;
+  }
+  .table-td {
+    @apply px-3 py-2 border-b border-[rgb(var(--border))] align-middle;
+  }
+
+  /* Navbar */
+  .navbar {
+    @apply w-full bg-[rgb(var(--primary))] text-[rgb(var(--primary-ink))];
+  }
+  .navbar-inner {
+    @apply max-w-7xl mx-auto px-4 h-12 flex items-center justify-between; /* menor altura */
+  }
+
+  /* Footer */
+  .footer {
+    @apply w-full bg-[rgb(var(--primary))] text-[rgb(var(--primary-ink))];
+  }
+  .footer-inner {
+    @apply max-w-6xl mx-auto px-4 py-3 text-[13px] flex flex-col sm:flex-row items-center justify-between gap-2;
+  }
+
+  /* Modal (si tu componente usa estos hooks/clases) */
+  .modal-panel {
+    @apply bg-white rounded-[var(--radius)] border border-[rgb(var(--border))]
+           shadow-[var(--shadow)] p-4 w-full max-w-lg; /* tamaño contenido */
+  }
+}
+
+/* ================================
+   UTILIDADES FINAS (opcionales)
+   ================================ */
+@layer utilities {
+  .text-muted { color: rgb(var(--muted)); }
+  .chip {
+    @apply inline-flex items-center rounded-[var(--radius)]
+           bg-[rgb(var(--primary-soft))] text-[12px] px-2 py-1;
+  }
+}

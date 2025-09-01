@@ -16,7 +16,8 @@ export default function ProposalApp() {
   const { data: session, status } = useSession();
   const loading = status === "loading";
 
-  const role = (session?.user?.role as "admin" | "comercial" | undefined) ?? "comercial";
+  const role =
+    (session?.user?.role as "admin" | "comercial" | undefined) ?? "comercial";
   const isAdmin = role === "admin";
   const userId = (session?.user?.id as string) || "";
   const userEmail = session?.user?.email || "";
@@ -33,27 +34,32 @@ export default function ProposalApp() {
   if (!session) return <AuthLoginCard />;
 
   return (
-    <div className="bg-gray-100 rounded-xl">
+    // 🔁 Quitamos el contenedor estrecho y el borde redondeado;
+    //     hacemos que ocupe todo el ancho y altura disponible.
+    <div className="w-full min-h-[calc(100vh-56px)] bg-gray-100">
       <NavbarTabs active={activeTab} onChange={setActiveTab} showUsers={isAdmin} />
 
-      {activeTab === "generator" && (
-        <Generator
-          isAdmin={isAdmin}
-          userId={userId}
-          userEmail={userEmail}
-          onSaved={() => { /* toast modal ya lo maneja internamente si lo usás */ }}
-        />
-      )}
+      {/* Un padding horizontal discreto a todo el contenido */}
+      <div className="px-6 pb-8">
+        {activeTab === "generator" && (
+          <Generator
+            isAdmin={isAdmin}
+            userId={userId}
+            userEmail={userEmail}
+            onSaved={() => {}}
+          />
+        )}
 
-      {activeTab === "history" && (
-        <History isAdmin={isAdmin} currentEmail={userEmail} />
-      )}
+        {activeTab === "history" && (
+          <History isAdmin={isAdmin} currentEmail={userEmail} />
+        )}
 
-      {activeTab === "stats" && (
-        <Stats isAdmin={isAdmin} currentEmail={userEmail} />
-      )}
+        {activeTab === "stats" && (
+          <Stats isAdmin={isAdmin} currentEmail={userEmail} />
+        )}
 
-      {activeTab === "users" && isAdmin && <Users />}
+        {activeTab === "users" && isAdmin && <Users />}
+      </div>
     </div>
   );
 }
