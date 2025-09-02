@@ -1,67 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
 import { signIn } from "next-auth/react";
 
 export default function AuthLoginCard() {
-  const [email, setEmail] = useState("");
-  const [pass, setPass]   = useState("");
-  const [err, setErr]     = useState<string|null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setErr(null);
-    setLoading(true);
-    const res = await signIn("credentials", {
-      email,
-      password: pass,
-      redirect: false,
-    });
-    setLoading(false);
-    if (!res?.ok) setErr("Credenciales inválidas. (pass demo: 1234)");
-  }
-
   return (
-    <div className="p-6">
-      <div className="card max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold text-center mb-2">Bienvenido a Wise CX</h1>
-        <p className="text-center text-gray-600 mb-6">
-          Inicia sesión para generar propuestas.
-        </p>
+    // Fondo degradado y tamaño exacto: alto de la ventana menos navbar+footer
+    <div className="hero-bg min-h-[calc(100vh-var(--nav-h)-var(--footer-h))] w-full flex items-center justify-center px-4 py-10">
+      <div className="auth-card w-full rounded-2xl border border-black/10 bg-[#2f3640] text-white shadow-xl shadow-black/20">
+        {/* Header oscuro */}
+        <div className="px-8 pt-8 text-center">
+          <Image
+            src="/logo.png"               // tu logo en /public/logo.png
+            alt="Wise CX"
+            width={160}
+            height={40}
+            className="auth-logo mx-auto mb-3 h-auto w-[180px] max-w-[60vw]"
+            priority
+          />
+          <h1 className="text-xl font-extrabold">Bienvenido al Preciario Web</h1>
+          <p className="mt-1 text-sm text-white/85">
+            Inicia sesión para generar propuestas.
+          </p>
+        </div>
 
-        <div className="max-w-md mx-auto grid gap-3">
+        {/* Acción */}
+        <div className="px-8 pt-6 pb-7">
           <button
-            onClick={() => signIn("google")}
-            className="btn-ghost w-full"
+            onClick={() => signIn("google", { callbackUrl: "/" })}
+            className="w-full rounded-lg border border-white/15 bg-white text-[15px] font-medium text-gray-800 hover:bg-white/95 transition inline-flex items-center justify-center gap-2 px-4 py-3"
           >
+            <Image
+              src="/google-logo.png"       // pon el archivo en /public/google-logo.png
+              alt="Google"
+              width={18}
+              height={18}
+              className="google-logo"
+            />
             Continuar con Google
           </button>
 
-          <div className="relative my-2 text-center text-xs text-gray-500">— o —</div>
-
-          <form onSubmit={handleSubmit} className="grid gap-3">
-            <input
-              className="input"
-              type="email"
-              placeholder='Correo (admin: "admin@wisecx.com")'
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <input
-              className="input"
-              type="password"
-              placeholder='Contraseña (demo: "1234")'
-              value={pass}
-              onChange={(e) => setPass(e.target.value)}
-              required
-            />
-            {err && <div className="text-red-600 text-sm">{err}</div>}
-            <button type="submit" className="btn-primary w-full" disabled={loading}>
-              {loading ? "Ingresando…" : "Iniciar sesión"}
-            </button>
-          </form>
+          <p className="mt-3 text-center text-[12px] text-white/80">
+            Al continuar aceptas las políticas internas de Wise CX.
+          </p>
         </div>
       </div>
     </div>

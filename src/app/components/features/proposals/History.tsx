@@ -7,19 +7,18 @@ import { countryIdFromName, subsidiaryIdFromName } from "./lib/catalogs";
 import { formatUSD } from "./lib/format";
 import type { ProposalRecord, UserEntry } from "./lib/types";
 
+interface HistoryProps {
+  isAdmin: boolean;
+  currentEmail: string;
+}
+
 const TitleBar = ({ children }: { children: React.ReactNode }) => (
   <div className="bg-primary text-white font-semibold px-3 py-2 text-sm">
     {children}
   </div>
 );
 
-export default function History({
-  isAdmin,
-  currentEmail,
-}: {
-  isAdmin: boolean;
-  currentEmail: string;
-}) {
+export default function History({ isAdmin, currentEmail }: HistoryProps) {
   const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [users, setUsers] = useState<UserEntry[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserEntry | null>(null);
@@ -41,18 +40,10 @@ export default function History({
   const scopeFiltered = useMemo(() => {
     return proposals
       .filter((p) =>
-        isAdmin
-          ? selectedUser
-            ? p.userEmail === selectedUser.email
-            : true
-          : p.userEmail === currentEmail
+        isAdmin ? (selectedUser ? p.userEmail === selectedUser.email : true) : p.userEmail === currentEmail
       )
       .filter((p) => !filterId || p.id.toLowerCase().includes(filterId.toLowerCase()))
-      .filter(
-        (p) =>
-          !filterCompany ||
-          p.companyName.toLowerCase().includes(filterCompany.toLowerCase())
-      )
+      .filter((p) => !filterCompany || p.companyName.toLowerCase().includes(filterCompany.toLowerCase()))
       .filter((p) => !filterCountry || p.country === filterCountry)
       .filter((p) => !filterSubsidiary || p.subsidiary === filterSubsidiary)
       .filter((p) => {
@@ -83,6 +74,10 @@ export default function History({
     sortTotal,
   ]);
 
+  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSortTotal(e.target.value as "none" | "asc" | "desc");
+  };
+
   return (
     <div className="p-4">
       <div className="border bg-white">
@@ -102,9 +97,7 @@ export default function History({
                 {users.map((u) => (
                   <button
                     key={u.email}
-                    className={`btn ${
-                      selectedUser?.email === u.email ? "tab-active" : "tab-inactive"
-                    } border`}
+                    className={`btn ${selectedUser?.email === u.email ? "tab-active" : "tab-inactive"} border`}
                     onClick={() => setSelectedUser(u)}
                     title={u.userId}
                   >
@@ -142,11 +135,7 @@ export default function History({
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">País</label>
-                <select
-                  className="select"
-                  value={filterCountry}
-                  onChange={(e) => setFilterCountry(e.target.value)}
-                >
+                <select className="select" value={filterCountry} onChange={(e) => setFilterCountry(e.target.value)}>
                   <option value="">Todos</option>
                   {Array.from(new Set(proposals.map((p) => p.country))).map((c) => (
                     <option key={c} value={c}>
@@ -172,13 +161,7 @@ export default function History({
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Orden por mensual</label>
-                <select
-                  className="select"
-                  value={sortTotal}
-                  onChange={(e) =>
-                    setSortTotal(e.target.value as "none" | "asc" | "desc")
-                  }
-                >
+                <select className="select" value={sortTotal} onChange={handleSortChange}>
                   <option value="none">—</option>
                   <option value="asc">Asc</option>
                   <option value="desc">Desc</option>
@@ -186,12 +169,7 @@ export default function History({
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Fecha (día)</label>
-                <input
-                  type="date"
-                  className="input"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                />
+                <input type="date" className="input" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
               </div>
               <div className="flex items-end">
                 <button
@@ -232,21 +210,14 @@ export default function History({
                     </td>
                     <td className="table-td">{p.companyName}</td>
                     <td className="table-td">
-                      {p.country}{" "}
-                      <span className="text-xs text-gray-500">
-                        ({countryIdFromName(p.country)})
-                      </span>
+                      {p.country} <span className="text-xs text-gray-500">({countryIdFromName(p.country)})</span>
                     </td>
                     <td className="table-td">
                       {p.subsidiary}{" "}
-                      <span className="text-xs text-gray-500">
-                        ({subsidiaryIdFromName(p.subsidiary)})
-                      </span>
+                      <span className="text-xs text-gray-500">({subsidiaryIdFromName(p.subsidiary)})</span>
                     </td>
                     <td className="table-td text-right">{formatUSD(p.totalAmount)}</td>
-                    <td className="table-td">
-                      {new Date(p.createdAt).toLocaleString()}
-                    </td>
+                    <td className="table-td">{new Date(p.createdAt).toLocaleString()}</td>
                     <td className="table-td text-center">
                       <button
                         className="btn-ghost"
@@ -266,12 +237,7 @@ export default function History({
         </div>
       </div>
 
-      <Modal
-        open={redirectOpen}
-        onClose={() => setRedirectOpen(false)}
-        title="Redireccionando"
-        footer={null}
-      >
+      <Modal open={redirectOpen} onClose={() => setRedirectOpen(false)} title="Redireccionando" footer={null}>
         <p className="text-gray-700">Estás siendo redireccionado a la propuesta…</p>
       </Modal>
     </div>

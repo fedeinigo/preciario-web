@@ -1,11 +1,10 @@
 // src/app/page.tsx
+"use client";
+
 import ProposalApp from "@/app/components/features/proposals";
 
 export default function HomePage() {
-  // Ancho completo; solo un padding lateral mínimo para respiración
-  return (
-    <div className="w-full px-2 md:px-4">
-      <ProposalApp />
-    </div>
-  );
+  // ESTA página NO monta Navbar ni Footer.
+  // Navbar y Footer ya vienen desde layout.tsx.
+  return <ProposalApp />;
 }

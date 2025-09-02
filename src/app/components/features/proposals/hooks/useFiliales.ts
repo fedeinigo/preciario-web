@@ -1,9 +1,8 @@
+// src/app/components/features/proposals/hooks/useFiliales.ts
+"use client";
+
 import { useEffect, useState } from "react";
-import {
-  readFiliales,
-  saveFiliales,
-  type FilialGroup,
-} from "../lib/storage";
+import { readFiliales, saveFiliales, type FilialGroup } from "../lib/storage";
 
 export function useFiliales() {
   const [filiales, setFiliales] = useState<FilialGroup[]>([]);
@@ -12,61 +11,55 @@ export function useFiliales() {
     setFiliales(readFiliales());
   }, []);
 
-  const addFilial = () => {
-    const title = prompt("Nombre de la filial");
-    if (!title) return;
-    const n: FilialGroup = { id: `F-${Date.now()}`, title: title.trim(), countries: [] };
-    const list = [n, ...filiales];
+  const persist = (list: FilialGroup[]) => {
     setFiliales(list);
     saveFiliales(list);
   };
 
-  const editFilialTitle = (id: string) => {
-    const cur = filiales.find((f) => f.id === id);
-    if (!cur) return;
-    const title = prompt("Editar nombre de la filial", cur.title);
+  const addFilial = () => {
+    const title = window.prompt("Nombre de la filial");
     if (!title) return;
-    const list = filiales.map((f) => (f.id === id ? { ...f, title: title.trim() } : f));
-    setFiliales(list);
-    saveFiliales(list);
+    const n: FilialGroup = { id: `F-${Date.now()}`, title: title.trim(), countries: [] };
+    persist([n, ...filiales]);
+  };
+
+  const editFilialTitle = (id: string, newTitle: string) => {
+    persist(filiales.map((f) => (f.id === id ? { ...f, title: newTitle } : f)));
   };
 
   const removeFilial = (id: string) => {
-    const list = filiales.filter((f) => f.id !== id);
-    setFiliales(list);
-    saveFiliales(list);
+    persist(filiales.filter((f) => f.id !== id));
   };
 
-  const addCountry = (id: string) => {
-    const name = prompt("Agregar país");
-    if (!name) return;
-    const list = filiales.map((f) =>
-      f.id === id ? { ...f, countries: [...f.countries, name.trim()] } : f
+  const addCountry = (filialId: string, name: string) => {
+    persist(
+      filiales.map((f) =>
+        f.id === filialId ? { ...f, countries: [...f.countries, name] } : f
+      )
     );
-    setFiliales(list);
-    saveFiliales(list);
   };
 
-  const editCountry = (id: string, idx: number) => {
-    const f = filiales.find((x) => x.id === id);
-    if (!f) return;
-    const name = prompt("Editar país", f.countries[idx]);
-    if (!name) return;
-    const list = filiales.map((g) =>
-      g.id === id
-        ? { ...g, countries: g.countries.map((c, i) => (i === idx ? name.trim() : c)) }
-        : g
+  const editCountry = (filialId: string, idx: number, name: string) => {
+    persist(
+      filiales.map((f) =>
+        f.id === filialId
+          ? {
+              ...f,
+              countries: f.countries.map((c, i) => (i === idx ? name : c)),
+            }
+          : f
+      )
     );
-    setFiliales(list);
-    saveFiliales(list);
   };
 
-  const removeCountry = (id: string, idx: number) => {
-    const list = filiales.map((g) =>
-      g.id === id ? { ...g, countries: g.countries.filter((_, i) => i !== idx) } : g
+  const removeCountry = (filialId: string, idx: number) => {
+    persist(
+      filiales.map((f) =>
+        f.id === filialId
+          ? { ...f, countries: f.countries.filter((_, i) => i !== idx) }
+          : f
+      )
     );
-    setFiliales(list);
-    saveFiliales(list);
   };
 
   return {

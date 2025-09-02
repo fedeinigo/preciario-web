@@ -11,11 +11,11 @@ import { getNextProposalId } from "./lib/ids";
 import { saveProposal, type ProposalRecord } from "./lib/storage";
 import type { Item } from "./lib/types";
 
-import { SEED_ITEMS, hydrate } from "./lib/items";
+import { getInitialItems } from "./lib/items";
 import { isWppAuth, isWppMarketing, isWppUtility, isMinutesIn, isMinutesOut, isWiserPro } from "./lib/itemKinds";
 import { priceMinutes, priceWhatsApp } from "./lib/pricingClient";
 
-import { ItemsTable } from "./components/ItemsTable";
+import ItemsTable from "./components/ItemsTable";
 import { SummaryModal } from "./components/SummaryModal";
 import { WhatsAppModal, type WppKind } from "./components/WhatsAppModal";
 import { MinutesModal, type MinutesKind } from "./components/MinutesModal";
@@ -49,7 +49,7 @@ export default function Generator({
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
 
-  const [items, setItems] = useState<Item[]>(() => SEED_ITEMS.map(hydrate));
+  const [items, setItems] = useState<Item[]>(() => getInitialItems());
 
   // Sidebars (hooks)
   const {
@@ -348,29 +348,16 @@ export default function Generator({
         {/* Center */}
         <section>
           <div className="card border">
-            <div className="bg-primary text-white font-semibold px-3 py-2 text-sm mb-4">Generador de Propuestas</div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <input className="input" placeholder="Nombre de la empresa" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
-              <Combobox options={COUNTRY_NAMES} value={country} onChange={setCountry} placeholder="Seleccione un país" />
-              <select className="select" value={subsidiary} onChange={(e) => setSubsidiary(e.target.value)}>
-                <option value="">Seleccione una filial</option>
-                {SUBSIDIARIES.map((s) => (<option key={s.id} value={s.name}>{s.name}</option>))}
-              </select>
+            <div className="bg-primary text-white font-semibold px-3 py-2 text-sm mb-4">
+              Generador de Propuestas
             </div>
 
-            <div className="flex flex-wrap gap-3 mb-4">
-              <button onClick={generate} className="btn-primary">Generar Propuesta</button>
-              <button onClick={resetAll} className="btn-ghost">Resetear</button>
-            </div>
-
-            <div className="flex flex-wrap gap-3 mb-3">
-              <select className="select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-                <option value="">Todas las categorías</option>
-                {Array.from(new Set(items.map((i) => i.category))).map((c) => (<option key={c} value={c}>{c}</option>))}
-              </select>
-
-              <input className="input min-w-[260px]" placeholder="Filtrar por texto (nombre, descripción o SKU)" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            {/* Acciones superiores: izquierda generar/reset — derecha agregar item */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <button onClick={generate} className="btn-primary">Generar Propuesta</button>
+                <button onClick={resetAll} className="btn-ghost">Resetear</button>
+              </div>
 
               {isAdmin && (
                 <button onClick={openCreateForm} className="btn-ghost">
@@ -379,21 +366,74 @@ export default function Generator({
               )}
             </div>
 
+            {/* Empresa / país / filial */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <input
+                className="input"
+                placeholder="Nombre de la empresa"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+              />
+              <Combobox
+                options={COUNTRY_NAMES}
+                value={country}
+                onChange={setCountry}
+                placeholder="Seleccione un país"
+              />
+              <select
+                className="select"
+                value={subsidiary}
+                onChange={(e) => setSubsidiary(e.target.value)}
+              >
+                <option value="">Seleccione una filial</option>
+                {SUBSIDIARIES.map((s) => (
+                  <option key={s.id} value={s.name}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filtros */}
+            <div className="flex flex-wrap gap-3 mb-3">
+              <select
+                className="select"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                <option value="">Todas las categorías</option>
+                {Array.from(new Set(items.map((i) => i.category))).map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                className="input min-w-[260px]"
+                placeholder="Filtrar por texto (nombre, descripción o SKU)"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
             <ItemsTable
               items={useMemo(() => filtered, [filtered])}
               isAdmin={isAdmin}
               onToggle={handleToggleItem}
-              onChangeQty={(item, qty) =>
-                setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, quantity: qty } : i)))
+              onChangeQty={(itemId, qty) =>
+                setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, quantity: qty } : i)))
               }
               onEdit={openEditForm}
-              onDelete={(item) => setItems((prev) => prev.filter((i) => i.id !== item.id))}
+              onDelete={(itemId) => setItems((prev) => prev.filter((i) => i.id !== itemId))}
             />
 
             <div className="mt-3 flex justify-end">
               <div className="rounded-sm border bg-white px-5 py-3 shadow-soft text-right">
                 <div className="text-sm text-gray-500">Total mensual</div>
-                <div className="text-[22px] font-semibold text-primary">{formatUSD(totalAmount)}</div>
+                <div className="text-[22px] font-semibold text-primary">
+                  {formatUSD(totalAmount)}
+                </div>
               </div>
             </div>
           </div>

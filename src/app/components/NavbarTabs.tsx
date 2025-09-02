@@ -1,10 +1,11 @@
+// src/app/components/NavbarTabs.tsx
 "use client";
 
 import React from "react";
 import { LayoutGrid, Clock, BarChart2, Users } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 type Tab = "generator" | "history" | "stats" | "users";
-
 type IconType = React.ComponentType<{ className?: string }>;
 
 export default function NavbarTabs({
@@ -16,6 +17,10 @@ export default function NavbarTabs({
   onChange: (t: Tab) => void;
   showUsers?: boolean;
 }) {
+  const { status } = useSession();
+  const isAuthed = status === "authenticated";
+  if (!isAuthed) return null; // NO mostrar si no hay sesión
+
   const Btn = ({
     id,
     icon: Icon,
@@ -26,16 +31,21 @@ export default function NavbarTabs({
     label: string;
   }) => (
     <button
-      className={`tab ${active === id ? "tab-active" : "tab-inactive"}`}
+      className={`px-3 py-2 rounded-[var(--radius)] text-[13.5px] font-medium
+        ${active === id
+          ? "bg-white text-[rgb(var(--primary))]"
+          : "bg-white/15 text-white hover:bg-white/20"}`}
       onClick={() => onChange(id)}
     >
-      <Icon className="mr-2 h-4 w-4" /> {label}
+      <span className="inline-flex items-center gap-2">
+        <Icon className="mr-1 h-4 w-4" /> {label}
+      </span>
     </button>
   );
 
   return (
-    <div className="px-6 pt-6">
-      <div className="flex gap-3">
+    <div className="w-full bg-[rgb(var(--primary))]">
+      <div className="max-w-7xl mx-auto px-4 py-2 flex gap-2">
         <Btn id="generator" icon={LayoutGrid} label="Generador" />
         <Btn id="history" icon={Clock} label="Histórico" />
         <Btn id="stats" icon={BarChart2} label="Estadísticas" />

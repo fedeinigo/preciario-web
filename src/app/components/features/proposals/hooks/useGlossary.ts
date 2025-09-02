@@ -1,3 +1,6 @@
+// src/app/components/features/proposals/hooks/useGlossary.ts
+"use client";
+
 import { useEffect, useState } from "react";
 import {
   readGlossary,
@@ -12,32 +15,22 @@ export function useGlossary() {
     setGlossary(readGlossary());
   }, []);
 
-  const addLink = () => {
-    const label = prompt("Título del enlace");
-    if (!label) return;
-    const url = prompt("URL (https://...)");
-    if (!url) return;
-    const list = [{ id: `L-${Date.now()}`, label: label.trim(), url: url.trim() }, ...glossary];
+  const persist = (list: GlossaryLink[]) => {
     setGlossary(list);
     saveGlossary(list);
   };
 
-  const editLink = (id: string) => {
-    const cur = glossary.find((g) => g.id === id);
-    if (!cur) return;
-    const label = prompt("Editar título", cur.label) ?? cur.label;
-    const url = prompt("Editar URL", cur.url) ?? cur.url;
-    const list = glossary.map((g) =>
-      g.id === id ? { ...g, label: label.trim(), url: url.trim() } : g
-    );
-    setGlossary(list);
-    saveGlossary(list);
+  const addLink = (label: string, url: string) => {
+    const n: GlossaryLink = { id: `L-${Date.now()}`, label, url };
+    persist([n, ...glossary]);
+  };
+
+  const editLink = (id: string, label: string, url: string) => {
+    persist(glossary.map((g) => (g.id === id ? { ...g, label, url } : g)));
   };
 
   const removeLink = (id: string) => {
-    const list = glossary.filter((g) => g.id !== id);
-    setGlossary(list);
-    saveGlossary(list);
+    persist(glossary.filter((g) => g.id !== id));
   };
 
   return { glossary, addLink, editLink, removeLink };

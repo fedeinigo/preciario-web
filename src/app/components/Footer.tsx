@@ -1,16 +1,28 @@
-import React from "react";
+"use client";
 
-const Footer: React.FC = () => {
+import Image from "next/image";
+
+export default function Footer() {
   return (
-    <footer className="w-full bg-primary text-white shadow-md mt-10">
-      {/* 🔁 quitamos max-w / mx-auto; footer full-bleed */}
-      <div className="w-full px-4 py-4 flex flex-col sm:flex-row items-center justify-between text-sm gap-2">
-        <div>© {new Date().getFullYear()} Wise CX — Soluciones Inteligentes</div>
-        <div className="text-center sm:text-right">
-          Desarrollado por <span className="font-medium">Federico Iñigo</span> ·{" "}
+    <footer className="footer" style={{ height: "var(--footer-h)" }}>
+      <div className="footer-inner">
+        <div className="flex items-center gap-2">
+          <Image
+            src="/logo.png"
+            alt="Wise CX"
+            width={110}
+            height={28}
+            className="h-6 w-auto object-contain"
+            priority
+          />
+          <span>© 2025 Wise CX — Soluciones Inteligentes</span>
+        </div>
+
+        <div className="text-right">
+          Desarrollado por Federico Iñigo ·{" "}
           <a
             href="mailto:federico.i@wisecx.com"
-            className="underline-offset-4 hover:underline"
+            className="underline decoration-white/40 hover:decoration-white"
           >
             federico.i@wisecx.com
           </a>
@@ -18,6 +30,4 @@ const Footer: React.FC = () => {
       </div>
     </footer>
   );
-};
-
-export default Footer;
+}

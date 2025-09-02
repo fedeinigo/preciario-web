@@ -8,9 +8,18 @@ interface ModalProps {
   onClose: () => void;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /** Permite personalizar el header del modal (ej: "bg-primary text-white") */
+  headerClassName?: string;
 }
 
-export default function Modal({ open, title, onClose, children, footer }: ModalProps) {
+export default function Modal({
+  open,
+  title,
+  onClose,
+  children,
+  footer,
+  headerClassName,
+}: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -35,18 +44,32 @@ export default function Modal({ open, title, onClose, children, footer }: ModalP
         aria-modal="true"
         className="absolute inset-0 flex items-start justify-center p-4 md:p-6"
       >
-        <div className="w-full max-w-3xl mt-10 rounded-xl bg-white shadow-2xl">
+        <div className="w-full max-w-3xl mt-10 rounded-xl bg-white shadow-2xl overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b">
-            <h3 className="text-xl md:text-2xl font-semibold">{title ?? "Resumen"}</h3>
+          <div
+            className={
+              headerClassName
+                ? `flex items-center justify-between px-6 py-4 ${headerClassName}`
+                : "flex items-center justify-between px-6 py-4 border-b"
+            }
+          >
+            <h3 className="text-xl md:text-2xl font-semibold">
+              {title ?? "Resumen"}
+            </h3>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg hover:bg-gray-100 transition"
+              className={`p-2 rounded-lg transition ${
+                headerClassName ? "hover:bg-white/10" : "hover:bg-gray-100"
+              }`}
               aria-label="Cerrar"
               title="Cerrar"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" />
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
               </svg>
             </button>
           </div>

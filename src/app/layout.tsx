@@ -11,24 +11,16 @@ export const metadata: Metadata = {
   description: "Generador de propuestas y gestión interna",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
       <body>
-        {/* Proveedor de sesión para toda la app */}
         <SessionProviderWrapper>
-          {/* Shell global: Navbar arriba, Footer abajo */}
           <Navbar />
-
-          {/* Contenido de cada página */}
-          <main className="min-h-screen">
+          {/* el main ocupa exactamente el alto restante entre navbar y footer */}
+          <main className="min-h-[calc(100vh-var(--nav-h)-var(--footer-h))]">
             {children}
           </main>
-
           <Footer />
         </SessionProviderWrapper>
       </body>

@@ -36,43 +36,62 @@ export default function Stats({
   currentEmail: string;
 }) {
   const [from, setFrom] = useState("");
-  const [to, setTo]     = useState("");
-  const [all, setAll]   = useState(readProposals());
+  const [to, setTo] = useState("");
 
-  useEffect(()=>{ setAll(readProposals()); }, []);
+  // ✅ Una sola lectura inicial (lazy) + refresco al volver al foco
+  const [all, setAll] = useState(() => readProposals());
+  useEffect(() => {
+    const onFocus = () => setAll(readProposals());
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
   const subset = useMemo(() => {
     return all.filter((p) => {
-      const scope = isAdmin ? true : p.userEmail === currentEmail;
-      if (!scope) return false;
+      const scopeOk = isAdmin ? true : p.userEmail === currentEmail;
+      if (!scopeOk) return false;
       const t = new Date(p.createdAt).getTime();
       const f = from ? new Date(from).getTime() : -Infinity;
-      const tt = to ? new Date(to).getTime() + 24*3600*1000 - 1 : Infinity;
+      const tt = to ? new Date(to).getTime() + 24 * 3600 * 1000 - 1 : Infinity;
       return t >= f && t <= tt;
     });
   }, [all, isAdmin, currentEmail, from, to]);
 
-  const uniqueUsers = new Set(subset.map(p => p.userEmail)).size;
-  const uniqueCompanies = new Set(subset.map(p => p.companyName)).size;
+  const uniqueUsers = useMemo(
+    () => new Set(subset.map((p) => p.userEmail)).size,
+    [subset]
+  );
+  const uniqueCompanies = useMemo(
+    () => new Set(subset.map((p) => p.companyName)).size,
+    [subset]
+  );
 
-  const bySku = Object.entries(
-    subset.reduce<Record<string, {name:string; qty:number}>>((acc, p) => {
-      p.items.forEach(it => {
-        const cur = acc[it.sku] ?? { name: it.name, qty: 0 };
-        cur.qty += it.quantity;
-        cur.name = cur.name || it.name;
-        acc[it.sku] = cur;
-      });
-      return acc;
-    }, {})
-  ).sort((a,b)=>b[1].qty - a[1].qty);
+  const bySku = useMemo(
+    () =>
+      Object.entries(
+        subset.reduce<Record<string, { name: string; qty: number }>>((acc, p) => {
+          p.items.forEach((it) => {
+            const cur = acc[it.sku] ?? { name: it.name, qty: 0 };
+            cur.qty += it.quantity;
+            cur.name = cur.name || it.name;
+            acc[it.sku] = cur;
+          });
+          return acc;
+        }, {})
+      ).sort((a, b) => b[1].qty - a[1].qty),
+    [subset]
+  );
 
-  const byCountry = Object.entries(
-    subset.reduce<Record<string, number>>((acc, p) => {
-      acc[p.country] = (acc[p.country] ?? 0) + 1;
-      return acc;
-    }, {})
-  ).sort((a,b)=>b[1]-a[1]);
+  const byCountry = useMemo(
+    () =>
+      Object.entries(
+        subset.reduce<Record<string, number>>((acc, p) => {
+          acc[p.country] = (acc[p.country] ?? 0) + 1;
+          return acc;
+        }, {})
+      ).sort((a, b) => b[1] - a[1]),
+    [subset]
+  );
 
   return (
     <div className="p-4">
@@ -84,14 +103,30 @@ export default function Stats({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Desde</label>
-                <input type="date" className="input" value={from} onChange={(e)=>setFrom(e.target.value)} />
+                <input
+                  type="date"
+                  className="input"
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                />
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Hasta</label>
-                <input type="date" className="input" value={to} onChange={(e)=>setTo(e.target.value)} />
+                <input
+                  type="date"
+                  className="input"
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                />
               </div>
               <div className="flex items-end">
-                <button className="btn-ghost" onClick={()=>{ setFrom(""); setTo(""); }}>
+                <button
+                  className="btn-ghost"
+                  onClick={() => {
+                    setFrom("");
+                    setTo("");
+                  }}
+                >
                   Limpiar
                 </button>
               </div>
@@ -116,7 +151,9 @@ export default function Stats({
               <tbody>
                 {bySku.map(([sku, info]) => (
                   <tr key={sku}>
-                    <td className="table-td"><span className="text-gray-500 font-mono">{sku}</span></td>
+                    <td className="table-td">
+                      <span className="text-gray-500 font-mono">{sku}</span>
+                    </td>
                     <td className="table-td">{info.name}</td>
                     <td className="table-td text-right font-semibold">{info.qty}</td>
                   </tr>
@@ -137,7 +174,10 @@ export default function Stats({
                 {byCountry.map(([c, n]) => (
                   <tr key={c}>
                     <td className="table-td">
-                      {c} <span className="text-xs text-gray-500">({countryIdFromName(c)})</span>
+                      {c}{" "}
+                      <span className="text-xs text-gray-500">
+                        ({countryIdFromName(c)})
+                      </span>
                     </td>
                     <td className="table-td text-right font-semibold">{n}</td>
                   </tr>
@@ -150,3 +190,4 @@ export default function Stats({
     </div>
   );
 }
+  
