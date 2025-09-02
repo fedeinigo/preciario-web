@@ -1,14 +1,13 @@
-// src/app/api/admin/users/route.ts
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
+import type { AppRole } from "@/constants/teams";
+import { toDbRole, fromDbRole } from "@/lib/roles";
 
-type Role = "admin" | "comercial";
-
-async function requireAdmin() {
+async function requireSuperadmin() {
   const session = await auth();
-  const role = session?.user?.role as Role | undefined;
-  if (!session || role !== "admin") {
+  const role = session?.user?.role as AppRole | undefined;
+  if (!session || role !== "superadmin") {
     return {
       ok: false as const,
       res: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -18,38 +17,63 @@ async function requireAdmin() {
 }
 
 export async function GET() {
-  const guard = await requireAdmin();
+  const guard = await requireSuperadmin();
   if (!guard.ok) return guard.res;
 
   const users = await prisma.user.findMany({
-    select: { id: true, email: true, role: true, createdAt: true, updatedAt: true },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      team: true,
+      createdAt: true,
+      updatedAt: true,
+    },
     orderBy: { createdAt: "desc" },
   });
-  return NextResponse.json(users);
+
+  // Mapear enum Prisma -> AppRole (string)
+  const mapped = users.map((u) => ({
+    ...u,
+    role: fromDbRole(u.role),
+  }));
+
+  return NextResponse.json(mapped);
 }
 
 export async function PATCH(req: NextRequest) {
-  const guard = await requireAdmin();
+  const guard = await requireSuperadmin();
   if (!guard.ok) return guard.res;
 
   const body = (await req.json().catch(() => ({}))) as {
     email?: string;
-    role?: Role;
+    role?: AppRole;
+    team?: string | null;
   };
 
   const email = body.email?.toLowerCase();
   const role = body.role;
-  if (!email || (role !== "admin" && role !== "comercial")) {
-    return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  const team = body.team ?? null;
+  if (!email) return NextResponse.json({ error: "Bad request" }, { status: 400 });
+
+  const data: Record<string, unknown> = { updatedAt: new Date() };
+  if (role === "superadmin" || role === "lider" || role === "comercial") {
+    data.role = toDbRole(role);
+  }
+  if (typeof team === "string" || team === null) {
+    data.team = team;
   }
 
   const updated = await prisma.user.update({
     where: { email },
-    data: { role, updatedAt: new Date() },
-    select: { id: true, email: true, role: true, updatedAt: true },
+    data,
+    select: { id: true, email: true, role: true, team: true, updatedAt: true },
   });
 
-  return NextResponse.json(updated);
+  return NextResponse.json({
+    ...updated,
+    role: fromDbRole(updated.role),
+  });
 }
 
 export const PUT = PATCH;

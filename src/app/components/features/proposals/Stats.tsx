@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { readProposals } from "./lib/storage";
 import { countryIdFromName } from "./lib/catalogs";
+import { TEAMS, type AppRole } from "@/constants/teams";
 
 const TitleBar = ({ children }: { children: React.ReactNode }) => (
   <div className="bg-primary text-white font-semibold px-3 py-2 text-sm">
@@ -28,17 +29,23 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+type AdminUserRow = { email: string | null; role: AppRole; team: string | null };
+
 export default function Stats({
-  isAdmin,
+  role,
   currentEmail,
+  leaderTeam,
+  isSuperAdmin,
 }: {
-  isAdmin: boolean;
+  role: AppRole;
   currentEmail: string;
+  leaderTeam: string | null;
+  isSuperAdmin: boolean;
 }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [teamFilter, setTeamFilter] = useState<string>("");
 
-  // ✅ Una sola lectura inicial (lazy) + refresco al volver al foco
   const [all, setAll] = useState(() => readProposals());
   useEffect(() => {
     const onFocus = () => setAll(readProposals());
@@ -46,25 +53,50 @@ export default function Stats({
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
+  // map email -> team para filtrar por equipo
+  const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
+  useEffect(() => {
+    if (isSuperAdmin || role === "lider") {
+      fetch("/api/admin/users", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((rows: AdminUserRow[]) => setAdminUsers(rows))
+        .catch(() => setAdminUsers([]));
+    }
+  }, [isSuperAdmin, role]);
+
+  const emailToTeam = useMemo(() => {
+    const map = new Map<string, string | null>();
+    adminUsers.forEach((u) => {
+      if (u.email) map.set(u.email, u.team);
+    });
+    return map;
+  }, [adminUsers]);
+
   const subset = useMemo(() => {
     return all.filter((p) => {
-      const scopeOk = isAdmin ? true : p.userEmail === currentEmail;
-      if (!scopeOk) return false;
-      const t = new Date(p.createdAt).getTime();
+      // Alcance por rol/equipo
+      if (isSuperAdmin) {
+        if (teamFilter) {
+          const t = emailToTeam.get(p.userEmail) ?? null;
+          if (t !== teamFilter) return false;
+        }
+      } else if (role === "lider") {
+        const t = emailToTeam.get(p.userEmail) ?? null;
+        if (!leaderTeam || t !== leaderTeam) return false;
+      } else {
+        if (p.userEmail !== currentEmail) return false;
+      }
+
+      // rango fechas
+      const tms = new Date(p.createdAt).getTime();
       const f = from ? new Date(from).getTime() : -Infinity;
       const tt = to ? new Date(to).getTime() + 24 * 3600 * 1000 - 1 : Infinity;
-      return t >= f && t <= tt;
+      return tms >= f && tms <= tt;
     });
-  }, [all, isAdmin, currentEmail, from, to]);
+  }, [all, isSuperAdmin, role, leaderTeam, currentEmail, from, to, teamFilter, emailToTeam]);
 
-  const uniqueUsers = useMemo(
-    () => new Set(subset.map((p) => p.userEmail)).size,
-    [subset]
-  );
-  const uniqueCompanies = useMemo(
-    () => new Set(subset.map((p) => p.companyName)).size,
-    [subset]
-  );
+  const uniqueUsers = useMemo(() => new Set(subset.map((p) => p.userEmail)).size, [subset]);
+  const uniqueCompanies = useMemo(() => new Set(subset.map((p) => p.companyName)).size, [subset]);
 
   const bySku = useMemo(
     () =>
@@ -100,31 +132,37 @@ export default function Stats({
 
         <div className="p-3">
           <div className="border bg-white p-3 mb-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Desde</label>
-                <input
-                  type="date"
-                  className="input"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                />
+                <input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} />
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Hasta</label>
-                <input
-                  type="date"
-                  className="input"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                />
+                <input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} />
               </div>
+
+              {isSuperAdmin && (
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Equipo</label>
+                  <select className="select" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
+                    <option value="">Todos</option>
+                    {TEAMS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="flex items-end">
                 <button
                   className="btn-ghost"
                   onClick={() => {
                     setFrom("");
                     setTo("");
+                    setTeamFilter("");
                   }}
                 >
                   Limpiar
@@ -174,10 +212,7 @@ export default function Stats({
                 {byCountry.map(([c, n]) => (
                   <tr key={c}>
                     <td className="table-td">
-                      {c}{" "}
-                      <span className="text-xs text-gray-500">
-                        ({countryIdFromName(c)})
-                      </span>
+                      {c} <span className="text-xs text-gray-500">({countryIdFromName(c)})</span>
                     </td>
                     <td className="table-td text-right font-semibold">{n}</td>
                   </tr>
@@ -190,4 +225,3 @@ export default function Stats({
     </div>
   );
 }
-  

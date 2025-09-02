@@ -7,6 +7,41 @@ import { LayoutGrid, Clock, BarChart2, Users } from "lucide-react";
 
 type Tab = "generator" | "history" | "stats" | "users";
 
+// 👇 roles que podrías manejar en UI
+type AnyRole = "superadmin" | "admin" | "lider" | "comercial" | string | undefined;
+
+// Amigable para mostrar en el badge
+function labelForRole(r?: AnyRole) {
+  if (!r) return "USUARIO";
+  const map: Record<string, string> = {
+    superadmin: "SUPERADMIN",
+    admin: "ADMIN",
+    lider: "LÍDER",
+    comercial: "USUARIO",
+  };
+  const key = String(r).toLowerCase();
+  return map[key] ?? String(r).toUpperCase();
+}
+
+// Estilo del badge por rol
+function RoleBadge({ role }: { role?: AnyRole }) {
+  const key = String(role ?? "").toLowerCase();
+
+  let classes =
+    "inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-semibold border";
+  if (key === "superadmin") {
+    classes += " border-amber-300 bg-amber-50 text-amber-700";
+  } else if (key === "admin") {
+    classes += " border-indigo-300 bg-indigo-50 text-indigo-700";
+  } else if (key === "lider") {
+    classes += " border-emerald-300 bg-emerald-50 text-emerald-700";
+  } else {
+    classes += " border-slate-300 bg-white text-slate-700";
+  }
+
+  return <span className={classes}>{labelForRole(role)}</span>;
+}
+
 function TabBtn({
   id,
   label,
@@ -40,8 +75,12 @@ function TabBtn({
 export default function Navbar() {
   const { data: session, status } = useSession();
   const isAuthed = status === "authenticated";
-  const isAdmin =
-    (session?.user as { role?: "admin" | "comercial" })?.role === "admin";
+
+  // ✅ sin `any`: casteamos solo el campo role a nuestro union local
+  const role = session?.user?.role as AnyRole;
+
+  // tratamos superadmin como admin para visibilidad del tab "Usuarios"
+  const canSeeUsers = role === "admin" || role === "superadmin";
 
   const readHash = (): Tab => {
     const h = (globalThis?.location?.hash || "").replace("#", "");
@@ -66,7 +105,7 @@ export default function Navbar() {
   }, []);
 
   function setTab(t: Tab) {
-    setActiveTab(t); // feedback instantáneo
+    setActiveTab(t);
     try {
       location.hash = t;
     } catch {}
@@ -74,10 +113,15 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="navbar" style={{ height: "var(--nav-h)" }}>
-      <div className="navbar-inner">
-        {/* IZQUIERDA: logo pegado con padding corto */}
-        <div className="pl-3">
+    <nav
+      role="navigation"
+      aria-label="Principal"
+      className="navbar fixed top-0 inset-x-0 z-50 border-b border-white/15 backdrop-blur supports-[backdrop-filter]:bg-opacity-80"
+      style={{ height: "var(--nav-h)" }}
+    >
+      <div className="navbar-inner mx-auto max-w-7xl px-3">
+        {/* IZQUIERDA: logo */}
+        <div className="flex items-center">
           <Image
             src="/logo.png"
             alt="Wise CX"
@@ -112,7 +156,7 @@ export default function Navbar() {
               active={activeTab === "stats"}
               onClick={setTab}
             />
-            {isAdmin && (
+            {canSeeUsers && (
               <TabBtn
                 id="users"
                 label="Usuarios"
@@ -126,8 +170,9 @@ export default function Navbar() {
           <div />
         )}
 
-        {/* DERECHA: cerrar sesión pegado con padding corto */}
-        <div className="pr-3">
+        {/* DERECHA: rol + cerrar sesión */}
+        <div className="flex items-center gap-2">
+          {isAuthed && <RoleBadge role={role} />}
           {isAuthed && (
             <button
               onClick={() => signOut()}

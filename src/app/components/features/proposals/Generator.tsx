@@ -6,13 +6,25 @@ import ItemForm, { ItemFormData } from "@/app/components/ui/ItemForm";
 import { Plus } from "lucide-react";
 
 import { formatUSD } from "./lib/format";
-import { COUNTRY_NAMES, SUBSIDIARIES, countryIdFromName, subsidiaryIdFromName } from "./lib/catalogs";
+import {
+  COUNTRY_NAMES,
+  SUBSIDIARIES,
+  countryIdFromName,
+  subsidiaryIdFromName,
+} from "./lib/catalogs";
 import { getNextProposalId } from "./lib/ids";
 import { saveProposal, type ProposalRecord } from "./lib/storage";
 import type { Item } from "./lib/types";
 
 import { getInitialItems } from "./lib/items";
-import { isWppAuth, isWppMarketing, isWppUtility, isMinutesIn, isMinutesOut, isWiserPro } from "./lib/itemKinds";
+import {
+  isWppAuth,
+  isWppMarketing,
+  isWppUtility,
+  isMinutesIn,
+  isMinutesOut,
+  isWiserPro,
+} from "./lib/itemKinds";
 import { priceMinutes, priceWhatsApp } from "./lib/pricingClient";
 
 import ItemsTable from "./components/ItemsTable";
@@ -72,7 +84,8 @@ export default function Generator({
   const [itemFormOpen, setItemFormOpen] = useState(false);
   const [itemFormMode, setItemFormMode] = useState<"create" | "edit">("create");
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editingInitial, setEditingInitial] = useState<ItemFormData | undefined>(undefined);
+  const [editingInitial, setEditingInitial] =
+    useState<ItemFormData | undefined>(undefined);
 
   // Modales pricing + ítem/variante pendiente
   const [pendingItemId, setPendingItemId] = useState<number | null>(null);
@@ -80,14 +93,24 @@ export default function Generator({
   // WhatsApp modal
   const [openWpp, setOpenWpp] = useState(false);
   const [wppKind, setWppKind] = useState<WppKind>("marketing");
-  const [wppForm, setWppForm] = useState<WppForm>({ qty: 0, destCountry: "", subsidiary: "" });
+  const [wppForm, setWppForm] = useState<WppForm>({
+    qty: 0,
+    destCountry: "",
+    subsidiary: "",
+  });
   const [wppError, setWppError] = useState("");
+  const [applyingWpp, setApplyingWpp] = useState(false);
 
   // Minutes modal
   const [openMin, setOpenMin] = useState(false);
   const [minKind, setMinKind] = useState<MinutesKind>("out");
-  const [minForm, setMinForm] = useState<MinForm>({ qty: 0, destCountry: "", subsidiary: "" });
+  const [minForm, setMinForm] = useState<MinForm>({
+    qty: 0,
+    destCountry: "",
+    subsidiary: "",
+  });
   const [minError, setMinError] = useState("");
+  const [applyingMin, setApplyingMin] = useState(false);
 
   // Wiser modal
   const [openWiser, setOpenWiser] = useState(false);
@@ -111,7 +134,13 @@ export default function Generator({
   const openCreateForm = () => {
     setItemFormMode("create");
     setEditingId(null);
-    setEditingInitial({ sku: "", name: "", description: "", devHours: 1, unitPrice: 100 });
+    setEditingInitial({
+      sku: "",
+      name: "",
+      description: "",
+      devHours: 1,
+      unitPrice: 100,
+    });
     setItemFormOpen(true);
   };
   const openEditForm = (it: Item) => {
@@ -142,7 +171,9 @@ export default function Generator({
       setItems((prev) => [now, ...prev]);
     } else if (itemFormMode === "edit" && editingId != null) {
       setItems((prev) =>
-        prev.map((i) => (i.id === editingId ? { ...i, ...data, sku: data.sku || i.sku } : i))
+        prev.map((i) =>
+          i.id === editingId ? { ...i, ...data, sku: data.sku || i.sku } : i
+        )
       );
     }
     setItemFormOpen(false);
@@ -162,7 +193,9 @@ export default function Generator({
     setSubsidiary("");
     setSearchTerm("");
     setCategoryFilter("");
-    setItems((prev) => prev.map((i) => ({ ...i, selected: false, quantity: 1 })));
+    setItems((prev) =>
+      prev.map((i) => ({ ...i, selected: false, quantity: 1 }))
+    );
     setOpenSummary(false);
   };
 
@@ -199,12 +232,14 @@ export default function Generator({
           companyName: recordBase.companyName,
           country: recordBase.country,
           subsidiary: recordBase.subsidiary,
-          items: recordBase.items.map(({ name, quantity, unitPrice, devHours }) => ({
-            name,
-            quantity,
-            unitPrice,
-            devHours,
-          })),
+          items: recordBase.items.map(
+            ({ name, quantity, unitPrice, devHours }) => ({
+              name,
+              quantity,
+              unitPrice,
+              devHours,
+            })
+          ),
           totals: {
             monthly: recordBase.totalAmount,
             oneShot: recordBase.oneShot,
@@ -213,35 +248,140 @@ export default function Generator({
         }),
       });
 
-      const raw = await res.text();
-      const parsed = JSON.parse(raw) as { url?: string; error?: string };
-      if (!res.ok) throw new Error(parsed.error ?? raw);
+      const parsed = (await res.json()) as {
+        url?: string;
+        docId?: string;
+        error?: string;
+      };
+      if (!res.ok || !parsed.url)
+        throw new Error(parsed.error ?? "No se recibió la URL del documento.");
 
-      const record: ProposalRecord = { ...recordBase, docUrl: parsed.url };
+      const record: ProposalRecord = {
+        ...recordBase,
+        docUrl: parsed.url,
+        ...(parsed.docId ? ({ docId: parsed.docId } as const) : {}),
+      };
+
       saveProposal(record);
       onSaved(record.id);
       setOpenSummary(false);
-      if (parsed.url) window.open(parsed.url, "_blank", "noopener,noreferrer");
+      window.open(parsed.url, "_blank", "noopener,noreferrer");
     } catch (e) {
-      alert(`Error creando documento: ${e instanceof Error ? e.message : "Error desconocido"}`);
+      alert(
+        `Error creando documento: ${
+          e instanceof Error ? e.message : "Error desconocido"
+        }`
+      );
     } finally {
       setCreatingDoc(false);
     }
   };
 
+  // ===== Aplicar pricing
+  const applyWhatsApp = async () => {
+    if (!pendingItemId) return;
+    try {
+      setApplyingWpp(true);
+      setWppError("");
+      const data = await priceWhatsApp({
+        subsidiary: wppForm.subsidiary || subsidiary,
+        destCountry: wppForm.destCountry || country,
+        kind: wppKind,
+        qty: Number(wppForm.qty) || 0,
+      });
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === pendingItemId
+            ? {
+                ...i,
+                selected: true,
+                quantity: data.totalQty,
+                unitPrice: data.unitPrice,
+                devHours: 0,
+              }
+            : i
+        )
+      );
+      setOpenWpp(false);
+      setPendingItemId(null);
+    } catch (e) {
+      setWppError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setApplyingWpp(false);
+    }
+  };
+
+  const applyMinutes = async () => {
+    if (!pendingItemId) return;
+    try {
+      setApplyingMin(true);
+      setMinError("");
+      const data = await priceMinutes({
+        subsidiary: minForm.subsidiary || subsidiary,
+        destCountry: minForm.destCountry || country,
+        kind: minKind,
+        qty: Number(minForm.qty) || 0,
+      });
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === pendingItemId
+            ? {
+                ...i,
+                selected: true,
+                quantity: data.totalQty,
+                unitPrice: data.unitPrice,
+                devHours: 0,
+              }
+            : i
+        )
+      );
+      setOpenMin(false);
+      setPendingItemId(null);
+    } catch (e) {
+      setMinError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setApplyingMin(false);
+    }
+  };
+
+  const applyWiser = () => {
+    if (!pendingItemId) return;
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === pendingItemId
+          ? { ...i, selected: true, quantity: 1, unitPrice: 0, devHours: 0 }
+          : i
+      )
+    );
+    setOpenWiser(false);
+    setPendingItemId(null);
+  };
+
   // ===== Toggle de ítems especiales
   const handleToggleItem = (item: Item, checked: boolean) => {
     if (!checked) {
-      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, selected: false } : i)));
+      setItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, selected: false } : i))
+      );
       return;
     }
 
     // WhatsApp
     if (isWppUtility(item.name) || isWppMarketing(item.name) || isWppAuth(item.name)) {
       setPendingItemId(item.id);
-      setWppForm({ qty: 0, destCountry: country || "", subsidiary: subsidiary || "" });
+      setWppForm({
+        qty: 0,
+        destCountry: country || "",
+        subsidiary: subsidiary || "",
+      });
       setWppError("");
-      setWppKind(isWppUtility(item.name) ? "utility" : isWppMarketing(item.name) ? "marketing" : "auth");
+      setWppKind(
+        isWppUtility(item.name)
+          ? "utility"
+          : isWppMarketing(item.name)
+          ? "marketing"
+          : "auth"
+      );
       setOpenWpp(true);
       return;
     }
@@ -249,7 +389,11 @@ export default function Generator({
     // Minutos
     if (isMinutesOut(item.name) || isMinutesIn(item.name)) {
       setPendingItemId(item.id);
-      setMinForm({ qty: 0, destCountry: country || "", subsidiary: subsidiary || "" });
+      setMinForm({
+        qty: 0,
+        destCountry: country || "",
+        subsidiary: subsidiary || "",
+      });
       setMinError("");
       setMinKind(isMinutesOut(item.name) ? "out" : "in");
       setOpenMin(true);
@@ -264,67 +408,9 @@ export default function Generator({
     }
 
     // Comunes
-    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, selected: true } : i)));
-  };
-
-  // ===== Aplicar pricing
-  const applyWhatsApp = async () => {
-    if (!pendingItemId) return;
-    try {
-      setWppError("");
-      const data = await priceWhatsApp({
-        subsidiary: wppForm.subsidiary || subsidiary,
-        destCountry: wppForm.destCountry || country,
-        kind: wppKind,
-        qty: Number(wppForm.qty) || 0,
-      });
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === pendingItemId
-            ? { ...i, selected: true, quantity: data.totalQty, unitPrice: data.unitPrice, devHours: 0 }
-            : i
-        )
-      );
-      setOpenWpp(false);
-      setPendingItemId(null);
-    } catch (e) {
-      setWppError(e instanceof Error ? e.message : "Error");
-    }
-  };
-
-  const applyMinutes = async () => {
-    if (!pendingItemId) return;
-    try {
-      setMinError("");
-      const data = await priceMinutes({
-        subsidiary: minForm.subsidiary || subsidiary,
-        destCountry: minForm.destCountry || country,
-        kind: minKind,
-        qty: Number(minForm.qty) || 0,
-      });
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === pendingItemId
-            ? { ...i, selected: true, quantity: data.totalQty, unitPrice: data.unitPrice, devHours: 0 }
-            : i
-        )
-      );
-      setOpenMin(false);
-      setPendingItemId(null);
-    } catch (e) {
-      setMinError(e instanceof Error ? e.message : "Error");
-    }
-  };
-
-  const applyWiser = () => {
-    if (!pendingItemId) return;
     setItems((prev) =>
-      prev.map((i) =>
-        i.id === pendingItemId ? { ...i, selected: true, quantity: 1, unitPrice: 0, devHours: 0 } : i
-      )
+      prev.map((i) => (i.id === item.id ? { ...i, selected: true } : i))
     );
-    setOpenWiser(false);
-    setPendingItemId(null);
   };
 
   // ===== Render
@@ -352,13 +438,16 @@ export default function Generator({
               Generador de Propuestas
             </div>
 
-            {/* Acciones superiores: izquierda generar/reset — derecha agregar item */}
+            {/* Acciones superiores */}
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-3">
-                <button onClick={generate} className="btn-primary">Generar Propuesta</button>
-                <button onClick={resetAll} className="btn-ghost">Resetear</button>
+                <button onClick={generate} className="btn-primary">
+                  Generar Propuesta
+                </button>
+                <button onClick={resetAll} className="btn-ghost">
+                  Resetear
+                </button>
               </div>
-
               {isAdmin && (
                 <button onClick={openCreateForm} className="btn-ghost">
                   <Plus className="mr-2 h-4 w-4" /> Agregar ítem
@@ -422,10 +511,16 @@ export default function Generator({
               isAdmin={isAdmin}
               onToggle={handleToggleItem}
               onChangeQty={(itemId, qty) =>
-                setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, quantity: qty } : i)))
+                setItems((prev) =>
+                  prev.map((i) =>
+                    i.id === itemId ? { ...i, quantity: qty } : i
+                  )
+                )
               }
               onEdit={openEditForm}
-              onDelete={(itemId) => setItems((prev) => prev.filter((i) => i.id !== itemId))}
+              onDelete={(itemId) =>
+                setItems((prev) => prev.filter((i) => i.id !== itemId))
+              }
             />
 
             <div className="mt-3 flex justify-end">
@@ -458,8 +553,13 @@ export default function Generator({
             form={wppForm}
             onChange={(n) => setWppForm((p) => ({ ...p, ...n }))}
             onApply={applyWhatsApp}
-            onClose={() => { setOpenWpp(false); setPendingItemId(null); }}
+            onClose={() => {
+              if (applyingWpp) return; // no cerrar si está calculando
+              setOpenWpp(false);
+              setPendingItemId(null);
+            }}
             error={wppError}
+            applying={applyingWpp}
           />
 
           <MinutesModal
@@ -468,14 +568,22 @@ export default function Generator({
             form={minForm}
             onChange={(n) => setMinForm((p) => ({ ...p, ...n }))}
             onApply={applyMinutes}
-            onClose={() => { setOpenMin(false); setPendingItemId(null); }}
+            onClose={() => {
+              if (applyingMin) return; // no cerrar si está calculando
+              setOpenMin(false);
+              setPendingItemId(null);
+            }}
             error={minError}
+            applying={applyingMin}
           />
 
           <WiserModal
             open={openWiser}
             onConfirm={applyWiser}
-            onClose={() => { setOpenWiser(false); setPendingItemId(null); }}
+            onClose={() => {
+              setOpenWiser(false);
+              setPendingItemId(null);
+            }}
           />
 
           {isAdmin && (

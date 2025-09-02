@@ -6,11 +6,23 @@ import { readProposals, readUsers } from "./lib/storage";
 import { countryIdFromName, subsidiaryIdFromName } from "./lib/catalogs";
 import { formatUSD } from "./lib/format";
 import type { ProposalRecord, UserEntry } from "./lib/types";
+import { TEAMS, type AppRole } from "@/constants/teams";
 
 interface HistoryProps {
-  isAdmin: boolean;
   currentEmail: string;
+  role: AppRole;
+  isSuperAdmin: boolean;
+  leaderTeam: string | null;
 }
+
+type AdminUserRow = {
+  id: string;
+  email: string | null;
+  role: AppRole;
+  team: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
 const TitleBar = ({ children }: { children: React.ReactNode }) => (
   <div className="bg-primary text-white font-semibold px-3 py-2 text-sm">
@@ -18,10 +30,12 @@ const TitleBar = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-export default function History({ isAdmin, currentEmail }: HistoryProps) {
+export default function History({ currentEmail, role, isSuperAdmin, leaderTeam }: HistoryProps) {
   const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [users, setUsers] = useState<UserEntry[]>([]);
+  const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserEntry | null>(null);
+  const [teamFilter, setTeamFilter] = useState<string>("");
 
   const [filterId, setFilterId] = useState("");
   const [filterCompany, setFilterCompany] = useState("");
@@ -37,11 +51,42 @@ export default function History({ isAdmin, currentEmail }: HistoryProps) {
     setUsers(readUsers());
   }, []);
 
+  // map email -> team (desde backend)
+  useEffect(() => {
+    if (isSuperAdmin || role === "lider") {
+      fetch("/api/admin/users", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((rows: AdminUserRow[]) => setAdminUsers(rows))
+        .catch(() => setAdminUsers([]));
+    }
+  }, [isSuperAdmin, role]);
+
+  const emailToTeam = useMemo(() => {
+    const map = new Map<string, string | null>();
+    adminUsers.forEach((u) => {
+      if (u.email) map.set(u.email, u.team);
+    });
+    return map;
+  }, [adminUsers]);
+
   const scopeFiltered = useMemo(() => {
     return proposals
-      .filter((p) =>
-        isAdmin ? (selectedUser ? p.userEmail === selectedUser.email : true) : p.userEmail === currentEmail
-      )
+      .filter((p) => {
+        // Alcance por rol
+        if (isSuperAdmin) {
+          if (teamFilter) {
+            const t = emailToTeam.get(p.userEmail) ?? null;
+            return t === teamFilter;
+          }
+          return true;
+        }
+        if (role === "lider") {
+          const t = emailToTeam.get(p.userEmail) ?? null;
+          return t && leaderTeam ? t === leaderTeam : false;
+        }
+        return p.userEmail === currentEmail; // usuario
+      })
+      .filter((p) => (!isSuperAdmin || !selectedUser ? true : p.userEmail === selectedUser?.email))
       .filter((p) => !filterId || p.id.toLowerCase().includes(filterId.toLowerCase()))
       .filter((p) => !filterCompany || p.companyName.toLowerCase().includes(filterCompany.toLowerCase()))
       .filter((p) => !filterCountry || p.country === filterCountry)
@@ -63,9 +108,13 @@ export default function History({ isAdmin, currentEmail }: HistoryProps) {
       );
   }, [
     proposals,
-    isAdmin,
-    selectedUser,
+    isSuperAdmin,
+    role,
+    leaderTeam,
     currentEmail,
+    selectedUser,
+    emailToTeam,
+    teamFilter,
     filterId,
     filterCompany,
     filterCountry,
@@ -74,9 +123,27 @@ export default function History({ isAdmin, currentEmail }: HistoryProps) {
     sortTotal,
   ]);
 
-  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSortTotal(e.target.value as "none" | "asc" | "desc");
-  };
+  function openProposal(p: ProposalRecord) {
+    const url =
+      p.docUrl ??
+      (p.docId ? `https://docs.google.com/document/d/${encodeURIComponent(p.docId)}/edit` : null);
+
+    if (!url) {
+      setRedirectOpen(true);
+      setTimeout(() => setRedirectOpen(false), 1500);
+      console.warn("No hay docUrl/docId para la propuesta:", p);
+      return;
+    }
+
+    setRedirectOpen(true);
+    setTimeout(() => {
+      try {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } finally {
+        setRedirectOpen(false);
+      }
+    }, 300);
+  }
 
   return (
     <div className="p-4">
@@ -84,10 +151,10 @@ export default function History({ isAdmin, currentEmail }: HistoryProps) {
         <TitleBar>Histórico</TitleBar>
 
         <div className="p-3">
-          {isAdmin ? (
+          {isSuperAdmin ? (
             <div className="mb-4">
               <h3 className="font-medium mb-2">Usuarios</h3>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mb-3">
                 <button
                   className={`btn ${selectedUser === null ? "tab-active" : "tab-inactive"} border`}
                   onClick={() => setSelectedUser(null)}
@@ -102,10 +169,31 @@ export default function History({ isAdmin, currentEmail }: HistoryProps) {
                     title={u.userId}
                   >
                     {u.email}
-                    <span className="ml-2 text-xs text-gray-500">({u.userId})</span>
                   </button>
                 ))}
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Equipo</label>
+                  <select
+                    className="select"
+                    value={teamFilter}
+                    onChange={(e) => setTeamFilter(e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    {TEAMS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          ) : role === "lider" ? (
+            <div className="mb-4 text-sm text-gray-600">
+              Viendo histórico del equipo <span className="font-medium">{leaderTeam ?? "(sin equipo)"}</span>
             </div>
           ) : (
             <div className="mb-4 text-sm text-gray-600">
@@ -161,7 +249,11 @@ export default function History({ isAdmin, currentEmail }: HistoryProps) {
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Orden por mensual</label>
-                <select className="select" value={sortTotal} onChange={handleSortChange}>
+                <select
+                  className="select"
+                  value={sortTotal}
+                  onChange={(e) => setSortTotal(e.target.value as "none" | "asc" | "desc")}
+                >
                   <option value="none">—</option>
                   <option value="asc">Asc</option>
                   <option value="desc">Desc</option>
@@ -181,6 +273,7 @@ export default function History({ isAdmin, currentEmail }: HistoryProps) {
                     setFilterSubsidiary("");
                     setFilterDate("");
                     setSortTotal("none");
+                    setTeamFilter("");
                   }}
                 >
                   Limpiar filtros
@@ -219,13 +312,7 @@ export default function History({ isAdmin, currentEmail }: HistoryProps) {
                     <td className="table-td text-right">{formatUSD(p.totalAmount)}</td>
                     <td className="table-td">{new Date(p.createdAt).toLocaleString()}</td>
                     <td className="table-td text-center">
-                      <button
-                        className="btn-ghost"
-                        onClick={() => {
-                          setRedirectOpen(true);
-                          setTimeout(() => setRedirectOpen(false), 2000);
-                        }}
-                      >
+                      <button className="btn-ghost" onClick={() => openProposal(p)}>
                         Ver propuesta
                       </button>
                     </td>

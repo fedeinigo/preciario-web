@@ -36,7 +36,12 @@ export interface ProposalRecord {
   totalAmount: number;
   totalHours: number;
   oneShot: number;
-  docUrl?: string | undefined;
+
+  /** URL directa al documento (preferido) */
+  docUrl?: string;
+
+  /** Fallback: id de Google Docs si la API lo devuelve */
+  docId?: string;
 }
 
 export interface UserEntry {

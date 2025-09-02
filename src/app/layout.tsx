@@ -14,11 +14,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body>
+      {/* padding-top = alto del navbar fijo */}
+      <body className="pt-[var(--nav-h)]">
         <SessionProviderWrapper>
           <Navbar />
-          {/* el main ocupa exactamente el alto restante entre navbar y footer */}
-          <main className="min-h-[calc(100vh-var(--nav-h)-var(--footer-h))]">
+          {/* ahora el main sólo descuenta el footer */}
+          <main className="min-h-[calc(100vh-var(--footer-h))]">
             {children}
           </main>
           <Footer />

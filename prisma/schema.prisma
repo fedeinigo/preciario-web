@@ -1,26 +1,33 @@
-// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider  = "postgresql"
-  // En runtime (Next.js) usá el pooler (6543) => DATABASE_URL
-  url       = env("DATABASE_URL")
-  // Para migraciones usá la conexión directa (5432) => DIRECT_URL
-  directUrl = env("DIRECT_URL")
+  url       = env("DATABASE_URL")   // usa pooler en runtime
+  directUrl = env("DIRECT_URL")     // usa conexión directa para migraciones
 }
 
-/**
- * Modelo compatible con NextAuth + timestamps
- */
+/* === Enum definitivo de roles === */
+enum Role {
+  superadmin
+  lider
+  usuario
+}
+
+/* === Usuario NextAuth === */
 model User {
   id            String    @id @default(cuid())
   name          String?
   email         String?   @unique
   emailVerified DateTime?
   image         String?
-  role          String    @default("comercial")
+
+  // Ahora es enum, default "usuario"
+  role          Role      @default(usuario)
+
+  // Equipo al que pertenece (opcional)
+  team          String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

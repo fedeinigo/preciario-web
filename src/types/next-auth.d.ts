@@ -1,9 +1,12 @@
 import "next-auth";
 
 declare module "next-auth" {
+  type AppRole = "superadmin" | "lider" | "comercial";
+
   interface User {
     id?: string;
-    role?: "admin" | "comercial";
+    role?: AppRole;
+    team?: string | null;
   }
 
   interface Session {
@@ -11,12 +14,14 @@ declare module "next-auth" {
       id?: string;
       name?: string | null;
       email?: string | null;
-      role?: "admin" | "comercial";
+      role?: AppRole;
+      team?: string | null;
     };
   }
 
   interface JWT {
-    role?: "admin" | "comercial";
-    sub?: string; // id del usuario
+    role?: AppRole;
+    team?: string | null;
+    sub?: string;
   }
 }

@@ -72,13 +72,11 @@ function isMinutesOld(p: AnyPayload): p is MinutesOldPayload {
 function parseMoney(input: unknown): number {
   if (typeof input !== "string") return Number(input) || 0;
   let s = input.replace(/\s+/g, "").replace(/\$/g, "");
-  // si tiene coma y no tiene punto -> formato es-AR (1.234,56 ó 0,095790)
   if (s.includes(",") && !s.includes(".")) {
-    s = s.replace(/\./g, ""); // separadores de miles
+    s = s.replace(/\./g, ""); // miles
     s = s.replace(",", ".");  // coma decimal
   } else {
-    // formato en-US (1,234.56): quitamos comas (miles)
-    s = s.replace(/,/g, "");
+    s = s.replace(/,/g, "");  // miles en en-US
   }
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
@@ -117,7 +115,7 @@ async function refreshAccessTokenForUser(userId: string): Promise<string> {
   });
   if (!account?.refresh_token) {
     throw new Error("No hay refresh_token de Google. Vuelve a iniciar sesión con Google.");
-    }
+  }
 
   const clientId = assertEnv("GOOGLE_CLIENT_ID");
   const clientSecret = assertEnv("GOOGLE_CLIENT_SECRET");
