@@ -10,7 +10,7 @@ export function toDbRole(r: AppRole): DbRole {
       return DbRole.lider;
     case "comercial":
     default:
-      // En tu DB el equivalente se llama "usuario"
+      // En DB se llama "usuario"
       return DbRole.usuario;
   }
 }
@@ -25,7 +25,6 @@ export function fromDbRole(r?: DbRole | null): AppRole {
       return "lider";
     case DbRole.usuario:
     default:
-      // Mapeamos "usuario" de la DB a "comercial" en la app
       return "comercial";
   }
 }

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { auth } from "@/lib/auth";
 import type { AppRole } from "@/constants/teams";
 import { toDbRole, fromDbRole } from "@/lib/roles";
 
@@ -32,7 +32,6 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
 
-  // Mapear enum Prisma -> AppRole (string)
   const mapped = users.map((u) => ({
     ...u,
     role: fromDbRole(u.role),

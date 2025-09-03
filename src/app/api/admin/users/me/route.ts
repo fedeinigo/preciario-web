@@ -1,6 +1,6 @@
-// src/app/api/users/me/route.ts
+// src/app/api/admin/users/me/route.ts
 import { NextResponse } from "next/server";
-import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -19,7 +19,7 @@ export async function GET() {
   return NextResponse.json({
     id: me.id,
     email: me.email,
-    role: me.role,   // "superadmin" | "lider" | "usuario"
+    role: me.role,   // enum Prisma: superadmin | lider | usuario
     team: me.team,   // string | null
     name: me.name,
   });

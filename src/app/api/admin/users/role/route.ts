@@ -1,7 +1,8 @@
 // src/app/api/admin/users/role/route.ts
 import { NextResponse } from "next/server";
-import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Role as DbRole } from "@prisma/client";
 
 const TEAMS = [
   "Leones","Lobos","Tigres","Panteras","Jaguares","Pirañas","Tiburones",
@@ -31,7 +32,10 @@ export async function PATCH(req: Request) {
 
   await prisma.user.update({
     where: { id: userId },
-    data: { role, team: role === "lider" ? team : null },
+    data: {
+      role: role === "lider" ? DbRole.lider : DbRole.usuario,
+      team: role === "lider" ? team : null,
+    },
   });
 
   return NextResponse.json({ ok: true });

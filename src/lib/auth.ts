@@ -9,13 +9,13 @@ import type { Session } from "next-auth";
 import type { AppRole } from "@/constants/teams";
 import { toDbRole, fromDbRole } from "@/lib/roles";
 
-// Asegura que el usuario exista y tenga rol/equipo por defecto
+// Asegura que el usuario exista con rol/equipo por defecto
 async function ensureUser(email: string, defaultRole: AppRole) {
   const now = new Date();
   const up = await prisma.user.upsert({
     where: { email },
     create: { email, role: toDbRole(defaultRole), createdAt: now, updatedAt: now },
-    update: { updatedAt: now }, // no tocar role/team en updates
+    update: { updatedAt: now }, // no tocar role/team en updates automáticos
     select: { id: true, role: true, team: true },
   });
   return { id: up.id, role: fromDbRole(up.role), team: up.team as string | null };
@@ -105,7 +105,7 @@ export function auth() {
   return getServerSession(authOptions);
 }
 
-// (Opcional) Tipos extendidos si los querés usar
+// Tipos extendidos opcionales
 export interface ExtendedUser {
   id: string;
   name?: string | null;

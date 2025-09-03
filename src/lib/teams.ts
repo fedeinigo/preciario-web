@@ -1,4 +1,3 @@
-// src/lib/teams.ts
 export const TEAMS = [
   "Leones",
   "Lobos",
@@ -15,5 +14,5 @@ export const TEAMS = [
   "Buhos",
 ] as const;
 
-export type TeamName = (typeof TEAMS)[number];
-export type AppRole = "superadmin" | "lider" | "usuario";
+export type Team = typeof TEAMS[number];
+export type AppRole = "superadmin" | "lider" | "comercial";

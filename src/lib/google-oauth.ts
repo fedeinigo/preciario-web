@@ -5,8 +5,6 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * Devuelve clientes autenticados de Google Docs y Google Drive
- * usando los tokens almacenados por NextAuth (proveedor: "google")
- * para el usuario actual.
  */
 export async function getGoogleClientsForUser(
   userId: string
@@ -25,10 +23,7 @@ export async function getGoogleClientsForUser(
     throw new Error("Faltan GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET en el entorno.");
   }
 
-  const oauth2 = new google.auth.OAuth2({
-    clientId,
-    clientSecret,
-  });
+  const oauth2 = new google.auth.OAuth2({ clientId, clientSecret });
 
   oauth2.setCredentials({
     access_token: account.access_token ?? undefined,
@@ -43,17 +38,9 @@ export async function getGoogleClientsForUser(
 }
 
 /**
- * Devuelve un OAuth2Client para consumir Google Sheets.
- *
- * - Si se pasa `userId`, intenta usar los tokens del usuario (NextAuth).
- * - Si no hay tokens válidos o no se pasa `userId`, cae a
- *   Application Default Credentials (Service Account, Workload Identity, etc.).
- *
- * Esto permite que /api/pricing funcione tanto con tokens de usuario
- * como con credenciales de servidor.
+ * OAuth2 para Sheets (tokens de usuario o ADC)
  */
 export async function getOAuthClient(userId?: string | null): Promise<OAuth2Client> {
-  // 1) Intentar con la cuenta Google del usuario (si se pasó userId)
   if (userId) {
     const account = await prisma.account.findFirst({
       where: { userId, provider: "google" },
@@ -66,10 +53,7 @@ export async function getOAuthClient(userId?: string | null): Promise<OAuth2Clie
         throw new Error("Faltan GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET en el entorno.");
       }
 
-      const oauth2 = new google.auth.OAuth2({
-        clientId,
-        clientSecret,
-      });
+      const oauth2 = new google.auth.OAuth2({ clientId, clientSecret });
 
       oauth2.setCredentials({
         access_token: account.access_token ?? undefined,
@@ -81,9 +65,6 @@ export async function getOAuthClient(userId?: string | null): Promise<OAuth2Clie
     }
   }
 
-  // 2) Fallback: Application Default Credentials (ADC)
-  // Requiere que el entorno tenga GOOGLE_APPLICATION_CREDENTIALS
-  // o equivalente (Workload Identity, etc.)
   const scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"];
   const auth = (await google.auth.getClient({ scopes })) as OAuth2Client;
   return auth;
