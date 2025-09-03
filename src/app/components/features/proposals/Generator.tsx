@@ -8,9 +8,9 @@ import { Plus } from "lucide-react";
 import { formatUSD } from "./lib/format";
 import {
   COUNTRY_NAMES,
-  SUBSIDIARIES,
   countryIdFromName,
   subsidiaryIdFromName,
+  autoSubsidiaryForCountry,
 } from "./lib/catalogs";
 import { getNextProposalId } from "./lib/ids";
 import { saveProposal, type ProposalRecord } from "./lib/storage";
@@ -29,18 +29,22 @@ import { priceMinutes, priceWhatsApp } from "./lib/pricingClient";
 
 import ItemsTable from "./components/ItemsTable";
 import { SummaryModal } from "./components/SummaryModal";
-import { WhatsAppModal, type WppKind } from "./components/WhatsAppModal";
-import { MinutesModal, type MinutesKind } from "./components/MinutesModal";
+import {
+  WhatsAppModal,
+  type WppKind,
+  type WppForm,
+} from "./components/WhatsAppModal";
+import {
+  MinutesModal,
+  type MinutesKind,
+  type MinForm,
+} from "./components/MinutesModal";
 import { WiserModal } from "./components/WiserModal";
 import { FilialesSidebar, GlossarySidebar } from "./components/Sidebars";
 
 import { useFiliales } from "./hooks/useFiliales";
 import { useGlossary } from "./hooks/useGlossary";
 import { useProposalTotals } from "./hooks/useProposalTotals";
-
-/* ===== Tipos de formularios locales (UI) ===== */
-type WppForm = { qty: number; destCountry: string; subsidiary: string };
-type MinForm = { qty: number; destCountry: string; subsidiary: string };
 
 export default function Generator({
   isAdmin,
@@ -90,24 +94,22 @@ export default function Generator({
   // Modales pricing + ítem/variante pendiente
   const [pendingItemId, setPendingItemId] = useState<number | null>(null);
 
-  // WhatsApp modal
+  // WhatsApp modal (sin selección de filial)
   const [openWpp, setOpenWpp] = useState(false);
   const [wppKind, setWppKind] = useState<WppKind>("marketing");
   const [wppForm, setWppForm] = useState<WppForm>({
     qty: 0,
     destCountry: "",
-    subsidiary: "",
   });
   const [wppError, setWppError] = useState("");
   const [applyingWpp, setApplyingWpp] = useState(false);
 
-  // Minutes modal
+  // Minutes modal (sin selección de filial)
   const [openMin, setOpenMin] = useState(false);
   const [minKind, setMinKind] = useState<MinutesKind>("out");
   const [minForm, setMinForm] = useState<MinForm>({
     qty: 0,
     destCountry: "",
-    subsidiary: "",
   });
   const [minError, setMinError] = useState("");
   const [applyingMin, setApplyingMin] = useState(false);
@@ -284,7 +286,7 @@ export default function Generator({
       setApplyingWpp(true);
       setWppError("");
       const data = await priceWhatsApp({
-        subsidiary: wppForm.subsidiary || subsidiary,
+        subsidiary, // filial auto-seteada por país
         destCountry: wppForm.destCountry || country,
         kind: wppKind,
         qty: Number(wppForm.qty) || 0,
@@ -317,8 +319,8 @@ export default function Generator({
       setApplyingMin(true);
       setMinError("");
       const data = await priceMinutes({
-        subsidiary: minForm.subsidiary || subsidiary,
-        destCountry: minForm.destCountry || country,
+        subsidiary, // filial auto-seteada por país
+        destCountry: minForm.destCountry || country, // ignorado por backend si kind === "in"
         kind: minKind,
         qty: Number(minForm.qty) || 0,
       });
@@ -372,7 +374,6 @@ export default function Generator({
       setWppForm({
         qty: 0,
         destCountry: country || "",
-        subsidiary: subsidiary || "",
       });
       setWppError("");
       setWppKind(
@@ -392,7 +393,6 @@ export default function Generator({
       setMinForm({
         qty: 0,
         destCountry: country || "",
-        subsidiary: subsidiary || "",
       });
       setMinError("");
       setMinKind(isMinutesOut(item.name) ? "out" : "in");
@@ -455,36 +455,41 @@ export default function Generator({
               )}
             </div>
 
-            {/* Empresa / país / filial */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <input
-                className="input"
-                placeholder="Nombre de la empresa"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-              />
-              <Combobox
-                options={COUNTRY_NAMES}
-                value={country}
-                onChange={setCountry}
-                placeholder="Seleccione un país"
-              />
-              <select
-                className="select"
-                value={subsidiary}
-                onChange={(e) => setSubsidiary(e.target.value)}
-              >
-                <option value="">Seleccione una filial</option>
-                {SUBSIDIARIES.map((s) => (
-                  <option key={s.id} value={s.name}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+            {/* Empresa / país / filial (card) */}
+            <div className="mb-4 rounded-md border bg-white shadow-soft">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
+                <input
+                  className="input"
+                  placeholder="Nombre de la empresa"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                />
+
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">País</label>
+                  <Combobox
+                    options={COUNTRY_NAMES}
+                    value={country}
+                    onChange={(v) => {
+                      setCountry(v);
+                      setSubsidiary(autoSubsidiaryForCountry(v)); // auto-filial
+                    }}
+                    placeholder="Seleccione un país"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Filial</label>
+                  <input className="input" value={subsidiary || "—"} readOnly />
+                  <p className="mt-1 text-[12px] text-muted">
+                    Determinada automáticamente por el país.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {/* Filtros */}
-            <div className="flex flex-wrap gap-3 mb-3">
+            {/* Filtros (lado a lado en desktop) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
               <select
                 className="select"
                 value={categoryFilter}
@@ -499,7 +504,7 @@ export default function Generator({
               </select>
 
               <input
-                className="input min-w-[260px]"
+                className="input"
                 placeholder="Filtrar por texto (nombre, descripción o SKU)"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -512,9 +517,7 @@ export default function Generator({
               onToggle={handleToggleItem}
               onChangeQty={(itemId, qty) =>
                 setItems((prev) =>
-                  prev.map((i) =>
-                    i.id === itemId ? { ...i, quantity: qty } : i
-                  )
+                  prev.map((i) => (i.id === itemId ? { ...i, quantity: qty } : i))
                 )
               }
               onEdit={openEditForm}
@@ -551,10 +554,11 @@ export default function Generator({
             open={openWpp}
             kind={wppKind}
             form={wppForm}
+            billingSubsidiary={subsidiary}
             onChange={(n) => setWppForm((p) => ({ ...p, ...n }))}
             onApply={applyWhatsApp}
             onClose={() => {
-              if (applyingWpp) return; // no cerrar si está calculando
+              if (applyingWpp) return;
               setOpenWpp(false);
               setPendingItemId(null);
             }}
@@ -566,10 +570,11 @@ export default function Generator({
             open={openMin}
             kind={minKind}
             form={minForm}
+            billingSubsidiary={subsidiary}
             onChange={(n) => setMinForm((p) => ({ ...p, ...n }))}
             onApply={applyMinutes}
             onClose={() => {
-              if (applyingMin) return; // no cerrar si está calculando
+              if (applyingMin) return;
               setOpenMin(false);
               setPendingItemId(null);
             }}

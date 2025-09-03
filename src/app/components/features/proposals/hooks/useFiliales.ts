@@ -16,10 +16,11 @@ export function useFiliales() {
     saveFiliales(list);
   };
 
-  const addFilial = () => {
-    const title = window.prompt("Nombre de la filial");
-    if (!title) return;
-    const n: FilialGroup = { id: `F-${Date.now()}`, title: title.trim(), countries: [] };
+  /** Crear SIN window.prompt; el título llega del componente (modal) */
+  const addFilial = (title: string) => {
+    const t = title.trim();
+    if (!t) return;
+    const n: FilialGroup = { id: `F-${Date.now()}`, title: t, countries: [] };
     persist([n, ...filiales]);
   };
 

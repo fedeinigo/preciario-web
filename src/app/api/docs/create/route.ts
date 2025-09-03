@@ -110,6 +110,29 @@ function normalizeKey(s: string): string {
     .toUpperCase();
 }
 
+/** Selector de template por país */
+function pickTemplateIdByCountry(country?: string): string {
+  const main =
+    process.env.GOOGLE_DOCS_TEMPLATE_ID ??
+    process.env.GOOGLE_DOC_TEMPLATE_ID ??
+    "";
+  if (!main) {
+    throw new Error(
+      "Falta GOOGLE_DOCS_TEMPLATE_ID (o GOOGLE_DOC_TEMPLATE_ID) en .env.local"
+    );
+  }
+  const br = process.env.GOOGLE_DOCS_TEMPLATE_ID_BR || main;
+
+  const c = (country ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim()
+    .toUpperCase(); // admite "BRASIL" o "BRAZIL"
+
+  if (c === "BRASIL" || c === "BRAZIL") return br;
+  return main;
+}
+
 /** ----------------- Sheets helpers ----------------- */
 // Env:
 // SHEETS_CONFIG_SPREADSHEET_ID=1Qq9gFUgrOOkdgtPMy-nyWArGY37mcm7YUT-tlDOmngk
@@ -293,21 +316,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Acepta ambas env vars
-    const templateId =
-      process.env.GOOGLE_DOCS_TEMPLATE_ID ??
-      process.env.GOOGLE_DOC_TEMPLATE_ID ??
-      "";
-    if (!templateId) {
-      return NextResponse.json(
-        {
-          error:
-            "Falta GOOGLE_DOCS_TEMPLATE_ID (o GOOGLE_DOC_TEMPLATE_ID) en .env.local",
-        },
-        { status: 500 }
-      );
-    }
-
     const bodyText = await req.text();
     let body: CreateDocPayload;
     try {
@@ -375,7 +383,18 @@ export async function POST(req: Request) {
       getWhatsappRows(accessToken, filialKey),
     ]);
 
-    /** 3) Copiar plantilla en Drive */
+    /** 3) Elegir template según país (Brasil usa template BR si está seteado) */
+    let templateId: string;
+    try {
+      templateId = pickTemplateIdByCountry(body.country);
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : String(e) },
+        { status: 500 }
+      );
+    }
+
+    /** 4) Copiar plantilla en Drive */
     const newName = `Propuesta Comercial - ${body.companyName} - ${new Date().toLocaleString()}`;
     const copyUrl = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(
       templateId
@@ -418,7 +437,7 @@ export async function POST(req: Request) {
       );
     }
 
-    /** 4) Reemplazos de texto generales */
+    /** 5) Reemplazos de texto generales */
     const VALOR_HORA = 50;
     const fechaDia = formatFechaDia();
 
@@ -548,7 +567,7 @@ export async function POST(req: Request) {
       }
     }
 
-    /** 5) Recortar tablas y limpiar marcadores */
+    /** 6) Recortar tablas y limpiar marcadores */
     const docStruct = await getDocStructure(newFileId, accessToken);
 
     // --- Tabla de precios ---
@@ -688,7 +707,7 @@ export async function POST(req: Request) {
       await clRes.text();
     }
 
-    /** 6) URL final */
+    /** 7) URL final */
     const url = `https://docs.google.com/document/d/${newFileId}/edit`;
     return NextResponse.json({ id: newFileId, url });
   } catch (err) {

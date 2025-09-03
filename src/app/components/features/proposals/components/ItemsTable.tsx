@@ -6,17 +6,11 @@ import type { Item } from "../lib/types";
 import { formatUSD } from "../lib/format";
 
 type Props = {
-  /** Lista ya filtrada/ordenada que viene desde el Generador */
   items: Item[];
-  /** Si el usuario es admin habilitamos acciones de edición/borrado */
   isAdmin: boolean;
-  /** Toggle de selección de un ítem */
   onToggle: (item: Item, checked: boolean) => void;
-  /** Cambiar cantidad de un ítem (por ID) */
   onChangeQty: (itemId: number, qty: number) => void;
-  /** Editar ítem (abre modal en el padre) */
   onEdit: (it: Item) => void;
-  /** Eliminar ítem (por ID) */
   onDelete: (itemId: number) => void;
 };
 

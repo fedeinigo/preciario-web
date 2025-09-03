@@ -6,7 +6,7 @@ import Modal from "@/app/components/ui/Modal";
 import type { FilialGroup, GlossaryLink } from "../lib/storage";
 
 /* =========================================================
-   FILIALES (izquierda) — “¿Desde dónde facturamos?”
+   FILIALES (izquierda)
    ========================================================= */
 export function FilialesSidebar({
   isAdmin,
@@ -20,7 +20,7 @@ export function FilialesSidebar({
 }: {
   isAdmin: boolean;
   filiales: FilialGroup[];
-  addFilial: (title: string) => void;
+  addFilial: (title: string) => void;        // ← recibe título (sin prompt)
   editFilialTitle: (id: string, title: string) => void;
   removeFilial: (id: string) => void;
   addCountry: (filialId: string, name: string) => void;
@@ -31,7 +31,7 @@ export function FilialesSidebar({
   const [openNewFilial, setOpenNewFilial] = useState(false);
   const [newFilialTitle, setNewFilialTitle] = useState("");
 
-  // Edición inline de título de filial (sin alertas)
+  // Edición inline de título de filial
   const [edGroupId, setEdGroupId] = useState<string | null>(null);
   const [edGroupTitle, setEdGroupTitle] = useState("");
 
@@ -52,7 +52,7 @@ export function FilialesSidebar({
 
   return (
     <div className="card">
-      {/* Encabezado morado completo + (+) flotante */}
+      {/* Encabezado morado + (+) */}
       <div className="relative -mx-4 -mt-3 mb-3">
         <div className="bg-primary text-white font-semibold px-3 py-2 text-[13px] rounded-t-[var(--radius)]">
           ¿Desde dónde facturamos?
@@ -187,23 +187,23 @@ export function FilialesSidebar({
         onClose={() => setOpenNewFilial(false)}
         title="Nueva filial"
         footer={
-            <div className="flex justify-end gap-2">
-              <button className="btn-ghost" onClick={() => setOpenNewFilial(false)}>
-                Cancelar
-              </button>
-              <button
-                className="btn-primary"
-                onClick={() => {
-                  const t = newFilialTitle.trim();
-                  if (!t) return;
-                  addFilial(t);
-                  setOpenNewFilial(false);
-                }}
-                disabled={!newFilialTitle.trim()}
-              >
-                Crear
-              </button>
-            </div>
+          <div className="flex justify-end gap-2">
+            <button className="btn-ghost" onClick={() => setOpenNewFilial(false)}>
+              Cancelar
+            </button>
+            <button
+              className="btn-primary"
+              onClick={() => {
+                const t = newFilialTitle.trim();
+                if (!t) return;
+                addFilial(t);
+                setOpenNewFilial(false);
+              }}
+              disabled={!newFilialTitle.trim()}
+            >
+              Crear
+            </button>
+          </div>
         }
       >
         <div className="grid gap-3">
@@ -272,7 +272,9 @@ export function FilialesSidebar({
       {/* MODAL: Editar país */}
       <Modal
         open={openEditCountry.open}
-        onClose={() => setOpenEditCountry({ open: false, filialId: null, idx: -1, name: "" })}
+        onClose={() =>
+          setOpenEditCountry({ open: false, filialId: null, idx: -1, name: "" })
+        }
         title="Editar país"
         footer={
           <div className="flex justify-end gap-2">
@@ -318,7 +320,7 @@ export function FilialesSidebar({
 }
 
 /* =========================================================
-   GLOSARIO (derecha)  — (igual que en el paso anterior)
+   GLOSARIO (derecha)
    ========================================================= */
 type LinkForm = { id?: string; label: string; url: string };
 
@@ -360,7 +362,7 @@ export function GlossarySidebar({
 
   return (
     <div className="card">
-      {/* Encabezado morado completo + botón (+) flotante */}
+      {/* Encabezado + (+) */}
       <div className="relative -mx-4 -mt-3 mb-3">
         <div className="bg-primary text-white font-semibold px-3 py-2 text-sm rounded-t-[var(--radius)]">
           Enlaces de Utilidad

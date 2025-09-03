@@ -1,13 +1,73 @@
+"use client";
+
 import Modal from "@/app/components/ui/Modal";
 import Combobox from "@/app/components/ui/Combobox";
-import { COUNTRY_NAMES, SUBSIDIARIES } from "../lib/catalogs";
 
+/** === Tipos expuestos para que Generator.tsx los importe === */
 export type WppKind = "marketing" | "utility" | "auth";
+export type WppForm = { qty: number; destCountry: string };
+
+/** Lista PROPIA de países destino (no la del generador) */
+const DESTINATION_COUNTRIES: string[] = [
+  "Argentina",
+  "Alemania",
+  "Aruba",
+  "Belgica",
+  "Bolivia",
+  "Brasil",
+  "Canadá",
+  "Chile",
+  "Colombia",
+  "Costa Rica",
+  "Ecuador",
+  "Egipto",
+  "El Salvador",
+  "España",
+  "Estados Unidos",
+  "Francia",
+  "Guatemala",
+  "Haití",
+  "Honduras",
+  "India",
+  "Indonesia",
+  "Israel",
+  "Italia",
+  "Jamaica",
+  "Malasia",
+  "México",
+  "Nicaragua",
+  "Nigeria",
+  "Noruega",
+  "Países Bajos",
+  "Pakistán",
+  "Panamá",
+  "Paraguay",
+  "Perú",
+  "Polonia",
+  "Puerto Rico",
+  "Reino Unido",
+  "República Dominicana",
+  "Rumania",
+  "Rusia",
+  "Arabia Saudita",
+  "Suecia",
+  "Suiza",
+  "Turquía",
+  "Uruguay",
+  "Venezuela",
+  "Emiratos Árabes Unidos",
+  "Resto de Asia",
+  "Resto de Europa",
+  "Resto de Africa",
+  "Resto de America",
+  "Other",
+];
 
 export function WhatsAppModal({
   open,
   kind,
   form,
+  billingSubsidiary,
   onChange,
   onApply,
   onClose,
@@ -16,8 +76,10 @@ export function WhatsAppModal({
 }: {
   open: boolean;
   kind: WppKind;
-  form: { qty: number; destCountry: string; subsidiary: string };
-  onChange: (next: { qty?: number; destCountry?: string; subsidiary?: string }) => void;
+  form: WppForm;
+  /** Filial seteada por el país de la propuesta (solo lectura en el modal) */
+  billingSubsidiary: string;
+  onChange: (next: Partial<WppForm>) => void;
   onApply: () => void;
   onClose: () => void;
   error?: string;
@@ -72,11 +134,11 @@ export function WhatsAppModal({
             <p className="mt-1 text-[12px] text-muted">Cantidad mensual estimada.</p>
           </div>
 
-          {/* País */}
+          {/* País destino (lista propia) */}
           <div>
             <label className="block text-xs text-gray-600 mb-1">País destino</label>
             <Combobox
-              options={COUNTRY_NAMES}
+              options={DESTINATION_COUNTRIES}
               value={form.destCountry}
               onChange={(v) => onChange({ destCountry: v })}
               placeholder="Seleccione país"
@@ -84,23 +146,11 @@ export function WhatsAppModal({
             <p className="mt-1 text-[12px] text-muted">Usado para el lookup de precios.</p>
           </div>
 
-          {/* Filial */}
+          {/* Filial de facturación (solo lectura) */}
           <div>
-            <label className="block text-xs text-gray-600 mb-1">Filial</label>
-            <select
-              className="select"
-              value={form.subsidiary}
-              onChange={(e) => onChange({ subsidiary: e.target.value })}
-              disabled={applying}
-            >
-              <option value="">(usar seleccionada)</option>
-              {SUBSIDIARIES.map((s) => (
-                <option key={s.id} value={s.name}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-[12px] text-muted">Opcional: sobrescribe la filial actual.</p>
+            <label className="block text-xs text-gray-600 mb-1">Filial de facturación</label>
+            <input className="input" value={billingSubsidiary || "—"} readOnly />
+            <p className="mt-1 text-[12px] text-muted">Determinada por el país de la propuesta.</p>
           </div>
         </div>
 
@@ -111,9 +161,9 @@ export function WhatsAppModal({
           </div>
         )}
 
-        {/* Overlay de espera */}
+        {/* Overlay de espera (tapa todo el modal content) */}
         {applying && (
-          <div className="absolute inset-0 rounded-sm bg-white/65 backdrop-blur-[1px] flex items-center justify-center">
+          <div className="absolute inset-0 z-[60] rounded-sm bg-white/75 backdrop-blur-[1px] flex items-center justify-center">
             <div className="flex items-center gap-3 text-gray-700">
               <span className="h-5 w-5 rounded-full border-2 border-gray-300 border-t-gray-700 animate-spin" />
               <span>Calculando precios…</span>

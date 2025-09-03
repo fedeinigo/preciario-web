@@ -8,23 +8,23 @@ import type { sheets_v4 } from "googleapis";
 /* ===================== Tipos de payloads soportados ===================== */
 type WhatsAppNewPayload = {
   kind: "whatsapp";
-  subsidiary: string;
-  destCountry: string;
+  subsidiary: string;              // mostrado, no se usa para el precio de WhatsApp
+  destCountry: string;             // país destino (col A)
   variant: "marketing" | "utility" | "auth";
   qty: number;
 };
 type WhatsAppOldPayload = {
   kind: "whatsapp";
-  subsidiary: string;
+  subsidiary: string;              // mostrado, no se usa para el precio de WhatsApp
   marketingQty: number;
   utilityQty: number;
   authQty: number;
-  destCountry?: string;
+  destCountry?: string;            // si no viene, usamos subsidiary como antes
 };
 type MinutesNewPayload = {
   kind: "minutes";
-  subsidiary: string;
-  destCountry: string;
+  subsidiary: string;              // usado para mapear columna (C..G)
+  destCountry?: string;            // requerido si variant = "out"
   variant: "out" | "in";
   qty: number;
 };
@@ -42,11 +42,10 @@ type AnyPayload =
   | MinutesNewPayload
   | MinutesOldPayload;
 
-type PricingOk = { ok: true; totalQty: number; totalAmount: number; unitPrice: number };
+type PricingOk = { ok: true; totalQty: number; totalAmount: number; unitPrice: number; sheetCell?: string };
 type PricingErr = { ok: false; error: string };
 
 /* ===================== Helpers ===================== */
-
 function bad(reason: string, status = 400): NextResponse<PricingErr> {
   return NextResponse.json({ ok: false, error: reason }, { status });
 }
@@ -162,26 +161,73 @@ async function getSheetsClientForUser(): Promise<sheets_v4.Sheets> {
   return google.sheets({ version: "v4", auth: oauth2 });
 }
 
-/* ====== Lookups en la Sheet ====== */
-function lookupWhatsAppPriceRow(rows: string[][], subsidiary: string, destCountry: string) {
-  return rows.find(
-    (r) =>
-      (r[0] ?? "").trim().toUpperCase() === subsidiary.trim().toUpperCase() &&
-      (r[1] ?? "").trim().toUpperCase() === destCountry.trim().toUpperCase()
-  );
+/* ====== Utilidades de la hoja “costos” ====== */
+
+const TAB = "costos";
+
+// WhatsApp
+const RANGE_WPP_COUNTRIES = `${TAB}!A3:A54`; // países
+const RANGE_WPP_HEADERS   = `${TAB}!H2:J2`;  // "Marketing | Utility | Authentication"
+const RANGE_WPP_VALUES    = `${TAB}!H3:J54`; // precios
+
+// Minutos salientes
+const RANGE_OUT_COUNTRIES = `${TAB}!A3:A54`;
+const RANGE_OUT_HEADERS   = `${TAB}!C2:G2`;  // ARGENTINA | COLOMBIA | ESPAÑA | USA | BRASIL
+const RANGE_OUT_VALUES    = `${TAB}!C3:G54`;
+
+// Minutos entrantes
+const RANGE_IN_FILIALES   = `${TAB}!A58:A62`; // ARGENTINA..ESPAÑA
+const RANGE_IN_VALUES     = `${TAB}!B58:B62`; // PPM
+
+const norm = (s: string) =>
+  s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
+
+function findRowIndex(arr: string[], target: string): number {
+  const t = norm(target);
+  return arr.findIndex((x) => norm(x) === t);
 }
-function lookupMinutesPriceRow(
-  rows: string[][],
-  subsidiary: string,
-  destCountry: string,
-  expectedType: "Saliente" | "Entrante"
-) {
-  return rows.find(
-    (r) =>
-      (r[0] ?? "").trim().toUpperCase() === subsidiary.trim().toUpperCase() &&
-      (r[1] ?? "").trim().toUpperCase() === destCountry.trim().toUpperCase() &&
-      (r[2] ?? "").trim().toUpperCase() === expectedType.toUpperCase()
-  );
+function wppCol(kind: "marketing" | "utility" | "auth"): number {
+  return kind === "marketing" ? 0 : kind === "utility" ? 1 : 2; // H/I/J
+}
+function outColFromSubsidiary(subsidiary: string): number {
+  const s = norm(subsidiary);
+  if (s.includes("arg")) return 0; // C
+  if (s.includes("col")) return 1; // D
+  if (s.includes("esp")) return 2; // E
+  if (s.includes("usa") || s.includes("estados")) return 3; // F
+  if (s.includes("bra")) return 4; // G
+  return 3; // fallback USA
+}
+
+/* ====== Lecturas ====== */
+async function readWhatsAppMatrix(sheets: sheets_v4.Sheets) {
+  const batch = await sheets.spreadsheets.values.batchGet({
+    spreadsheetId: assertEnv("GOOGLE_SHEET_ID"),
+    ranges: [RANGE_WPP_COUNTRIES, RANGE_WPP_HEADERS, RANGE_WPP_VALUES],
+  });
+  const countries = (batch.data.valueRanges?.[0]?.values ?? []).flat() as string[];
+  const matrix = batch.data.valueRanges?.[2]?.values ?? [];
+  return { countries, matrix };
+}
+
+async function readOutMinutesMatrix(sheets: sheets_v4.Sheets) {
+  const batch = await sheets.spreadsheets.values.batchGet({
+    spreadsheetId: assertEnv("GOOGLE_SHEET_ID"),
+    ranges: [RANGE_OUT_COUNTRIES, RANGE_OUT_HEADERS, RANGE_OUT_VALUES],
+  });
+  const countries = (batch.data.valueRanges?.[0]?.values ?? []).flat() as string[];
+  const matrix = batch.data.valueRanges?.[2]?.values ?? [];
+  return { countries, matrix };
+}
+
+async function readInMinutesVectors(sheets: sheets_v4.Sheets) {
+  const batch = await sheets.spreadsheets.values.batchGet({
+    spreadsheetId: assertEnv("GOOGLE_SHEET_ID"),
+    ranges: [RANGE_IN_FILIALES, RANGE_IN_VALUES],
+  });
+  const filiales = (batch.data.valueRanges?.[0]?.values ?? []).flat() as string[];
+  const values = (batch.data.valueRanges?.[1]?.values ?? []).flat() as string[];
+  return { filiales, values };
 }
 
 /* ===================== Handler ===================== */
@@ -190,12 +236,6 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user) return bad("Unauthorized", 401);
 
-    const SHEET_ID = assertEnv("GOOGLE_SHEET_ID");
-    assertEnv("GOOGLE_SHEET_TAB");
-    const WHATS_RANGE = assertEnv("SHEETS_WHATSAPP_RANGE");
-    const OUT_RANGE = assertEnv("SHEETS_MINUTES_OUT_RANGE");
-    const IN_RANGE = assertEnv("SHEETS_MINUTES_IN_RANGE");
-
     const body = (await req.json()) as AnyPayload;
     if (!body || typeof body !== "object" || !("kind" in body)) {
       return bad("Missing kind");
@@ -203,53 +243,47 @@ export async function POST(req: NextRequest) {
 
     const sheets = await getSheetsClientForUser();
 
-    /* ------------------- WhatsApp ------------------- */
+    /* ------------------- WhatsApp (usa costos!A/H..J) ------------------- */
     if (body.kind === "whatsapp") {
-      const wres = await sheets.spreadsheets.values.get({
-        spreadsheetId: SHEET_ID,
-        range: WHATS_RANGE,
-      });
-      const rows = (wres.data.values ?? []) as string[][];
+      const { countries, matrix } = await readWhatsAppMatrix(sheets);
 
+      // NEW payload
       if (isWhatsAppNew(body)) {
-        const { subsidiary, destCountry, variant } = body;
         const qty = Math.max(0, Number(body.qty) || 0);
-        if (!subsidiary || !destCountry) return bad("Bad whatsapp payload");
-        if (qty <= 0) return bad("Total qty is zero");
-
-        const row = lookupWhatsAppPriceRow(rows, subsidiary, destCountry);
-        if (!row) return bad("No price row for WhatsApp");
-
-        const pMarketing = parseMoney(row[3]);
-        const pUtility = parseMoney(row[4]);
-        const pAuth = parseMoney(row[5]);
-
-        const unit = variant === "marketing" ? pMarketing : variant === "utility" ? pUtility : pAuth;
-        const totalAmount = qty * unit;
-        const ok: PricingOk = { ok: true, totalQty: qty, totalAmount, unitPrice: unit };
+        if (!body.destCountry || qty <= 0) return bad("Bad whatsapp payload");
+        const r = findRowIndex(countries, body.destCountry);
+        if (r < 0) return bad(`País no encontrado en ${RANGE_WPP_COUNTRIES}`);
+        const c = wppCol(body.variant);
+        const raw = (matrix[r]?.[c] ?? "") as string;
+        const unit = parseMoney(raw);
+        const ok: PricingOk = {
+          ok: true,
+          totalQty: qty,
+          totalAmount: qty * unit,
+          unitPrice: unit,
+          sheetCell: `costos!${String.fromCharCode(72 + c)}${3 + r}`, // H=72
+        };
         return NextResponse.json(ok);
       }
 
+      // OLD payload (tres cantidades)
       if (isWhatsAppOld(body)) {
-        const subsidiary = body.subsidiary;
-        const dest = body.destCountry ?? body.subsidiary;
-        const row = lookupWhatsAppPriceRow(rows, subsidiary, dest);
-        if (!row) return bad("No price row for WhatsApp");
+        const dest = body.destCountry ?? body.subsidiary; // compat anterior
+        const r = findRowIndex(countries, dest);
+        if (r < 0) return bad(`País no encontrado en ${RANGE_WPP_COUNTRIES}`);
 
-        const pMarketing = parseMoney(row[3]);
-        const pUtility = parseMoney(row[4]);
-        const pAuth = parseMoney(row[5]);
+        const pMarketing = parseMoney((matrix[r]?.[0] ?? "") as string);
+        const pUtility   = parseMoney((matrix[r]?.[1] ?? "") as string);
+        const pAuth      = parseMoney((matrix[r]?.[2] ?? "") as string);
 
         const mQty = Math.max(0, Number(body.marketingQty) || 0);
-        const uQty = Math.max(0, Number(body.utilityQty) || 0);
-        const aQty = Math.max(0, Number(body.authQty) || 0);
-
+        const uQty = Math.max(0, Number(body.utilityQty)   || 0);
+        const aQty = Math.max(0, Number(body.authQty)      || 0);
         const totalQty = mQty + uQty + aQty;
         if (totalQty === 0) return bad("Total qty is zero");
 
         const totalAmount = mQty * pMarketing + uQty * pUtility + aQty * pAuth;
         const unitPrice = totalAmount / totalQty;
-
         const ok: PricingOk = { ok: true, totalQty, totalAmount, unitPrice };
         return NextResponse.json(ok);
       }
@@ -257,65 +291,73 @@ export async function POST(req: NextRequest) {
       return bad("Invalid whatsapp payload");
     }
 
-    /* ------------------- Minutos ------------------- */
+    /* ------------------- Minutos (usa costos!A/C..G y A/B entradas) ---- */
     if (body.kind === "minutes") {
+      // NEW payload
       if (isMinutesNew(body)) {
-        const { subsidiary, destCountry, variant } = body;
         const qty = Math.max(0, Number(body.qty) || 0);
-        if (!subsidiary || !destCountry) return bad("Bad minutes payload");
         if (qty <= 0) return bad("Total qty is zero");
-
-        if (variant === "out") {
-          const o = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OUT_RANGE });
-          const orows = (o.data.values ?? []) as string[][];
-          const orow = lookupMinutesPriceRow(orows, subsidiary, destCountry, "Saliente");
-          if (!orow) return bad("No price row for Outgoing");
-          const ppmOut = parseMoney(orow[3]);
-          const totalAmount = qty * ppmOut;
-          const ok: PricingOk = { ok: true, totalQty: qty, totalAmount, unitPrice: ppmOut };
+        if (body.variant === "out") {
+          if (!body.destCountry) return bad("Bad minutes payload (missing destCountry)");
+          const { countries, matrix } = await readOutMinutesMatrix(sheets);
+          const r = findRowIndex(countries, body.destCountry);
+          if (r < 0) return bad(`País no encontrado en ${RANGE_OUT_COUNTRIES}`);
+          const c = outColFromSubsidiary(body.subsidiary);
+          const raw = (matrix[r]?.[c] ?? "") as string;
+          const ppmOut = parseMoney(raw);
+          const ok: PricingOk = {
+            ok: true,
+            totalQty: qty,
+            totalAmount: qty * ppmOut,
+            unitPrice: ppmOut,
+            sheetCell: `costos!${String.fromCharCode(67 + c)}${3 + r}`, // C=67
+          };
           return NextResponse.json(ok);
         } else {
-          const i = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IN_RANGE });
-          const irows = (i.data.values ?? []) as string[][];
-          const irow = lookupMinutesPriceRow(irows, subsidiary, destCountry, "Entrante");
-          if (!irow) return bad("No price row for Incoming");
-          const ppmIn = parseMoney(irow[3]);
-          const totalAmount = qty * ppmIn;
-          const ok: PricingOk = { ok: true, totalQty: qty, totalAmount, unitPrice: ppmIn };
+          // Entrantes: solo filial
+          const { filiales, values } = await readInMinutesVectors(sheets);
+          const fIdx = findRowIndex(filiales, body.subsidiary);
+          if (fIdx < 0) return bad(`Filial no encontrada en ${RANGE_IN_FILIALES}`);
+          const ppmIn = parseMoney(values[fIdx] ?? "");
+          const ok: PricingOk = {
+            ok: true,
+            totalQty: qty,
+            totalAmount: qty * ppmIn,
+            unitPrice: ppmIn,
+            sheetCell: `costos!B${58 + fIdx}`,
+          };
           return NextResponse.json(ok);
         }
       }
 
+      // OLD payload
       if (isMinutesOld(body)) {
-        const { subsidiary, destCountry } = body;
-        if (!subsidiary || !destCountry) return bad("Bad minutes payload");
+        const outQ = Math.max(0, Number(body.outQty) || 0);
+        const inQ  = Math.max(0, Number(body.inQty)  || 0);
+        if (outQ + inQ === 0) return bad("Total qty is zero");
 
         let totalQty = 0;
         let totalAmount = 0;
 
-        const outQ = Math.max(0, Number(body.outQty) || 0);
         if (outQ > 0) {
-          const o = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OUT_RANGE });
-          const orows = (o.data.values ?? []) as string[][];
-          const orow = lookupMinutesPriceRow(orows, subsidiary, destCountry, "Saliente");
-          if (!orow) return bad("No price row for Outgoing");
-          const ppmOut = parseMoney(orow[3]);
+          const { countries, matrix } = await readOutMinutesMatrix(sheets);
+          const r = findRowIndex(countries, body.destCountry);
+          if (r < 0) return bad(`País no encontrado en ${RANGE_OUT_COUNTRIES}`);
+          const c = outColFromSubsidiary(body.subsidiary);
+          const ppmOut = parseMoney((matrix[r]?.[c] ?? "") as string);
           totalQty += outQ;
           totalAmount += outQ * ppmOut;
         }
 
-        const inQ = Math.max(0, Number(body.inQty) || 0);
         if (inQ > 0) {
-          const i = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IN_RANGE });
-          const irows = (i.data.values ?? []) as string[][];
-          const irow = lookupMinutesPriceRow(irows, subsidiary, destCountry, "Entrante");
-          if (!irow) return bad("No price row for Incoming");
-          const ppmIn = parseMoney(irow[3]);
+          const { filiales, values } = await readInMinutesVectors(sheets);
+          const fIdx = findRowIndex(filiales, body.subsidiary);
+          if (fIdx < 0) return bad(`Filial no encontrada en ${RANGE_IN_FILIALES}`);
+          const ppmIn = parseMoney(values[fIdx] ?? "");
           totalQty += inQ;
           totalAmount += inQ * ppmIn;
         }
 
-        if (totalQty === 0) return bad("Total qty is zero");
         const unitPrice = totalAmount / totalQty;
         const ok: PricingOk = { ok: true, totalQty, totalAmount, unitPrice };
         return NextResponse.json(ok);

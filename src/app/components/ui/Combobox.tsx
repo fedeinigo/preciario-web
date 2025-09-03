@@ -1,6 +1,14 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState, useId } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useId,
+  useLayoutEffect,
+} from "react";
+import { createPortal } from "react-dom";
 
 interface ComboboxProps {
   options: string[];
@@ -11,6 +19,7 @@ interface ComboboxProps {
   noResultsText?: string;
 }
 
+/** Renderiza el popup en portal (fixed) para evitar que lo recorten los modales/overflows */
 export default function Combobox({
   options,
   value,
@@ -25,6 +34,9 @@ export default function Combobox({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // posición del popup en viewport (para portal)
+  const [popupRect, setPopupRect] = useState<{ left: number; top: number; width: number } | null>(null);
+
   // IDs ARIA
   const listboxId = useId();
   const optionId = (idx: number) => `${listboxId}-opt-${idx}`;
@@ -35,6 +47,7 @@ export default function Combobox({
     return options.filter((o) => o.toLowerCase().includes(q));
   }, [options, query]);
 
+  // cerrar al click exterior
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!wrapperRef.current) return;
@@ -47,6 +60,26 @@ export default function Combobox({
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
+
+  // calcular posición del popup cuando abre, y al resize/scroll
+  useLayoutEffect(() => {
+    function updateRect() {
+      const el = inputRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setPopupRect({ left: r.left, top: r.bottom + 4, width: r.width });
+    }
+    if (open) {
+      updateRect();
+      window.addEventListener("resize", updateRect);
+      window.addEventListener("scroll", updateRect, true);
+      return () => {
+        window.removeEventListener("resize", updateRect);
+        window.removeEventListener("scroll", updateRect, true);
+      };
+    }
+    return;
+  }, [open]);
 
   const displayValue = open ? query : value;
 
@@ -89,6 +122,52 @@ export default function Combobox({
       }
     }, 0);
   }
+
+  const popup =
+    open && popupRect
+      ? createPortal(
+          <div
+            id={listboxId}
+            role="listbox"
+            aria-label={placeholder}
+            style={{
+              position: "fixed",
+              left: popupRect.left,
+              top: popupRect.top,
+              width: popupRect.width,
+              zIndex: 9999,
+            }}
+            className="rounded-lg border bg-white shadow-soft max-h-64 overflow-auto"
+          >
+            {filtered.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-gray-500">{noResultsText}</div>
+            ) : (
+              filtered.map((opt, idx) => {
+                const active = idx === highlight;
+                return (
+                  <div
+                    key={opt}
+                    id={optionId(idx)}
+                    role="option"
+                    aria-selected={active}
+                    className={`cursor-pointer w-full text-left px-3 py-2 text-sm ${
+                      active ? "bg-primarySoft/60" : "hover:bg-gray-50"
+                    }`}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      selectOption(opt);
+                    }}
+                    onMouseEnter={() => setHighlight(idx)}
+                  >
+                    {opt}
+                  </div>
+                );
+              })
+            )}
+          </div>,
+          document.body
+        )
+      : null;
 
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
@@ -136,40 +215,7 @@ export default function Combobox({
         </svg>
       </button>
 
-      {open && (
-        <div
-          id={listboxId}
-          role="listbox"
-          aria-label={placeholder}
-          className="absolute z-50 mt-1 w-full rounded-lg border bg-white shadow-soft max-h-64 overflow-auto"
-        >
-          {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-gray-500">{noResultsText}</div>
-          ) : (
-            filtered.map((opt, idx) => {
-              const active = idx === highlight;
-              return (
-                <div
-                  key={opt}
-                  id={optionId(idx)}
-                  role="option"
-                  aria-selected={active}
-                  className={`cursor-pointer w-full text-left px-3 py-2 text-sm ${
-                    active ? "bg-primarySoft/60" : "hover:bg-gray-50"
-                  }`}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    selectOption(opt);
-                  }}
-                  onMouseEnter={() => setHighlight(idx)}
-                >
-                  {opt}
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
+      {popup}
     </div>
   );
 }
