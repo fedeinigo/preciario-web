@@ -51,20 +51,23 @@ function bad(reason: string, status = 400): NextResponse<PricingErr> {
 }
 function assertEnv(name: string): string {
   const v = process.env[name];
-  if (!v) throw new Error(`Missing ${name}`);
+  if (!v || !`${v}`.trim()) throw new Error(`Missing ${name}`);
   return v;
 }
-function isWhatsAppNew(p: AnyPayload): p is WhatsAppNewPayload {
-  return p.kind === "whatsapp" && "variant" in p && "qty" in p;
+/** Lee env con default (no rompe si falta). */
+function envOr(name: string, fallback: string): string {
+  const v = process.env[name];
+  return v && `${v}`.trim().length > 0 ? `${v}`.trim() : fallback;
 }
-function isWhatsAppOld(p: AnyPayload): p is WhatsAppOldPayload {
-  return p.kind === "whatsapp" && ("marketingQty" in p || "utilityQty" in p || "authQty" in p);
-}
-function isMinutesNew(p: AnyPayload): p is MinutesNewPayload {
-  return p.kind === "minutes" && "variant" in p && "qty" in p;
-}
-function isMinutesOld(p: AnyPayload): p is MinutesOldPayload {
-  return p.kind === "minutes" && "outQty" in p && "inQty" in p;
+
+/** Normaliza (mayúsculas, trim, sin acentos) para comparar valores de hoja */
+function canon(input: unknown): string {
+  return String(input ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // quita diacríticos
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
 }
 
 /** Convierte strings tipo "$0,095790" | "1.234,56" | "1,234.56" a número */
@@ -81,6 +84,29 @@ function parseMoney(input: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/* ====== Type guards sin any ====== */
+function isObject(o: unknown): o is Record<string, unknown> {
+  return typeof o === "object" && o !== null;
+}
+function has<K extends string>(o: unknown, key: K): o is Record<K, unknown> {
+  return isObject(o) && key in o;
+}
+function isWhatsAppNew(p: AnyPayload): p is WhatsAppNewPayload {
+  return p.kind === "whatsapp" && has(p, "variant") && has(p, "qty");
+}
+function isWhatsAppOld(p: AnyPayload): p is WhatsAppOldPayload {
+  return (
+    p.kind === "whatsapp" &&
+    (has(p, "marketingQty") || has(p, "utilityQty") || has(p, "authQty"))
+  );
+}
+function isMinutesNew(p: AnyPayload): p is MinutesNewPayload {
+  return p.kind === "minutes" && has(p, "variant") && has(p, "qty");
+}
+function isMinutesOld(p: AnyPayload): p is MinutesOldPayload {
+  return p.kind === "minutes" && has(p, "outQty") && has(p, "inQty");
+}
+
 /* ====== Tipos y helpers para el refresh de token ====== */
 interface GoogleTokenResponse {
   access_token?: string;
@@ -92,14 +118,13 @@ interface GoogleTokenResponse {
 function parseGoogleTokenResponse(raw: string): GoogleTokenResponse {
   try {
     const json = JSON.parse(raw) as unknown;
-    if (typeof json !== "object" || json === null) return {};
-    const obj = json as Record<string, unknown>;
+    if (!isObject(json)) return {};
     return {
-      access_token: typeof obj.access_token === "string" ? obj.access_token : undefined,
-      expires_in: typeof obj.expires_in === "number" ? obj.expires_in : undefined,
-      refresh_token: typeof obj.refresh_token === "string" ? obj.refresh_token : undefined,
-      scope: typeof obj.scope === "string" ? obj.scope : undefined,
-      token_type: typeof obj.token_type === "string" ? obj.token_type : undefined,
+      access_token: typeof json.access_token === "string" ? json.access_token : undefined,
+      expires_in: typeof json.expires_in === "number" ? json.expires_in : undefined,
+      refresh_token: typeof json.refresh_token === "string" ? json.refresh_token : undefined,
+      scope: typeof json.scope === "string" ? json.scope : undefined,
+      token_type: typeof json.token_type === "string" ? json.token_type : undefined,
     };
   } catch {
     return {};
@@ -163,31 +188,29 @@ async function getSheetsClientForUser(): Promise<sheets_v4.Sheets> {
 
 /* ====== Lookups en la Sheet ====== */
 function lookupWhatsAppPriceRow(rows: string[][], subsidiary: string, destCountry: string) {
-  return rows.find(
-    (r) =>
-      (r[0] ?? "").trim().toUpperCase() === subsidiary.trim().toUpperCase() &&
-      (r[1] ?? "").trim().toUpperCase() === destCountry.trim().toUpperCase()
-  );
+  const sub = canon(subsidiary);
+  const dst = canon(destCountry);
+  return rows.find((r) => canon(r[0]) === sub && canon(r[1]) === dst);
 }
 
-// NUEVO: fallback para esquema "viejo" de minutos (OUT)
+// LEGACY: minutos salientes
 function findMinutesOutPriceLegacy(
   countries: string[][], headers: string[][], values: string[][], subsidiary: string, destCountry: string
 ): number | null {
-  const countryList = countries.map(r => (r[0] ?? "").toString().trim().toUpperCase());
-  const headerList = headers[0]?.map(c => (c ?? "").toString().trim().toUpperCase()) ?? [];
-  const rowIdx = countryList.indexOf(destCountry.trim().toUpperCase());
-  const colIdx = headerList.indexOf(subsidiary.trim().toUpperCase());
+  const countryList = countries.map((r) => canon(r[0]));
+  const headerList = (headers[0] ?? []).map((c) => canon(c));
+  const rowIdx = countryList.indexOf(canon(destCountry));
+  const colIdx = headerList.indexOf(canon(subsidiary));
   if (rowIdx < 0 || colIdx < 0) return null;
   const cell = values[rowIdx]?.[colIdx];
   const price = parseMoney(cell);
   return Number.isFinite(price) && price > 0 ? price : null;
 }
 
-// NUEVO: fallback para esquema "viejo" de minutos (IN)
+// LEGACY: minutos entrantes
 function findMinutesInPriceLegacy(filiales: string[][], values: string[][], subsidiary: string): number | null {
-  const filas = filiales.map(r => (r[0] ?? "").toString().trim().toUpperCase());
-  const idx = filas.indexOf(subsidiary.trim().toUpperCase());
+  const filas = filiales.map((r) => canon(r[0]));
+  const idx = filas.indexOf(canon(subsidiary));
   if (idx < 0) return null;
   const price = parseMoney(values[idx]?.[0]);
   return Number.isFinite(price) && price > 0 ? price : null;
@@ -199,12 +222,10 @@ function lookupMinutesPriceRow(
   destCountry: string,
   expectedType: "Saliente" | "Entrante"
 ) {
-  return rows.find(
-    (r) =>
-      (r[0] ?? "").trim().toUpperCase() === subsidiary.trim().toUpperCase() &&
-      (r[1] ?? "").trim().toUpperCase() === destCountry.trim().toUpperCase() &&
-      (r[2] ?? "").trim().toUpperCase() === expectedType.toUpperCase()
-  );
+  const sub = canon(subsidiary);
+  const dst = canon(destCountry);
+  const typ = canon(expectedType);
+  return rows.find((r) => canon(r[0]) === sub && canon(r[1]) === dst && canon(r[2]) === typ);
 }
 
 /* ===================== Handler ===================== */
@@ -213,9 +234,11 @@ export async function POST(req: NextRequest) {
     const session = await auth();
     if (!session || !session.user) return bad("Unauthorized", 401);
 
+    // Requeridos SIEMPRE
     const SHEET_ID = assertEnv("GOOGLE_SHEET_ID");
-    assertEnv("GOOGLE_SHEET_TAB");
-    const WHATS_RANGE = assertEnv("SHEETS_WHATSAPP_RANGE");
+
+    // Rango WhatsApp: si falta en env, usamos el default de tu .env.local
+    const WHATS_RANGE = envOr("SHEETS_WHATSAPP_RANGE", "variables!A10:F44");
 
     const body = (await req.json()) as AnyPayload;
     if (!body || typeof body !== "object" || !("kind" in body)) {
@@ -286,24 +309,37 @@ export async function POST(req: NextRequest) {
         if (!subsidiary || !destCountry) return bad("Bad minutes payload");
         if (qty <= 0) return bad("Total qty is zero");
 
-        if (variant === "out") {
-          // preferir esquema NUEVO
-          const OUT_RANGE = process.env.SHEETS_MINUTES_OUT_RANGE;
-          if (OUT_RANGE) {
-            const o = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OUT_RANGE });
-            const orows = (o.data.values ?? []) as string[][];
-            const orow = lookupMinutesPriceRow(orows, subsidiary, destCountry, "Saliente");
-            if (!orow) return bad("No price row for Outgoing");
-            const ppmOut = parseMoney(orow[3]);
-            const totalAmount = qty * ppmOut;
-            const ok: PricingOk = { ok: true, totalQty: qty, totalAmount, unitPrice: ppmOut };
-            return NextResponse.json(ok);
-          }
+        // Intentar esquema NUEVO solo si están definidos (y no vacíos)
+        const OUT_RANGE = envOr("SHEETS_MINUTES_OUT_RANGE", "");
+        const IN_RANGE = envOr("SHEETS_MINUTES_IN_RANGE", "");
 
-          // Fallback esquema VIEJO
-          const OC = assertEnv("SHEETS_OUT_COUNTRIES");
-          const OH = assertEnv("SHEETS_OUT_HEADERS");
-          const OV = assertEnv("SHEETS_OUT_VALUES");
+        if (variant === "out" && OUT_RANGE) {
+          const o = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OUT_RANGE });
+          const orows = (o.data.values ?? []) as string[][];
+          const orow = lookupMinutesPriceRow(orows, subsidiary, destCountry, "Saliente");
+          if (!orow) return bad("No price row for Outgoing");
+          const ppmOut = parseMoney(orow[3]);
+          const totalAmount = qty * ppmOut;
+          const ok: PricingOk = { ok: true, totalQty: qty, totalAmount, unitPrice: ppmOut };
+          return NextResponse.json(ok);
+        }
+        if (variant === "in" && IN_RANGE) {
+          const i = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IN_RANGE });
+          const irows = (i.data.values ?? []) as string[][];
+          const irow = lookupMinutesPriceRow(irows, subsidiary, destCountry, "Entrante");
+          if (!irow) return bad("No price row for Incoming");
+          const ppmIn = parseMoney(irow[3]);
+          const totalAmount = qty * ppmIn;
+          const ok: PricingOk = { ok: true, totalQty: qty, totalAmount, unitPrice: ppmIn };
+          return NextResponse.json(ok);
+        }
+
+        // Fallback LEGACY (pestaña "costos")
+        if (variant === "out") {
+          const OC = envOr("SHEETS_OUT_COUNTRIES", "costos!A3:A54");
+          const OH = envOr("SHEETS_OUT_HEADERS", "costos!C2:G2");
+          const OV = envOr("SHEETS_OUT_VALUES", "costos!C3:G54");
+
           const [cres, hres, vres] = await Promise.all([
             sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OC }),
             sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OH }),
@@ -318,22 +354,9 @@ export async function POST(req: NextRequest) {
           const ok: PricingOk = { ok: true, totalQty: qty, totalAmount, unitPrice: ppmOut };
           return NextResponse.json(ok);
         } else {
-          // variant === "in"
-          const IN_RANGE = process.env.SHEETS_MINUTES_IN_RANGE;
-          if (IN_RANGE) {
-            const i = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IN_RANGE });
-            const irows = (i.data.values ?? []) as string[][];
-            const irow = lookupMinutesPriceRow(irows, subsidiary, destCountry, "Entrante");
-            if (!irow) return bad("No price row for Incoming");
-            const ppmIn = parseMoney(irow[3]);
-            const totalAmount = qty * ppmIn;
-            const ok: PricingOk = { ok: true, totalQty: qty, totalAmount, unitPrice: ppmIn };
-            return NextResponse.json(ok);
-          }
+          const IF = envOr("SHEETS_IN_FILIALES", "costos!A58:A62");
+          const IV = envOr("SHEETS_IN_VALUES", "costos!B58:B62");
 
-          // Fallback esquema VIEJO
-          const IF = assertEnv("SHEETS_IN_FILIALES");
-          const IV = assertEnv("SHEETS_IN_VALUES");
           const [fres, vres] = await Promise.all([
             sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IF }),
             sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IV }),
@@ -352,12 +375,14 @@ export async function POST(req: NextRequest) {
         const { subsidiary, destCountry } = body;
         if (!subsidiary || !destCountry) return bad("Bad minutes payload");
 
+        const OUT_RANGE = envOr("SHEETS_MINUTES_OUT_RANGE", "");
+        const IN_RANGE = envOr("SHEETS_MINUTES_IN_RANGE", "");
+
         let totalQty = 0;
         let totalAmount = 0;
 
         const outQ = Math.max(0, Number(body.outQty) || 0);
         if (outQ > 0) {
-          const OUT_RANGE = process.env.SHEETS_MINUTES_OUT_RANGE;
           if (OUT_RANGE) {
             const o = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OUT_RANGE });
             const orows = (o.data.values ?? []) as string[][];
@@ -367,9 +392,10 @@ export async function POST(req: NextRequest) {
             totalQty += outQ;
             totalAmount += outQ * ppmOut;
           } else {
-            const OC = assertEnv("SHEETS_OUT_COUNTRIES");
-            const OH = assertEnv("SHEETS_OUT_HEADERS");
-            const OV = assertEnv("SHEETS_OUT_VALUES");
+            const OC = envOr("SHEETS_OUT_COUNTRIES", "costos!A3:A54");
+            const OH = envOr("SHEETS_OUT_HEADERS", "costos!C2:G2");
+            const OV = envOr("SHEETS_OUT_VALUES", "costos!C3:G54");
+
             const [cres, hres, vres] = await Promise.all([
               sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OC }),
               sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OH }),
@@ -387,7 +413,6 @@ export async function POST(req: NextRequest) {
 
         const inQ = Math.max(0, Number(body.inQty) || 0);
         if (inQ > 0) {
-          const IN_RANGE = process.env.SHEETS_MINUTES_IN_RANGE;
           if (IN_RANGE) {
             const i = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IN_RANGE });
             const irows = (i.data.values ?? []) as string[][];
@@ -397,8 +422,9 @@ export async function POST(req: NextRequest) {
             totalQty += inQ;
             totalAmount += inQ * ppmIn;
           } else {
-            const IF = assertEnv("SHEETS_IN_FILIALES");
-            const IV = assertEnv("SHEETS_IN_VALUES");
+            const IF = envOr("SHEETS_IN_FILIALES", "costos!A58:A62");
+            const IV = envOr("SHEETS_IN_VALUES", "costos!B58:B62");
+
             const [fres, vres] = await Promise.all([
               sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IF }),
               sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IV }),
