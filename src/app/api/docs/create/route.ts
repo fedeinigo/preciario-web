@@ -1,6 +1,6 @@
 // src/app/api/docs/create/route.ts
 import { NextResponse } from "next/server";
-import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 /** ----------------- Tipos de dominio ----------------- */
@@ -28,36 +28,20 @@ interface SheetsValuesResponse {
   values?: string[][];
 }
 
-interface TextRun {
-  content?: string;
-}
-interface ParagraphElement {
-  textRun?: TextRun;
-}
-interface Paragraph {
-  elements?: ParagraphElement[];
-}
-interface TableCell {
-  content?: StructuralElement[];
-}
-interface TableRow {
-  tableCells?: TableCell[];
-}
-interface Table {
-  tableRows?: TableRow[];
-}
+interface TextRun { content?: string; }
+interface ParagraphElement { textRun?: TextRun; }
+interface Paragraph { elements?: ParagraphElement[]; }
+interface TableCell { content?: StructuralElement[]; }
+interface TableRow { tableCells?: TableCell[]; }
+interface Table { tableRows?: TableRow[]; }
 interface StructuralElement {
   startIndex?: number;
   endIndex?: number;
   paragraph?: Paragraph;
   table?: Table;
 }
-interface DocumentBody {
-  content?: StructuralElement[];
-}
-interface DocumentGetResponse {
-  body?: DocumentBody;
-}
+interface DocumentBody { content?: StructuralElement[]; }
+interface DocumentGetResponse { body?: DocumentBody; }
 
 /** ----------------- Utils ----------------- */
 function formatUSD(n: number) {
@@ -72,18 +56,8 @@ function formatUSD(n: number) {
 // “30 de Agosto de 2025”
 function formatFechaDia(d = new Date()) {
   const meses = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
+    "Enero","Febrero","Marzo","Abril","Mayo","Junio",
+    "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
   ] as const;
   const dia = String(d.getDate()).padStart(2, "0");
   const mes = meses[d.getMonth()];
@@ -134,39 +108,22 @@ function pickTemplateIdByCountry(country?: string): string {
 }
 
 /** ----------------- Sheets helpers ----------------- */
-// Env:
-// SHEETS_CONFIG_SPREADSHEET_ID=1Qq9gFUgrOOkdgtPMy-nyWArGY37mcm7YUT-tlDOmngk
-// SHEETS_CONDITIONS_RANGE=Hoja1!A2:B6
-// SHEETS_WHATSAPP_RANGE=Hoja1!A10:F44
-// Scopes necesarios: spreadsheets.readonly
+// Scopes necesarios en Google OAuth: spreadsheets.readonly
 
-async function getConditionsText(
-  accessToken: string,
-  filial: string
-): Promise<string> {
+async function getConditionsText(accessToken: string, filial: string): Promise<string> {
   const sheetId = process.env.SHEETS_CONFIG_SPREADSHEET_ID;
   const range = process.env.SHEETS_CONDITIONS_RANGE ?? "Hoja1!A:B";
   if (!sheetId) return "";
 
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
-    sheetId
-  )}/values/${encodeURIComponent(range)}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(range)}`;
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
   const raw = await res.text();
 
   let json: unknown;
-  try {
-    json = JSON.parse(raw) as unknown;
-  } catch {
-    return "";
-  }
+  try { json = JSON.parse(raw) as unknown; } catch { return ""; }
 
-  const values: string[][] = Array.isArray(
-    (json as SheetsValuesResponse).values
-  )
+  const values: string[][] = Array.isArray((json as SheetsValuesResponse).values)
     ? ((json as SheetsValuesResponse).values as string[][])
     : [];
 
@@ -180,39 +137,21 @@ async function getConditionsText(
   return "";
 }
 
-/**
- * Devuelve filas WhatsApp por FILIAL.
- * Lee SHEETS_WHATSAPP_RANGE (default "Hoja1!A10:F44"), filtra por col A == filial,
- * y retorna solo columnas B..F (máx 5 columnas) por fila.
- * Capado a 7 filas (w1..w7) para coincidir con la plantilla.
- */
-async function getWhatsappRows(
-  accessToken: string,
-  filial: string
-): Promise<string[][]> {
+/** WhatsApp rows por FILIAL: retorna hasta 7 filas de 5 columnas (B..F) */
+async function getWhatsappRows(accessToken: string, filial: string): Promise<string[][]> {
   const sheetId = process.env.SHEETS_CONFIG_SPREADSHEET_ID;
   const range = process.env.SHEETS_WHATSAPP_RANGE ?? "Hoja1!A10:F44";
   if (!sheetId) return [];
 
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
-    sheetId
-  )}/values/${encodeURIComponent(range)}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(range)}`;
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
   const raw = await res.text();
 
   let json: unknown;
-  try {
-    json = JSON.parse(raw) as unknown;
-  } catch {
-    return [];
-  }
+  try { json = JSON.parse(raw) as unknown; } catch { return []; }
 
-  const values: string[][] = Array.isArray(
-    (json as SheetsValuesResponse).values
-  )
+  const values: string[][] = Array.isArray((json as SheetsValuesResponse).values)
     ? ((json as SheetsValuesResponse).values as string[][])
     : [];
 
@@ -223,36 +162,27 @@ async function getWhatsappRows(
     if (!Array.isArray(row) || row.length < 2) continue;
     const colA = typeof row[0] === "string" ? normalizeKey(row[0]) : "";
     if (colA === needle) {
-      const slice = row.slice(1, 6).map((v) =>
-        typeof v === "string" ? v : String(v ?? "")
-      );
+      const slice = row.slice(1, 6).map((v) => (typeof v === "string" ? v : String(v ?? "")));
       while (slice.length < 5) slice.push("");
       out.push(slice);
-      if (out.length >= 7) break; // soportamos hasta 7 filas en la plantilla
+      if (out.length >= 7) break;
     }
   }
   return out;
 }
 
 /** ----------------- Docs helpers ----------------- */
-async function getDocStructure(
-  docId: string,
-  accessToken: string
-): Promise<DocumentGetResponse> {
+async function getDocStructure(docId: string, accessToken: string): Promise<DocumentGetResponse> {
   const res = await fetch(
     `https://docs.googleapis.com/v1/documents/${encodeURIComponent(docId)}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   const text = await res.text();
   let json: unknown;
-  try {
-    json = JSON.parse(text) as unknown;
-  } catch {
+  try { json = JSON.parse(text) as unknown; } catch {
     throw new Error(`docs.get parse error: ${text.slice(0, 300)}`);
   }
-  if (!res.ok) {
-    throw new Error(`docs.get error: ${text.slice(0, 300)}`);
-  }
+  if (!res.ok) throw new Error(`docs.get error: ${text.slice(0, 300)}`);
   return json as DocumentGetResponse;
 }
 
@@ -277,10 +207,7 @@ function findTableAfterMarker(
     const el = content[i];
     if (el.paragraph) {
       const txt = paragraphText(el.paragraph);
-      if (txt.includes(marker)) {
-        markerPos = i;
-        break;
-      }
+      if (txt.includes(marker)) { markerPos = i; break; }
     }
   }
   if (markerPos === -1) return null;
@@ -288,8 +215,7 @@ function findTableAfterMarker(
   for (let j = markerPos + 1; j < content.length; j++) {
     const el = content[j];
     if (el.table) {
-      const startIndex =
-        typeof el.startIndex === "number" ? el.startIndex : undefined;
+      const startIndex = typeof el.startIndex === "number" ? el.startIndex : undefined;
       if (startIndex === undefined) return null;
       return { table: el.table, tableElementIndex: j, tableStartIndex: startIndex };
     }
@@ -301,9 +227,7 @@ function cellText(cell?: TableCell): string {
   if (!cell?.content) return "";
   const parts: string[] = [];
   for (const se of cell.content) {
-    if (se.paragraph) {
-      parts.push(paragraphText(se.paragraph));
-    }
+    if (se.paragraph) parts.push(paragraphText(se.paragraph));
   }
   return parts.join("");
 }
@@ -321,16 +245,10 @@ export async function POST(req: Request) {
     try {
       body = JSON.parse(bodyText) as CreateDocPayload;
     } catch {
-      return NextResponse.json(
-        { error: "Body inválido (no es JSON)", bodyText },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Body inválido (no es JSON)", bodyText }, { status: 400 });
     }
     if (!body.companyName || !body.items?.length) {
-      return NextResponse.json(
-        { error: "Faltan campos requeridos en el payload" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Faltan campos requeridos en el payload" }, { status: 400 });
     }
 
     // 1) refresh token de Google
@@ -340,10 +258,7 @@ export async function POST(req: Request) {
     });
     if (!account?.refresh_token) {
       return NextResponse.json(
-        {
-          error:
-            "No hay refresh_token de Google. Cierra sesión y vuelve a entrar aceptando permisos.",
-        },
+        { error: "No hay refresh_token de Google. Cierra sesión y vuelve a entrar aceptando permisos." },
         { status: 401 }
       );
     }
@@ -360,23 +275,15 @@ export async function POST(req: Request) {
     });
     const tokenRaw = await tokenRes.text();
     let tokenJson: unknown;
-    try {
-      tokenJson = JSON.parse(tokenRaw) as unknown;
-    } catch {
-      return NextResponse.json(
-        { error: "Respuesta no-JSON al refrescar token", tokenRaw },
-        { status: 502 }
-      );
+    try { tokenJson = JSON.parse(tokenRaw) as unknown; } catch {
+      return NextResponse.json({ error: "Respuesta no-JSON al refrescar token", tokenRaw }, { status: 502 });
     }
     const accessToken = getStr(tokenJson, "access_token");
     if (!tokenRes.ok || !accessToken) {
-      return NextResponse.json(
-        { error: "Error al refrescar token", details: tokenRaw },
-        { status: tokenRes.status || 502 }
-      );
+      return NextResponse.json({ error: "Error al refrescar token", details: tokenRaw }, { status: tokenRes.status || 502 });
     }
 
-    /** 2) Datos opcionales desde Sheets — ahora comparando con clave normalizada */
+    /** 2) Datos opcionales desde Sheets — normalizando claves */
     const filialKey = normalizeKey(body.subsidiary);
     const [conditionsText, whatsappRows] = await Promise.all([
       getConditionsText(accessToken, filialKey),
@@ -396,9 +303,7 @@ export async function POST(req: Request) {
 
     /** 4) Copiar plantilla en Drive */
     const newName = `Propuesta Comercial - ${body.companyName} - ${new Date().toLocaleString()}`;
-    const copyUrl = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(
-      templateId
-    )}/copy?supportsAllDrives=true`;
+    const copyUrl = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(templateId)}/copy?supportsAllDrives=true`;
 
     const copyRes = await fetch(copyUrl, {
       method: "POST",
@@ -410,20 +315,14 @@ export async function POST(req: Request) {
     });
     const copyRaw = await copyRes.text();
     let copyJson: unknown;
-    try {
-      copyJson = JSON.parse(copyRaw) as unknown;
-    } catch {
-      return NextResponse.json(
-        { error: "Drive copy: respuesta no-JSON", copyRaw },
-        { status: 502 }
-      );
+    try { copyJson = JSON.parse(copyRaw) as unknown; } catch {
+      return NextResponse.json({ error: "Drive copy: respuesta no-JSON", copyRaw }, { status: 502 });
     }
     if (!copyRes.ok) {
       return NextResponse.json(
         {
           error: "No se pudo copiar la plantilla",
-          hint:
-            "Verifica ID y permisos. Si está en Unidad compartida, asegura acceso y supportsAllDrives.",
+          hint: "Verifica ID y permisos. Si está en Unidad compartida, asegura acceso y supportsAllDrives.",
           details: copyJson,
         },
         { status: copyRes.status }
@@ -431,10 +330,7 @@ export async function POST(req: Request) {
     }
     const newFileId = getStr(copyJson, "id");
     if (!newFileId) {
-      return NextResponse.json(
-        { error: "Drive copy no devolvió id", details: copyJson },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: "Drive copy no devolvió id", details: copyJson }, { status: 502 });
     }
 
     /** 5) Reemplazos de texto generales */
@@ -442,84 +338,24 @@ export async function POST(req: Request) {
     const fechaDia = formatFechaDia();
 
     const requests: Array<Record<string, unknown>> = [
-      {
-        replaceAllText: {
-          containsText: { text: "<-cliente->", matchCase: false },
-          replaceText: body.companyName,
-        },
-      },
-      {
-        replaceAllText: {
-          containsText: { text: "<-fecha_dia->", matchCase: false },
-          replaceText: fechaDia,
-        },
-      },
-      {
-        replaceAllText: {
-          containsText: { text: "<-condiciones->", matchCase: false },
-          replaceText: conditionsText,
-        },
-      },
-      {
-        replaceAllText: {
-          containsText: { text: "<-horas->", matchCase: false },
-          replaceText: String(body.totals.hours),
-        },
-      },
-      {
-        replaceAllText: {
-          containsText: { text: "<-valor_hora->", matchCase: false },
-          replaceText: `US$ ${VALOR_HORA}`,
-        },
-      },
-      {
-        replaceAllText: {
-          containsText: { text: "<-total_horas->", matchCase: false },
-          replaceText: formatUSD(body.totals.oneShot),
-        },
-      },
-      {
-        replaceAllText: {
-          containsText: { text: "<-total-oneshot->", matchCase: false },
-          replaceText: formatUSD(body.totals.oneShot),
-        },
-      },
-      {
-        replaceAllText: {
-          containsText: { text: "<-totalmensual->", matchCase: false },
-          replaceText: formatUSD(body.totals.monthly),
-        },
-      },
+      { replaceAllText: { containsText: { text: "<-cliente->", matchCase: false }, replaceText: body.companyName } },
+      { replaceAllText: { containsText: { text: "<-fecha_dia->", matchCase: false }, replaceText: fechaDia } },
+      { replaceAllText: { containsText: { text: "<-condiciones->", matchCase: false }, replaceText: conditionsText } },
+      { replaceAllText: { containsText: { text: "<-horas->", matchCase: false }, replaceText: String(body.totals.hours) } },
+      { replaceAllText: { containsText: { text: "<-valor_hora->", matchCase: false }, replaceText: `US$ ${VALOR_HORA}` } },
+      { replaceAllText: { containsText: { text: "<-total_horas->", matchCase: false }, replaceText: formatUSD(body.totals.oneShot) } },
+      { replaceAllText: { containsText: { text: "<-total-oneshot->", matchCase: false }, replaceText: formatUSD(body.totals.oneShot) } },
+      { replaceAllText: { containsText: { text: "<-totalmensual->", matchCase: false }, replaceText: formatUSD(body.totals.monthly) } },
     ];
 
     // Ítems (tabla de precios)
     body.items.forEach((it, idx) => {
       const n = idx + 1;
       requests.push(
-        {
-          replaceAllText: {
-            containsText: { text: `<item${n}>`, matchCase: false },
-            replaceText: it.name,
-          },
-        },
-        {
-          replaceAllText: {
-            containsText: { text: `<cantidad${n}>`, matchCase: false },
-            replaceText: String(it.quantity),
-          },
-        },
-        {
-          replaceAllText: {
-            containsText: { text: `<precio${n}>`, matchCase: false },
-            replaceText: formatUSD(it.unitPrice),
-          },
-        },
-        {
-          replaceAllText: {
-            containsText: { text: `<total${n}>`, matchCase: false },
-            replaceText: formatUSD(it.unitPrice * it.quantity),
-          },
-        }
+        { replaceAllText: { containsText: { text: `<item${n}>`, matchCase: false }, replaceText: it.name } },
+        { replaceAllText: { containsText: { text: `<cantidad${n}>`, matchCase: false }, replaceText: String(it.quantity) } },
+        { replaceAllText: { containsText: { text: `<precio${n}>`, matchCase: false }, replaceText: formatUSD(it.unitPrice) } },
+        { replaceAllText: { containsText: { text: `<total${n}>`, matchCase: false }, replaceText: formatUSD(it.unitPrice * it.quantity) } },
       );
     });
 
@@ -540,26 +376,17 @@ export async function POST(req: Request) {
     // Aplicar reemplazos de texto
     {
       const docsRes = await fetch(
-        `https://docs.googleapis.com/v1/documents/${encodeURIComponent(
-          newFileId
-        )}:batchUpdate`,
+        `https://docs.googleapis.com/v1/documents/${encodeURIComponent(newFileId)}:batchUpdate`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({ requests }),
         }
       );
       const docsRaw = await docsRes.text();
       if (!docsRes.ok) {
         let docsJson: unknown;
-        try {
-          docsJson = JSON.parse(docsRaw) as unknown;
-        } catch {
-          // ignore
-        }
+        try { docsJson = JSON.parse(docsRaw) as unknown; } catch { /* ignore */ }
         return NextResponse.json(
           { error: "No se pudo actualizar el documento", details: docsJson ?? docsRaw },
           { status: docsRes.status }
@@ -574,23 +401,16 @@ export async function POST(req: Request) {
     const priceRef = findTableAfterMarker(docStruct, "<-tablaprecio>");
     if (priceRef) {
       const { table, tableStartIndex: startIndex } = priceRef;
-      const rows: TableRow[] = Array.isArray(table.tableRows)
-        ? table.tableRows
-        : [];
+      const rows: TableRow[] = Array.isArray(table.tableRows) ? table.tableRows : [];
 
       // Buscar fila TOTAL (si no hay, última)
       let totalRowIndex = rows.length - 1;
       for (let i = rows.length - 1; i >= 0; i--) {
         const row = rows[i];
         const hasTotal = Array.isArray(row.tableCells)
-          ? row.tableCells.some((c) =>
-              cellText(c).toUpperCase().includes("TOTAL")
-            )
+          ? row.tableCells.some((c) => cellText(c).toUpperCase().includes("TOTAL"))
           : false;
-        if (hasTotal) {
-          totalRowIndex = i;
-          break;
-        }
+        if (hasTotal) { totalRowIndex = i; break; }
       }
 
       const used = body.items.length;
@@ -603,10 +423,7 @@ export async function POST(req: Request) {
         for (let r = limit; r >= startDelete; r--) {
           deleteRequests.push({
             deleteTableRow: {
-              tableCellLocation: {
-                tableStartLocation: { index: startIndex },
-                rowIndex: r,
-              },
+              tableCellLocation: { tableStartLocation: { index: startIndex }, rowIndex: r },
             },
           });
         }
@@ -614,15 +431,10 @@ export async function POST(req: Request) {
 
       if (deleteRequests.length > 0) {
         const delRes = await fetch(
-          `https://docs.googleapis.com/v1/documents/${encodeURIComponent(
-            newFileId
-          )}:batchUpdate`,
+          `https://docs.googleapis.com/v1/documents/${encodeURIComponent(newFileId)}:batchUpdate`,
           {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              "Content-Type": "application/json",
-            },
+            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
             body: JSON.stringify({ requests: deleteRequests }),
           }
         );
@@ -634,9 +446,7 @@ export async function POST(req: Request) {
     const waRef = findTableAfterMarker(docStruct, "<-whatsapp->");
     if (waRef) {
       const { table, tableStartIndex: startIndex } = waRef;
-      const rows: TableRow[] = Array.isArray(table.tableRows)
-        ? table.tableRows
-        : [];
+      const rows: TableRow[] = Array.isArray(table.tableRows) ? table.tableRows : [];
 
       const used = whatsappRows.length;
       const firstDataRow = 1; // 0 encabezado
@@ -648,10 +458,7 @@ export async function POST(req: Request) {
         for (let r = limit; r >= startDelete; r--) {
           deleteRequests.push({
             deleteTableRow: {
-              tableCellLocation: {
-                tableStartLocation: { index: startIndex },
-                rowIndex: r,
-              },
+              tableCellLocation: { tableStartLocation: { index: startIndex }, rowIndex: r },
             },
           });
         }
@@ -659,15 +466,10 @@ export async function POST(req: Request) {
 
       if (deleteRequests.length > 0) {
         const delRes = await fetch(
-          `https://docs.googleapis.com/v1/documents/${encodeURIComponent(
-            newFileId
-          )}:batchUpdate`,
+          `https://docs.googleapis.com/v1/documents/${encodeURIComponent(newFileId)}:batchUpdate`,
           {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              "Content-Type": "application/json",
-            },
+            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
             body: JSON.stringify({ requests: deleteRequests }),
           }
         );
@@ -678,29 +480,14 @@ export async function POST(req: Request) {
     // --- Limpiar marcadores visibles ---
     {
       const cleanupRequests: Array<Record<string, unknown>> = [
-        {
-          replaceAllText: {
-            containsText: { text: "<-tablaprecio>", matchCase: false },
-            replaceText: "",
-          },
-        },
-        {
-          replaceAllText: {
-            containsText: { text: "<-whatsapp->", matchCase: false },
-            replaceText: "",
-          },
-        },
+        { replaceAllText: { containsText: { text: "<-tablaprecio>", matchCase: false }, replaceText: "" } },
+        { replaceAllText: { containsText: { text: "<-whatsapp->", matchCase: false }, replaceText: "" } },
       ];
       const clRes = await fetch(
-        `https://docs.googleapis.com/v1/documents/${encodeURIComponent(
-          newFileId
-        )}:batchUpdate`,
+        `https://docs.googleapis.com/v1/documents/${encodeURIComponent(newFileId)}:batchUpdate`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({ requests: cleanupRequests }),
         }
       );
@@ -714,10 +501,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error: (err as Error).message ?? "Unknown error",
-        stack:
-          process.env.NODE_ENV === "development"
-            ? (err as Error).stack
-            : undefined,
+        stack: process.env.NODE_ENV === "development" ? (err as Error).stack : undefined,
       },
       { status: 500 }
     );
