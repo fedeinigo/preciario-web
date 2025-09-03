@@ -72,10 +72,10 @@ function parseMoney(input: unknown): number {
   if (typeof input !== "string") return Number(input) || 0;
   let s = input.replace(/\s+/g, "").replace(/\$/g, "");
   if (s.includes(",") && !s.includes(".")) {
-    s = s.replace(/\./g, ""); // miles
-    s = s.replace(",", ".");  // coma decimal
+    s = s.replace(/\./g, "");
+    s = s.replace(",", ".");
   } else {
-    s = s.replace(/,/g, "");  // miles en en-US
+    s = s.replace(/,/g, "");
   }
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
@@ -169,6 +169,30 @@ function lookupWhatsAppPriceRow(rows: string[][], subsidiary: string, destCountr
       (r[1] ?? "").trim().toUpperCase() === destCountry.trim().toUpperCase()
   );
 }
+
+// NUEVO: fallback para esquema "viejo" de minutos (OUT)
+function findMinutesOutPriceLegacy(
+  countries: string[][], headers: string[][], values: string[][], subsidiary: string, destCountry: string
+): number | null {
+  const countryList = countries.map(r => (r[0] ?? "").toString().trim().toUpperCase());
+  const headerList = headers[0]?.map(c => (c ?? "").toString().trim().toUpperCase()) ?? [];
+  const rowIdx = countryList.indexOf(destCountry.trim().toUpperCase());
+  const colIdx = headerList.indexOf(subsidiary.trim().toUpperCase());
+  if (rowIdx < 0 || colIdx < 0) return null;
+  const cell = values[rowIdx]?.[colIdx];
+  const price = parseMoney(cell);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
+// NUEVO: fallback para esquema "viejo" de minutos (IN)
+function findMinutesInPriceLegacy(filiales: string[][], values: string[][], subsidiary: string): number | null {
+  const filas = filiales.map(r => (r[0] ?? "").toString().trim().toUpperCase());
+  const idx = filas.indexOf(subsidiary.trim().toUpperCase());
+  if (idx < 0) return null;
+  const price = parseMoney(values[idx]?.[0]);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
 function lookupMinutesPriceRow(
   rows: string[][],
   subsidiary: string,
@@ -192,8 +216,6 @@ export async function POST(req: NextRequest) {
     const SHEET_ID = assertEnv("GOOGLE_SHEET_ID");
     assertEnv("GOOGLE_SHEET_TAB");
     const WHATS_RANGE = assertEnv("SHEETS_WHATSAPP_RANGE");
-    const OUT_RANGE = assertEnv("SHEETS_MINUTES_OUT_RANGE");
-    const IN_RANGE = assertEnv("SHEETS_MINUTES_IN_RANGE");
 
     const body = (await req.json()) as AnyPayload;
     if (!body || typeof body !== "object" || !("kind" in body)) {
@@ -265,20 +287,61 @@ export async function POST(req: NextRequest) {
         if (qty <= 0) return bad("Total qty is zero");
 
         if (variant === "out") {
-          const o = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OUT_RANGE });
-          const orows = (o.data.values ?? []) as string[][];
-          const orow = lookupMinutesPriceRow(orows, subsidiary, destCountry, "Saliente");
-          if (!orow) return bad("No price row for Outgoing");
-          const ppmOut = parseMoney(orow[3]);
+          // preferir esquema NUEVO
+          const OUT_RANGE = process.env.SHEETS_MINUTES_OUT_RANGE;
+          if (OUT_RANGE) {
+            const o = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OUT_RANGE });
+            const orows = (o.data.values ?? []) as string[][];
+            const orow = lookupMinutesPriceRow(orows, subsidiary, destCountry, "Saliente");
+            if (!orow) return bad("No price row for Outgoing");
+            const ppmOut = parseMoney(orow[3]);
+            const totalAmount = qty * ppmOut;
+            const ok: PricingOk = { ok: true, totalQty: qty, totalAmount, unitPrice: ppmOut };
+            return NextResponse.json(ok);
+          }
+
+          // Fallback esquema VIEJO
+          const OC = assertEnv("SHEETS_OUT_COUNTRIES");
+          const OH = assertEnv("SHEETS_OUT_HEADERS");
+          const OV = assertEnv("SHEETS_OUT_VALUES");
+          const [cres, hres, vres] = await Promise.all([
+            sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OC }),
+            sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OH }),
+            sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OV }),
+          ]);
+          const countries = (cres.data.values ?? []) as string[][];
+          const headers = (hres.data.values ?? []) as string[][];
+          const values = (vres.data.values ?? []) as string[][];
+          const ppmOut = findMinutesOutPriceLegacy(countries, headers, values, subsidiary, destCountry);
+          if (ppmOut == null) return bad("No price row for Outgoing (legacy)");
           const totalAmount = qty * ppmOut;
           const ok: PricingOk = { ok: true, totalQty: qty, totalAmount, unitPrice: ppmOut };
           return NextResponse.json(ok);
         } else {
-          const i = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IN_RANGE });
-          const irows = (i.data.values ?? []) as string[][];
-          const irow = lookupMinutesPriceRow(irows, subsidiary, destCountry, "Entrante");
-          if (!irow) return bad("No price row for Incoming");
-          const ppmIn = parseMoney(irow[3]);
+          // variant === "in"
+          const IN_RANGE = process.env.SHEETS_MINUTES_IN_RANGE;
+          if (IN_RANGE) {
+            const i = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IN_RANGE });
+            const irows = (i.data.values ?? []) as string[][];
+            const irow = lookupMinutesPriceRow(irows, subsidiary, destCountry, "Entrante");
+            if (!irow) return bad("No price row for Incoming");
+            const ppmIn = parseMoney(irow[3]);
+            const totalAmount = qty * ppmIn;
+            const ok: PricingOk = { ok: true, totalQty: qty, totalAmount, unitPrice: ppmIn };
+            return NextResponse.json(ok);
+          }
+
+          // Fallback esquema VIEJO
+          const IF = assertEnv("SHEETS_IN_FILIALES");
+          const IV = assertEnv("SHEETS_IN_VALUES");
+          const [fres, vres] = await Promise.all([
+            sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IF }),
+            sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IV }),
+          ]);
+          const filiales = (fres.data.values ?? []) as string[][];
+          const values = (vres.data.values ?? []) as string[][];
+          const ppmIn = findMinutesInPriceLegacy(filiales, values, subsidiary);
+          if (ppmIn == null) return bad("No price row for Incoming (legacy)");
           const totalAmount = qty * ppmIn;
           const ok: PricingOk = { ok: true, totalQty: qty, totalAmount, unitPrice: ppmIn };
           return NextResponse.json(ok);
@@ -294,24 +357,59 @@ export async function POST(req: NextRequest) {
 
         const outQ = Math.max(0, Number(body.outQty) || 0);
         if (outQ > 0) {
-          const o = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OUT_RANGE });
-          const orows = (o.data.values ?? []) as string[][];
-          const orow = lookupMinutesPriceRow(orows, subsidiary, destCountry, "Saliente");
-          if (!orow) return bad("No price row for Outgoing");
-          const ppmOut = parseMoney(orow[3]);
-          totalQty += outQ;
-          totalAmount += outQ * ppmOut;
+          const OUT_RANGE = process.env.SHEETS_MINUTES_OUT_RANGE;
+          if (OUT_RANGE) {
+            const o = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OUT_RANGE });
+            const orows = (o.data.values ?? []) as string[][];
+            const orow = lookupMinutesPriceRow(orows, subsidiary, destCountry, "Saliente");
+            if (!orow) return bad("No price row for Outgoing");
+            const ppmOut = parseMoney(orow[3]);
+            totalQty += outQ;
+            totalAmount += outQ * ppmOut;
+          } else {
+            const OC = assertEnv("SHEETS_OUT_COUNTRIES");
+            const OH = assertEnv("SHEETS_OUT_HEADERS");
+            const OV = assertEnv("SHEETS_OUT_VALUES");
+            const [cres, hres, vres] = await Promise.all([
+              sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OC }),
+              sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OH }),
+              sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: OV }),
+            ]);
+            const countries = (cres.data.values ?? []) as string[][];
+            const headers = (hres.data.values ?? []) as string[][];
+            const values = (vres.data.values ?? []) as string[][];
+            const ppmOut = findMinutesOutPriceLegacy(countries, headers, values, subsidiary, destCountry);
+            if (ppmOut == null) return bad("No price row for Outgoing (legacy)");
+            totalQty += outQ;
+            totalAmount += outQ * ppmOut;
+          }
         }
 
         const inQ = Math.max(0, Number(body.inQty) || 0);
         if (inQ > 0) {
-          const i = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IN_RANGE });
-          const irows = (i.data.values ?? []) as string[][];
-          const irow = lookupMinutesPriceRow(irows, subsidiary, destCountry, "Entrante");
-          if (!irow) return bad("No price row for Incoming");
-          const ppmIn = parseMoney(irow[3]);
-          totalQty += inQ;
-          totalAmount += inQ * ppmIn;
+          const IN_RANGE = process.env.SHEETS_MINUTES_IN_RANGE;
+          if (IN_RANGE) {
+            const i = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IN_RANGE });
+            const irows = (i.data.values ?? []) as string[][];
+            const irow = lookupMinutesPriceRow(irows, subsidiary, destCountry, "Entrante");
+            if (!irow) return bad("No price row for Incoming");
+            const ppmIn = parseMoney(irow[3]);
+            totalQty += inQ;
+            totalAmount += inQ * ppmIn;
+          } else {
+            const IF = assertEnv("SHEETS_IN_FILIALES");
+            const IV = assertEnv("SHEETS_IN_VALUES");
+            const [fres, vres] = await Promise.all([
+              sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IF }),
+              sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: IV }),
+            ]);
+            const filiales = (fres.data.values ?? []) as string[][];
+            const values = (vres.data.values ?? []) as string[][];
+            const ppmIn = findMinutesInPriceLegacy(filiales, values, subsidiary);
+            if (ppmIn == null) return bad("No price row for Incoming (legacy)");
+            totalQty += inQ;
+            totalAmount += inQ * ppmIn;
+          }
         }
 
         if (totalQty === 0) return bad("Total qty is zero");
