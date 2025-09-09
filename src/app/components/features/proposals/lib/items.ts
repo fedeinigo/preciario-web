@@ -1,6 +1,20 @@
+// src/app/components/features/proposals/lib/items.ts
 // Utilidades para catálogo: fetch / CRUD hacia la API de ítems
-import type { CatalogItem, UIItem } from "./types";
+
+import type { UIItem } from "./types";
 import type { ItemFormData } from "@/app/components/ui/ItemForm";
+
+/** Fila tal como viene de /api/items */
+type CatalogRow = {
+  id: string;
+  sku: string;
+  name: string;
+  description: string;
+  category: string;
+  unitPrice: number;
+  devHours: number;
+  // active?: boolean; // si en tu API existe, es opcional
+};
 
 /** Estado inicial inmediato (evita undefined en el primer render) */
 export function getInitialItems(): UIItem[] {
@@ -11,7 +25,7 @@ export function getInitialItems(): UIItem[] {
 export async function fetchCatalogItems(): Promise<UIItem[]> {
   const res = await fetch("/api/items", { cache: "no-store" });
   if (!res.ok) throw new Error("No se pudo cargar el catálogo");
-  const data = (await res.json()) as CatalogItem[];
+  const data = (await res.json()) as CatalogRow[];
   return data.map(toUIItem);
 }
 
@@ -33,7 +47,7 @@ export async function createCatalogItem(data: ItemFormData): Promise<UIItem> {
     const txt = await res.text().catch(() => "");
     throw new Error(txt || "No se pudo crear el ítem");
   }
-  const created = (await res.json()) as CatalogItem;
+  const created = (await res.json()) as CatalogRow;
   return toUIItem(created);
 }
 
@@ -67,7 +81,7 @@ export async function deleteCatalogItem(id: string): Promise<void> {
 }
 
 /** Adaptador a UI */
-function toUIItem(row: CatalogItem): UIItem {
+function toUIItem(row: CatalogRow): UIItem {
   return {
     id: row.id,
     dbId: row.id,

@@ -1,104 +1,118 @@
 // src/app/api/proposals/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
 
-type SaveProposalInput = {
-  companyName: string;
-  country: string;
-  countryId?: string | null;
-  subsidiary?: string | null;
-  subsidiaryId?: string | null;
-  items: Array<{ itemId: string; quantity: number; unitPrice: number; devHours: number }>;
-  totalAmount: number;
-  totalHours: number;
-  oneShot: number;
-  docUrl?: string | null;
-  docId?: string | null;
-  userId?: string | null;
-  userEmail?: string | null;
-};
-
-const formatId = (seq: number) => `PPT-${String(seq).padStart(9, "0")}`;
-
+/** GET /api/proposals */
 export async function GET() {
   const rows = await prisma.proposal.findMany({
     orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      seq: true,
-      userId: true,
-      userEmail: true,
-      companyName: true,
-      country: true,
-      countryId: true,
-      subsidiary: true,
-      subsidiaryId: true,
-      totalAmount: true,
-      totalHours: true,
-      oneShot: true,
-      docUrl: true,
-      docId: true,
-      createdAt: true,
-      updatedAt: true,
+    include: {
       items: {
-        select: {
-          quantity: true,
+        include: {
           item: { select: { sku: true, name: true } },
         },
       },
     },
   });
 
-  const mapped = rows.map((p) => ({
-    ...p,
+  const data = rows.map((p) => ({
+    id: p.id,
+    companyName: p.companyName,
+    country: p.country,
+    countryId: p.countryId,
+    subsidiary: p.subsidiary,
+    subsidiaryId: p.subsidiaryId,
+    totalAmount: Number(p.totalAmount),
+    totalHours: Number(p.totalHours),
+    oneShot: Number(p.oneShot),
+    docUrl: p.docUrl,
+    docId: p.docId,
+    userId: p.userId,
+    userEmail: p.userEmail,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
     items: p.items.map((pi) => ({
-      sku: pi.item.sku,
-      name: pi.item.name,
-      quantity: pi.quantity,
+      sku: pi.item?.sku ?? "",
+      name: pi.item?.name ?? "",
+      quantity: Number(pi.quantity),
     })),
   }));
 
-  return NextResponse.json(mapped);
+  return NextResponse.json(data);
 }
 
+/** POST /api/proposals */
 export async function POST(req: Request) {
-  const body: SaveProposalInput = await req.json();
+  const body = (await req.json()) as {
+    companyName?: string;
+    country?: string;
+    countryId?: string;
+    subsidiary?: string;
+    subsidiaryId?: string;
+    totalAmount?: number;
+    totalHours?: number;
+    oneShot?: number;
+    docUrl?: string | null;
+    docId?: string | null;
+    userId?: string;
+    userEmail?: string;
+    items?: Array<{
+      itemId: string;
+      quantity: number;
+      unitPrice: number;
+      devHours: number;
+    }>;
+  };
 
-  // Siguiente secuencia + ID formateado
-  const max = await prisma.proposal.aggregate({ _max: { seq: true } });
-  const nextSeq = (max._max.seq ?? 0) + 1;
-  const nextId = formatId(nextSeq);
+  const missing: string[] = [];
+  if (!body.companyName) missing.push("companyName");
+  if (!body.country) missing.push("country");
+  if (!body.countryId) missing.push("countryId");
+  if (!body.subsidiary) missing.push("subsidiary");
+  if (!body.subsidiaryId) missing.push("subsidiaryId");
+  if (body.totalAmount == null) missing.push("totalAmount");
+  if (body.totalHours == null) missing.push("totalHours");
+  if (body.oneShot == null) missing.push("oneShot");
+  if (!body.userId) missing.push("userId");
+  if (!body.userEmail) missing.push("userEmail");
+  if (!body.items || body.items.length === 0) missing.push("items");
+  if (missing.length) {
+    return NextResponse.json(
+      { error: `Faltan campos requeridos: ${missing.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  const data: Prisma.ProposalCreateInput = {
+    id: randomUUID(), // <-- necesario porque tu schema no da default al id
+    companyName: body.companyName!,
+    country: body.country!,
+    countryId: body.countryId!,
+    subsidiary: body.subsidiary!,
+    subsidiaryId: body.subsidiaryId!,
+    totalAmount: body.totalAmount!,
+    totalHours: body.totalHours!,
+    oneShot: body.oneShot!,
+    docUrl: body.docUrl ?? null,
+    docId: body.docId ?? null,
+    userId: body.userId!,
+    userEmail: body.userEmail!,
+    items: {
+      create: body.items!.map((it) => ({
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        devHours: it.devHours,
+        item: { connect: { id: it.itemId } },
+      })),
+    },
+  };
 
   const created = await prisma.proposal.create({
-    data: {
-      id: nextId,              // 👈 requerido por el schema
-      seq: nextSeq,
-      userId: body.userId ?? null,
-      userEmail: body.userEmail ?? null,
-      companyName: body.companyName,
-      country: body.country,
-      countryId: body.countryId ?? null,
-      subsidiary: body.subsidiary ?? null,
-      subsidiaryId: body.subsidiaryId ?? null,
-      totalAmount: body.totalAmount,
-      totalHours: body.totalHours,
-      oneShot: body.oneShot,
-      docUrl: body.docUrl ?? null,
-      docId: body.docId ?? null,
-      items: {
-        createMany: {
-          data: body.items.map((it) => ({
-            itemId: it.itemId,
-            quantity: it.quantity,
-            unitPrice: it.unitPrice,
-            devHours: it.devHours,
-          })),
-        },
-      },
-    },
+    data,
     select: {
       id: true,
-      seq: true,
       companyName: true,
       country: true,
       countryId: true,
@@ -109,6 +123,8 @@ export async function POST(req: Request) {
       oneShot: true,
       docUrl: true,
       docId: true,
+      userId: true,
+      userEmail: true,
       createdAt: true,
       updatedAt: true,
     },

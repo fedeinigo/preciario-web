@@ -1,6 +1,16 @@
+// src/app/components/features/proposals/components/SummaryModal.tsx
+"use client";
+
 import Modal from "@/app/components/ui/Modal";
 import { formatUSD } from "../lib/format";
-import type { Item } from "../lib/types";
+import React from "react";
+
+type SelectedItemRow = {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  devHours: number;
+};
 
 export function SummaryModal({
   open,
@@ -21,70 +31,55 @@ export function SummaryModal({
   companyName: string;
   country: string;
   subsidiary: string;
-  selectedItems: Item[];
+  selectedItems: SelectedItemRow[];
   totalHours: number;
   totalAmount: number;
 }) {
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Resumen de la Propuesta"
-      footer={
-        <div className="flex justify-end gap-3">
-          <button className="btn-ghost" onClick={onClose} disabled={creating}>
-            Cerrar
-          </button>
-          <button className="btn-primary" onClick={onGenerate} disabled={creating}>
-            {creating ? "Generando…" : "Generar Documento"}
-          </button>
+    <Modal open={open} onClose={onClose} title="Resumen de la propuesta">
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <div className="text-xs text-gray-600">Empresa</div>
+            <div className="font-semibold">{companyName || "—"}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-600">País</div>
+            <div className="font-semibold">{country || "—"}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-600">Filial</div>
+            <div className="font-semibold">{subsidiary || "—"}</div>
+          </div>
         </div>
-      }
-    >
-      <div className="mb-6">
-        <h4 className="font-semibold mb-3">Información General</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Info label="Empresa" value={companyName} />
-          <Info label="País" value={country} />
-          <Info label="Filial" value={subsidiary} />
-        </div>
-      </div>
 
-      <div className="mb-6">
-        <h4 className="font-semibold mb-3">Ítems Seleccionados</h4>
-        <div className="overflow-x-auto border rounded-sm">
+        <div className="overflow-x-auto border rounded">
           <table className="min-w-full bg-white">
             <thead>
-              <tr className="bg-primary text-white">
-                <th className="table-th">Categoría</th>
-                <th className="table-th">SKU</th>
+              <tr>
                 <th className="table-th">Ítem</th>
-                <th className="table-th w-24 text-center">Horas</th>
-                <th className="table-th w-24 text-center">Cant.</th>
-                <th className="table-th w-36 text-right">Precio Unit.</th>
-                <th className="table-th w-32 text-right">Subtotal</th>
+                <th className="table-th w-24 text-right">Cant.</th>
+                <th className="table-th w-32 text-right">Unitario</th>
+                <th className="table-th w-24 text-right">Horas</th>
+                <th className="table-th w-36 text-right">Subtotal</th>
               </tr>
             </thead>
             <tbody>
-              {selectedItems.map((it) => (
-                <tr key={it.id}>
-                  <td className="table-td">{it.category}</td>
-                  <td className="table-td">
-                    <span className="text-gray-500 font-mono text-xs">{it.sku}</span>
-                  </td>
+              {selectedItems.map((it, i) => (
+                <tr key={i}>
                   <td className="table-td">{it.name}</td>
-                  <td className="table-td text-center">{it.devHours}</td>
-                  <td className="table-td text-center">{it.quantity}</td>
+                  <td className="table-td text-right">{it.quantity}</td>
                   <td className="table-td text-right">{formatUSD(it.unitPrice)}</td>
-                  <td className="table-td text-right font-semibold">
+                  <td className="table-td text-right">{it.devHours}</td>
+                  <td className="table-td text-right">
                     {formatUSD(it.quantity * it.unitPrice)}
                   </td>
                 </tr>
               ))}
               {selectedItems.length === 0 && (
                 <tr>
-                  <td className="table-td text-center text-gray-500" colSpan={7}>
-                    No seleccionaste ítems.
+                  <td className="table-td text-center text-gray-500" colSpan={5}>
+                    No hay ítems seleccionados.
                   </td>
                 </tr>
               )}
@@ -92,29 +87,28 @@ export function SummaryModal({
           </table>
         </div>
 
-        <div className="mt-3 flex flex-col sm:flex-row sm:items-stretch sm:justify-between gap-3">
-          <Total label="Horas de desarrollo" value={String(totalHours)} />
-          <Total label="Total OneShot" value={formatUSD(totalHours * 50)} />
-          <Total label="Total mensual" value={formatUSD(totalAmount)} />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
+          <div className="rounded-sm border bg-white px-4 py-3 shadow-soft text-right">
+            <div className="text-sm text-gray-500">Total mensual</div>
+            <div className="text-xl font-semibold text-primary">
+              {formatUSD(totalAmount)}
+            </div>
+          </div>
+          <div className="rounded-sm border bg-white px-4 py-3 shadow-soft text-right">
+            <div className="text-sm text-gray-500">Horas de desarrollo</div>
+            <div className="text-xl font-semibold">{totalHours}</div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button className="btn-ghost" onClick={onClose} disabled={creating}>
+            Cancelar
+          </button>
+          <button className="btn-primary" onClick={onGenerate} disabled={creating}>
+            {creating ? "Generando…" : "Generar documento"}
+          </button>
         </div>
       </div>
     </Modal>
-  );
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-sm border bg-white px-4 py-3 shadow-soft">
-      <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
-      <div className="text-[15px] font-medium text-gray-900 truncate">{value}</div>
-    </div>
-  );
-}
-function Total({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-sm border bg-white px-5 py-3 shadow-soft text-right">
-      <div className="text-sm text-gray-500">{label}</div>
-      <div className="text-[22px] font-semibold text-primary">{value}</div>
-    </div>
   );
 }

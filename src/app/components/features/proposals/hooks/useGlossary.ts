@@ -2,7 +2,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { GlossaryLink } from "@/lib/types";
+
+/** Tipo local que coincide con /api/glossary */
+export type GlossaryLink = {
+  id: string;
+  label: string;
+  url: string;
+};
 
 export function useGlossary() {
   const [glossary, setGlossary] = useState<GlossaryLink[]>([]);
@@ -54,3 +60,5 @@ export function useGlossary() {
 
   return { glossary, loading, reload: load, addLink, editLink, removeLink };
 }
+
+export default useGlossary;
