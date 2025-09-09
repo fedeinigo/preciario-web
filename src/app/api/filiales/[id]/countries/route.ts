@@ -2,9 +2,27 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// Crear país dentro del grupo (id = groupId)
-export async function POST(req: Request, ctx: any) {
-  const groupId = ctx?.params?.id as string;
+// Utilidad: extraer el [id] de la ruta /api/filiales/[id]/countries
+function getGroupIdFromUrl(req: Request): string | null {
+  try {
+    const { pathname } = new URL(req.url);
+    // Ej: ["", "api", "filiales", "{id}", "countries"]
+    const parts = pathname.split("/").filter(Boolean);
+    const idx = parts.findIndex((p) => p === "filiales");
+    if (idx >= 0 && parts[idx + 1]) return parts[idx + 1];
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Crear país dentro del grupo (id = groupId proviniente de la URL)
+export async function POST(req: Request) {
+  const groupId = getGroupIdFromUrl(req);
+  if (!groupId) {
+    return NextResponse.json({ error: "groupId no encontrado en la URL" }, { status: 400 });
+  }
+
   const body: { name: string } = await req.json();
 
   const created = await prisma.filialCountry.create({
