@@ -38,7 +38,7 @@ export default function OnboardingTeamModal() {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
       <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl overflow-hidden">
-        <div className="px-4 py-3 bg-primary text-white font-semibold text-sm">Selecciona tu equipo</div>
+        <div className="heading-bar-sm">Selecciona tu equipo</div>
         <div className="p-4 space-y-3">
           <p className="text-sm text-gray-700">
             Bienvenido. Para personalizar tu experiencia, indícanos a qué equipo perteneces.

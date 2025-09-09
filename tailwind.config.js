@@ -1,18 +1,17 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./src/**/*.{js,ts,jsx,tsx}"],
+  content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
     extend: {
       colors: {
-        primary: "#3c038c",
-        primaryDark: "#2c0069",
-        primarySoft: "#efe7fb",
+        brand: {
+          primary: "#3C038C", // color corporativo (navbar/footer)
+          dark: "#2B0268",
+          accent: "#845ABF",
+        },
       },
       boxShadow: {
-        soft: "0 2px 12px rgba(0,0,0,0.08)",
-      },
-      borderRadius: {
-        xl2: "1rem",
+        brand: "0 2px 8px rgba(60, 3, 140, 0.25)",
       },
     },
   },

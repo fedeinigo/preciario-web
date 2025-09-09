@@ -19,9 +19,10 @@
     --shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 20px rgba(15, 23, 42, 0.04);
     --radius: 6px;
 
-    --fs-h1: 22px;
-    --fs-h2: 18px;
-    --fs-h3: 15px;
+    /* tamaños (ligeramente más grandes que antes) */
+    --fs-h1: 24px;
+    --fs-h2: 20px;
+    --fs-h3: 16px;
     --fs-body: 14px;
     --fs-xs: 12px;
 
@@ -31,6 +32,10 @@
     /* alturas fijas para layout */
     --nav-h: 48px;
     --footer-h: 40px;
+
+    /* colores de marca (mismo gradiente que navbar/footer) */
+    --brand-start-hex: #3b0a69;
+    --brand-end-hex: #2a0f5c;
   }
 
   html,
@@ -63,8 +68,7 @@
   .input, .select, .textarea {
     @apply w-full bg-white border border-[rgb(var(--border))]
            rounded-[var(--radius)] px-3 py-2
-           text-[13.5px] placeholder:text-[rgb(var(--muted))]
-           outline-none;
+           text-[13.5px] placeholder:text-[rgb(var(--muted))] outline-none;
     transition: border-color .15s ease, box-shadow .15s ease;
   }
   .input:focus, .select:focus, .textarea:focus {
@@ -87,16 +91,32 @@
   .tab-active { @apply bg-[rgb(var(--primary))] text-[rgb(var(--primary-ink))] border-transparent; }
   .tab-inactive { @apply bg-white text-[rgb(var(--ink))] border-[rgb(var(--border))]; }
 
+  /* -------- Encabezados de secciones / titulares -------- */
+  .heading-bar {
+    @apply text-white font-semibold text-lg px-4 py-2 rounded-[var(--radius)]
+           shadow-[var(--shadow)] flex items-center justify-between;
+    background: linear-gradient(90deg, var(--brand-start-hex), var(--brand-end-hex));
+  }
+  .heading-bar-sm {
+    @apply text-white font-medium text-base px-3 py-1.5 rounded-[var(--radius)]
+           shadow-[var(--shadow)] flex items-center justify-between;
+    background: linear-gradient(90deg, var(--brand-start-hex), var(--brand-end-hex));
+  }
+
+  /* -------- Tablas -------- */
+  /* Cabecera de tabla con el mismo fondo que navbar/footer */
   .table-th {
-    @apply text-left text-[12px] uppercase tracking-wide text-[rgb(var(--muted))]
-           bg-[rgb(var(--primary-soft))] border-b border-[rgb(var(--border))] px-3 py-2;
+    @apply text-left text-[12px] uppercase tracking-wide text-white
+           border-b px-3 py-2;
+    border-color: rgba(255,255,255,0.1);
+    background: linear-gradient(90deg, var(--brand-start-hex), var(--brand-end-hex));
   }
   .table-td { @apply px-3 py-2 border-b border-[rgb(var(--border))] align-middle; }
 
   /* Navbar / Footer full-width con pequeños paddings */
   .navbar {
     @apply w-full text-[rgb(var(--primary-ink))];
-    background: linear-gradient(90deg, #3b0a69, #2a0f5c);
+    background: linear-gradient(90deg, var(--brand-start-hex), var(--brand-end-hex));
   }
   .navbar-inner {
     @apply w-full h-full flex items-center justify-between;
@@ -104,7 +124,7 @@
 
   .footer {
     @apply w-full text-[rgb(var(--primary-ink))];
-    background: linear-gradient(90deg, #3b0a69, #2a0f5c);
+    background: linear-gradient(90deg, var(--brand-start-hex), var(--brand-end-hex));
   }
   .footer-inner {
     @apply w-full px-3 py-3 text-[13px] flex flex-col sm:flex-row items-center justify-between gap-2;

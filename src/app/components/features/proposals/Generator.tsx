@@ -173,10 +173,10 @@ export default function Generator({
                   ...i,
                   sku: data.sku || i.sku,
                   name: data.name,
-                  description: data.description ?? i.description, // 🔧 garantiza string
+                  description: data.description ?? i.description,
                   devHours: data.devHours,
                   unitPrice: data.unitPrice,
-                  category: data.category ?? i.category, // 🔧 garantiza string
+                  category: data.category ?? i.category,
                 }
               : i
           )
@@ -229,8 +229,8 @@ export default function Generator({
         totalAmount,
         totalHours,
         oneShot: totalHours * 50,
-        userId,     // sólo para transportar a payload luego
-        userEmail,  // sólo para transportar a payload luego
+        userId,
+        userEmail,
       };
 
       const res = await fetch("/api/docs/create", {
@@ -268,10 +268,10 @@ export default function Generator({
         oneShot: recordBase.oneShot,
         docUrl: parsed.url,
         docId: parsed.docId,
-        userId,            // ✅ ahora permitido por el tipo
-        userEmail,         // ✅ ahora permitido por el tipo
+        userId,
+        userEmail,
         items: selectedItems.map((it) => ({
-          itemId: it.dbId!, // viene de la DB
+          itemId: it.dbId!,
           quantity: it.quantity,
           unitPrice: it.unitPrice,
           devHours: it.devHours,
@@ -407,24 +407,18 @@ export default function Generator({
         </aside>
 
         <section>
-          <div className="card border">
-            <div className="bg-primary text-white font-semibold px-3 py-2 text-sm mb-4">Generador de Propuestas</div>
+          <div className="card border-2">
+            <div className="heading-bar mb-3">Generador de Propuestas</div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <div className="flex items-center gap-3">
-                <button onClick={generate} className="btn-primary">Generar Propuesta</button>
-                <button onClick={resetAll} className="btn-ghost">Resetear</button>
-              </div>
-              {isAdmin && (
-                <button onClick={openCreateForm} className="btn-ghost">
-                  <Plus className="mr-2 h-4 w-4" /> Agregar ítem
-                </button>
-              )}
-            </div>
-
-            <div className="mb-4 rounded-md border bg-white shadow-soft">
+            {/* Datos de la empresa / país / filial */}
+            <div className="mb-4 rounded-md border-2 bg-white shadow-soft">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-                <input className="input" placeholder="Nombre de la empresa" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+                <input
+                  className="input"
+                  placeholder="Nombre de la empresa"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                />
 
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">País</label>
@@ -442,35 +436,81 @@ export default function Generator({
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Filial</label>
                   <input className="input" value={subsidiary || "—"} readOnly />
-                  <p className="mt-1 text-[12px] text-muted">Determinada automáticamente por el país.</p>
+                  <p className="mt-1 text-[12px] text-muted">
+                    Determinada automáticamente por el país.
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-              <select className="select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-                <option value="">Todas las categorías</option>
-                {Array.from(new Set(items.map((i) => i.category))).map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+            {/* FILTROS + +AGREGAR + BOTONES EN EL MISMO RENGLÓN */}
+            <div className="flex flex-col md:flex-row md:items-center gap-3 mb-3">
+              {/* Lado izquierdo: + y filtros ocupando todo el ancho disponible */}
+              <div className="flex items-center gap-3 flex-1">
+                {isAdmin && (
+                  <button
+                    onClick={openCreateForm}
+                    className="btn-ghost px-2 py-2 w-9 h-9 rounded-full"
+                    title="Agregar ítem"
+                    aria-label="Agregar ítem"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                )}
 
-              <input className="input" placeholder="Filtrar por texto (nombre, descripción o SKU)" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1">
+                  <select
+                    className="select"
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                  >
+                    <option value="">Todas las categorías</option>
+                    {Array.from(new Set(items.map((i) => i.category))).map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    className="input"
+                    placeholder="Filtrar por texto (nombre, descripción o SKU)"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Lado derecho: acciones */}
+              <div className="flex items-center gap-3">
+                <button onClick={generate} className="btn-primary">
+                  Generar Propuesta
+                </button>
+                <button onClick={resetAll} className="btn-ghost">
+                  Resetear
+                </button>
+              </div>
             </div>
 
             <ItemsTable
               items={useMemo(() => filtered, [filtered])}
               isAdmin={isAdmin}
               onToggle={handleToggleItem}
-              onChangeQty={(itemId, qty) => setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, quantity: qty } : i)))}
+              onChangeQty={(itemId, qty) =>
+                setItems((prev) =>
+                  prev.map((i) => (i.id === itemId ? { ...i, quantity: qty } : i))
+                )
+              }
               onEdit={openEditForm}
               onDelete={onDeleteItem}
             />
 
             <div className="mt-3 flex justify-end">
-              <div className="rounded-sm border bg-white px-5 py-3 shadow-soft text-right">
+              <div className="rounded-sm border-2 bg-white px-5 py-3 shadow-soft text-right">
                 <div className="text-sm text-gray-500">Total mensual</div>
-                <div className="text-[22px] font-semibold text-primary">{formatUSD(totalAmount)}</div>
+                <div className="text-[22px] font-semibold text-primary">
+                  {formatUSD(totalAmount)}
+                </div>
               </div>
             </div>
           </div>

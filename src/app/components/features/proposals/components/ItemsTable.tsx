@@ -21,7 +21,7 @@ export default function ItemsTable({
   onDelete: (itemId: string) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-md border bg-white">
+    <div className="overflow-x-auto rounded-md border-2 bg-white">
       <table className="min-w-full">
         <thead>
           <tr>

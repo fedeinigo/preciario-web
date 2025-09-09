@@ -53,7 +53,7 @@ export function SummaryModal({
           </div>
         </div>
 
-        <div className="overflow-x-auto border rounded">
+        <div className="overflow-x-auto border-2 rounded">
           <table className="min-w-full bg-white">
             <thead>
               <tr>
@@ -88,13 +88,13 @@ export function SummaryModal({
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
-          <div className="rounded-sm border bg-white px-4 py-3 shadow-soft text-right">
+          <div className="rounded-sm border-2 bg-white px-4 py-3 shadow-soft text-right">
             <div className="text-sm text-gray-500">Total mensual</div>
             <div className="text-xl font-semibold text-primary">
               {formatUSD(totalAmount)}
             </div>
           </div>
-          <div className="rounded-sm border bg-white px-4 py-3 shadow-soft text-right">
+          <div className="rounded-sm border-2 bg-white px-4 py-3 shadow-soft text-right">
             <div className="text-sm text-gray-500">Horas de desarrollo</div>
             <div className="text-xl font-semibold">{totalHours}</div>
           </div>
