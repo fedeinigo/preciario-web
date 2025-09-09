@@ -3,10 +3,8 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-type Ctx = { params: { id: string } };
-
 // Crear país dentro del grupo (id = groupId)
-export async function POST(_req: NextRequest, { params }: Ctx) {
+export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const groupId = params.id;
   const body: { name: string } = await _req.json();
 
