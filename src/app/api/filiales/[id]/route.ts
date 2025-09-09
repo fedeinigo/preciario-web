@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// Extrae el [id] desde /api/filiales/[id]
+// /api/filiales/[id]
 function getGroupIdFromUrl(req: Request): string | null {
   try {
     const { pathname } = new URL(req.url);

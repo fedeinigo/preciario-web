@@ -2,12 +2,11 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// Utilidad: extraer el [id] de la ruta /api/filiales/[id]/countries
+// /api/filiales/[id]/countries
 function getGroupIdFromUrl(req: Request): string | null {
   try {
     const { pathname } = new URL(req.url);
-    // Ej: ["", "api", "filiales", "{id}", "countries"]
-    const parts = pathname.split("/").filter(Boolean);
+    const parts = pathname.split("/").filter(Boolean); // ["api","filiales","{id}","countries"]
     const idx = parts.findIndex((p) => p === "filiales");
     if (idx >= 0 && parts[idx + 1]) return parts[idx + 1];
     return null;
@@ -16,7 +15,10 @@ function getGroupIdFromUrl(req: Request): string | null {
   }
 }
 
-// Crear país dentro del grupo (id = groupId proviniente de la URL)
+/**
+ * Crea un país dentro del grupo [id]
+ * Body: { name: string }
+ */
 export async function POST(req: Request) {
   const groupId = getGroupIdFromUrl(req);
   if (!groupId) {
@@ -33,7 +35,10 @@ export async function POST(req: Request) {
   return NextResponse.json(created, { status: 201 });
 }
 
-// Editar país (por body.id)
+/**
+ * Actualiza un país (por id)
+ * Body: { id: string; name: string }
+ */
 export async function PATCH(req: Request) {
   const body: { id: string; name: string } = await req.json();
 
@@ -46,9 +51,13 @@ export async function PATCH(req: Request) {
   return NextResponse.json(updated);
 }
 
-// Borrar país (por body.id)
+/**
+ * Elimina un país (por id)
+ * Body: { id: string }
+ */
 export async function DELETE(req: Request) {
   const body: { id: string } = await req.json();
+
   await prisma.filialCountry.delete({ where: { id: body.id } });
   return NextResponse.json({ ok: true });
 }

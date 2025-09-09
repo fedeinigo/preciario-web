@@ -1,10 +1,26 @@
 // src/app/api/items/[id]/route.ts
-import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = params;
+// /api/items/[id]
+function getItemIdFromUrl(req: Request): string | null {
+  try {
+    const { pathname } = new URL(req.url);
+    const parts = pathname.split("/").filter(Boolean); // ["api","items","{id}"]
+    const idx = parts.findIndex((p) => p === "items");
+    if (idx >= 0 && parts[idx + 1]) return parts[idx + 1];
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export async function PATCH(req: Request) {
+  const id = getItemIdFromUrl(req);
+  if (!id) {
+    return NextResponse.json({ error: "id no encontrado en la URL" }, { status: 400 });
+  }
+
   const body: {
     sku?: string;
     category?: string;
@@ -42,8 +58,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json(updated);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = params;
+export async function DELETE(req: Request) {
+  const id = getItemIdFromUrl(req);
+  if (!id) {
+    return NextResponse.json({ error: "id no encontrado en la URL" }, { status: 400 });
+  }
+
   await prisma.item.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
