@@ -1,11 +1,11 @@
 // src/app/api/filiales/[id]/route.ts
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+type Ctx = { params: { id: string } };
+
+export async function PATCH(req: NextRequest, { params }: Ctx) {
   const { id } = params;
   const body: { title: string } = await req.json();
 
@@ -18,10 +18,7 @@ export async function PATCH(
   return NextResponse.json(updated);
 }
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const { id } = params;
   await prisma.filialGroup.delete({ where: { id } });
   return NextResponse.json({ ok: true });
