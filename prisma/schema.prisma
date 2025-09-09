@@ -9,16 +9,18 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  name      String?
-  email     String?   @unique
-  image     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  team      String?
-  role      Role      @default(usuario)
-  accounts  Account[]
-  sessions  Session[]
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  team          String?
+  role          Role      @default(usuario)
+
+  accounts Account[]
+  sessions Session[]
 }
 
 model Account {
@@ -34,7 +36,8 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -44,7 +47,8 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -102,9 +106,10 @@ model ProposalItem {
   devHours   Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  itemId     String
-  item       Item     @relation(fields: [itemId], references: [id])
-  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  itemId   String
+  item     Item     @relation(fields: [itemId], references: [id])
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
 
   @@index([proposalId])
   @@index([itemId])
@@ -129,12 +134,13 @@ model FilialGroup {
 }
 
 model FilialCountry {
-  id        String      @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
   groupId   String
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  group     FilialGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group FilialGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, name])
   @@index([groupId])
