@@ -1,21 +1,27 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useSession } from "next-auth/react";
 import AuthLoginCard from "@/app/components/AuthLoginCard";
 import Generator from "./Generator";
 import History from "./History";
 import Stats from "./Stats";
 import Users from "./Users";
+import type { AppRole } from "@/constants/teams"; // ← unificamos el tipo
 
 type Tab = "generator" | "history" | "stats" | "users";
-type AppRole = "superadmin" | "lider" | "comercial";
 
 export default function ProposalApp() {
   const { data: session, status } = useSession();
   const loading = status === "loading";
 
-  const role = ((session?.user?.role as AppRole) ?? "comercial");
+  // Normalizamos el rol que viene en la sesión:
+  const rawRole = (session?.user?.role as string | undefined) ?? "usuario";
+  const role: AppRole =
+    rawRole === "comercial" // compatibilidad con código viejo
+      ? "usuario"
+      : (["superadmin", "lider", "usuario"].includes(rawRole) ? (rawRole as AppRole) : "usuario");
+
   const team = (session?.user?.team as string | null) ?? null;
   const isSuperAdmin = role === "superadmin";
   const isLeader = role === "lider";
@@ -28,9 +34,9 @@ export default function ProposalApp() {
     return ok.includes(h as Tab) ? (h as Tab) : "generator";
   })();
 
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const [activeTab, setActiveTab] = React.useState<Tab>(initialTab);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const handler = (e: Event) => {
       const t = (e as CustomEvent).detail as Tab;
       setActiveTab(t);

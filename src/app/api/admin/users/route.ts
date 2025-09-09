@@ -1,78 +1,86 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
+// src/app/api/admin/users/route.ts
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import type { AppRole } from "@/constants/teams";
-import { toDbRole, fromDbRole } from "@/lib/roles";
+import { Role as DbRole } from "@prisma/client";
 
-async function requireSuperadmin() {
-  const session = await auth();
-  const role = session?.user?.role as AppRole | undefined;
-  if (!session || role !== "superadmin") {
-    return {
-      ok: false as const,
-      res: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-    };
-  }
-  return { ok: true as const };
+/**
+ * Normaliza strings de rol que puedan venir del front.
+ * Acepta "comercial" como sinónimo de "usuario" (compatibilidad vieja).
+ */
+function normalizeRole(input: string | null | undefined): DbRole | undefined {
+  if (!input) return undefined;
+  const v = input.toLowerCase().trim();
+  if (v === "comercial") return DbRole.usuario;
+  if (v === "usuario") return DbRole.usuario;
+  if (v === "lider") return DbRole.lider;
+  if (v === "superadmin") return DbRole.superadmin;
+  return undefined;
 }
 
 export async function GET() {
-  const guard = await requireSuperadmin();
-  if (!guard.ok) return guard.res;
-
   const users = await prisma.user.findMany({
+    orderBy: { createdAt: "desc" },
     select: {
       id: true,
       email: true,
+      name: true,
+      image: true,
       role: true,
       team: true,
       createdAt: true,
       updatedAt: true,
     },
-    orderBy: { createdAt: "desc" },
   });
-
-  const mapped = users.map((u) => ({
-    ...u,
-    role: fromDbRole(u.role),
-  }));
-
-  return NextResponse.json(mapped);
+  return NextResponse.json(users);
 }
 
-export async function PATCH(req: NextRequest) {
-  const guard = await requireSuperadmin();
-  if (!guard.ok) return guard.res;
+/**
+ * PATCH: sólo superadmin puede modificar rol/equipo.
+ * Body:
+ * {
+ *   userId: string;
+ *   role?: "superadmin" | "lider" | "usuario" | "comercial"; // "comercial" => "usuario"
+ *   team?: string | null;  // nombre del equipo o null
+ * }
+ */
+export async function PATCH(req: Request) {
+  const session = await auth();
+  const myRole = (session?.user?.role as DbRole | undefined) ?? DbRole.usuario;
 
-  const body = (await req.json().catch(() => ({}))) as {
-    email?: string;
-    role?: AppRole;
+  if (myRole !== DbRole.superadmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = (await req.json()) as {
+    userId: string;
+    role?: string;
     team?: string | null;
   };
 
-  const email = body.email?.toLowerCase();
-  const role = body.role;
-  const team = body.team ?? null;
-  if (!email) return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  if (!body.userId) {
+    return NextResponse.json({ error: "Falta userId" }, { status: 400 });
+  }
 
-  const data: Record<string, unknown> = { updatedAt: new Date() };
-  if (role === "superadmin" || role === "lider" || role === "comercial") {
-    data.role = toDbRole(role);
-  }
-  if (typeof team === "string" || team === null) {
-    data.team = team;
-  }
+  const data: { role?: DbRole; team?: string | null } = {};
+  const r = normalizeRole(body.role);
+  if (r) data.role = r;
+  if ("team" in body) data.team = body.team ?? null;
 
   const updated = await prisma.user.update({
-    where: { email },
+    where: { id: body.userId },
     data,
-    select: { id: true, email: true, role: true, team: true, updatedAt: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      image: true,
+      role: true,
+      team: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
 
-  return NextResponse.json({
-    ...updated,
-    role: fromDbRole(updated.role),
-  });
+  return NextResponse.json(updated);
 }
-
-export const PUT = PATCH;

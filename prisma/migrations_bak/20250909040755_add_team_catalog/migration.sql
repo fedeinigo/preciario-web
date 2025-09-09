@@ -1,0 +1,7 @@
+-- Baseline TeamCatalog (no tocar otras tablas)
+CREATE TABLE IF NOT EXISTS "TeamCatalog" (
+  "id"        TEXT PRIMARY KEY,
+  "name"      TEXT NOT NULL UNIQUE,
+  "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+  "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
+);

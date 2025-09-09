@@ -1,120 +1,83 @@
-// src/app/components/features/proposals/lib/items.ts
-import type { Item } from "./types";
-import { getNextSku } from "./ids";
+// Utilidades para catálogo: fetch / CRUD hacia la API de ítems
+import type { CatalogItem, UIItem } from "./types";
+import type { ItemFormData } from "@/app/components/ui/ItemForm";
 
-/** Semilla mínima para construir un Item real */
-export type Seed = {
-  category: string;
-  name: string;
-  description?: string;
-  devHours?: number;
-  unitPrice?: number;
-};
-
-/** ================= ÍTEMS ESPECIALES (NO TOCAR NOMBRES) =================
- * Estos 6 ítems disparan modales o lógica especial (WhatsApp/Minutos/Wiser PRO).
- * Se mantienen exactamente con estos nombres.
- */
-const SPECIAL_ITEMS: Seed[] = [
-  { category: "Power Inbox", name: "Conv. Whatsapp - Utility" },
-  { category: "Power Inbox", name: "Conv. Whatsapp - Marketing" },
-  { category: "Power Inbox", name: "Conv. Whatsapp - Authentication" },
-  { category: "Power Inbox", name: "Minutos de Telefonia - Salientes" },
-  { category: "Power Inbox", name: "Minutos de Telefonia - Entrantes" },
-  { category: "Power Inbox", name: "Wiser PRO" },
-];
-
-/** ================= ÍTEMS NORMALES (TU LISTADO COMPLETO) =================
- * Funcionan como ítems estándar (checkbox + cantidad + precio editable).
- * Si deseas poner precios/horas por defecto, agrega unitPrice/devHours en cada Seed.
- */
-const LEGACY_ITEMS: Seed[] = [
-  // ---- Power Inbox ----
-  { category: "Power Inbox", name: "Canal WhatsApp" },
-  { category: "Power Inbox", name: "Canal META" },
-  { category: "Power Inbox", name: "Canal Email" },
-  { category: "Power Inbox", name: "Canal LinkedIn" },
-  { category: "Power Inbox", name: "Canal YouTube" },
-  { category: "Power Inbox", name: "Canal TikTok" },
-  { category: "Power Inbox", name: "Canal X (Twitter)" },
-  { category: "Power Inbox", name: "Canal Chat" },
-  { category: "Power Inbox", name: "Canal Formulario Web" },
-  { category: "Power Inbox", name: "Canal Mercado Libre" },
-  { category: "Power Inbox", name: "Canal Google My Business" },
-  { category: "Power Inbox", name: "Canal Teléfono / Voz" },
-  { category: "Power Inbox", name: "Canal de Llamadas Simultaneas" },
-  { category: "Power Inbox", name: "Canal Google Spreadsheets" },
-  { category: "Power Inbox", name: "Canal AppStore" },
-  { category: "Power Inbox", name: "Canal Google Playstore" },
-  { category: "Power Inbox", name: "Número Full Cloud" },
-
-  { category: "Power Inbox", name: "Minutos SipTrunk - 1.000 minutos" },
-
-  { category: "Power Inbox", name: "Smart IVR" },
-  { category: "Power Inbox", name: "Licencias - 1 a 30" },
-  { category: "Power Inbox", name: "Licencias - 30 a 100" },
-  { category: "Power Inbox", name: "Integracion Shopify" },
-  { category: "Power Inbox", name: "Integracion Vtex" },
-  { category: "Power Inbox", name: "Integracion Woocommerce" },
-  { category: "Power Inbox", name: "Integracion Prestashop" },
-  { category: "Power Inbox", name: "Integracion Magento" },
-  { category: "Power Inbox", name: "Integracion Fenicio" },
-  { category: "Power Inbox", name: "Integracion TiendaNube" },
-  { category: "Power Inbox", name: "Integracion Jira Service Desk" },
-  { category: "Power Inbox", name: "Integracion Woowup" },
-  { category: "Power Inbox", name: "Integracion Azure Active Directory" },
-  { category: "Power Inbox", name: "Usuario API" },
-  { category: "Power Inbox", name: "WebHooks" },
-  { category: "Power Inbox", name: "Módulo Nitro" },
-  { category: "Power Inbox", name: "Módulo Encuestas" },
-  { category: "Power Inbox", name: "Power Inbox AI" },
-  { category: "Power Inbox", name: "Geolocalización" },
-
-  // ---- Bot ----
-  { category: "Bot", name: "BOT Encuestador" },
-  { category: "Bot", name: "BOT Encuestador Prodigy" },
-  { category: "Bot", name: "BOT QuickBot" },
-
-  { category: "Bot", name: "Wiser PLUS" },
-
-  // ---- Integracion ----
-  { category: "Integracion", name: "Cart Recovery" },
-  { category: "Integracion", name: "Sales Recovery" },
-
-  // ---- Social Listening ----
-  { category: "Social Listening", name: "Social Listening Advanced" },
-  { category: "Social Listening", name: "Social Listening Lite" },
-  { category: "Social Listening", name: "5 Cuentas RRSS Extras" },
-  { category: "Social Listening", name: "Licencia Extra" },
-  { category: "Social Listening", name: "Listening Extra - 50.000 Tweets" },
-  { category: "Social Listening", name: "5 Alertas Extra" },
-  { category: "Social Listening", name: "Clipping" },
-
-  // ---- Logios ----
-  { category: "Logios", name: "Speech Analytics" },
-
-  // ---- API ----
-  { category: "API", name: "API Wise CX" },
-];
-
-/** ================= Helpers ================= */
-function hydrate(seed: Seed, idx: number): Item {
-  return {
-    id: Date.now() + idx,
-    sku: getNextSku(),
-    category: seed.category,
-    name: seed.name,
-    description: seed.description ?? "",
-    quantity: 1,
-    unitPrice: seed.unitPrice ?? 100, // puedes ajustar default si lo deseas
-    devHours: seed.devHours ?? 1,     // puedes ajustar default si lo deseas
-    selected: false,
-  };
+/** Estado inicial inmediato (evita undefined en el primer render) */
+export function getInitialItems(): UIItem[] {
+  return [];
 }
 
-/** ================= API pública ================= */
-export function getInitialItems(): Item[] {
-  // Orden: primero especiales (para que queden arriba si no hay filtro), luego catálogo.
-  const seeds: Seed[] = [...SPECIAL_ITEMS, ...LEGACY_ITEMS];
-  return seeds.map(hydrate);
+/** Carga ítems activos desde /api/items y los adapta a UIItem */
+export async function fetchCatalogItems(): Promise<UIItem[]> {
+  const res = await fetch("/api/items", { cache: "no-store" });
+  if (!res.ok) throw new Error("No se pudo cargar el catálogo");
+  const data = (await res.json()) as CatalogItem[];
+  return data.map(toUIItem);
+}
+
+/** Crea un ítem en DB y lo retorna adaptado a UIItem */
+export async function createCatalogItem(data: ItemFormData): Promise<UIItem> {
+  const res = await fetch("/api/items", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sku: data.sku,
+      name: data.name,
+      description: data.description ?? "",
+      category: data.category ?? "general",
+      unitPrice: data.unitPrice,
+      devHours: data.devHours,
+    }),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(txt || "No se pudo crear el ítem");
+  }
+  const created = (await res.json()) as CatalogItem;
+  return toUIItem(created);
+}
+
+/** Actualiza un ítem en DB (no devuelve nada) */
+export async function updateCatalogItem(id: string, data: ItemFormData): Promise<void> {
+  const res = await fetch(`/api/items/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sku: data.sku,
+      name: data.name,
+      description: data.description ?? "",
+      category: data.category ?? "general",
+      unitPrice: data.unitPrice,
+      devHours: data.devHours,
+    }),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(txt || "No se pudo actualizar el ítem");
+  }
+}
+
+/** Elimina un ítem en DB */
+export async function deleteCatalogItem(id: string): Promise<void> {
+  const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(txt || "No se pudo eliminar el ítem");
+  }
+}
+
+/** Adaptador a UI */
+function toUIItem(row: CatalogItem): UIItem {
+  return {
+    id: row.id,
+    dbId: row.id,
+    sku: row.sku,
+    name: row.name,
+    description: row.description,
+    category: row.category,
+    unitPrice: row.unitPrice,
+    devHours: row.devHours,
+    selected: false,
+    quantity: 1,
+  };
 }

@@ -1,70 +1,92 @@
 // src/app/components/features/proposals/hooks/useFiliales.ts
 "use client";
 
-import { useEffect, useState } from "react";
-import { readFiliales, saveFiliales, type FilialGroup } from "../lib/storage";
+import { useCallback, useEffect, useState } from "react";
+import type { FilialGroup } from "@/lib/types";
 
 export function useFiliales() {
   const [filiales, setFiliales] = useState<FilialGroup[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setFiliales(readFiliales());
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await fetch("/api/filiales", { cache: "no-store" });
+      if (!r.ok) throw new Error("No se pudo cargar filiales");
+      const data = (await r.json()) as FilialGroup[];
+      setFiliales(data);
+    } catch {
+      setFiliales([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const persist = (list: FilialGroup[]) => {
-    setFiliales(list);
-    saveFiliales(list);
-  };
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  /** Crear SIN window.prompt; el título llega del componente (modal) */
-  const addFilial = (title: string) => {
-    const t = title.trim();
-    if (!t) return;
-    const n: FilialGroup = { id: `F-${Date.now()}`, title: t, countries: [] };
-    persist([n, ...filiales]);
-  };
+  // ======= Mutaciones (sólo superadmin autorizado por el backend) =======
+  async function addFilial(title: string) {
+    const r = await fetch("/api/filiales", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    await load();
+  }
 
-  const editFilialTitle = (id: string, newTitle: string) => {
-    persist(filiales.map((f) => (f.id === id ? { ...f, title: newTitle } : f)));
-  };
+  async function editFilialTitle(id: string, title: string) {
+    const r = await fetch(`/api/filiales/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    await load();
+  }
 
-  const removeFilial = (id: string) => {
-    persist(filiales.filter((f) => f.id !== id));
-  };
+  async function removeFilial(id: string) {
+    const r = await fetch(`/api/filiales/${id}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(await r.text());
+    await load();
+  }
 
-  const addCountry = (filialId: string, name: string) => {
-    persist(
-      filiales.map((f) =>
-        f.id === filialId ? { ...f, countries: [...f.countries, name] } : f
-      )
-    );
-  };
+  async function addCountry(groupId: string, name: string) {
+    const r = await fetch(`/api/filiales/${groupId}/countries`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    await load();
+  }
 
-  const editCountry = (filialId: string, idx: number, name: string) => {
-    persist(
-      filiales.map((f) =>
-        f.id === filialId
-          ? {
-              ...f,
-              countries: f.countries.map((c, i) => (i === idx ? name : c)),
-            }
-          : f
-      )
-    );
-  };
+  async function editCountry(groupId: string, oldName: string, newName: string) {
+    const r = await fetch(`/api/filiales/${groupId}/countries`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ oldName, newName }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    await load();
+  }
 
-  const removeCountry = (filialId: string, idx: number) => {
-    persist(
-      filiales.map((f) =>
-        f.id === filialId
-          ? { ...f, countries: f.countries.filter((_, i) => i !== idx) }
-          : f
-      )
-    );
-  };
+  async function removeCountry(groupId: string, name: string) {
+    const r = await fetch(`/api/filiales/${groupId}/countries`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    await load();
+  }
 
   return {
     filiales,
+    loading,
+    reload: load,
     addFilial,
     editFilialTitle,
     removeFilial,

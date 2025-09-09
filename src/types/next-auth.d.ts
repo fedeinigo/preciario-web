@@ -1,13 +1,14 @@
-import "next-auth";
-import "next-auth/jwt";
+// src/types/next-auth.d.ts
+import { DefaultSession } from "next-auth";
+
+declare global {
+  type AppRole = "superadmin" | "lider" | "usuario";
+}
 
 declare module "next-auth" {
-  // Misma unión que usa la app
-  type AppRole = "superadmin" | "lider" | "comercial";
-
   interface User {
-    id?: string;
-    role?: AppRole;
+    id: string;
+    role: AppRole;
     team?: string | null;
   }
 
@@ -16,19 +17,14 @@ declare module "next-auth" {
       id: string;
       role: AppRole;
       team?: string | null;
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
-    };
+    } & DefaultSession["user"];
   }
 }
 
 declare module "next-auth/jwt" {
-  type AppRole = "superadmin" | "lider" | "comercial";
-
   interface JWT {
-    sub?: string;
-    role?: AppRole;
+    id: string;
+    role: AppRole;
     team?: string | null;
   }
 }

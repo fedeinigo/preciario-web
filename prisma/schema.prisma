@@ -4,36 +4,21 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")   // usa pooler en runtime
-  directUrl = env("DIRECT_URL")     // usa conexión directa para migraciones
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-/* === Enum definitivo de roles === */
-enum Role {
-  superadmin
-  lider
-  usuario
-}
-
-/* === Usuario NextAuth === */
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-
-  // Ahora es enum, default "usuario"
-  role          Role      @default(usuario)
-
-  // Equipo al que pertenece (opcional)
-  team          String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  accounts Account[]
-  sessions Session[]
+  id        String    @id @default(cuid())
+  name      String?
+  email     String?   @unique
+  image     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  team      String?
+  role      Role      @default(usuario)
+  accounts  Account[]
+  sessions  Session[]
 }
 
 model Account {
@@ -49,11 +34,9 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
-  @@index([userId])
 }
 
 model Session {
@@ -61,10 +44,7 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -73,4 +53,103 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model Item {
+  id           String         @id @default(cuid())
+  sku          String         @unique
+  category     String
+  name         String
+  description  String         @default("")
+  unitPrice    Decimal        @db.Decimal(12, 2)
+  devHours     Int
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  active       Boolean        @default(true)
+  ProposalItem ProposalItem[]
+
+  @@index([category, name])
+}
+
+model Proposal {
+  id           String         @id
+  userId       String?
+  createdAt    DateTime       @default(now())
+  companyName  String
+  country      String
+  countryId    String
+  subsidiary   String
+  subsidiaryId String
+  totalAmount  Decimal        @db.Decimal(14, 2)
+  totalHours   Int
+  oneShot      Decimal        @db.Decimal(14, 2)
+  docUrl       String?
+  docId        String?
+  userEmail    String?
+  seq          Int            @unique @default(autoincrement())
+  updatedAt    DateTime       @updatedAt
+  items        ProposalItem[]
+
+  @@index([createdAt])
+  @@index([userEmail])
+}
+
+model ProposalItem {
+  id         String   @id @default(cuid())
+  proposalId String
+  quantity   Int
+  unitPrice  Decimal  @db.Decimal(12, 2)
+  devHours   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  itemId     String
+  item       Item     @relation(fields: [itemId], references: [id])
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([proposalId])
+  @@index([itemId])
+}
+
+model GlossaryLink {
+  id        String   @id @default(cuid())
+  label     String
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([label, url])
+}
+
+model FilialGroup {
+  id        String          @id @default(cuid())
+  title     String          @unique
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  countries FilialCountry[]
+}
+
+model FilialCountry {
+  id        String      @id @default(cuid())
+  name      String
+  groupId   String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  group     FilialGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, name])
+  @@index([groupId])
+}
+
+model TeamCatalog {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Rol de aplicación. Nota: "usuario" == comercial
+enum Role {
+  superadmin
+  lider
+  usuario
 }

@@ -1,19 +1,7 @@
-export const TEAMS = [
-  "Leones",
-  "Lobos",
-  "Tigres",
-  "Panteras",
-  "Jaguares",
-  "Pirañas",
-  "Tiburones",
-  "Gorilas",
-  "Abejas",
-  "Mapaches",
-  "Hormigas",
-  "Carpinchos",
-  "Buhos",
-] as const;
+// src/constants/teams.ts
+// Único lugar donde definimos el tipo de rol.
+export type AppRole = "superadmin" | "lider" | "usuario";
 
-export type Team = typeof TEAMS[number];
-
-export type AppRole = "superadmin" | "lider" | "comercial";
+// Mantengo TEAMS por compatibilidad (ya no se usa para filtrar; ahora se consulta /api/teams)
+export const TEAMS: string[] = [];
+export type Team = string;

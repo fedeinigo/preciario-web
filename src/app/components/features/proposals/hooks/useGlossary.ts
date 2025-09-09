@@ -1,37 +1,56 @@
 // src/app/components/features/proposals/hooks/useGlossary.ts
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  readGlossary,
-  saveGlossary,
-  type GlossaryLink,
-} from "../lib/storage";
+import { useCallback, useEffect, useState } from "react";
+import type { GlossaryLink } from "@/lib/types";
 
 export function useGlossary() {
   const [glossary, setGlossary] = useState<GlossaryLink[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setGlossary(readGlossary());
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await fetch("/api/glossary", { cache: "no-store" });
+      if (!r.ok) throw new Error("No se pudo cargar glosario");
+      const data = (await r.json()) as GlossaryLink[];
+      setGlossary(data);
+    } catch {
+      setGlossary([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const persist = (list: GlossaryLink[]) => {
-    setGlossary(list);
-    saveGlossary(list);
-  };
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const addLink = (label: string, url: string) => {
-    const n: GlossaryLink = { id: `L-${Date.now()}`, label, url };
-    persist([n, ...glossary]);
-  };
+  async function addLink(label: string, url: string) {
+    const r = await fetch("/api/glossary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label, url }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    await load();
+  }
 
-  const editLink = (id: string, label: string, url: string) => {
-    persist(glossary.map((g) => (g.id === id ? { ...g, label, url } : g)));
-  };
+  async function editLink(id: string, label: string, url: string) {
+    const r = await fetch(`/api/glossary/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label, url }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    await load();
+  }
 
-  const removeLink = (id: string) => {
-    persist(glossary.filter((g) => g.id !== id));
-  };
+  async function removeLink(id: string) {
+    const r = await fetch(`/api/glossary/${id}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(await r.text());
+    await load();
+  }
 
-  return { glossary, addLink, editLink, removeLink };
+  return { glossary, loading, reload: load, addLink, editLink, removeLink };
 }

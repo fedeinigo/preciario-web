@@ -19,7 +19,7 @@ type TeamRow = { id: string; name: string };
 
 const ROLES: Role[] = ["usuario", "lider", "superadmin"];
 
-export default function Users() {
+export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,11 +60,11 @@ export default function Users() {
 
       if (!r.ok) {
         const data: unknown = await r.json().catch(() => ({}));
-        const msg =
+        const errorMsg =
           typeof data === "object" && data && "error" in data
             ? (data as { error?: string }).error
             : undefined;
-        alert(msg ?? "No autorizado");
+        alert(errorMsg ?? "No autorizado");
         return;
       }
 
@@ -74,6 +74,7 @@ export default function Users() {
     }
   };
 
+  // ===== Gestor de equipos (superadmin)
   const [newTeam, setNewTeam] = useState("");
   const [renameId, setRenameId] = useState<string>("");
   const [renameName, setRenameName] = useState("");
@@ -134,9 +135,12 @@ export default function Users() {
   return (
     <div className="p-4">
       <div className="border bg-white">
-        <div className="bg-primary text-white font-semibold px-3 py-2 text-sm">Usuarios</div>
+        <div className="bg-primary text-white font-semibold px-3 py-2 text-sm">
+          Usuarios (admin)
+        </div>
 
         <div className="p-3 space-y-6">
+          {/* Tabla de usuarios */}
           <div className="overflow-x-auto">
             {loading ? (
               <div className="text-sm text-gray-500">Cargando…</div>
@@ -173,7 +177,7 @@ export default function Users() {
                       <td className="table-td">
                         <input
                           className="input"
-                          list="users-teams"
+                          list="admin-teams"
                           value={u.team ?? ""}
                           onChange={(e) =>
                             saveUser(u.id, {
@@ -196,10 +200,11 @@ export default function Users() {
             )}
           </div>
 
+          {/* Gestor de equipos */}
           <div className="rounded-md border bg-white p-3">
             <div className="text-sm font-semibold mb-3">Gestión de equipos</div>
 
-            <datalist id="users-teams">
+            <datalist id="admin-teams">
               {teamNames.map((t) => (
                 <option key={t} value={t} />
               ))}
@@ -257,7 +262,7 @@ export default function Users() {
                 </select>
                 <input
                   className="input flex-1"
-                  list="users-teams"
+                  list="admin-teams"
                   placeholder="Mover usuarios a… (opcional)"
                   value={deleteReplace}
                   onChange={(e) => setDeleteReplace(e.target.value)}
@@ -267,10 +272,6 @@ export default function Users() {
                 </button>
               </div>
             </div>
-
-            <p className="text-[12px] text-gray-500 mt-2">
-              * Al eliminar un equipo, puedes mover los usuarios a uno de destino (opcional). Si lo dejas vacío, se quedan sin equipo.
-            </p>
           </div>
         </div>
       </div>

@@ -1,14 +1,13 @@
+// src/app/components/features/proposals/Stats.tsx
 "use client";
 
 import React, { useMemo, useState, useEffect } from "react";
-import { readProposals } from "./lib/storage";
+import type { ProposalRecord } from "@/lib/types";
 import { countryIdFromName } from "./lib/catalogs";
-import { TEAMS, type AppRole } from "@/constants/teams";
+import type { AppRole } from "@/constants/teams"; // ← usamos el único AppRole
 
 const TitleBar = ({ children }: { children: React.ReactNode }) => (
-  <div className="bg-primary text-white font-semibold px-3 py-2 text-sm">
-    {children}
-  </div>
+  <div className="bg-primary text-white font-semibold px-3 py-2 text-sm">{children}</div>
 );
 
 function StatCard({ label, value }: { label: string; value: string }) {
@@ -31,6 +30,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 type AdminUserRow = { email: string | null; role: AppRole; team: string | null };
 
+type ProposalForStats = ProposalRecord & {
+  items?: Array<{ sku: string; name: string; quantity: number }>;
+};
+
 export default function Stats({
   role,
   currentEmail,
@@ -46,14 +49,20 @@ export default function Stats({
   const [to, setTo] = useState("");
   const [teamFilter, setTeamFilter] = useState<string>("");
 
-  const [all, setAll] = useState(() => readProposals());
+  const [all, setAll] = useState<ProposalForStats[]>([]);
+  const load = async () => {
+    const r = await fetch("/api/proposals", { cache: "no-store" });
+    if (!r.ok) return setAll([]);
+    setAll((await r.json()) as ProposalForStats[]);
+  };
   useEffect(() => {
-    const onFocus = () => setAll(readProposals());
+    load();
+    const onFocus = () => load();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  // map email -> team para filtrar por equipo
+  // emails -> team
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
   useEffect(() => {
     if (isSuperAdmin || role === "lider") {
@@ -72,9 +81,17 @@ export default function Stats({
     return map;
   }, [adminUsers]);
 
+  // equipos dinámicos para el filtro
+  const [teams, setTeams] = useState<string[]>([]);
+  useEffect(() => {
+    fetch("/api/teams")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows: Array<{ name: string }>) => setTeams(rows.map((t) => t.name)))
+      .catch(() => setTeams([]));
+  }, []);
+
   const subset = useMemo(() => {
     return all.filter((p) => {
-      // Alcance por rol/equipo
       if (isSuperAdmin) {
         if (teamFilter) {
           const t = emailToTeam.get(p.userEmail) ?? null;
@@ -86,9 +103,7 @@ export default function Stats({
       } else {
         if (p.userEmail !== currentEmail) return false;
       }
-
-      // rango fechas
-      const tms = new Date(p.createdAt).getTime();
+      const tms = new Date(p.createdAt as unknown as string).getTime();
       const f = from ? new Date(from).getTime() : -Infinity;
       const tt = to ? new Date(to).getTime() + 24 * 3600 * 1000 - 1 : Infinity;
       return tms >= f && tms <= tt;
@@ -102,7 +117,7 @@ export default function Stats({
     () =>
       Object.entries(
         subset.reduce<Record<string, { name: string; qty: number }>>((acc, p) => {
-          p.items.forEach((it) => {
+          (p.items ?? []).forEach((it) => {
             const cur = acc[it.sku] ?? { name: it.name, qty: 0 };
             cur.qty += it.quantity;
             cur.name = cur.name || it.name;
@@ -147,7 +162,7 @@ export default function Stats({
                   <label className="block text-sm text-gray-600 mb-1">Equipo</label>
                   <select className="select" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
                     <option value="">Todos</option>
-                    {TEAMS.map((t) => (
+                    {teams.map((t) => (
                       <option key={t} value={t}>
                         {t}
                       </option>
