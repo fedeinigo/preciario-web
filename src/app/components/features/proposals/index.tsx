@@ -1,3 +1,4 @@
+// src/app/components/features/proposals/index.tsx
 "use client";
 
 import React from "react";
@@ -7,20 +8,23 @@ import Generator from "./Generator";
 import History from "./History";
 import Stats from "./Stats";
 import Users from "./Users";
-import type { AppRole } from "@/constants/teams"; // ← unificamos el tipo
+import Teams from "./Teams";
+import OnboardingTeamModal from "./OnboardingTeamModal";
+import type { AppRole } from "@/constants/teams";
 
-type Tab = "generator" | "history" | "stats" | "users";
+type Tab = "generator" | "history" | "stats" | "users" | "teams";
 
 export default function ProposalApp() {
   const { data: session, status } = useSession();
   const loading = status === "loading";
 
-  // Normalizamos el rol que viene en la sesión:
   const rawRole = (session?.user?.role as string | undefined) ?? "usuario";
   const role: AppRole =
-    rawRole === "comercial" // compatibilidad con código viejo
+    rawRole === "comercial"
       ? "usuario"
-      : (["superadmin", "lider", "usuario"].includes(rawRole) ? (rawRole as AppRole) : "usuario");
+      : (["superadmin", "lider", "usuario"].includes(rawRole)
+          ? (rawRole as AppRole)
+          : "usuario");
 
   const team = (session?.user?.team as string | null) ?? null;
   const isSuperAdmin = role === "superadmin";
@@ -30,7 +34,7 @@ export default function ProposalApp() {
 
   const initialTab = ((): Tab => {
     const h = (globalThis?.location?.hash || "").replace("#", "");
-    const ok: Tab[] = ["generator", "history", "stats", "users"];
+    const ok: Tab[] = ["generator", "history", "stats", "users", "teams"];
     return ok.includes(h as Tab) ? (h as Tab) : "generator";
   })();
 
@@ -72,7 +76,11 @@ export default function ProposalApp() {
         />
       )}
 
+      {activeTab === "teams" && <Teams isSuperAdmin={isSuperAdmin} />}
+
       {activeTab === "users" && isSuperAdmin && <Users />}
+
+      {!team && <OnboardingTeamModal />}
     </div>
   );
 }

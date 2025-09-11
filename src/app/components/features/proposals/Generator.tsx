@@ -1,3 +1,4 @@
+// src/app/components/features/proposals/Generator.tsx
 "use client";
 
 import React, { useMemo, useState, useEffect } from "react";
@@ -13,7 +14,7 @@ import {
   autoSubsidiaryForCountry,
 } from "./lib/catalogs";
 import { saveProposal } from "./lib/storage";
-import type { UIItem, SaveProposalInput, ProposalRecord } from "@/lib/types";
+import type { UIItem, SaveProposalInput } from "./lib/types";
 
 import {
   getInitialItems,
@@ -51,24 +52,31 @@ import { FilialesSidebar, GlossarySidebar } from "./components/Sidebars";
 import { useFiliales } from "./hooks/useFiliales";
 import { useGlossary } from "./hooks/useGlossary";
 import { useProposalTotals } from "./hooks/useProposalTotals";
+import Modal from "@/app/components/ui/Modal";
+import { toast } from "@/app/components/ui/toast";
+import ProposalCreatedModal from "./components/ProposalCreatedModal";
 
-export default function Generator({
-  isAdmin,
-  userId,
-  userEmail,
-  onSaved,
-}: {
+type Props = {
   isAdmin: boolean;
   userId: string;
   userEmail: string;
-  onSaved: (id: string) => void;
-}) {
+  onSaved: (id: string) => void; // lo mantenemos en el tipo por compatibilidad, pero no lo usamos aquí
+};
+
+export default function Generator({ isAdmin, userId, userEmail }: Props) {
   const [companyName, setCompanyName] = useState("");
   const [country, setCountry] = useState("");
   const [subsidiary, setSubsidiary] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
+
+  // Paginación local controlada
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, categoryFilter]);
 
   const [items, setItems] = useState<UIItem[]>(() => getInitialItems());
   useEffect(() => {
@@ -91,6 +99,10 @@ export default function Generator({
 
   const [openSummary, setOpenSummary] = useState(false);
   const [creatingDoc, setCreatingDoc] = useState(false);
+
+  // Modal de éxito
+  const [createdUrl, setCreatedUrl] = useState<string | null>(null);
+  const [showCreated, setShowCreated] = useState(false);
 
   const [itemFormOpen, setItemFormOpen] = useState(false);
   const [itemFormMode, setItemFormMode] = useState<"create" | "edit">("create");
@@ -161,6 +173,7 @@ export default function Generator({
       if (itemFormMode === "create") {
         const created = await createCatalogItem(data);
         setItems((prev) => [created, ...prev]);
+        toast.success("Ítem creado");
       } else if (itemFormMode === "edit" && editingId != null) {
         const current = items.find((i) => i.id === editingId);
         if (current?.dbId) {
@@ -181,37 +194,59 @@ export default function Generator({
               : i
           )
         );
+        toast.success("Ítem actualizado");
       }
     } catch (e) {
-      alert(`Error guardando ítem: ${e instanceof Error ? e.message : "Desconocido"}`);
+      const msg = e instanceof Error ? e.message : "Desconocido";
+      toast.error(`Error guardando ítem: ${msg}`);
     } finally {
       setItemFormOpen(false);
     }
   };
 
   const generate = () => {
-    if (selectedItems.length === 0 || !companyName || !country || !subsidiary) {
-      alert("Completa empresa, país, filial y selecciona al menos un ítem.");
+    if (selectedItems.length === 0) {
+      toast.info("Selecciona al menos un ítem para generar la propuesta.");
+      return;
+    }
+    if (!companyName || !country || !subsidiary) {
+      toast.info("Completa Empresa, País y Filial antes de continuar.");
       return;
     }
     setOpenSummary(true);
   };
 
-  const resetAll = () => {
+  // -------- Reset con confirmación (modal)
+  const [confirmReset, setConfirmReset] = useState(false);
+  const doReset = () => {
     setCompanyName("");
     setCountry("");
     setSubsidiary("");
     setSearchTerm("");
     setCategoryFilter("");
-    setItems((prev) => prev.map((i) => ({ ...i, selected: false, quantity: 1 })));
+    setPage(1);
+    setItems((prev) =>
+      prev.map((i) => ({ ...i, selected: false, quantity: 1 }))
+    );
     setOpenSummary(false);
+    toast.info("Generador restablecido");
   };
 
   const finalizeProposal = async () => {
     setCreatingDoc(true);
     try {
-      const recordBase: Omit<SaveProposalInput, "docUrl" | "docId" | "items"> & {
-        items: Array<{ sku: string; category: string; name: string; quantity: number; unitPrice: number; devHours: number }>;
+      const recordBase: Omit<
+        SaveProposalInput,
+        "docUrl" | "docId" | "items"
+      > & {
+        items: Array<{
+          sku: string;
+          category: string;
+          name: string;
+          quantity: number;
+          unitPrice: number;
+          devHours: number;
+        }>;
       } = {
         companyName,
         country,
@@ -240,12 +275,14 @@ export default function Generator({
           companyName: recordBase.companyName,
           country: recordBase.country,
           subsidiary: recordBase.subsidiary,
-          items: recordBase.items.map(({ name, quantity, unitPrice, devHours }) => ({
-            name,
-            quantity,
-            unitPrice,
-            devHours,
-          })),
+          items: recordBase.items.map(
+            ({ name, quantity, unitPrice, devHours }) => ({
+              name,
+              quantity,
+              unitPrice,
+              devHours,
+            })
+          ),
           totals: {
             monthly: recordBase.totalAmount,
             oneShot: recordBase.oneShot,
@@ -254,8 +291,13 @@ export default function Generator({
         }),
       });
 
-      const parsed = (await res.json()) as { url?: string; docId?: string; error?: string };
-      if (!res.ok || !parsed.url) throw new Error(parsed.error ?? "No se recibió la URL del documento.");
+      const parsed = (await res.json()) as {
+        url?: string;
+        docId?: string;
+        error?: string;
+      };
+      if (!res.ok || !parsed.url)
+        throw new Error(parsed.error ?? "No se recibió la URL del documento.");
 
       const payload: SaveProposalInput = {
         companyName: recordBase.companyName,
@@ -271,19 +313,25 @@ export default function Generator({
         userId,
         userEmail,
         items: selectedItems.map((it) => ({
-          itemId: it.dbId!,
+          itemId: it.dbId!, // viene de la DB
           quantity: it.quantity,
           unitPrice: it.unitPrice,
           devHours: it.devHours,
         })),
       };
 
-      const created: ProposalRecord = await saveProposal(payload);
-      onSaved(created.id);
+      await saveProposal(payload);
+
+      // No redirigimos automáticamente: mostramos modal con acciones
       setOpenSummary(false);
-      window.open(parsed.url, "_blank", "noopener,noreferrer");
+      setCreatedUrl(parsed.url);
+      setShowCreated(true);
+
+      // Si quisieras limpiar selección después de crear, descomenta:
+      // doReset();
     } catch (e) {
-      alert(`Error creando propuesta: ${e instanceof Error ? e.message : "Error desconocido"}`);
+      const msg = e instanceof Error ? e.message : "Error desconocido";
+      toast.error(`Error creando propuesta: ${msg}`);
     } finally {
       setCreatingDoc(false);
     }
@@ -303,14 +351,22 @@ export default function Generator({
       setItems((prev) =>
         prev.map((i) =>
           i.id === pendingItemId
-            ? { ...i, selected: true, quantity: data.totalQty, unitPrice: data.unitPrice, devHours: 0 }
+            ? {
+                ...i,
+                selected: true,
+                quantity: data.totalQty,
+                unitPrice: data.unitPrice,
+                devHours: 0,
+              }
             : i
         )
       );
       setOpenWpp(false);
       setPendingItemId(null);
+      toast.success("Tarifas de WhatsApp aplicadas");
     } catch (e) {
       setWppError(e instanceof Error ? e.message : "Error");
+      toast.error("No se pudo calcular WhatsApp");
     } finally {
       setApplyingWpp(false);
     }
@@ -330,14 +386,22 @@ export default function Generator({
       setItems((prev) =>
         prev.map((i) =>
           i.id === pendingItemId
-            ? { ...i, selected: true, quantity: data.totalQty, unitPrice: data.unitPrice, devHours: 0 }
+            ? {
+                ...i,
+                selected: true,
+                quantity: data.totalQty,
+                unitPrice: data.unitPrice,
+                devHours: 0,
+              }
             : i
         )
       );
       setOpenMin(false);
       setPendingItemId(null);
+      toast.success("Minutos aplicados");
     } catch (e) {
       setMinError(e instanceof Error ? e.message : "Error");
+      toast.error("No se pudo calcular Minutos");
     } finally {
       setApplyingMin(false);
     }
@@ -345,21 +409,40 @@ export default function Generator({
 
   const applyWiser = () => {
     if (!pendingItemId) return;
-    setItems((prev) => prev.map((i) => (i.id === pendingItemId ? { ...i, selected: true, quantity: 1, unitPrice: 0, devHours: 0 } : i)));
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === pendingItemId
+          ? { ...i, selected: true, quantity: 1, unitPrice: 0, devHours: 0 }
+          : i
+      )
+    );
     setOpenWiser(false);
     setPendingItemId(null);
+    toast.success("WiserPro aplicado");
   };
 
   const handleToggleItem = (item: UIItem, checked: boolean) => {
     if (!checked) {
-      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, selected: false } : i)));
+      setItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, selected: false } : i))
+      );
       return;
     }
-    if (isWppUtility(item.name) || isWppMarketing(item.name) || isWppAuth(item.name)) {
+    if (
+      isWppUtility(item.name) ||
+      isWppMarketing(item.name) ||
+      isWppAuth(item.name)
+    ) {
       setPendingItemId(item.id);
       setWppForm({ qty: 0, destCountry: country || "" });
       setWppError("");
-      setWppKind(isWppUtility(item.name) ? "utility" : isWppMarketing(item.name) ? "marketing" : "auth");
+      setWppKind(
+        isWppUtility(item.name)
+          ? "utility"
+          : isWppMarketing(item.name)
+          ? "marketing"
+          : "auth"
+      );
       setOpenWpp(true);
       return;
     }
@@ -376,7 +459,9 @@ export default function Generator({
       setOpenWiser(true);
       return;
     }
-    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, selected: true } : i)));
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, selected: true } : i))
+    );
   };
 
   const onDeleteItem = async (itemId: string) => {
@@ -385,10 +470,17 @@ export default function Generator({
     try {
       if (target.dbId) await deleteCatalogItem(target.dbId);
       setItems((prev) => prev.filter((i) => i.id !== itemId));
+      toast.success("Ítem eliminado");
     } catch (e) {
-      alert(`No se pudo eliminar el ítem: ${e instanceof Error ? e.message : "Desconocido"}`);
+      const msg = e instanceof Error ? e.message : "Desconocido";
+      toast.error(`No se pudo eliminar el ítem: ${msg}`);
     }
   };
+
+  const existingSkus = useMemo(
+    () => items.map((i) => i.sku).filter(Boolean),
+    [items]
+  );
 
   return (
     <div className="p-6">
@@ -411,17 +503,25 @@ export default function Generator({
             <div className="heading-bar mb-3">Generador de Propuestas</div>
 
             {/* Datos de la empresa / país / filial */}
-            <div className="mb-4 rounded-md border-2 bg-white shadow-soft">
+            <div className="mb-4 rounded-md border-2 bg-white shadow-soft overflow-hidden">
+              <div className="heading-bar-sm">Datos de la empresa</div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-                <input
-                  className="input"
-                  placeholder="Nombre de la empresa"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                />
+                {/* Empresa */}
+                <div className="rounded-md border border-[rgb(var(--primary))]/25 bg-[rgb(var(--primary-soft))]/20 p-3">
+                  <label className="block text-xs text-gray-700 mb-1">
+                    Nombre de la empresa
+                  </label>
+                  <input
+                    className="input w-full h-10"
+                    placeholder="Ej: Acme S.A."
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                  />
+                </div>
 
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">País</label>
+                {/* País */}
+                <div className="rounded-md border border-[rgb(var(--primary))]/25 bg-[rgb(var(--primary-soft))]/20 p-3">
+                  <label className="block text-xs text-gray-700 mb-1">País</label>
                   <Combobox
                     options={COUNTRY_NAMES}
                     value={country}
@@ -433,19 +533,20 @@ export default function Generator({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">Filial</label>
-                  <input className="input" value={subsidiary || "—"} readOnly />
-                  <p className="mt-1 text-[12px] text-muted">
-                    Determinada automáticamente por el país.
+                {/* Filial */}
+                <div className="rounded-md border border-[rgb(var(--primary))]/25 bg-[rgb(var(--primary-soft))]/20 p-3">
+                  <label className="block text-xs text-gray-700 mb-1">Filial</label>
+                  <input className="input w-full h-10" value={subsidiary || "—"} readOnly />
+                  <p className="mt-1 text-[12px] text-gray-600">
+                    Se determina automáticamente según el país.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* FILTROS + +AGREGAR + BOTONES EN EL MISMO RENGLÓN */}
+            {/* + / filtros / acciones – MISMO RENGLÓN */}
             <div className="flex flex-col md:flex-row md:items-center gap-3 mb-3">
-              {/* Lado izquierdo: + y filtros ocupando todo el ancho disponible */}
+              {/* Lado izquierdo: + y filtros */}
               <div className="flex items-center gap-3 flex-1">
                 {isAdmin && (
                   <button
@@ -460,7 +561,7 @@ export default function Generator({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1">
                   <select
-                    className="select"
+                    className="select h-9"
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
                   >
@@ -473,7 +574,7 @@ export default function Generator({
                   </select>
 
                   <input
-                    className="input"
+                    className="input h-9"
                     placeholder="Filtrar por texto (nombre, descripción o SKU)"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -486,7 +587,11 @@ export default function Generator({
                 <button onClick={generate} className="btn-primary">
                   Generar Propuesta
                 </button>
-                <button onClick={resetAll} className="btn-ghost">
+                <button
+                  onClick={() => setConfirmReset(true)}
+                  className="btn-ghost"
+                  title="Restablecer generador"
+                >
                   Resetear
                 </button>
               </div>
@@ -503,6 +608,13 @@ export default function Generator({
               }
               onEdit={openEditForm}
               onDelete={onDeleteItem}
+              page={page}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(n: number) => {
+                setPageSize(n);
+                setPage(1);
+              }}
             />
 
             <div className="mt-3 flex justify-end">
@@ -527,6 +639,33 @@ export default function Generator({
             totalHours={totalHours}
             totalAmount={totalAmount}
           />
+
+          {/* Modal de confirmación para Reset */}
+          <Modal
+            open={confirmReset}
+            onClose={() => setConfirmReset(false)}
+            title="Restablecer generador"
+            footer={
+              <div className="flex justify-end gap-2">
+                <button className="btn-ghost" onClick={() => setConfirmReset(false)}>
+                  Cancelar
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    setConfirmReset(false);
+                    doReset();
+                  }}
+                >
+                  Confirmar
+                </button>
+              </div>
+            }
+          >
+            <p className="text-sm text-gray-700">
+              Esta acción limpia los campos y des-selecciona los ítems. ¿Deseas continuar?
+            </p>
+          </Modal>
 
           <WhatsAppModal
             open={openWpp}
@@ -576,8 +715,16 @@ export default function Generator({
               initial={editingInitial}
               onClose={() => setItemFormOpen(false)}
               onSave={handleSaveItem}
+              existingSkus={existingSkus}
             />
           )}
+
+          {/* Modal de éxito */}
+          <ProposalCreatedModal
+            open={showCreated && !!createdUrl}
+            url={createdUrl ?? ""}
+            onClose={() => setShowCreated(false)}
+          />
         </section>
 
         <aside className="hidden xl:block">

@@ -3,23 +3,25 @@
 @tailwind utilities;
 
 /* ================================
-   BASE THEME — sobrio y rectangular
+   BASE THEME — morado marca
    ================================ */
 @layer base {
   :root {
-    --bg: 246 246 247;       /* #F6F6F7 */
-    --paper: 255 255 255;    /* #FFFFFF */
-    --ink: 17 24 39;         /* slate-900 */
-    --muted: 107 114 128;    /* slate-500 */
-    --border: 226 232 240;   /* slate-200 */
-    --primary: 55 65 81;     /* slate-700 */
-    --primary-ink: 255 255 255;
-    --primary-soft: 243 244 246;
+    --bg: 246 246 247;        /* #F6F6F7 */
+    --paper: 255 255 255;     /* #FFFFFF */
+    --ink: 17 24 39;          /* slate-900 */
+    --muted: 107 114 128;     /* slate-500 */
+    --border: 226 232 240;    /* slate-200 */
+
+    /* >>> Paleta principal morada (alineada al hero) */
+    --primary: 59 10 105;           /* #3B0A69 */
+    --primary-ink: 255 255 255;     /* texto sobre morado */
+    --primary-soft: 237 233 254;    /* #EDE9FE (violet-100) */
 
     --shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 20px rgba(15, 23, 42, 0.04);
     --radius: 6px;
 
-    /* tamaños (ligeramente más grandes que antes) */
+    /* tamaños */
     --fs-h1: 24px;
     --fs-h2: 20px;
     --fs-h3: 16px;
@@ -33,17 +35,18 @@
     --nav-h: 48px;
     --footer-h: 40px;
 
-    /* colores de marca (mismo gradiente que navbar/footer) */
+    /* gradiente marca (navbar / footer / headings / tablas) */
     --brand-start-hex: #3b0a69;
     --brand-end-hex: #2a0f5c;
   }
 
   html,
   body {
-    @apply bg-[rgb(var(--bg))] text-[rgb(var(--ink))];
+    background-color: rgb(var(--bg));
+    color: rgb(var(--ink));
     font-size: var(--fs-body);
     line-height: var(--lh-body);
-    overflow-x: hidden; /* evita barra blanca lateral */
+    overflow-x: hidden;
   }
 
   h1 { font-size: var(--fs-h1); line-height: var(--lh-tight); font-weight: 700; }
@@ -60,38 +63,67 @@
    ================================ */
 @layer components {
   .card {
-    @apply bg-[rgb(var(--paper))] border border-[rgb(var(--border))]
-           rounded-[var(--radius)] shadow-[var(--shadow)] px-4 py-3;
+    @apply rounded-[var(--radius)] shadow-[var(--shadow)] px-4 py-3 border;
+    background-color: rgb(var(--paper));
+    border-color: rgb(var(--border));
   }
+
   .shadow-soft { box-shadow: var(--shadow); }
 
   .input, .select, .textarea {
-    @apply w-full bg-white border border-[rgb(var(--border))]
-           rounded-[var(--radius)] px-3 py-2
-           text-[13.5px] placeholder:text-[rgb(var(--muted))] outline-none;
-    transition: border-color .15s ease, box-shadow .15s ease;
+    @apply w-full rounded-[var(--radius)] px-3 py-2 text-[13.5px] outline-none;
+    background-color: #fff;
+    border: 1px solid rgb(var(--border));
+    color: rgb(var(--ink));
+  }
+  .input::placeholder, .textarea::placeholder {
+    color: rgb(var(--muted));
   }
   .input:focus, .select:focus, .textarea:focus {
-    @apply border-[rgb(var(--primary))] ring-1 ring-[rgb(var(--primary))];
-    box-shadow: 0 0 0 3px rgba(55, 65, 81, .12);
+    border-color: rgb(var(--primary));
+    box-shadow: 0 0 0 3px rgba(var(--primary), 0.12);
   }
 
+  /* ----- Botones ----- */
   .btn {
     @apply inline-flex items-center justify-center gap-2
-           rounded-[var(--radius)] border border-[rgb(var(--border))]
-           px-3 py-2 text-[13.5px] font-medium select-none;
+           rounded-[var(--radius)] px-3 py-2 text-[13.5px] font-medium select-none
+           border transition;
+    border-color: rgb(var(--border));
     transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
   }
-  .btn-primary { @apply btn bg-[rgb(var(--primary))] text-[rgb(var(--primary-ink))] border-transparent; }
+  .btn-primary {
+    @apply btn;
+    background-color: rgb(var(--primary));
+    color: rgb(var(--primary-ink));
+    border-color: transparent;
+  }
   .btn-primary:hover { filter: brightness(0.95); }
-  .btn-ghost { @apply btn bg-white text-[rgb(var(--ink))]; }
-  .btn-ghost:hover { @apply border-[rgb(var(--ink))]; }
 
-  .tab { @apply inline-flex items-center gap-2 px-3 py-2 rounded-[var(--radius)] border text-[13.5px]; }
-  .tab-active { @apply bg-[rgb(var(--primary))] text-[rgb(var(--primary-ink))] border-transparent; }
-  .tab-inactive { @apply bg-white text-[rgb(var(--ink))] border-[rgb(var(--border))]; }
+  .btn-ghost {
+    @apply btn;
+    background-color: #fff;
+    color: rgb(var(--ink));
+    border-color: rgb(var(--border));
+  }
+  .btn-ghost:hover { border-color: rgb(var(--ink)); }
 
-  /* -------- Encabezados de secciones / titulares -------- */
+  /* ----- Tabs ----- */
+  .tab {
+    @apply inline-flex items-center gap-2 px-3 py-2 rounded-[var(--radius)] border text-[13.5px];
+  }
+  .tab-active {
+    background-color: rgb(var(--primary));
+    color: rgb(var(--primary-ink));
+    border-color: transparent;
+  }
+  .tab-inactive {
+    background-color: #fff;
+    color: rgb(var(--ink));
+    border-color: rgb(var(--border));
+  }
+
+  /* ----- Encabezados de sección ----- */
   .heading-bar {
     @apply text-white font-semibold text-lg px-4 py-2 rounded-[var(--radius)]
            shadow-[var(--shadow)] flex items-center justify-between;
@@ -103,24 +135,23 @@
     background: linear-gradient(90deg, var(--brand-start-hex), var(--brand-end-hex));
   }
 
-  /* -------- Tablas -------- */
-  /* Cabecera de tabla con el mismo fondo que navbar/footer */
+  /* ----- Tablas ----- */
   .table-th {
-    @apply text-left text-[12px] uppercase tracking-wide text-white
-           border-b px-3 py-2;
+    @apply text-left text-[12px] uppercase tracking-wide text-white border-b px-3 py-2;
     border-color: rgba(255,255,255,0.1);
     background: linear-gradient(90deg, var(--brand-start-hex), var(--brand-end-hex));
   }
-  .table-td { @apply px-3 py-2 border-b border-[rgb(var(--border))] align-middle; }
+  .table-td {
+    @apply px-3 py-2 border-b align-middle;
+    border-color: rgb(var(--border));
+  }
 
-  /* Navbar / Footer full-width con pequeños paddings */
+  /* ----- Navbar / Footer ----- */
   .navbar {
     @apply w-full text-[rgb(var(--primary-ink))];
     background: linear-gradient(90deg, var(--brand-start-hex), var(--brand-end-hex));
   }
-  .navbar-inner {
-    @apply w-full h-full flex items-center justify-between;
-  }
+  .navbar-inner { @apply w-full h-full flex items-center justify-between; }
 
   .footer {
     @apply w-full text-[rgb(var(--primary-ink))];
@@ -131,8 +162,10 @@
   }
 
   .modal-panel {
-    @apply bg-white rounded-[var(--radius)] border border-[rgb(var(--border))]
-           shadow-[var(--shadow)] p-4 w-full max-w-lg;
+    @apply rounded-[var(--radius)] p-4 w-full max-w-lg border;
+    background-color: #fff;
+    border-color: rgb(var(--border));
+    box-shadow: var(--shadow);
   }
 }
 
@@ -141,11 +174,16 @@
    ================================ */
 @layer utilities {
   .text-muted { color: rgb(var(--muted)); }
-  .chip { @apply inline-flex items-center rounded-[var(--radius)] bg-[rgb(var(--primary-soft))] text-[12px] px-2 py-1; }
+  .chip {
+    @apply inline-flex items-center rounded-[var(--radius)] text-[12px] px-2 py-1;
+    background-color: rgb(var(--primary-soft));
+  }
 }
 
-.btn-warning-icon { @apply inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-500 text-white hover:bg-amber-600 transition shadow-sm; }
-.btn-danger-icon  { @apply inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-600 text-white hover:bg-red-700 transition shadow-sm; }
+.btn-warning-icon { @apply inline-flex items-center justify-center w-8 h-8 rounded-full text-white transition shadow-sm; background-color: #f59e0b; }
+.btn-warning-icon:hover { background-color: #d97706; }
+.btn-danger-icon  { @apply inline-flex items-center justify-center w-8 h-8 rounded-full text-white transition shadow-sm; background-color: #dc2626; }
+.btn-danger-icon:hover { background-color: #b91c1c; }
 
 /* --- HERO / LOGIN --- */
 .hero-bg {
@@ -156,12 +194,13 @@
 .hero-bg::before {
   content: "";
   position: fixed;
-  inset: 0;              /* cubre siempre toda la ventana */
+  inset: 0;
   z-index: -3;
   background:
     radial-gradient(1400px 800px at -10% -10%, rgba(167, 139, 250, 0.20), transparent 60%),
     radial-gradient(1200px 700px at 110% 120%, rgba(99, 102, 241, 0.16), transparent 60%),
     radial-gradient(2000px 1200px at 50% -15%, rgba(139, 92, 246, 0.10), transparent 65%),
+    /* >>> mismo espectro que la cabecera */
     linear-gradient(180deg, #3b0a69 0%, #2a0f5c 38%, #1c1347 72%, #0f0a2b 100%);
 }
 .hero-bg::after {
@@ -187,6 +226,4 @@
 }
 
 /* Tarjeta de login (tamaños cómodos) */
-.auth-card {
-  max-width: 720px;
-}
+.auth-card { max-width: 720px; }

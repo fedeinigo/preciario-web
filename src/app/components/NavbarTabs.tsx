@@ -2,10 +2,10 @@
 "use client";
 
 import React from "react";
-import { LayoutGrid, Clock, BarChart2, Users } from "lucide-react";
+import { LayoutGrid, Clock, BarChart2, Users, Group } from "lucide-react";
 import { useSession } from "next-auth/react";
 
-type Tab = "generator" | "history" | "stats" | "users";
+type Tab = "generator" | "history" | "stats" | "teams" | "users";
 type IconType = React.ComponentType<{ className?: string }>;
 
 export default function NavbarTabs({
@@ -19,7 +19,7 @@ export default function NavbarTabs({
 }) {
   const { status } = useSession();
   const isAuthed = status === "authenticated";
-  if (!isAuthed) return null; // NO mostrar si no hay sesión
+  if (!isAuthed) return null;
 
   const Btn = ({
     id,
@@ -49,6 +49,7 @@ export default function NavbarTabs({
         <Btn id="generator" icon={LayoutGrid} label="Generador" />
         <Btn id="history" icon={Clock} label="Histórico" />
         <Btn id="stats" icon={BarChart2} label="Estadísticas" />
+        <Btn id="teams" icon={Group} label="Equipos" />
         {showUsers && <Btn id="users" icon={Users} label="Usuarios" />}
       </div>
     </div>

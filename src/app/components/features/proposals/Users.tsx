@@ -2,7 +2,9 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import Modal from "@/app/components/ui/Modal";
+import { toast } from "@/app/components/ui/toast";
+import { Copy, MoreHorizontal, X } from "lucide-react";
+import { copyToClipboard } from "./lib/clipboard";
 
 type Role = "superadmin" | "lider" | "usuario";
 
@@ -19,8 +21,70 @@ type UserRow = {
 
 type TeamRow = { id: string; name: string };
 
+/* ---------- helpers de UI ---------- */
+function getInitials(nameOrEmail: string): string {
+  const s = (nameOrEmail || "").trim();
+  if (!s) return "U";
+  const parts = s.includes("@")
+    ? s.split("@")[0].replace(/[\W_]+/g, " ").trim().split(" ")
+    : s.replace(/\s+/g, " ").trim().split(" ");
+  const first = parts[0]?.[0] ?? "";
+  const last = parts[1]?.[0] ?? "";
+  return (first + last || first || "U").toUpperCase();
+}
+
+function stringHue(input: string): number {
+  let h = 0;
+  for (let i = 0; i < input.length; i++) h = (h * 31 + input.charCodeAt(i)) % 360;
+  return h;
+}
+
+function Avatar({ label }: { label: string }) {
+  const hue = stringHue(label || "user");
+  const bg = `hsl(${hue} 70% 92%)`;
+  const fg = `hsl(${hue} 38% 28%)`;
+  return (
+    <div
+      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold shadow-soft ring-1 ring-black/5"
+      style={{ backgroundColor: bg, color: fg }}
+      aria-hidden
+    >
+      {getInitials(label)}
+    </div>
+  );
+}
+
+/** Chip de filtro */
+function FilterChip({
+  show,
+  label,
+  onClear,
+}: {
+  show: boolean;
+  label: string;
+  onClear?: () => void;
+}) {
+  if (!show) return null;
+  return (
+    <span className="chip inline-flex items-center gap-1">
+      {label}
+      {onClear ? (
+        <button
+          className="ml-1 rounded hover:bg-black/10 p-0.5"
+          onClick={onClear}
+          aria-label="Quitar filtro"
+          type="button"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
+    </span>
+  );
+}
+
 const ROLES: Role[] = ["usuario", "lider", "superadmin"];
 
+/* ======================== COMPONENTE ======================== */
 export default function Users() {
   // ====== data ======
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -50,23 +114,30 @@ export default function Users() {
 
   // ====== filtros listado ======
   const [q, setQ] = useState("");
+  const [qDebounced, setQDebounced] = useState("");
   const [roleFilter, setRoleFilter] = useState<Role | "">("");
   const [teamFilter, setTeamFilter] = useState<string>("");
+  const [onlyNoTeam, setOnlyNoTeam] = useState(false);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setQDebounced(q.trim().toLowerCase()), 250);
+    return () => window.clearTimeout(id);
+  }, [q]);
 
   const filteredUsers = useMemo(() => {
-    const qq = q.trim().toLowerCase();
     return users.filter((u) => {
       const byText =
-        !qq ||
-        (u.email ?? "").toLowerCase().includes(qq) ||
-        (u.name ?? "").toLowerCase().includes(qq);
+        !qDebounced ||
+        (u.email ?? "").toLowerCase().includes(qDebounced) ||
+        (u.name ?? "").toLowerCase().includes(qDebounced);
       const byRole = !roleFilter || u.role === roleFilter;
       const byTeam = !teamFilter || (u.team ?? "") === teamFilter;
-      return byText && byRole && byTeam;
+      const byOnlyNoTeam = !onlyNoTeam || !u.team;
+      return byText && byRole && byTeam && byOnlyNoTeam;
     });
-  }, [users, q, roleFilter, teamFilter]);
+  }, [users, qDebounced, roleFilter, teamFilter, onlyNoTeam]);
 
-  // ====== actualizar usuario ======
+  // ====== actualizar usuario (rol/equipo) ======
   const saveUser = async (userId: string, changes: Partial<UserRow>) => {
     setSaving(userId);
     try {
@@ -86,95 +157,57 @@ export default function Users() {
           typeof data === "object" && data && "error" in data
             ? (data as { error?: string }).error
             : undefined;
-        alert(msg ?? "No autorizado");
+        toast.error(msg ?? "No autorizado");
         return;
       }
 
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, ...changes } : u)));
+      toast.success("Cambios guardados");
     } finally {
       setSaving(null);
     }
   };
 
-  // ====== gestión de equipos (formularios) ======
-  const [newTeam, setNewTeam] = useState("");
-  const [renameId, setRenameId] = useState<string>("");
-  const [renameName, setRenameName] = useState("");
-  const [deleteId, setDeleteId] = useState<string>("");
+  // ====== métricas para tarjetas ======
+  const total = users.length;
+  const countSuperadmin = users.filter((u) => u.role === "superadmin").length;
+  const countLeaders = users.filter((u) => u.role === "lider").length;
+  const countNoTeam = users.filter((u) => !u.team).length;
 
-  // Modal eliminar / mover
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteReplace, setDeleteReplace] = useState<string>("");
-
-  const usersInTeam = useMemo(() => {
-    const name = teams.find((t) => t.id === deleteId)?.name || "";
-    if (!name) return 0;
-    return users.filter((u) => (u.team ?? "") === name).length;
-  }, [deleteId, teams, users]);
-
-  const createTeam = async () => {
-    const name = newTeam.trim();
-    if (!name) return;
-    const r = await fetch("/api/teams", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    if (r.ok) {
-      setNewTeam("");
-      load();
-    } else {
-      alert("No se pudo crear el equipo");
-    }
-  };
-
-  const renameTeam = async () => {
-    if (!renameId || !renameName.trim()) return;
-    const r = await fetch("/api/teams", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: renameId, name: renameName.trim() }),
-    });
-    if (r.ok) {
-      setRenameId("");
-      setRenameName("");
-      load();
-    } else {
-      alert("No se pudo renombrar el equipo");
-    }
-  };
-
-  const confirmDeleteTeam = async () => {
-    if (!deleteId) return;
-    const r = await fetch("/api/teams", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: deleteId,
-        replaceWith: deleteReplace || null, // nombre de equipo destino (opcional)
-      }),
-    });
-    if (r.ok) {
-      setDeleteId("");
-      setDeleteReplace("");
-      setDeleteOpen(false);
-      load();
-    } else {
-      alert("No se pudo eliminar el equipo");
-    }
-  };
-
+  // ====== UI ======
   return (
-    <div className="p-4">
+    <div className="p-4 space-y-4">
+      {/* Tarjetas resumen */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="rounded-md border-2 bg-white p-3 shadow-soft">
+          <div className="text-xs text-gray-500">Usuarios</div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <div className="text-2xl font-semibold">{total}</div>
+          </div>
+        </div>
+        <div className="rounded-md border-2 bg-white p-3 shadow-soft">
+          <div className="text-xs text-gray-500">Superadmins</div>
+          <div className="mt-1 text-2xl font-semibold">{countSuperadmin}</div>
+        </div>
+        <div className="rounded-md border-2 bg-white p-3 shadow-soft">
+          <div className="text-xs text-gray-500">Líderes</div>
+          <div className="mt-1 text-2xl font-semibold">{countLeaders}</div>
+        </div>
+        <div className="rounded-md border-2 bg-white p-3 shadow-soft">
+          <div className="text-xs text-gray-500">Sin equipo</div>
+          <div className="mt-1 text-2xl font-semibold">{countNoTeam}</div>
+        </div>
+      </div>
+
       {/* ======= Usuarios ======= */}
-      <div className="card border-2 mb-6 overflow-hidden">
+      <div className="card border-2 overflow-hidden">
         <div className="heading-bar-sm">Usuarios</div>
 
-        <div className="p-3 space-y-4">
+        <div className="p-3 space-y-3">
           {/* Filtros */}
           <div className="border-2 bg-white rounded-md p-3">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div className="md:col-span-2">
                 <label className="block text-xs text-gray-600 mb-1">Buscar</label>
                 <input
                   className="input"
@@ -213,18 +246,55 @@ export default function Users() {
                   ))}
                 </select>
               </div>
-              <div className="flex items-end gap-2">
+              <div className="flex items-end gap-3">
+                <label className="inline-flex items-center gap-2 text-[13px] text-gray-700">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={onlyNoTeam}
+                    onChange={(e) => setOnlyNoTeam(e.target.checked)}
+                  />
+                  Solo sin equipo
+                </label>
+              </div>
+            </div>
+
+            {/* Acciones filtros */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <FilterChip
+                show={Boolean(qDebounced)}
+                label={`Buscar: "${qDebounced}"`}
+                onClear={() => setQ("")}
+              />
+              <FilterChip
+                show={Boolean(roleFilter)}
+                label={`Rol: ${roleFilter || ""}`}
+                onClear={() => setRoleFilter("")}
+              />
+              <FilterChip
+                show={Boolean(teamFilter)}
+                label={`Equipo: ${teamFilter || ""}`}
+                onClear={() => setTeamFilter("")}
+              />
+              <FilterChip
+                show={onlyNoTeam}
+                label="Solo sin equipo"
+                onClear={() => setOnlyNoTeam(false)}
+              />
+
+              <div className="ml-auto flex items-center gap-2">
                 <button
-                  className="btn-ghost flex-1"
+                  className="btn-ghost"
                   onClick={() => {
                     setQ("");
                     setRoleFilter("");
                     setTeamFilter("");
+                    setOnlyNoTeam(false);
                   }}
                 >
                   Limpiar
                 </button>
-                <button className="btn-ghost flex-1" onClick={load}>
+                <button className="btn-primary" onClick={load}>
                   Refrescar
                 </button>
               </div>
@@ -232,28 +302,63 @@ export default function Users() {
           </div>
 
           {/* Tabla */}
-          <div className="overflow-x-auto border-2 rounded-md">
+          <div className="overflow-auto rounded-md border-2 max-h-[65vh]">
             {loading ? (
               <div className="text-sm text-gray-500 p-3">Cargando…</div>
             ) : (
               <table className="min-w-full bg-white text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr>
                     <th className="table-th !bg-primary !text-white">Email</th>
                     <th className="table-th !bg-primary !text-white">Nombre</th>
                     <th className="table-th w-48 !bg-primary !text-white">Rol</th>
                     <th className="table-th w-56 !bg-primary !text-white">Equipo</th>
-                    <th className="table-th w-28 !bg-primary !text-white"></th>
+                    <th className="table-th w-16 !bg-primary !text-white text-center">
+                      <span className="sr-only">Acciones</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredUsers.map((u, i) => (
                     <tr
                       key={u.id}
-                      className={i % 2 === 0 ? "bg-white" : "bg-[rgb(var(--primary-soft))]/40 hover:bg-white"}
+                      className={
+                        i % 2 === 0
+                          ? "bg-white hover:bg-[rgb(var(--primary-soft))]/30"
+                          : "bg-[rgb(var(--primary-soft))]/40 hover:bg-white"
+                      }
                     >
-                      <td className="table-td">{u.email ?? "—"}</td>
+                      {/* Email + avatar */}
+                      <td className="table-td">
+                        <div className="flex items-center gap-3">
+                          <Avatar label={u.name || u.email || "U"} />
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{u.email ?? "—"}</span>
+                            {u.email ? (
+                              <button
+                                className="rounded p-1 hover:bg-black/5"
+                                title="Copiar email"
+                                onClick={async () => {
+                                  const ok = await copyToClipboard(u.email!);
+                                  if (ok) {
+                                    toast.success("Email copiado");
+                                  } else {
+                                    toast.error("No se pudo copiar");
+                                  }
+                                }}
+                                type="button"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Nombre */}
                       <td className="table-td">{u.name ?? "—"}</td>
+
+                      {/* Rol */}
                       <td className="table-td">
                         <select
                           className="select"
@@ -268,6 +373,8 @@ export default function Users() {
                           ))}
                         </select>
                       </td>
+
+                      {/* Equipo */}
                       <td className="table-td">
                         <input
                           className="input"
@@ -282,25 +389,59 @@ export default function Users() {
                           disabled={saving === u.id}
                         />
                       </td>
+
+                      {/* Acciones */}
                       <td className="table-td">
-                        <button className="btn-ghost w-full" onClick={load}>
-                          Refrescar
-                        </button>
+                        <div className="relative flex justify-center">
+                          <details className="group">
+                            <summary className="list-none cursor-pointer rounded p-1 hover:bg-black/5 inline-flex">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </summary>
+                            <div className="absolute right-0 mt-1 min-w-[160px] rounded-md border bg-white p-1 shadow-soft z-10">
+                              <button
+                                className="w-full text-left rounded px-2 py-1.5 hover:bg-[rgb(var(--primary-soft))]"
+                                onClick={async () => {
+                                  if (u.email) {
+                                    const ok = await copyToClipboard(u.email);
+                                    if (ok) {
+                                      toast.success("Email copiado");
+                                    } else {
+                                      toast.error("No se pudo copiar");
+                                    }
+                                  } else {
+                                    toast.info("El usuario no tiene email");
+                                  }
+                                }}
+                                type="button"
+                              >
+                                Copiar email
+                              </button>
+                              <button
+                                className="w-full text-left rounded px-2 py-1.5 hover:bg-[rgb(var(--primary-soft))]"
+                                onClick={() => saveUser(u.id, { team: null })}
+                                type="button"
+                              >
+                                Quitar de equipo
+                              </button>
+                            </div>
+                          </details>
+                        </div>
                       </td>
                     </tr>
                   ))}
-                  {filteredUsers.length === 0 && (
+                  {filteredUsers.length === 0 ? (
                     <tr>
                       <td className="table-td text-center text-gray-500" colSpan={5}>
                         Sin resultados para los filtros.
                       </td>
                     </tr>
-                  )}
+                  ) : null}
                 </tbody>
               </table>
             )}
           </div>
 
+          {/* datalist para equipos */}
           <datalist id="users-teams">
             {teamNames.map((t) => (
               <option key={t} value={t} />
@@ -308,150 +449,6 @@ export default function Users() {
           </datalist>
         </div>
       </div>
-
-      {/* ======= Gestión de equipos ======= */}
-      <div className="card border-2 overflow-hidden">
-        <div className="heading-bar-sm">Gestión de equipos</div>
-
-        <div className="p-4 space-y-6">
-          {/* Crear */}
-          <div className="rounded-md border bg-white p-3">
-            <div className="text-sm font-semibold mb-3">Crear equipo</div>
-            <div className="flex gap-2">
-              <input
-                className="input flex-1"
-                placeholder="Nuevo equipo"
-                value={newTeam}
-                onChange={(e) => setNewTeam(e.target.value)}
-              />
-              <button className="btn-ghost" onClick={createTeam}>
-                Crear
-              </button>
-            </div>
-          </div>
-
-          {/* Renombrar */}
-          <div className="rounded-md border bg-white p-3">
-            <div className="text-sm font-semibold mb-3">Renombrar equipo</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              <select
-                className="select"
-                value={renameId}
-                onChange={(e) => setRenameId(e.target.value)}
-              >
-                <option value="">(elige equipo)</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                className="input"
-                placeholder="Nuevo nombre"
-                value={renameName}
-                onChange={(e) => setRenameName(e.target.value)}
-              />
-              <button className="btn-ghost" onClick={renameTeam} disabled={!renameId || !renameName.trim()}>
-                Renombrar
-              </button>
-            </div>
-          </div>
-
-          {/* Eliminar / Mover */}
-          <div className="rounded-md border bg-white p-3">
-            <div className="text-sm font-semibold mb-3">Eliminar / mover equipo</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              <select
-                className="select"
-                value={deleteId}
-                onChange={(e) => setDeleteId(e.target.value)}
-              >
-                <option value="">(elige equipo a eliminar)</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="select"
-                value={deleteReplace}
-                onChange={(e) => setDeleteReplace(e.target.value)}
-                disabled={!deleteId}
-              >
-                <option value="">Mover usuarios a… (opcional)</option>
-                {teams
-                  .filter((t) => t.id !== deleteId)
-                  .map((t) => (
-                    <option key={t.id} value={t.name}>
-                      {t.name}
-                    </option>
-                  ))}
-              </select>
-              <button
-                className="btn-ghost"
-                onClick={() => setDeleteOpen(true)}
-                disabled={!deleteId}
-              >
-                Eliminar / Mover
-              </button>
-            </div>
-            <p className="text-[12px] text-gray-500 mt-2">
-              * Si no eliges un equipo de destino, los usuarios quedarán sin equipo.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Modal confirmación eliminar equipo */}
-      <Modal
-        open={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
-        title="Eliminar equipo"
-        footer={
-          <div className="flex justify-end gap-2">
-            <button className="btn-ghost" onClick={() => setDeleteOpen(false)}>
-              Cancelar
-            </button>
-            <button className="btn-primary" onClick={confirmDeleteTeam} disabled={!deleteId}>
-              Confirmar
-            </button>
-          </div>
-        }
-      >
-        <div className="space-y-3">
-          <p className="text-sm text-gray-700">
-            Vas a eliminar el equipo{" "}
-            <strong>
-              {teams.find((t) => t.id === deleteId)?.name || "(sin selección)"}
-            </strong>
-            .
-          </p>
-          <p className="text-sm text-gray-700">
-            Usuarios en este equipo: <strong>{usersInTeam}</strong>
-          </p>
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">
-              Mover usuarios a (opcional)
-            </label>
-            <select
-              className="select w-full"
-              value={deleteReplace}
-              onChange={(e) => setDeleteReplace(e.target.value)}
-            >
-              <option value="">(sin movimiento)</option>
-              {teams
-                .filter((t) => t.id !== deleteId)
-                .map((t) => (
-                  <option key={t.id} value={t.name}>
-                    {t.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

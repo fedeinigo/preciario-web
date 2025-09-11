@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 function getItemIdFromUrl(req: Request): string | null {
   try {
     const { pathname } = new URL(req.url);
-    const parts = pathname.split("/").filter(Boolean); // ["api","items","{id}"]
+    const parts = pathname.split("/").filter(Boolean);
     const idx = parts.findIndex((p) => p === "items");
     if (idx >= 0 && parts[idx + 1]) return parts[idx + 1];
     return null;
@@ -30,6 +30,22 @@ export async function PATCH(req: Request) {
     devHours?: number;
     active?: boolean;
   } = await req.json();
+
+  if (typeof body.sku === "string") {
+    const newSku = body.sku.trim();
+    if (newSku) {
+      const dup = await prisma.item.findFirst({
+        where: {
+          sku: { equals: newSku, mode: "insensitive" },
+          NOT: { id },
+        },
+        select: { id: true },
+      });
+      if (dup) {
+        return NextResponse.json({ error: "El SKU ya existe" }, { status: 409 });
+      }
+    }
+  }
 
   const updated = await prisma.item.update({
     where: { id },
