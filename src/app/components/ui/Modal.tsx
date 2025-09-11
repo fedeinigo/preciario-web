@@ -1,86 +1,92 @@
+// src/app/components/ui/Modal.tsx
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
+import { createPortal } from "react-dom";
 
-interface ModalProps {
+type Props = {
   open: boolean;
-  title?: string;
   onClose: () => void;
-  children: React.ReactNode;
+  title?: React.ReactNode;
   footer?: React.ReactNode;
-  /** Permite personalizar el header del modal (ej: "bg-primary text-white") */
-  headerClassName?: string;
-}
+  children: React.ReactNode;
+  /** Estilos extra para el panel */
+  panelClassName?: string;
+  /** Estilos extra para el backdrop */
+  backdropClassName?: string;
+  /** Variante del panel */
+  variant?: "default" | "inverted"; // inverted = morado con texto blanco
+  /** Evita cerrar al clickear fuera */
+  disableCloseOnBackdrop?: boolean;
+};
 
 export default function Modal({
   open,
-  title,
   onClose,
-  children,
+  title,
   footer,
-  headerClassName,
-}: ModalProps) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
+  children,
+  panelClassName = "",
+  backdropClassName = "",
+  variant = "default",
+  disableCloseOnBackdrop = false,
+}: Props) {
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-[60]">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+  const isInverted = variant === "inverted";
 
-      {/* Dialog */}
+  const content = (
+    <div
+      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4
+                  bg-black/50 backdrop-blur-md ${backdropClassName}`}
+      onClick={!disableCloseOnBackdrop ? onClose : undefined}
+      aria-modal="true"
+      role="dialog"
+    >
       <div
-        role="dialog"
-        aria-modal="true"
-        className="absolute inset-0 flex items-start justify-center p-4 md:p-6"
+        className={[
+          "w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden border",
+          isInverted
+            ? "bg-[rgb(var(--primary))] text-white border-white/10"
+            : "bg-white text-gray-900 border-gray-200",
+          panelClassName,
+        ].join(" ")}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-full max-w-3xl mt-10 rounded-xl bg-white shadow-2xl overflow-hidden">
-          {/* Header */}
+        {title !== undefined && (
           <div
-            className={
-              headerClassName
-                ? `flex items-center justify-between px-6 py-4 ${headerClassName}`
-                : "flex items-center justify-between px-6 py-4 border-b"
-            }
+            className={[
+              "px-4 py-3 text-sm font-semibold",
+              isInverted
+                ? "border-b border-white/10"
+                : "bg-gray-50 border-b border-gray-200",
+            ].join(" ")}
           >
-            <h3 className="text-xl md:text-2xl font-semibold">
-              {title ?? "Resumen"}
-            </h3>
-            <button
-              onClick={onClose}
-              className={`p-2 rounded-lg transition ${
-                headerClassName ? "hover:bg-white/10" : "hover:bg-gray-100"
-              }`}
-              aria-label="Cerrar"
-              title="Cerrar"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M6 6l12 12M18 6L6 18"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                />
-              </svg>
-            </button>
+            {title}
           </div>
+        )}
 
-          {/* Body */}
-          <div className="px-6 py-4 max-h-[70vh] overflow-auto">{children}</div>
+        <div className="p-4">{children}</div>
 
-          {/* Footer */}
-          {footer && <div className="px-6 py-4 border-t bg-gray-50">{footer}</div>}
-        </div>
+        {footer && (
+          <div
+            className={[
+              "px-4 py-3",
+              isInverted
+                ? "border-t border-white/10 bg-white/5"
+                : "bg-gray-50 border-t border-gray-200",
+            ].join(" ")}
+          >
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );
+
+  // Portal al body para que no quede dentro del navbar ni afecte el layout
+  if (typeof window !== "undefined") {
+    return createPortal(content, document.body);
+  }
+  return content;
 }

@@ -32,9 +32,21 @@ export async function POST(req: Request) {
     devHours: number;
   } = await req.json();
 
+  const sku = (body.sku ?? "").trim();
+
+  if (sku) {
+    const exists = await prisma.item.findFirst({
+      where: { sku: { equals: sku, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (exists) {
+      return NextResponse.json({ error: "El SKU ya existe" }, { status: 409 });
+    }
+  }
+
   const created = await prisma.item.create({
     data: {
-      sku: body.sku ?? "",
+      sku,
       category: body.category ?? "general",
       name: body.name,
       description: body.description ?? "",

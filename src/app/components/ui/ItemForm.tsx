@@ -1,6 +1,8 @@
+// src/app/components/ui/ItemForm.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { toast } from "@/app/components/ui/toast";
 
 export type ItemFormData = {
   sku?: string;
@@ -17,9 +19,18 @@ type Props = {
   initial?: ItemFormData;
   onClose: () => void;
   onSave: (data: ItemFormData) => void | Promise<void>;
+  /** Lista de SKUs existentes para validar duplicados (case-insensitive) */
+  existingSkus?: string[];
 };
 
-export default function ItemForm({ open, mode, initial, onClose, onSave }: Props) {
+export default function ItemForm({
+  open,
+  mode,
+  initial,
+  onClose,
+  onSave,
+  existingSkus = [],
+}: Props) {
   // -------- Form state
   const [sku, setSku] = useState(initial?.sku ?? "");
   const [name, setName] = useState(initial?.name ?? "");
@@ -40,12 +51,15 @@ export default function ItemForm({ open, mode, initial, onClose, onSave }: Props
 
   // -------- Categories
   const [categories, setCategories] = useState<string[]>([]);
+  const [catsBusy, setCatsBusy] = useState(false);
+
   const loadCats = async () => {
     try {
       const r = await fetch("/api/items/categories", { cache: "no-store" });
       setCategories(r.ok ? ((await r.json()) as string[]) : []);
     } catch {
       setCategories([]);
+      toast("No se pudieron cargar las categorías");
     }
   };
 
@@ -70,17 +84,25 @@ export default function ItemForm({ open, mode, initial, onClose, onSave }: Props
   const createCategory = async () => {
     const name = newCat.trim();
     if (!name) return;
-    const r = await fetch("/api/items/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    if (r.ok) {
+    setCatsBusy(true);
+    try {
+      const r = await fetch("/api/items/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!r.ok) {
+        toast("No se pudo crear la categoría");
+        return;
+      }
       setNewCat("");
       await loadCats();
       setCategory(name);
-    } else {
-      alert("No se pudo crear la categoría");
+      toast("Categoría creada");
+    } catch {
+      toast("No se pudo crear la categoría");
+    } finally {
+      setCatsBusy(false);
     }
   };
 
@@ -88,55 +110,97 @@ export default function ItemForm({ open, mode, initial, onClose, onSave }: Props
     const from = renameFrom;
     const to = renameTo.trim();
     if (!from || !to) return;
-    const r = await fetch("/api/items/categories", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to }),
-    });
-    if (r.ok) {
+    setCatsBusy(true);
+    try {
+      const r = await fetch("/api/items/categories", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from, to }),
+      });
+      if (!r.ok) {
+        toast("No se pudo renombrar la categoría");
+        return;
+      }
       setRenameFrom("");
       setRenameTo("");
       await loadCats();
       if (category === from) setCategory(to);
-    } else {
-      alert("No se pudo renombrar la categoría");
+      toast("Categoría renombrada");
+    } catch {
+      toast("No se pudo renombrar la categoría");
+    } finally {
+      setCatsBusy(false);
     }
   };
 
   const deleteOrMove = async () => {
-    const from = delFrom;
-    const to = delTo || null;
-    if (!from) return;
-    const r = await fetch("/api/items/categories", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to }),
-    });
-    if (r.ok) {
+    const name = delFrom;
+    const replaceWith = delTo || null;
+    if (!name) return;
+    setCatsBusy(true);
+    try {
+      // ⚠️ Server-side espera { name, replaceWith? } (ver /api/items/categories/route.ts)
+      const r = await fetch("/api/items/categories", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, replaceWith }),
+      });
+      if (!r.ok) {
+        toast("No se pudo eliminar/mover la categoría");
+        return;
+      }
       setDelFrom("");
       setDelTo("");
       await loadCats();
-      if (category === from) setCategory(to ?? "general");
-    } else {
-      alert("No se pudo eliminar/mover la categoría");
+      if (category === name) setCategory(replaceWith ?? "general");
+      toast("Categoría eliminada / ítems movidos");
+    } catch {
+      toast("No se pudo eliminar/mover la categoría");
+    } finally {
+      setCatsBusy(false);
     }
   };
 
+  // -------- SKU duplicate validation
+  const originalSku = (initial?.sku ?? "").trim().toLowerCase();
+  const skuLower = (sku ?? "").trim().toLowerCase();
+  const dupSku =
+    skuLower !== "" &&
+    skuLower !== originalSku &&
+    existingSkus.map((s) => (s ?? "").toLowerCase()).includes(skuLower);
+
   // -------- Submit
+  const [saving, setSaving] = useState(false);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert("El nombre es requerido");
+      toast("El nombre es requerido");
       return;
     }
-    await onSave({
-      sku: sku.trim(),
-      name: name.trim(),
-      description: description.trim(),
-      devHours: Number(devHours) || 0,
-      unitPrice: Number(unitPrice) || 0,
-      category: category || "general",
-    });
+    if (dupSku) {
+      toast("El SKU ya existe. Por favor, elige otro.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave({
+        sku: sku.trim(),
+        name: name.trim(),
+        description: description.trim(),
+        devHours: Number(devHours) || 0,
+        unitPrice: Number(unitPrice) || 0,
+        category: category || "general",
+      });
+    } catch (err) {
+      toast(
+        `No se pudo guardar el ítem${
+          err instanceof Error ? `: ${err.message}` : ""
+        }`
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!open) return null;
@@ -157,11 +221,16 @@ export default function ItemForm({ open, mode, initial, onClose, onSave }: Props
                 SKU <span className="text-gray-400">(opcional)</span>
               </label>
               <input
-                className="input w-full"
+                className={`input w-full ${dupSku ? "border-red-400 ring-1 ring-red-400" : ""}`}
                 placeholder="ABC-123"
                 value={sku}
                 onChange={(e) => setSku(e.target.value)}
               />
+              {dupSku && (
+                <p className="mt-1 text-[12px] text-red-600">
+                  Ya existe un ítem con este SKU.
+                </p>
+              )}
             </div>
 
             <div>
@@ -256,9 +325,9 @@ export default function ItemForm({ open, mode, initial, onClose, onSave }: Props
                       type="button"
                       className="btn-ghost"
                       onClick={createCategory}
-                      disabled={!newCat.trim()}
+                      disabled={!newCat.trim() || catsBusy}
                     >
-                      Crear
+                      {catsBusy ? "…" : "Crear"}
                     </button>
                   </div>
                 </div>
@@ -289,9 +358,9 @@ export default function ItemForm({ open, mode, initial, onClose, onSave }: Props
                       type="button"
                       className="btn-ghost"
                       onClick={renameCategory}
-                      disabled={!renameFrom || !renameTo.trim()}
+                      disabled={!renameFrom || !renameTo.trim() || catsBusy}
                     >
-                      Aplicar
+                      {catsBusy ? "…" : "Aplicar"}
                     </button>
                   </div>
                 </div>
@@ -331,9 +400,9 @@ export default function ItemForm({ open, mode, initial, onClose, onSave }: Props
                       type="button"
                       className="btn-ghost"
                       onClick={deleteOrMove}
-                      disabled={!delFrom}
+                      disabled={!delFrom || catsBusy}
                     >
-                      Eliminar / Mover
+                      {catsBusy ? "…" : "Eliminar / Mover"}
                     </button>
                   </div>
                   <p className="text-[12px] text-gray-500 mt-2">
@@ -346,11 +415,11 @@ export default function ItemForm({ open, mode, initial, onClose, onSave }: Props
 
           {/* Footer */}
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" className="btn-ghost" onClick={onClose}>
+            <button type="button" className="btn-ghost" onClick={onClose} disabled={saving}>
               Cancelar
             </button>
-            <button type="submit" className="btn-primary">
-              Guardar
+            <button type="submit" className="btn-primary" disabled={dupSku || saving}>
+              {saving ? "Guardando…" : "Guardar"}
             </button>
           </div>
         </form>

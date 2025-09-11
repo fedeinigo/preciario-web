@@ -22,6 +22,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="min-h-[calc(100vh-var(--footer-h))]">
             {children}
           </main>
+
+          {/* Contenedor global para los toasts */}
+          <div
+            id="toast-root"
+            aria-live="polite"
+            aria-atomic="true"
+            className="fixed z-[9999] top-[calc(var(--nav-h)+12px)] right-4 flex flex-col gap-2"
+          />
+
           <Footer />
         </SessionProviderWrapper>
       </body>

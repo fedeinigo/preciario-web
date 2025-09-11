@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { toast } from "@/app/components/ui/toast";
 
 type Team = { id: string; name: string };
+
+const SEEN_KEY = "onboardingTeam_seen_session";
 
 export default function OnboardingTeamModal() {
   const [open, setOpen] = useState(false);
@@ -11,16 +14,31 @@ export default function OnboardingTeamModal() {
 
   useEffect(() => {
     (async () => {
-      const s = await fetch("/api/auth/session", { cache: "no-store" });
-      if (!s.ok) return;
-      const json = await s.json();
-      if (!json?.user?.team) {
-        setOpen(true);
-        const t = await fetch("/api/teams", { cache: "no-store" });
-        setTeams(t.ok ? await t.json() : []);
+      try {
+        if (typeof window !== "undefined" && sessionStorage.getItem(SEEN_KEY) === "1") return;
+
+        const s = await fetch("/api/auth/session", { cache: "no-store" });
+        if (!s.ok) return;
+        const json = await s.json();
+        if (!json?.user?.team) {
+          const t = await fetch("/api/teams", { cache: "no-store" });
+          setTeams(t.ok ? await t.json() : []);
+          setOpen(true);
+        }
+      } catch {
+        // no-op
       }
     })();
   }, []);
+
+  const closeForSession = () => {
+    try {
+      sessionStorage.setItem(SEEN_KEY, "1");
+    } catch {
+      // ignore
+    }
+    setOpen(false);
+  };
 
   const save = async () => {
     if (!value) return;
@@ -29,8 +47,12 @@ export default function OnboardingTeamModal() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ team: value }),
     });
-    if (r.ok) setOpen(false);
-    else alert("No se pudo guardar el equipo");
+    if (r.ok) {
+      closeForSession();
+      toast.success("Equipo guardado");
+    } else {
+      toast.error("No se pudo guardar el equipo");
+    }
   };
 
   if (!open) return null;
@@ -51,7 +73,7 @@ export default function OnboardingTeamModal() {
           </select>
         </div>
         <div className="px-4 py-3 flex justify-end gap-2 bg-gray-50 border-t">
-          <button className="btn-ghost" onClick={() => setOpen(false)}>Más tarde</button>
+          <button className="btn-ghost" onClick={closeForSession}>Más tarde</button>
           <button className="btn-primary" disabled={!value} onClick={save}>Guardar</button>
         </div>
       </div>

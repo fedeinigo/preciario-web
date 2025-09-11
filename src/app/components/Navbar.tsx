@@ -1,46 +1,29 @@
+// src/app/components/Navbar.tsx
 "use client";
 
 import * as React from "react";
 import Image from "next/image";
 import { signOut, useSession } from "next-auth/react";
-import { LayoutGrid, Clock, BarChart2, Users } from "lucide-react";
+import {
+  LayoutGrid,
+  Clock,
+  BarChart2,
+  Users,
+  Users2,
+  Mail,
+  Shield,
+} from "lucide-react";
+import Modal from "@/app/components/ui/Modal";
 
-type Tab = "generator" | "history" | "stats" | "users";
-
-// 👇 roles que podrías manejar en UI
-type AnyRole = "superadmin" | "admin" | "lider" | "comercial" | string | undefined;
-
-// Amigable para mostrar en el badge
-function labelForRole(r?: AnyRole) {
-  if (!r) return "USUARIO";
-  const map: Record<string, string> = {
-    superadmin: "SUPERADMIN",
-    admin: "ADMIN",
-    lider: "LÍDER",
-    comercial: "USUARIO",
-  };
-  const key = String(r).toLowerCase();
-  return map[key] ?? String(r).toUpperCase();
-}
-
-// Estilo del badge por rol
-function RoleBadge({ role }: { role?: AnyRole }) {
-  const key = String(role ?? "").toLowerCase();
-
-  let classes =
-    "inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-semibold border";
-  if (key === "superadmin") {
-    classes += " border-amber-300 bg-amber-50 text-amber-700";
-  } else if (key === "admin") {
-    classes += " border-indigo-300 bg-indigo-50 text-indigo-700";
-  } else if (key === "lider") {
-    classes += " border-emerald-300 bg-emerald-50 text-emerald-700";
-  } else {
-    classes += " border-slate-300 bg-white text-slate-700";
-  }
-
-  return <span className={classes}>{labelForRole(role)}</span>;
-}
+type Tab = "generator" | "history" | "stats" | "users" | "teams";
+type AnyRole =
+  | "superadmin"
+  | "admin"
+  | "lider"
+  | "comercial"
+  | "usuario"
+  | string
+  | undefined;
 
 function TabBtn({
   id,
@@ -72,24 +55,33 @@ function TabBtn({
   );
 }
 
+function initials(fullName: string) {
+  const parts = fullName.split(" ").filter(Boolean);
+  const i1 = parts[0]?.[0] ?? "";
+  const i2 = parts[1]?.[0] ?? "";
+  return (i1 + i2).toUpperCase();
+}
+
 export default function Navbar() {
   const { data: session, status } = useSession();
   const isAuthed = status === "authenticated";
 
-  // ✅ sin `any`: casteamos solo el campo role a nuestro union local
-  const role = session?.user?.role as AnyRole;
+  const role = (session?.user?.role as AnyRole) ?? "usuario";
+  const team = (session?.user?.team as string | null) ?? "—";
+  const name = session?.user?.name ?? "Usuario";
+  const email = session?.user?.email ?? "—";
 
-  // tratamos superadmin como admin para visibilidad del tab "Usuarios"
   const canSeeUsers = role === "admin" || role === "superadmin";
 
   const readHash = (): Tab => {
     const h = (globalThis?.location?.hash || "").replace("#", "");
-    return (["generator", "history", "stats", "users"].includes(h)
+    return (["generator", "history", "stats", "users", "teams"].includes(h)
       ? (h as Tab)
       : "generator");
   };
 
   const [activeTab, setActiveTab] = React.useState<Tab>(readHash());
+  const [userModal, setUserModal] = React.useState(false);
 
   React.useEffect(() => {
     const onHash = () => setActiveTab(readHash());
@@ -132,7 +124,7 @@ export default function Navbar() {
           />
         </div>
 
-        {/* CENTRO: tabs sólo con sesión */}
+        {/* CENTRO: tabs */}
         {isAuthed ? (
           <div className="hidden md:flex items-center gap-2">
             <TabBtn
@@ -156,6 +148,13 @@ export default function Navbar() {
               active={activeTab === "stats"}
               onClick={setTab}
             />
+            <TabBtn
+              id="teams"
+              label="Equipos"
+              Icon={Users2}
+              active={activeTab === "teams"}
+              onClick={setTab}
+            />
             {canSeeUsers && (
               <TabBtn
                 id="users"
@@ -170,9 +169,18 @@ export default function Navbar() {
           <div />
         )}
 
-        {/* DERECHA: rol + cerrar sesión */}
+        {/* DERECHA: chip con Nombre — Equipo + Cerrar sesión */}
         <div className="flex items-center gap-2">
-          {isAuthed && <RoleBadge role={role} />}
+          {isAuthed && (
+            <button
+              onClick={() => setUserModal(true)}
+              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px]
+                         text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+              title="Ver perfil"
+            >
+              {name} — {team}
+            </button>
+          )}
           {isAuthed && (
             <button
               onClick={() => signOut()}
@@ -183,6 +191,63 @@ export default function Navbar() {
           )}
         </div>
       </div>
+
+      {/* Modal de perfil — morado, centrado y fondo borroso */}
+      <Modal
+        open={isAuthed && userModal}
+        onClose={() => setUserModal(false)}
+        title="Tu perfil"
+        variant="inverted"
+        panelClassName="max-w-xl"
+        // (el backdrop ya aplica blur y oscurecimiento desde el propio Modal)
+        footer={
+          <div className="flex justify-end">
+            <button
+              className="rounded-md bg-white text-[rgb(var(--primary))] px-3 py-2 text-sm font-medium hover:bg-white/90"
+              onClick={() => setUserModal(false)}
+            >
+              Cerrar
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4 text-white">
+          {/* Encabezado: avatar + nombre + email */}
+          <div className="flex items-center gap-3">
+            <div
+              className="h-12 w-12 rounded-full flex items-center justify-center font-bold
+                         bg-white text-[rgb(var(--primary))]"
+            >
+              {initials(name)}
+            </div>
+            <div>
+              <div className="text-base font-semibold">{name}</div>
+              <div className="text-sm text-white/90 inline-flex items-center gap-1">
+                <Mail className="h-4 w-4" />
+                {email}
+              </div>
+            </div>
+          </div>
+
+          {/* Tarjetas: rol y equipo */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-md border border-white/20 bg-white/10 px-3 py-2">
+              <div className="text-[12px] text-white/80 flex items-center gap-1 mb-0.5">
+                <Shield className="h-3.5 w-3.5" />
+                Rol
+              </div>
+              <div className="font-medium">{(role ?? "usuario").toString()}</div>
+            </div>
+            <div className="rounded-md border border-white/20 bg-white/10 px-3 py-2">
+              <div className="text-[12px] text-white/80 flex items-center gap-1 mb-0.5">
+                <Users2 className="h-3.5 w-3.5" />
+                Equipo
+              </div>
+              <div className="font-medium">{team}</div>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </nav>
   );
 }

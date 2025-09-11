@@ -3,10 +3,99 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import type { ProposalRecord } from "@/lib/types";
-import { countryIdFromName } from "./lib/catalogs";
 import type { AppRole } from "@/constants/teams";
-import { Download, CalendarClock } from "lucide-react";
-import { formatUSD } from "./lib/format";
+import { countryIdFromName } from "./lib/catalogs";
+import { buildCsv, downloadCsv } from "./lib/csv";
+import { TableSkeletonRows } from "@/app/components/ui/Skeleton";
+import { formatUSD, formatDateTime } from "./lib/format";
+import { toast } from "@/app/components/ui/toast";
+import {
+  q1Range,
+  q2Range,
+  q3Range,
+  q4Range,
+  currentMonthRange,
+  prevMonthRange,
+  currentWeekRange,
+  prevWeekRange,
+} from "./lib/dateRanges";
+
+// ---- UI helpers (estética consistente con el resto)
+const TitleBar = ({ children }: { children: React.ReactNode }) => (
+  <div className="heading-bar">{children}</div>
+);
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border-2 bg-white px-4 py-3 shadow-soft">
+      <div className="text-sm text-gray-600">{label}</div>
+      <div className="text-2xl font-extrabold text-primary">{value}</div>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  actions,
+  children,
+}: {
+  title: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-6">
+      <div className="heading-bar-sm flex items-center justify-between">
+        <span>{title}</span>
+        {actions && <div className="flex items-center gap-2">{actions}</div>}
+      </div>
+      <div className="overflow-x-auto rounded-md border-2 bg-white">{children}</div>
+    </div>
+  );
+}
+
+/** Botonera de rangos rápidos */
+function QuickRanges({
+  setFrom,
+  setTo,
+}: {
+  setFrom: (v: string) => void;
+  setTo: (v: string) => void;
+}) {
+  const year = new Date().getFullYear();
+  const apply = (r: { from: string; to: string }) => {
+    setFrom(r.from);
+    setTo(r.to);
+  };
+  const quarters = [
+    { label: "Q1", get: () => q1Range(year) },
+    { label: "Q2", get: () => q2Range(year) },
+    { label: "Q3", get: () => q3Range(year) },
+    { label: "Q4", get: () => q4Range(year) },
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-2 mb-3">
+      {quarters.map((q) => (
+        <button key={q.label} className="btn-ghost !py-1" onClick={() => apply(q.get())}>
+          {q.label}
+        </button>
+      ))}
+      <button className="btn-ghost !py-1" onClick={() => apply(currentMonthRange())}>
+        Mes actual
+      </button>
+      <button className="btn-ghost !py-1" onClick={() => apply(prevMonthRange())}>
+        Mes anterior
+      </button>
+      <button className="btn-ghost !py-1" onClick={() => apply(currentWeekRange())}>
+        Semana actual
+      </button>
+      <button className="btn-ghost !py-1" onClick={() => apply(prevWeekRange())}>
+        Semana anterior
+      </button>
+    </div>
+  );
+}
 
 type AdminUserRow = { email: string | null; role: AppRole; team: string | null };
 
@@ -15,29 +104,7 @@ type ProposalForStats = ProposalRecord & {
 };
 
 type OrderKey = "createdAt" | "totalAmount";
-type QuickRange = "today" | "last7" | "last30" | "thisMonth" | "prevMonth" | "ytd";
-
-const TitleBar = ({ children }: { children: React.ReactNode }) => (
-  <div className="heading-bar-sm">{children}</div>
-);
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-2 bg-white px-4 py-3 rounded-[var(--radius)]">
-      <div className="text-sm text-gray-600">{label}</div>
-      <div className="text-2xl font-extrabold text-primary">{value}</div>
-    </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-6">
-      <div className="heading-bar-sm">{title}</div>
-      <div className="overflow-x-auto border-2 rounded-md">{children}</div>
-    </div>
-  );
-}
+type OrderDir = "asc" | "desc";
 
 export default function Stats({
   role,
@@ -50,22 +117,43 @@ export default function Stats({
   leaderTeam: string | null;
   isSuperAdmin: boolean;
 }) {
+  // ---------- filtros
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-
   const [teamFilter, setTeamFilter] = useState<string>("");
   const [countryFilter, setCountryFilter] = useState<string>("");
   const [userFilter, setUserFilter] = useState<string>("");
 
+  // orden general de las propuestas (para consistencia/export)
   const [orderKey, setOrderKey] = useState<OrderKey>("createdAt");
-  const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
+  const [orderDir, setOrderDir] = useState<OrderDir>("desc");
 
+  // límite top N para agregados + “ver todo”
+  const [topN, setTopN] = useState<number>(20);
+  const [showAll, setShowAll] = useState<boolean>(false);
+
+  // ---------- datos
+  const [loading, setLoading] = useState(true);
   const [all, setAll] = useState<ProposalForStats[]>([]);
+
   const load = async () => {
-    const r = await fetch("/api/proposals", { cache: "no-store" });
-    if (!r.ok) return setAll([]);
-    setAll((await r.json()) as ProposalForStats[]);
+    setLoading(true);
+    try {
+      const r = await fetch("/api/proposals", { cache: "no-store" });
+      if (!r.ok) {
+        toast.error("No se pudieron cargar las propuestas");
+        setAll([]);
+      } else {
+        setAll((await r.json()) as ProposalForStats[]);
+      }
+    } catch {
+      toast.error("Error de red al cargar propuestas");
+      setAll([]);
+    } finally {
+      setLoading(false);
+    }
   };
+
   useEffect(() => {
     load();
     const onFocus = () => load();
@@ -92,7 +180,7 @@ export default function Stats({
     return map;
   }, [adminUsers]);
 
-  // equipos dinámicos para el filtro
+  // equipos (para filtro de superadmin)
   const [teams, setTeams] = useState<string[]>([]);
   useEffect(() => {
     fetch("/api/teams")
@@ -101,30 +189,20 @@ export default function Stats({
       .catch(() => setTeams([]));
   }, []);
 
-  // Opciones para País y Usuario (desde todos los registros)
+  // opciones dinámicas
   const countryOptions = useMemo(
-    () =>
-      Array.from(new Set(all.map((r) => r.country).filter(Boolean))).sort((a, b) =>
-        a.localeCompare(b)
-      ),
+    () => Array.from(new Set(all.map((p) => p.country))).sort((a, b) => a.localeCompare(b)),
     [all]
   );
   const userOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          all
-            .map((r) => r.userEmail)
-            .filter((v): v is string => typeof v === "string" && v.length > 0)
-        )
-      ).sort((a, b) => a.localeCompare(b)),
+    () => Array.from(new Set(all.map((p) => p.userEmail).filter(Boolean) as string[])).sort(),
     [all]
   );
 
-  // Subset según rol + filtros + orden
-  const subset = useMemo(() => {
-    const f = all.filter((p) => {
-      // alcance por rol/equipo
+  // ---------- subset por permisos y filtros
+  const subsetRaw = useMemo(() => {
+    return all.filter((p) => {
+      // permisos
       if (isSuperAdmin) {
         if (teamFilter) {
           const t = emailToTeam.get(p.userEmail) ?? null;
@@ -137,60 +215,63 @@ export default function Stats({
         if (p.userEmail !== currentEmail) return false;
       }
 
-      // rango de fechas (inclusive)
-      const ts = new Date(p.createdAt as unknown as string).getTime();
-      const fts = from ? new Date(from).getTime() : -Infinity;
-      const tts = to ? new Date(to).getTime() + 24 * 3600 * 1000 - 1 : Infinity;
-      if (!(ts >= fts && ts <= tts)) return false;
+      // rango fechas
+      const tms = new Date(p.createdAt as unknown as string).getTime();
+      const f = from ? new Date(from).getTime() : -Infinity;
+      const tt = to ? new Date(to).getTime() + 24 * 3600 * 1000 - 1 : Infinity;
+      if (!(tms >= f && tms <= tt)) return false;
 
-      // filtros nuevos
+      // país
       if (countryFilter && p.country !== countryFilter) return false;
-      if (userFilter && (p.userEmail ?? "") !== userFilter) return false;
+
+      // usuario
+      if (userFilter && p.userEmail !== userFilter) return false;
 
       return true;
     });
-
-    const sorted = [...f].sort((a, b) => {
-      if (orderKey === "createdAt") {
-        const av = new Date(a.createdAt as unknown as string).getTime();
-        const bv = new Date(b.createdAt as unknown as string).getTime();
-        return orderDir === "asc" ? av - bv : bv - av;
-      } else {
-        const av = Number(a.totalAmount) || 0;
-        const bv = Number(b.totalAmount) || 0;
-        return orderDir === "asc" ? av - bv : bv - av;
-      }
-    });
-
-    return sorted;
   }, [
     all,
     isSuperAdmin,
     role,
     leaderTeam,
     currentEmail,
-    emailToTeam,
-    teamFilter,
     from,
     to,
-    orderKey,
-    orderDir,
+    teamFilter,
     countryFilter,
     userFilter,
+    emailToTeam,
   ]);
 
-  // KPIs
-  const proposalsCount = subset.length;
+  // orden (para export y consistencia)
+  const subset = useMemo(() => {
+    const arr = [...subsetRaw];
+    return arr.sort((a, b) => {
+      if (orderKey === "createdAt") {
+        const av = new Date(a.createdAt as unknown as string).getTime();
+        const bv = new Date(b.createdAt as unknown as string).getTime();
+        return orderDir === "asc" ? av - bv : bv - av;
+      }
+      const av = Number(a.totalAmount) || 0;
+      const bv = Number(b.totalAmount) || 0;
+      return orderDir === "asc" ? av - bv : bv - av;
+    });
+  }, [subsetRaw, orderKey, orderDir]);
+
+  // ---------- KPIs
   const uniqueUsers = useMemo(() => new Set(subset.map((p) => p.userEmail)).size, [subset]);
   const uniqueCompanies = useMemo(() => new Set(subset.map((p) => p.companyName)).size, [subset]);
   const totalMonthly = useMemo(
     () => subset.reduce((acc, p) => acc + (Number(p.totalAmount) || 0), 0),
     [subset]
   );
-  const avgMonthly = proposalsCount ? totalMonthly / proposalsCount : 0;
+  const avgPerProposal = useMemo(
+    () => (subset.length ? totalMonthly / subset.length : 0),
+    [subset.length, totalMonthly]
+  );
 
-  // Agregados
-  const bySku = useMemo(
+  // ---------- agregados
+  const bySkuFull = useMemo(
     () =>
       Object.entries(
         subset.reduce<Record<string, { name: string; qty: number }>>((acc, p) => {
@@ -206,7 +287,7 @@ export default function Stats({
     [subset]
   );
 
-  const byCountry = useMemo(
+  const byCountryFull = useMemo(
     () =>
       Object.entries(
         subset.reduce<Record<string, number>>((acc, p) => {
@@ -217,389 +298,346 @@ export default function Stats({
     [subset]
   );
 
-  const byUser = useMemo(
+  const byUserFull = useMemo(
     () =>
       Object.entries(
         subset.reduce<Record<string, number>>((acc, p) => {
-          const k = p.userEmail || "—";
-          acc[k] = (acc[k] ?? 0) + 1;
+          const key = p.userEmail || "(sin email)";
+          acc[key] = (acc[key] ?? 0) + 1;
           return acc;
         }, {})
       ).sort((a, b) => b[1] - a[1]),
     [subset]
   );
 
-  // Helpers UI
-  const toISODate = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
+  const bySku = useMemo(
+    () => (showAll ? bySkuFull : bySkuFull.slice(0, topN)),
+    [bySkuFull, topN, showAll]
+  );
+  const byCountry = useMemo(
+    () => (showAll ? byCountryFull : byCountryFull.slice(0, topN)),
+    [byCountryFull, topN, showAll]
+  );
+  const byUser = useMemo(
+    () => (showAll ? byUserFull : byUserFull.slice(0, topN)),
+    [byUserFull, topN, showAll]
+  );
+
+  // ---------- CSV exports (sección + general)
+  const exportSkuCsv = () => {
+    const headers = ["SKU", "Ítem", "Cantidad total"];
+    const rows = bySkuFull.map(([sku, info]) => [sku, info.name, info.qty]);
+    downloadCsv("stats_por_sku.csv", buildCsv(headers, rows));
+    toast.success("CSV de Ítems descargado");
   };
-
-  const applyQuickRange = (q: QuickRange) => {
-    const now = new Date();
-    const end = new Date(now);
-    let start = new Date(now);
-
-    switch (q) {
-      case "today":
-        break;
-      case "last7":
-        start.setDate(start.getDate() - 6);
-        break;
-      case "last30":
-        start.setDate(start.getDate() - 29);
-        break;
-      case "thisMonth":
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
-        break;
-      case "prevMonth":
-        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        end.setFullYear(start.getFullYear(), start.getMonth() + 1, 0);
-        break;
-      case "ytd":
-        start = new Date(now.getFullYear(), 0, 1);
-        break;
-    }
-
-    setFrom(toISODate(start));
-    setTo(toISODate(end));
+  const exportCountryCsv = () => {
+    const headers = ["País", "Cantidad"];
+    const rows = byCountryFull.map(([c, n]) => [c, n]);
+    downloadCsv("stats_por_pais.csv", buildCsv(headers, rows));
+    toast.success("CSV por País descargado");
   };
-
-  const clearAll = () => {
-    setFrom("");
-    setTo("");
-    setTeamFilter("");
-    setCountryFilter("");
-    setUserFilter("");
-    setOrderKey("createdAt");
-    setOrderDir("desc");
+  const exportUserCsv = () => {
+    const headers = ["Usuario (email)", "Propuestas"];
+    const rows = byUserFull.map(([u, n]) => [u, n]);
+    downloadCsv("stats_por_usuario.csv", buildCsv(headers, rows));
+    toast.success("CSV por Usuario descargado");
   };
-
-  const exportCSV = () => {
-    const header = [
-      "id",
-      "companyName",
-      "country",
-      "userEmail",
-      "totalAmount",
-      "totalHours",
-      "createdAt",
-      "docUrl",
-    ];
+  const exportFilteredProposalsCsv = () => {
+    const headers = ["ID", "Empresa", "País", "Usuario", "Mensual", "Horas", "OneShot", "Creado", "URL"];
     const rows = subset.map((p) => [
       p.id,
       p.companyName,
       p.country,
-      p.userEmail ?? "",
-      String(Number(p.totalAmount) || 0),
-      String(Number(p.totalHours) || 0),
-      new Date(p.createdAt as unknown as string).toISOString(),
-      p.docUrl ?? "",
+      p.userEmail || "",
+      Number(p.totalAmount || 0).toFixed(2),
+      Number(p.totalHours || 0).toFixed(2),
+      Number(p.oneShot || 0).toFixed(2),
+      formatDateTime(p.createdAt as unknown as string),
+      p.docUrl || "",
     ]);
-
-    const csv = [header, ...rows]
-      .map((r) =>
-        r
-          .map((v) => {
-            const s = String(v ?? "");
-            return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-          })
-          .join(",")
-      )
-      .join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "stats_export.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv("propuestas_filtradas.csv", buildCsv(headers, rows));
+    toast.success("CSV de propuestas filtradas descargado");
   };
 
-  // Totales para footers
-  const totalCountries = byCountry.reduce((acc, [, n]) => acc + n, 0);
-  const totalUsersRows = byUser.reduce((acc, [, n]) => acc + n, 0);
-  const totalSkuQty = bySku.reduce((acc, [, info]) => acc + info.qty, 0);
-
+  // ---------- UI
   return (
     <div className="p-4">
-      <div className="card border-2 overflow-hidden">
+      <div className="card border-2">
         <TitleBar>Estadísticas</TitleBar>
 
-        <div className="p-3 space-y-6">
-          {/* ===== Filtros ===== */}
-          <div className="border-2 bg-white p-3 rounded-md">
-            <div className="grid grid-cols-1 sm:grid-cols-4 lg:grid-cols-8 xl:grid-cols-9 gap-3">
-              {/* Fechas */}
-              <div>
+        <div className="p-3">
+          {/* Rangos rápidos */}
+          <QuickRanges setFrom={setFrom} setTo={setTo} />
+
+          {/* Filtros principales */}
+          <div className="rounded-md border-2 bg-white p-3 shadow-soft">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 items-end">
+              {/* fechas */}
+              <div className="xl:col-span-2">
                 <label className="block text-xs text-gray-600 mb-1">Desde</label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    className="input pr-10"
-                    value={from}
-                    onChange={(e) => setFrom(e.target.value)}
-                  />
-                  <CalendarClock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                </div>
+                <input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} />
               </div>
-              <div>
+              <div className="xl:col-span-2">
                 <label className="block text-xs text-gray-600 mb-1">Hasta</label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    className="input pr-10"
-                    value={to}
-                    onChange={(e) => setTo(e.target.value)}
-                  />
-                  <CalendarClock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                </div>
+                <input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} />
               </div>
 
-              {/* Equipo (según rol) */}
-              {(isSuperAdmin || role === "lider") && (
-                <div>
+              {/* equipo (solo superadmin) */}
+              {isSuperAdmin ? (
+                <div className="xl:col-span-2">
                   <label className="block text-xs text-gray-600 mb-1">Equipo</label>
-                  <select
-                    className="select"
-                    value={teamFilter}
-                    onChange={(e) => setTeamFilter(e.target.value)}
-                  >
+                  <select className="select" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
                     <option value="">Todos</option>
                     {teams.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
+                      <option key={t} value={t}>{t}</option>
                     ))}
                   </select>
                 </div>
+              ) : (
+                <div className="xl:col-span-2" />
               )}
 
-              {/* País */}
-              <div>
+              {/* país */}
+              <div className="xl:col-span-2">
                 <label className="block text-xs text-gray-600 mb-1">País</label>
-                <select
-                  className="select"
-                  value={countryFilter}
-                  onChange={(e) => setCountryFilter(e.target.value)}
-                >
+                <select className="select" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}>
                   <option value="">Todos</option>
                   {countryOptions.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
+                    <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Usuario */}
-              <div>
+              {/* usuario */}
+              <div className="xl:col-span-2">
                 <label className="block text-xs text-gray-600 mb-1">Usuario</label>
                 <select
                   className="select"
                   value={userFilter}
                   onChange={(e) => setUserFilter(e.target.value)}
+                  disabled={role === "usuario"}
                 >
-                  <option value="">Todos</option>
-                  {userOptions.map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
+                  <option value="">{role === "usuario" ? currentEmail : "Todos"}</option>
+                  {(role === "usuario" ? [currentEmail] : userOptions).map((u) =>
+                    u ? (
+                      <option key={u} value={u}>{u}</option>
+                    ) : null
+                  )}
                 </select>
               </div>
 
-              {/* Orden */}
-              <div>
+              {/* ordenar / dirección */}
+              <div className="xl:col-span-2">
                 <label className="block text-xs text-gray-600 mb-1">Ordenar por</label>
-                <select
-                  className="select"
-                  value={orderKey}
-                  onChange={(e) => setOrderKey(e.target.value as OrderKey)}
-                >
+                <select className="select" value={orderKey} onChange={(e) => setOrderKey(e.target.value as OrderKey)}>
                   <option value="createdAt">Fecha de creación</option>
                   <option value="totalAmount">Monto mensual</option>
                 </select>
               </div>
-              <div>
+              <div className="xl:col-span-2">
                 <label className="block text-xs text-gray-600 mb-1">Dirección</label>
-                <select
-                  className="select"
-                  value={orderDir}
-                  onChange={(e) => setOrderDir(e.target.value as "asc" | "desc")}
-                >
+                <select className="select" value={orderDir} onChange={(e) => setOrderDir(e.target.value as OrderDir)}>
                   <option value="desc">Descendente</option>
                   <option value="asc">Ascendente</option>
                 </select>
               </div>
 
-              {/* Acciones */}
-              <div className="flex items-end gap-2">
-                <button className="btn-ghost flex-1" onClick={clearAll}>
+              {/* acciones */}
+              <div className="xl:col-span-2 flex gap-2">
+                <button
+                  className="btn-primary w-full transition hover:bg-[rgb(var(--primary))]/90"
+                  onClick={() => {
+                    setFrom("");
+                    setTo("");
+                    setTeamFilter("");
+                    setCountryFilter("");
+                    setUserFilter("");
+                    setOrderKey("createdAt");
+                    setOrderDir("desc");
+                    setTopN(20);
+                    setShowAll(false);
+                    toast.info("Filtros restablecidos");
+                  }}
+                >
                   Limpiar
                 </button>
-                <button
-                  className="btn-ghost flex-1"
-                  onClick={exportCSV}
-                  title="Exportar CSV (vista filtrada)"
-                >
-                  <Download className="h-4 w-4 mr-2" />
+                <button className="btn-ghost w-full" onClick={exportFilteredProposalsCsv}>
                   Exportar
                 </button>
               </div>
             </div>
-
-            {/* Rangos rápidos */}
-            <div className="mt-3 flex flex-wrap gap-2">
-              {([
-                ["Hoy", "today"],
-                ["Últ. 7 días", "last7"],
-                ["Últ. 30 días", "last30"],
-                ["Este mes", "thisMonth"],
-                ["Mes pasado", "prevMonth"],
-                ["YTD", "ytd"],
-              ] as Array<[string, QuickRange]>).map(([label, key]) => (
-                <button
-                  key={key}
-                  className="chip hover:opacity-80"
-                  onClick={() => applyQuickRange(key as QuickRange)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
           </div>
 
-          {/* ===== KPIs ===== */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <StatCard label="Propuestas generadas" value={String(proposalsCount)} />
+          {/* KPIs */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 my-4">
+            <StatCard label="Propuestas generadas" value={String(subset.length)} />
             <StatCard label="Usuarios únicos" value={String(uniqueUsers)} />
             <StatCard label="Empresas distintas" value={String(uniqueCompanies)} />
             <StatCard label="Monto mensual total" value={formatUSD(totalMonthly)} />
-            <StatCard label="Promedio por propuesta" value={formatUSD(avgMonthly)} />
+            <StatCard label="Promedio por propuesta" value={formatUSD(avgPerProposal)} />
           </div>
 
-          {/* ===== Tablas en dos columnas ===== */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <Section title="Ítems más cotizados (por SKU)">
-              <table className="min-w-full bg-white text-sm">
-                <thead className="sticky top-0 z-10">
-                  <tr>
-                    <th className="table-th py-1.5">SKU</th>
-                    <th className="table-th py-1.5">Ítem</th>
-                    <th className="table-th w-40 text-right py-1.5">Cantidad total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bySku.map(([sku, info], i) => (
-                    <tr
-                      key={sku}
-                      className={i % 2 === 0 ? "bg-white" : "bg-[rgb(var(--primary-soft))]/40 hover:bg-white"}
-                    >
-                      <td className="table-td py-1.5">
-                        <span className="text-gray-600 font-mono">{sku}</span>
-                      </td>
-                      <td className="table-td py-1.5">{info.name}</td>
-                      <td className="table-td text-right font-semibold py-1.5">{info.qty}</td>
-                    </tr>
-                  ))}
-                  {bySku.length === 0 && (
+          {/* Secciones: dos columnas (SKU / País) y luego Top usuarios */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {/* Ítems por SKU */}
+            <div>
+              <Section
+                title="Ítems más cotizados (por SKU)"
+                actions={
+                  <div className="flex items-center gap-3">
+                    <label className="inline-flex items-center gap-2 text-[12px] text-white/90">
+                      <input
+                        type="checkbox"
+                        checked={showAll}
+                        onChange={(e) => setShowAll(e.target.checked)}
+                      />
+                      Ver todo
+                    </label>
+                    <div className="inline-flex items-center gap-1">
+                      <span className="text-[12px] text-white/90">Top N</span>
+                      <select
+                        value={topN}
+                        onChange={(e) => setTopN(Number(e.target.value))}
+                        className="h-8 text-xs rounded border border-white/40 bg-white/10 text-white px-2 py-1
+                                   focus:outline-none focus:ring-2 focus:ring-white/60 focus:border-white/60 disabled:opacity-50"
+                        title="Top N (agregados)"
+                        disabled={showAll}
+                      >
+                        {[5, 10, 20, 50, 100].map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button className="btn-ghost !py-1" onClick={exportSkuCsv} title="Descargar CSV completo">
+                      CSV
+                    </button>
+                  </div>
+                }
+              >
+                <table className="min-w-full bg-white">
+                  <thead>
                     <tr>
-                      <td className="table-td text-center text-gray-500 py-2" colSpan={3}>
-                        Sin datos para el período seleccionado.
-                      </td>
+                      <th className="table-th">SKU</th>
+                      <th className="table-th">Ítem</th>
+                      <th className="table-th w-40 text-right">Cantidad total</th>
                     </tr>
+                  </thead>
+                  {loading ? (
+                    <TableSkeletonRows rows={3} cols={3} />
+                  ) : (
+                    <tbody>
+                      {bySku.map(([sku, info]) => (
+                        <tr key={sku}>
+                          <td className="table-td">
+                            <span className="text-gray-500 font-mono">{sku}</span>
+                          </td>
+                          <td className="table-td">{info.name}</td>
+                          <td className="table-td text-right font-semibold">{info.qty}</td>
+                        </tr>
+                      ))}
+                      {!loading && bySku.length === 0 && (
+                        <tr>
+                          <td className="table-td text-center text-gray-500" colSpan={3}>
+                            Sin datos para los filtros seleccionados.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
                   )}
-                </tbody>
-                {bySku.length > 0 && (
-                  <tfoot>
-                    <tr>
-                      <td className="table-td py-1.5 text-muted" colSpan={2}>
-                        Total SKUs: {bySku.length}
-                      </td>
-                      <td className="table-td py-1.5 text-right font-semibold">{totalSkuQty}</td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </Section>
+                </table>
+              </Section>
+            </div>
 
-            <Section title="Propuestas por país">
-              <table className="min-w-full bg-white text-sm">
-                <thead className="sticky top-0 z-10">
-                  <tr>
-                    <th className="table-th py-1.5">País</th>
-                    <th className="table-th w-40 text-right py-1.5">Cantidad</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {byCountry.map(([c, n], i) => (
-                    <tr
-                      key={c}
-                      className={i % 2 === 0 ? "bg-white" : "bg-[rgb(var(--primary-soft))]/40 hover:bg-white"}
-                    >
-                      <td className="table-td py-1.5">
-                        {c} <span className="text-xs text-gray-500">({countryIdFromName(c)})</span>
-                      </td>
-                      <td className="table-td text-right font-semibold py-1.5">{n}</td>
-                    </tr>
-                  ))}
-                  {byCountry.length === 0 && (
+            {/* Propuestas por país */}
+            <div>
+              <Section
+                title="Propuestas por país"
+                actions={
+                  <div className="flex items-center gap-2">
+                    <button className="btn-ghost !py-1" onClick={exportCountryCsv} title="Descargar CSV completo">
+                      CSV
+                    </button>
+                  </div>
+                }
+              >
+                <table className="min-w-full bg-white">
+                  <thead>
                     <tr>
-                      <td className="table-td text-center text-gray-500 py-2" colSpan={2}>
-                        Sin datos para el período seleccionado.
-                      </td>
+                      <th className="table-th">País</th>
+                      <th className="table-th w-40 text-right">Cantidad</th>
                     </tr>
+                  </thead>
+                  {loading ? (
+                    <TableSkeletonRows rows={3} cols={2} />
+                  ) : (
+                    <tbody>
+                      {byCountry.map(([c, n]) => (
+                        <tr key={c}>
+                          <td className="table-td">
+                            {c}{" "}
+                            <span className="text-xs text-gray-500">({countryIdFromName(c)})</span>
+                          </td>
+                          <td className="table-td text-right font-semibold">{n}</td>
+                        </tr>
+                      ))}
+                      {!loading && byCountry.length === 0 && (
+                        <tr>
+                          <td className="table-td text-center text-gray-500" colSpan={2}>
+                            Sin datos para los filtros seleccionados.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
                   )}
-                </tbody>
-                {byCountry.length > 0 && (
-                  <tfoot>
-                    <tr>
-                      <td className="table-td py-1.5 text-muted">Total países: {byCountry.length}</td>
-                      <td className="table-td py-1.5 text-right font-semibold">{totalCountries}</td>
-                    </tr>
-                  </tfoot>
+                </table>
+
+                {!loading && byCountryFull.length > 0 && (
+                  <div className="px-3 py-2 text-sm text-gray-600">
+                    {showAll
+                      ? `Mostrando todos (${byCountryFull.length})`
+                      : `Total países: ${byCountryFull.length}`}
+                  </div>
                 )}
-              </table>
-            </Section>
+              </Section>
+            </div>
           </div>
 
-          <Section title="Top usuarios por cantidad de propuestas">
-            <table className="min-w-full bg-white text-sm">
-              <thead className="sticky top-0 z-10">
+          {/* Top usuarios */}
+          <Section
+            title="Top usuarios por cantidad de propuestas"
+            actions={
+              <button className="btn-ghost !py-1" onClick={exportUserCsv} title="Descargar CSV completo">
+                CSV
+              </button>
+            }
+          >
+            <table className="min-w-full bg-white">
+              <thead>
                 <tr>
-                  <th className="table-th py-1.5">Usuario (email)</th>
-                  <th className="table-th w-40 text-right py-1.5">Propuestas</th>
+                  <th className="table-th">Usuario (email)</th>
+                  <th className="table-th w-40 text-right">Propuestas</th>
                 </tr>
               </thead>
-              <tbody>
-                {byUser.map(([email, count], i) => (
-                  <tr
-                    key={email}
-                    className={i % 2 === 0 ? "bg-white" : "bg-[rgb(var(--primary-soft))]/40 hover:bg-white"}
-                  >
-                    <td className="table-td py-1.5">{email}</td>
-                    <td className="table-td text-right font-semibold py-1.5">{count}</td>
-                  </tr>
-                ))}
-                {byUser.length === 0 && (
-                  <tr>
-                    <td className="table-td text-center text-gray-500 py-2" colSpan={2}>
-                      Sin datos para el período seleccionado.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-              {byUser.length > 0 && (
-                <tfoot>
-                  <tr>
-                    <td className="table-td py-1.5 text-muted">Total usuarios: {byUser.length}</td>
-                    <td className="table-td py-1.5 text-right font-semibold">{totalUsersRows}</td>
-                  </tr>
-                </tfoot>
+              {loading ? (
+                <TableSkeletonRows rows={3} cols={2} />
+              ) : (
+                <tbody>
+                  {byUser.map(([email, n]) => (
+                    <tr key={email}>
+                      <td className="table-td">{email}</td>
+                      <td className="table-td text-right font-semibold">{n}</td>
+                    </tr>
+                  ))}
+                  {!loading && byUser.length === 0 && (
+                    <tr>
+                      <td className="table-td text-center text-gray-500" colSpan={2}>
+                        Sin datos para los filtros seleccionados.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
               )}
             </table>
           </Section>

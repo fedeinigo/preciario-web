@@ -1,14 +1,72 @@
+// src/app/components/features/proposals/History.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import type { ProposalRecord } from "@/lib/types";
-import { formatUSD } from "./lib/format";
+import { formatUSD, formatDateTime } from "./lib/format";
+import { buildCsv, downloadCsv } from "./lib/csv";
+import { copyToClipboard } from "./lib/clipboard";
+import { TableSkeletonRows } from "@/app/components/ui/Skeleton";
 import { ExternalLink, Copy } from "lucide-react";
-import { countryIdFromName } from "./lib/catalogs";
+import {
+  q1Range,
+  q2Range,
+  q3Range,
+  q4Range,
+  currentMonthRange,
+  prevMonthRange,
+  currentWeekRange,
+  prevWeekRange,
+} from "./lib/dateRanges";
 
 type AppRole = "superadmin" | "lider" | "usuario";
-type AdminUserRow = { email: string | null; team: string | null; role: AppRole };
-type OrderKey = "createdAt" | "totalAmount";
+type AdminUserRow = { email: string | null; team: string | null; role?: AppRole };
+
+type SortKey = "id" | "company" | "country" | "email" | "monthly" | "created";
+type SortDir = "asc" | "desc";
+
+/** Botonera de rangos rápidos */
+function QuickRanges({
+  setFrom,
+  setTo,
+}: {
+  setFrom: (v: string) => void;
+  setTo: (v: string) => void;
+}) {
+  const year = new Date().getFullYear();
+  const apply = (r: { from: string; to: string }) => {
+    setFrom(r.from);
+    setTo(r.to);
+  };
+  const quarters = [
+    { label: "Q1", get: () => q1Range(year) },
+    { label: "Q2", get: () => q2Range(year) },
+    { label: "Q3", get: () => q3Range(year) },
+    { label: "Q4", get: () => q4Range(year) },
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-2 mb-3">
+      {quarters.map((q) => (
+        <button key={q.label} className="btn-ghost !py-1" onClick={() => apply(q.get())}>
+          {q.label}
+        </button>
+      ))}
+      <button className="btn-ghost !py-1" onClick={() => apply(currentMonthRange())}>
+        Mes actual
+      </button>
+      <button className="btn-ghost !py-1" onClick={() => apply(prevMonthRange())}>
+        Mes anterior
+      </button>
+      <button className="btn-ghost !py-1" onClick={() => apply(currentWeekRange())}>
+        Semana actual
+      </button>
+      <button className="btn-ghost !py-1" onClick={() => apply(prevWeekRange())}>
+        Semana anterior
+      </button>
+    </div>
+  );
+}
 
 export default function History({
   role,
@@ -65,6 +123,7 @@ export default function History({
     return m;
   }, [adminUsers]);
 
+  // opciones de país para filtro
   const countryOptions = useMemo(
     () =>
       Array.from(new Set(rows.map((r) => r.country).filter(Boolean))).sort((a, b) =>
@@ -82,8 +141,11 @@ export default function History({
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
-  const [orderKey, setOrderKey] = useState<OrderKey>("createdAt");
-  const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
+  // ==== orden por click + paginación ====
+  const [sortKey, setSortKey] = useState<SortKey>("created");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const clearAll = () => {
     setTeamFilter("");
@@ -93,13 +155,23 @@ export default function History({
     setEmailQuery("");
     setFrom("");
     setTo("");
-    setOrderKey("createdAt");
-    setOrderDir("desc");
+    setSortKey("created");
+    setSortDir("desc");
+    setPage(1);
+  };
+
+  const sortBy = (k: SortKey) => {
+    if (k === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(k);
+      setSortDir(k === "created" ? "desc" : "asc");
+    }
+    setPage(1);
   };
 
   // ==== filtrado + orden ====
-  const filtered = useMemo(() => {
-    const f = rows.filter((p) => {
+  const subset = useMemo(() => {
+    const filtered = rows.filter((p) => {
       // alcance según rol
       if (isSuperAdmin) {
         if (teamFilter) {
@@ -113,7 +185,7 @@ export default function History({
         if (p.userEmail !== currentEmail) return false;
       }
 
-      // texto
+      // filtros de texto
       const idOk = !idQuery || p.id.toLowerCase().includes(idQuery.toLowerCase());
       const compOk =
         !companyQuery || p.companyName.toLowerCase().includes(companyQuery.toLowerCase());
@@ -121,7 +193,7 @@ export default function History({
         !emailQuery || (p.userEmail ?? "").toLowerCase().includes(emailQuery.toLowerCase());
       const countryOk = !countryFilter || p.country === countryFilter;
 
-      // fechas (inclusive)
+      // rango de fechas (inclusive)
       const ts = new Date(p.createdAt as unknown as string).getTime();
       const fromTs = from ? new Date(from).getTime() : -Infinity;
       const toTs = to ? new Date(to).getTime() + 24 * 3600 * 1000 - 1 : Infinity;
@@ -130,26 +202,39 @@ export default function History({
       return idOk && compOk && emailOk && countryOk && dateOk;
     });
 
-    const sorted = [...f].sort((a, b) => {
-      if (orderKey === "createdAt") {
-        const av = new Date(a.createdAt as unknown as string).getTime();
-        const bv = new Date(b.createdAt as unknown as string).getTime();
-        return orderDir === "asc" ? av - bv : bv - av;
-      } else {
-        const av = Number(a.totalAmount) || 0;
-        const bv = Number(b.totalAmount) || 0;
-        return orderDir === "asc" ? av - bv : bv - av;
+    const sorted = [...filtered].sort((a, b) => {
+      const am = Number(a.totalAmount);
+      const bm = Number(b.totalAmount);
+      const ta = new Date(a.createdAt as unknown as string).getTime();
+      const tb = new Date(b.createdAt as unknown as string).getTime();
+      const dir = sortDir === "asc" ? 1 : -1;
+
+      switch (sortKey) {
+        case "id":
+          return a.id.localeCompare(b.id) * dir;
+        case "company":
+          return a.companyName.localeCompare(b.companyName) * dir;
+        case "country":
+          return a.country.localeCompare(b.country) * dir;
+        case "email":
+          return (a.userEmail || "").localeCompare(b.userEmail || "") * dir;
+        case "monthly":
+          return (am - bm) * dir;
+        case "created":
+        default:
+          return (ta - tb) * dir;
       }
     });
 
     return sorted;
   }, [
     rows,
-    isSuperAdmin,
-    role,
-    leaderTeam,
-    currentEmail,
     emailToTeam,
+    currentEmail,
+    leaderTeam,
+    role,
+    isSuperAdmin,
+    // filtros
     teamFilter,
     idQuery,
     companyQuery,
@@ -157,111 +242,195 @@ export default function History({
     countryFilter,
     from,
     to,
-    orderKey,
-    orderDir,
+    // orden
+    sortKey,
+    sortDir,
   ]);
 
-  // ==== UI helpers ====
-  const copyId = async (id: string) => {
-    try {
-      await navigator.clipboard.writeText(id);
-    } catch {
-      // no-op
-    }
+  const totalPages = Math.max(1, Math.ceil(subset.length / pageSize));
+  const pageStart = (page - 1) * pageSize;
+  const paged = subset.slice(pageStart, pageStart + pageSize);
+
+  // ==== CSV de la vista filtrada ====
+  const downloadCurrentCsv = () => {
+    const headers = ["ID", "Empresa", "País", "Email", "Mensual", "Creado", "URL"];
+    const data = subset.map((p) => [
+      p.id,
+      p.companyName,
+      p.country,
+      p.userEmail || "",
+      Number(p.totalAmount).toFixed(2),
+      formatDateTime(p.createdAt as unknown as string),
+      p.docUrl || "",
+    ]);
+    const csv = buildCsv(headers, data);
+    downloadCsv("historico.csv", csv);
   };
 
   return (
     <div className="p-4">
       <div className="card border-2 overflow-hidden">
-        <div className="heading-bar-sm">Histórico</div>
+        <div className="heading-bar-sm flex items-center justify-between">
+          <span>Histórico</span>
+          <div className="flex items-center gap-2">
+            <button
+              className="btn-ghost !py-1"
+              onClick={downloadCurrentCsv}
+              title="Descargar CSV de la vista filtrada"
+            >
+              CSV
+            </button>
+            <button className="btn-ghost !py-1" onClick={load} title="Refrescar">
+              Refrescar
+            </button>
+          </div>
+        </div>
 
         <div className="p-3">
+          {/* Rangos rápidos */}
+          <QuickRanges setFrom={setFrom} setTo={setTo} />
+
+          {/* Filtros avanzados */}
           {(isSuperAdmin || role === "lider") && (
             <div className="mb-3 grid grid-cols-1 md:grid-cols-6 gap-3">
               <div>
                 <label className="block text-xs text-gray-600 mb-1">Equipo</label>
-                <select className="select" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
+                <select
+                  className="select"
+                  value={teamFilter}
+                  onChange={(e) => setTeamFilter(e.target.value)}
+                >
                   <option value="">Todos</option>
                   {teams.map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs text-gray-600 mb-1">ID</label>
-                <input className="input" placeholder="Buscar por ID" value={idQuery} onChange={(e) => setIdQuery(e.target.value)} />
+                <input
+                  className="input"
+                  placeholder="Buscar por ID"
+                  value={idQuery}
+                  onChange={(e) => setIdQuery(e.target.value)}
+                />
               </div>
 
               <div>
                 <label className="block text-xs text-gray-600 mb-1">Empresa</label>
-                <input className="input" placeholder="Buscar empresa" value={companyQuery} onChange={(e) => setCompanyQuery(e.target.value)} />
+                <input
+                  className="input"
+                  placeholder="Buscar empresa"
+                  value={companyQuery}
+                  onChange={(e) => setCompanyQuery(e.target.value)}
+                />
               </div>
 
               <div>
                 <label className="block text-xs text-gray-600 mb-1">País</label>
-                <select className="select" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}>
+                <select
+                  className="select"
+                  value={countryFilter}
+                  onChange={(e) => setCountryFilter(e.target.value)}
+                >
                   <option value="">Todos</option>
                   {countryOptions.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs text-gray-600 mb-1">Email</label>
-                <input className="input" placeholder="Buscar email" value={emailQuery} onChange={(e) => setEmailQuery(e.target.value)} />
+                <input
+                  className="input"
+                  placeholder="Buscar email"
+                  value={emailQuery}
+                  onChange={(e) => setEmailQuery(e.target.value)}
+                />
               </div>
 
               <div className="flex items-end">
-                <button className="btn-ghost w-full" onClick={clearAll}>Limpiar</button>
-              </div>
+  <button
+    className="btn-primary w-full transition hover:bg-[rgb(var(--primary))]/90"
+    onClick={clearAll}
+  >
+    Limpiar
+  </button>
+</div>
+
+
             </div>
+            
           )}
 
-          <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+          {/* Rango de fechas */}
+          <div className="mb-3 grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs text-gray-600 mb-1">Desde</label>
-              <input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} />
+              <input
+                type="date"
+                className="input"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+              />
             </div>
             <div>
               <label className="block text-xs text-gray-600 mb-1">Hasta</label>
-              <input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} />
+              <input
+                type="date"
+                className="input"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+              />
             </div>
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Ordenar por</label>
-              <select className="select" value={orderKey} onChange={(e) => setOrderKey(e.target.value as OrderKey)}>
-                <option value="createdAt">Fecha de creación</option>
-                <option value="totalAmount">Monto mensual</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Dirección</label>
-              <select className="select" value={orderDir} onChange={(e) => setOrderDir(e.target.value as "asc" | "desc")}>
-                <option value="desc">Descendente</option>
-                <option value="asc">Ascendente</option>
-              </select>
-            </div>
+            {/* espacio para ajustar layout */}
+            <div className="hidden md:block" />
+            <div className="hidden md:block" />
           </div>
 
           <div className="overflow-x-auto rounded-md border-2">
-            {loading ? (
-              <div className="text-sm text-gray-500 p-3">Cargando…</div>
-            ) : (
-              <table className="min-w-full bg-white text-sm">
-                <thead className="sticky top-0 z-10">
-                  <tr>
-                    <th className="table-th !bg-primary !text-white">ID</th>
-                    <th className="table-th !bg-primary !text-white">Empresa</th>
-                    <th className="table-th !bg-primary !text-white">País</th>
-                    <th className="table-th !bg-primary !text-white">Email</th>
-                    <th className="table-th w-32 text-right !bg-primary !text-white">Mensual</th>
-                    <th className="table-th w-40 !bg-primary !text-white">Creado</th>
-                    <th className="table-th w-28 text-center !bg-primary !text-white">Acciones</th>
-                  </tr>
-                </thead>
+            <table className="min-w-full bg-white text-sm">
+              <thead className="sticky top-0 z-10">
+                <tr>
+                  {([
+                    ["id", "ID"],
+                    ["company", "Empresa"],
+                    ["country", "País"],
+                    ["email", "Email"],
+                    ["monthly", "Mensual"],
+                    ["created", "Creado"],
+                    ["", "Acciones"],
+                  ] as Array<[SortKey | "", string]>).map(([k, label], idx) => {
+                    const clickable = k !== "";
+                    const active = k === sortKey;
+                    const dir = sortDir === "asc" ? "▲" : "▼";
+                    return (
+                      <th
+                        key={idx}
+                        className={`table-th ${
+                          clickable ? "cursor-pointer select-none" : ""
+                        } ${active ? "!text-white !bg-primary" : "!bg-primary !text-white"}`}
+                        onClick={() => clickable && sortBy(k as SortKey)}
+                        title={clickable ? "Ordenar" : ""}
+                      >
+                        {label} {active && dir}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+
+              {loading ? (
+                <TableSkeletonRows rows={6} cols={7} />
+              ) : (
                 <tbody>
-                  {filtered.map((p, i) => (
+                  {paged.map((p, i) => (
                     <tr
                       key={p.id}
                       className={`transition-colors ${
@@ -273,7 +442,7 @@ export default function History({
                           <span className="font-mono truncate max-w-[260px]">{p.id}</span>
                           <button
                             className="btn-ghost px-2 py-1"
-                            onClick={() => copyId(p.id)}
+                            onClick={() => copyToClipboard(p.id)}
                             title="Copiar ID"
                           >
                             <Copy className="h-4 w-4" />
@@ -281,34 +450,44 @@ export default function History({
                         </div>
                       </td>
                       <td className="table-td">{p.companyName}</td>
-                      <td className="table-td">
-                        {p.country}{" "}
-                        <span className="text-xs text-gray-500">({countryIdFromName(p.country)})</span>
-                      </td>
+                      <td className="table-td">{p.country}</td>
                       <td className="table-td">{p.userEmail || "—"}</td>
-                      <td className="table-td text-right font-semibold">{formatUSD(Number(p.totalAmount) || 0)}</td>
-                      <td className="table-td whitespace-nowrap">
-                        {new Date(p.createdAt as unknown as string).toLocaleString()}
+                      <td className="table-td text-right font-semibold">
+                        {formatUSD(Number(p.totalAmount) || 0)}
                       </td>
-                      <td className="table-td text-center">
-                        {p.docUrl ? (
-                          <a
-                            href={p.docUrl}
-                            className="btn-ghost inline-flex items-center justify-center"
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Abrir propuesta"
-                          >
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                            Ver
-                          </a>
-                        ) : (
-                          <span className="text-xs text-gray-400">—</span>
-                        )}
+                      <td className="table-td whitespace-nowrap">
+                        {formatDateTime(p.createdAt as unknown as string)}
+                      </td>
+                      <td className="table-td">
+                        <div className="flex items-center gap-2 justify-end">
+                          {p.docUrl ? (
+                            <>
+                              <a
+                                href={p.docUrl}
+                                className="btn-ghost inline-flex items-center justify-center !py-1"
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Abrir propuesta"
+                              >
+                                <ExternalLink className="h-4 w-4 mr-1" />
+                                Ver
+                              </a>
+                              <button
+                                className="btn-ghost !py-1"
+                                title="Copiar link"
+                                onClick={() => p.docUrl && copyToClipboard(p.docUrl)}
+                              >
+                                Copiar
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
-                  {filtered.length === 0 && !loading && (
+                  {paged.length === 0 && (
                     <tr>
                       <td className="table-td text-center text-gray-500" colSpan={7}>
                         Sin resultados para el filtro seleccionado.
@@ -316,9 +495,55 @@ export default function History({
                     </tr>
                   )}
                 </tbody>
-              </table>
-            )}
+              )}
+            </table>
           </div>
+
+          {/* Paginación */}
+          {!loading && subset.length > 0 && (
+            <div className="mt-3 flex flex-col sm:flex-row items-center justify-between gap-2">
+              <div className="text-sm text-gray-600">
+                Mostrando {pageStart + 1}–{Math.min(pageStart + pageSize, subset.length)} de{" "}
+                {subset.length}
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  className="select"
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                >
+                  {[10, 20, 50, 100].map((n) => (
+                    <option key={n} value={n}>
+                      {n} / página
+                    </option>
+                  ))}
+                </select>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    className="btn-ghost"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    Anterior
+                  </button>
+                  <span className="text-sm">
+                    {page} / {totalPages}
+                  </span>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
