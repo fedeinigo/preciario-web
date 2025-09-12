@@ -19,6 +19,7 @@ import type { UIItem, SaveProposalInput } from "./lib/types";
 import {
   getInitialItems,
   fetchCatalogItems,
+  fetchItemsPopularity,
   createCatalogItem,
   updateCatalogItem,
   deleteCatalogItem,
@@ -60,8 +61,12 @@ type Props = {
   isAdmin: boolean;
   userId: string;
   userEmail: string;
-  onSaved: (id: string) => void; // lo mantenemos en el tipo por compatibilidad, pero no lo usamos aquí
+  onSaved: (id: string) => void; // mantenido por compatibilidad
 };
+
+// Orden
+type SortKey = "popular" | "sku" | "unitPrice" | "name" | "category";
+type SortDir = "asc" | "desc";
 
 export default function Generator({ isAdmin, userId, userEmail }: Props) {
   const [companyName, setCompanyName] = useState("");
@@ -71,18 +76,27 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
 
-  // Paginación local controlada
+  // Ordenamiento
+  const [sortKey, setSortKey] = useState<SortKey>("popular");
+  const [sortDir, ] = useState<SortDir>("desc");
+
+  // Paginación local
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, categoryFilter]);
+  }, [searchTerm, categoryFilter, sortKey, sortDir]);
 
   const [items, setItems] = useState<UIItem[]>(() => getInitialItems());
+  const [popularity, setPopularity] = useState<Record<string, number>>({}); // itemId -> totalQty
+
   useEffect(() => {
     fetchCatalogItems()
       .then(setItems)
       .catch(() => setItems([]));
+    fetchItemsPopularity()
+      .then(setPopularity)
+      .catch(() => setPopularity({}));
   }, []);
 
   const {
@@ -126,6 +140,7 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
 
   const [openWiser, setOpenWiser] = useState(false);
 
+  // Filtro texto+categoría
   const filtered = useMemo(() => {
     const q = searchTerm.toLowerCase();
     return items.filter((it) => {
@@ -137,6 +152,32 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
       return matchesText && matchesCat;
     });
   }, [items, searchTerm, categoryFilter]);
+
+  // Orden (popular/sku/unitPrice/name/category)
+  const ordered = useMemo(() => {
+    const arr = [...filtered];
+    const dir = sortDir === "asc" ? 1 : -1;
+    arr.sort((a, b) => {
+      switch (sortKey) {
+        case "sku":
+          return a.sku.localeCompare(b.sku) * dir;
+        case "unitPrice":
+          return (a.unitPrice - b.unitPrice) * dir;
+        case "name":
+          return a.name.localeCompare(b.name) * dir;
+        case "category":
+          return a.category.localeCompare(b.category) * dir;
+        case "popular":
+        default: {
+          const pa = popularity[a.dbId ?? a.id] ?? 0;
+          const pb = popularity[b.dbId ?? b.id] ?? 0;
+          // por defecto queremos "más cotizados primero" => desc
+          return (pa - pb) * -1; // siempre desc para popular
+        }
+      }
+    });
+    return arr;
+  }, [filtered, sortKey, sortDir, popularity]);
 
   const { selectedItems, totalAmount, totalHours } = useProposalTotals(items);
 
@@ -226,41 +267,38 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
     setCategoryFilter("");
     setPage(1);
     setItems((prev) =>
-      prev.map((i) => ({ ...i, selected: false, quantity: 1 }))
+      prev.map((i) => ({ ...i, selected: false, quantity: 1, discountPct: 0 }))
     );
     setOpenSummary(false);
     toast.info("Generador restablecido");
   };
 
+  // Mapa seguro id(UI) -> dbId (o id como fallback)
+  const idToDbId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const it of items) {
+      m.set(it.id, it.dbId ?? it.id);
+    }
+    return m;
+  }, [items]);
+
   const finalizeProposal = async () => {
     setCreatingDoc(true);
     try {
-      const recordBase: Omit<
-        SaveProposalInput,
-        "docUrl" | "docId" | "items"
-      > & {
-        items: Array<{
-          sku: string;
-          category: string;
-          name: string;
-          quantity: number;
-          unitPrice: number;
-          devHours: number;
-        }>;
-      } = {
+      // Preparo items para documento: unitario NETO
+      const docItems = selectedItems.map(({ name, quantity, unitNet, devHours }) => ({
+        name,
+        quantity,
+        unitPrice: unitNet,   // valor neto con descuento
+        devHours,
+      }));
+
+      const recordBase = {
         companyName,
         country,
         countryId: countryIdFromName(country),
         subsidiary,
         subsidiaryId: subsidiaryIdFromName(subsidiary),
-        items: selectedItems.map((it) => ({
-          sku: it.sku,
-          category: it.category,
-          name: it.name,
-          quantity: it.quantity,
-          unitPrice: it.unitPrice,
-          devHours: it.devHours,
-        })),
         totalAmount,
         totalHours,
         oneShot: totalHours * 50,
@@ -268,6 +306,7 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
         userEmail,
       };
 
+      // Crear documento (usa unitario NETO)
       const res = await fetch("/api/docs/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -275,14 +314,7 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
           companyName: recordBase.companyName,
           country: recordBase.country,
           subsidiary: recordBase.subsidiary,
-          items: recordBase.items.map(
-            ({ name, quantity, unitPrice, devHours }) => ({
-              name,
-              quantity,
-              unitPrice,
-              devHours,
-            })
-          ),
+          items: docItems,
           totals: {
             monthly: recordBase.totalAmount,
             oneShot: recordBase.oneShot,
@@ -291,13 +323,23 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
         }),
       });
 
-      const parsed = (await res.json()) as {
-        url?: string;
-        docId?: string;
-        error?: string;
-      };
+      const parsed = (await res.json()) as { url?: string; docId?: string; error?: string };
       if (!res.ok || !parsed.url)
         throw new Error(parsed.error ?? "No se recibió la URL del documento.");
+
+      // Persistir propuesta (unitario NETO) con mapeo SEGURO de dbId
+      const payloadItems = selectedItems.map((it) => {
+        const dbId = idToDbId.get(it.id);
+        if (!dbId) {
+          throw new Error(`Ítem sin dbId (id UI: ${it.id}). Actualiza el catálogo e intenta de nuevo.`);
+        }
+        return {
+          itemId: dbId,
+          quantity: it.quantity,
+          unitPrice: it.unitNet, // NETO
+          devHours: it.devHours,
+        };
+      });
 
       const payload: SaveProposalInput = {
         companyName: recordBase.companyName,
@@ -312,23 +354,15 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
         docId: parsed.docId,
         userId,
         userEmail,
-        items: selectedItems.map((it) => ({
-          itemId: it.dbId!, // viene de la DB
-          quantity: it.quantity,
-          unitPrice: it.unitPrice,
-          devHours: it.devHours,
-        })),
+        items: payloadItems,
       };
 
       await saveProposal(payload);
 
-      // No redirigimos automáticamente: mostramos modal con acciones
+      // Mostrar modal con link
       setOpenSummary(false);
       setCreatedUrl(parsed.url);
       setShowCreated(true);
-
-      // Si quisieras limpiar selección después de crear, descomenta:
-      // doReset();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error desconocido";
       toast.error(`Error creando propuesta: ${msg}`);
@@ -357,6 +391,7 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
                 quantity: data.totalQty,
                 unitPrice: data.unitPrice,
                 devHours: 0,
+                discountPct: 0,
               }
             : i
         )
@@ -392,6 +427,7 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
                 quantity: data.totalQty,
                 unitPrice: data.unitPrice,
                 devHours: 0,
+                discountPct: 0,
               }
             : i
         )
@@ -412,7 +448,7 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
     setItems((prev) =>
       prev.map((i) =>
         i.id === pendingItemId
-          ? { ...i, selected: true, quantity: 1, unitPrice: 0, devHours: 0 }
+          ? { ...i, selected: true, quantity: 1, unitPrice: 0, devHours: 0, discountPct: 0 }
           : i
       )
     );
@@ -544,14 +580,14 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
               </div>
             </div>
 
-            {/* + / filtros / acciones – MISMO RENGLÓN */}
+            {/* + / filtros / acciones – y controles de orden */}
             <div className="flex flex-col md:flex-row md:items-center gap-3 mb-3">
               {/* Lado izquierdo: + y filtros */}
               <div className="flex items-center gap-3 flex-1">
                 {isAdmin && (
                   <button
                     onClick={openCreateForm}
-                    className="btn-ghost px-2 py-2 w-9 h-9 rounded-full"
+                    className="btn-bar px-2 py-2 w-9 h-9 rounded-full"
                     title="Agregar ítem"
                     aria-label="Agregar ítem"
                   >
@@ -582,14 +618,30 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
                 </div>
               </div>
 
-              {/* Lado derecho: acciones */}
-              <div className="flex items-center gap-3">
-                <button onClick={generate} className="btn-primary">
+              {/* Lado derecho: ordenar + acciones */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-700">Ordenar</span>
+                  <select
+                    className="select h-9"
+                    value={sortKey}
+                    onChange={(e) => setSortKey(e.target.value as SortKey)}
+                  >
+                    <option value="popular">Más cotizados</option>
+                    <option value="sku">SKU</option>
+                    <option value="unitPrice">Unitario</option>
+                    <option value="name">Ítem</option>
+                    <option value="category">Categoría</option>
+                  </select>
+                </div>
+              
+
+                <button onClick={generate} className="btn-bar">
                   Generar Propuesta
                 </button>
                 <button
                   onClick={() => setConfirmReset(true)}
-                  className="btn-ghost"
+                  className="btn-bar%a"
                   title="Restablecer generador"
                 >
                   Resetear
@@ -598,12 +650,21 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
             </div>
 
             <ItemsTable
-              items={useMemo(() => filtered, [filtered])}
+              items={useMemo(() => ordered, [ordered])}
               isAdmin={isAdmin}
               onToggle={handleToggleItem}
               onChangeQty={(itemId, qty) =>
                 setItems((prev) =>
                   prev.map((i) => (i.id === itemId ? { ...i, quantity: qty } : i))
+                )
+              }
+              onChangeDiscountPct={(itemId, pct) =>
+                setItems((prev) =>
+                  prev.map((i) =>
+                    i.id === itemId
+                      ? { ...i, discountPct: Math.max(0, Math.min(100, Number(pct) || 0)) }
+                      : i
+                  )
                 )
               }
               onEdit={openEditForm}

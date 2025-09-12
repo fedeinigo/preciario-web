@@ -8,8 +8,10 @@ import React from "react";
 type SelectedItemRow = {
   name: string;
   quantity: number;
-  unitPrice: number;
+  unitPrice: number;   // base
   devHours: number;
+  discountPct?: number;
+  unitNet?: number;    // calculado
 };
 
 export function SummaryModal({
@@ -58,27 +60,31 @@ export function SummaryModal({
             <thead>
               <tr>
                 <th className="table-th">Ítem</th>
-                <th className="table-th w-24 text-right">Cant.</th>
-                <th className="table-th w-32 text-right">Unitario</th>
-                <th className="table-th w-24 text-right">Horas</th>
+                <th className="table-th w-20 text-right">Cant.</th>
+                <th className="table-th w-28 text-right">Unitario</th>
+                <th className="table-th w-24 text-right">Desc. %</th>
+                <th className="table-th w-32 text-right">Unit. Neto</th>
                 <th className="table-th w-36 text-right">Subtotal</th>
               </tr>
             </thead>
             <tbody>
-              {selectedItems.map((it, i) => (
-                <tr key={i}>
-                  <td className="table-td">{it.name}</td>
-                  <td className="table-td text-right">{it.quantity}</td>
-                  <td className="table-td text-right">{formatUSD(it.unitPrice)}</td>
-                  <td className="table-td text-right">{it.devHours}</td>
-                  <td className="table-td text-right">
-                    {formatUSD(it.quantity * it.unitPrice)}
-                  </td>
-                </tr>
-              ))}
+              {selectedItems.map((it, i) => {
+                const pct = Math.max(0, Math.min(100, Number(it.discountPct ?? 0)));
+                const unitNet = it.unitNet ?? Math.max(0, it.unitPrice * (1 - pct / 100));
+                return (
+                  <tr key={i}>
+                    <td className="table-td">{it.name}</td>
+                    <td className="table-td text-right">{it.quantity}</td>
+                    <td className="table-td text-right">{formatUSD(it.unitPrice)}</td>
+                    <td className="table-td text-right">{pct}</td>
+                    <td className="table-td text-right">{formatUSD(unitNet)}</td>
+                    <td className="table-td text-right">{formatUSD(unitNet * it.quantity)}</td>
+                  </tr>
+                );
+              })}
               {selectedItems.length === 0 && (
                 <tr>
-                  <td className="table-td text-center text-gray-500" colSpan={5}>
+                  <td className="table-td text-center text-gray-500" colSpan={6}>
                     No hay ítems seleccionados.
                   </td>
                 </tr>

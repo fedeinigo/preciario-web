@@ -6,7 +6,7 @@ import { Users, Crown, Pencil, Trash2, UserCheck } from "lucide-react";
 import ConfirmDialog from "@/app/components/ui/ConfirmDialog";
 import { toast } from "@/app/components/ui/toast";
 
-type TeamRow = { id?: string; name: string; emoji?: string | null };
+type TeamRow = { id: string; name: string; emoji?: string | null };
 
 type AdminUser = {
   email: string | null;
@@ -14,6 +14,15 @@ type AdminUser = {
   role?: string | null;
   team: string | null;
 };
+
+// Helper de tipado seguro para leer errores de APIs
+function extractApiError(data: unknown): string | undefined {
+  if (typeof data === "object" && data !== null && "error" in data) {
+    const val = (data as { error?: unknown }).error;
+    return typeof val === "string" ? val : undefined;
+  }
+  return undefined;
+}
 
 // ---------- UI helpers ----------
 function TitleBadge({ children }: { children: React.ReactNode }) {
@@ -24,28 +33,17 @@ function TitleBadge({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ActionOnDark(
-  props: React.ButtonHTMLAttributes<HTMLButtonElement> & { icon?: React.ReactNode }
-) {
-  const { className, icon, children, ...rest } = props;
-  return (
-    <button
-      {...rest}
-      className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-[12px] text-white
-        border-white/20 bg-white/10 hover:bg-white/20 transition ${className || ""}`}
-    >
-      {icon}
-      {children}
-    </button>
-  );
-}
-
-// ---------- Skeleton card ----------
 function TeamCardSkeleton() {
   return (
-    <div className="rounded-md border bg-white shadow-sm overflow-hidden animate-pulse">
-      <div className="h-10 bg-[rgb(var(--primary))]/80" />
-      <div className="p-3 space-y-3">
+    <div className="rounded-2xl border bg-white shadow-sm overflow-hidden animate-pulse">
+      <div
+        className="h-12"
+        style={{
+          background:
+            "linear-gradient(90deg, var(--brand-start-hex), var(--brand-end-hex))",
+        }}
+      />
+      <div className="p-4 space-y-3">
         <div className="h-4 bg-gray-200 rounded w-1/3" />
         <div className="h-3 bg-gray-100 rounded w-2/3" />
         <div className="h-3 bg-gray-100 rounded w-3/4" />
@@ -68,13 +66,18 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
 
   // rename dialog
   const [renameOpen, setRenameOpen] = React.useState(false);
+  const [renameId, setRenameId] = React.useState<string | null>(null);
   const [renameFrom, setRenameFrom] = React.useState<string>("");
   const [renaming, setRenaming] = React.useState(false);
 
   // delete dialog
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [deleteName, setDeleteName] = React.useState<string>("");
   const [deleting, setDeleting] = React.useState(false);
+
+  // toggle admin: mostrar también equipos vacíos
+  const [showAllTeams, setShowAllTeams] = React.useState(false);
 
   async function load() {
     setLoading(true);
@@ -112,22 +115,24 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         body: JSON.stringify({ name }),
       });
       if (!r.ok) {
-        toast("No se pudo crear el equipo");
+        const data: unknown = await r.json().catch(() => ({}));
+        toast.error(extractApiError(data) ?? "No se pudo crear el equipo");
         return;
       }
       setNewTeam("");
-      toast("Equipo creado");
+      toast.success("Equipo creado");
       await load();
     } catch {
-      toast("No se pudo crear el equipo");
+      toast.error("No se pudo crear el equipo");
     } finally {
       setCreating(false);
     }
   };
 
   const doRenameTeam = async (to: string) => {
-    const from = renameFrom;
-    if (!from || !to || to === from) {
+    const id = renameId;
+    const name = to?.trim();
+    if (!id || !name || name === renameFrom) {
       setRenameOpen(false);
       return;
     }
@@ -136,25 +141,26 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       const r = await fetch("/api/teams", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to }),
+        body: JSON.stringify({ id, name }),
       });
       if (!r.ok) {
-        toast("No se pudo renombrar el equipo");
+        const data: unknown = await r.json().catch(() => ({}));
+        toast.error(extractApiError(data) ?? "No se pudo renombrar el equipo");
         return;
       }
-      toast("Equipo renombrado");
+      toast.success("Equipo renombrado");
       setRenameOpen(false);
       await load();
     } catch {
-      toast("No se pudo renombrar el equipo");
+      toast.error("No se pudo renombrar el equipo");
     } finally {
       setRenaming(false);
     }
   };
 
   const doDeleteTeam = async () => {
-    const name = deleteName;
-    if (!name) {
+    const id = deleteId;
+    if (!id) {
       setDeleteOpen(false);
       return;
     }
@@ -163,17 +169,18 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       const r = await fetch("/api/teams", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ id, replaceWith: null }), // mueve usuarios a null
       });
       if (!r.ok) {
-        toast("No se pudo eliminar el equipo");
+        const data: unknown = await r.json().catch(() => ({}));
+        toast.error(extractApiError(data) ?? "No se pudo eliminar el equipo");
         return;
       }
-      toast("Equipo eliminado");
+      toast.success("Equipo eliminado");
       setDeleteOpen(false);
       await load();
     } catch {
-      toast("No se pudo eliminar el equipo");
+      toast.error("No se pudo eliminar el equipo");
     } finally {
       setDeleting(false);
     }
@@ -196,33 +203,69 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     return out;
   }, [teams, users]);
 
+  // --- Visibilidad ---
+  const visibleTeams = React.useMemo(() => {
+    return teams.filter((t) => {
+      const g = grouped[t.name] || { leaders: [], members: [] };
+      return g.leaders.length + g.members.length > 0;
+    });
+  }, [teams, grouped]);
+
+  const teamsToRender = canEdit && showAllTeams ? teams : visibleTeams;
+
   // --- UI ---
   return (
-    <div className="p-4">
-      <div className="border bg-white">
-        {/* Título púrpura consistente con la app */}
-        <div className="heading-bar">Equipos</div>
+    <div className="p-4 bg-grain-soft rounded-2xl">
+      {/* Contenedor principal */}
+      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+        {/* Header morado consistente */}
+        <div className="section-header">Equipos</div>
 
-        <div className="p-3">
+        <div className="p-4 space-y-4">
+          {/* Barra de controles (toggle admin) */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <div className="text-sm text-gray-700">
+              Mostrando:{" "}
+              <strong>
+                {canEdit && showAllTeams ? "todos los equipos" : "solo equipos con integrantes"}
+              </strong>
+            </div>
+            {canEdit && (
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={showAllTeams}
+                  onChange={(e) => setShowAllTeams(e.target.checked)}
+                />
+                Mostrar equipos vacíos (admin)
+              </label>
+            )}
+          </div>
+
           {/* Gestión (solo superadmin) */}
           {canEdit && (
-            <div className="mb-4 rounded-md border bg-white p-3 shadow-soft">
+            <div className="rounded-xl border bg-white p-3 shadow-soft">
               <div className="text-sm font-semibold mb-2">Gestión de equipos</div>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
-                  className="input flex-1"
+                  className="input-pill flex-1"
                   placeholder="Nuevo equipo"
                   value={newTeam}
                   onChange={(e) => setNewTeam(e.target.value)}
                 />
-                <button className="btn-primary" onClick={createTeam} disabled={!newTeam.trim() || creating}>
+                <button
+                  className="btn-bar"
+                  onClick={createTeam}
+                  disabled={!newTeam.trim() || creating}
+                >
                   {creating ? "Creando…" : "Crear equipo"}
                 </button>
               </div>
             </div>
           )}
 
-          {/* Grilla */}
+          {/* Grilla de equipos */}
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -232,21 +275,25 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
           ) : teams.length === 0 ? (
             <div className="rounded-md border bg-white p-8 text-center text-sm text-gray-600">
               No hay equipos todavía.
-              {canEdit ? " Crea el primero con el formulario de arriba." : ""}
+              {canEdit ? " Creá el primero con el formulario de arriba." : ""}
+            </div>
+          ) : teamsToRender.length === 0 ? (
+            <div className="rounded-md border bg-white p-8 text-center text-sm text-gray-600">
+              No hay equipos visibles aún. <br />
+              <span className="text-gray-500">
+                Los equipos sin integrantes (sin líder ni miembros) se ocultan automáticamente.
+              </span>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {teams.map((t) => {
+              {teamsToRender.map((t) => {
                 const g = grouped[t.name] || { leaders: [], members: [] };
                 const total = g.leaders.length + g.members.length;
 
                 return (
-                  <div
-                    key={t.name}
-                    className="rounded-md border bg-white shadow-sm overflow-hidden"
-                  >
-                    {/* Header morado */}
-                    <div className="flex items-center justify-between bg-[rgb(var(--primary))] px-3 py-2">
+                  <div key={t.id} className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+                    {/* Header morado degradado */}
+                    <div className="section-header !px-3 !h-auto py-2 justify-between">
                       <div className="flex items-center gap-2 text-white">
                         <Users className="h-4 w-4" />
                         <span className="font-semibold text-[15px]">{t.name}</span>
@@ -256,34 +303,38 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
 
                       {canEdit && (
                         <div className="flex items-center gap-2">
-                          <ActionOnDark
+                          <button
+                            className="btn-bar"
                             onClick={() => {
+                              setRenameId(t.id);
                               setRenameFrom(t.name);
                               setRenameOpen(true);
                             }}
-                            icon={<Pencil className="h-3.5 w-3.5" />}
                             title="Renombrar"
                             aria-label="Renombrar equipo"
                           >
+                            <Pencil className="h-4 w-4" />
                             Renombrar
-                          </ActionOnDark>
-                          <ActionOnDark
+                          </button>
+                          <button
+                            className="btn-bar"
                             onClick={() => {
+                              setDeleteId(t.id);
                               setDeleteName(t.name);
                               setDeleteOpen(true);
                             }}
-                            icon={<Trash2 className="h-3.5 w-3.5" />}
                             title="Eliminar"
                             aria-label="Eliminar equipo"
                           >
+                            <Trash2 className="h-4 w-4" />
                             Eliminar
-                          </ActionOnDark>
+                          </button>
                         </div>
                       )}
                     </div>
 
                     {/* Cuerpo */}
-                    <div className="p-3">
+                    <div className="p-4">
                       {/* Líderes */}
                       <div className="mb-3">
                         <div className="flex items-center gap-2 text-[13px] font-semibold text-gray-700">

@@ -13,10 +13,14 @@
     --muted: 107 114 128;     /* slate-500 */
     --border: 226 232 240;    /* slate-200 */
 
-    /* >>> Paleta principal morada (alineada al hero) */
+    /* Paleta principal morada */
     --primary: 59 10 105;           /* #3B0A69 */
     --primary-ink: 255 255 255;     /* texto sobre morado */
     --primary-soft: 237 233 254;    /* #EDE9FE (violet-100) */
+
+    /* Acento (botones pill de acción) */
+    --accent: 34 211 238;           /* cyan-400 */
+    --accent-ink: 43 11 87;         /* #2B0B57 */
 
     --shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 20px rgba(15, 23, 42, 0.04);
     --radius: 6px;
@@ -35,9 +39,9 @@
     --nav-h: 48px;
     --footer-h: 40px;
 
-    /* gradiente marca (navbar / footer / headings / tablas) */
-    --brand-start-hex: #3b0a69;
-    --brand-end-hex: #2a0f5c;
+    /* gradiente marca (navbar / headings / tablas) */
+     --brand-start-hex: #4c1d95; /* violeta claro - igual a Objetivos */
+    --brand-end-hex:   #4c1d95; /* violeta profundo - igual a Objetivos */
   }
 
   html,
@@ -62,29 +66,43 @@
    COMPONENTS
    ================================ */
 @layer components {
+  /* --- tarjetas base --- */
   .card {
     @apply rounded-[var(--radius)] shadow-[var(--shadow)] px-4 py-3 border;
     background-color: rgb(var(--paper));
     border-color: rgb(var(--border));
   }
-
   .shadow-soft { box-shadow: var(--shadow); }
 
+  /* --- inputs --- */
   .input, .select, .textarea {
     @apply w-full rounded-[var(--radius)] px-3 py-2 text-[13.5px] outline-none;
     background-color: #fff;
     border: 1px solid rgb(var(--border));
     color: rgb(var(--ink));
   }
-  .input::placeholder, .textarea::placeholder {
-    color: rgb(var(--muted));
-  }
+  .input::placeholder, .textarea::placeholder { color: rgb(var(--muted)); }
   .input:focus, .select:focus, .textarea:focus {
     border-color: rgb(var(--primary));
     box-shadow: 0 0 0 3px rgba(var(--primary), 0.12);
   }
 
-  /* ----- Botones ----- */
+  /* variantes pill para inputs/selects */
+  .input-pill, .select-pill {
+    @apply h-10 px-4 rounded-full border;
+    background-color: #fff;
+    border-color: rgb(var(--border));
+    color: rgb(var(--ink));
+  }
+  .input-pill::placeholder { color: rgb(var(--muted)); }
+  .select-on-dark {
+    @apply h-10 px-4 rounded-full border;
+    border-color: rgba(255,255,255,.6);
+    background-color: rgba(255,255,255,.15);
+    color: #fff;
+  }
+
+  /* --- botones --- */
   .btn {
     @apply inline-flex items-center justify-center gap-2
            rounded-[var(--radius)] px-3 py-2 text-[13.5px] font-medium select-none
@@ -108,7 +126,28 @@
   }
   .btn-ghost:hover { border-color: rgb(var(--ink)); }
 
-  /* ----- Tabs ----- */
+  /* botón acento (cian) – “Editar/Guardar objetivo”, “Perfil”, “Editar”, “Limpiar” */
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2 font-semibold;
+    height: 40px; padding: 0 20px;
+    border-radius: 9999px;
+    background-color: rgb(var(--accent));
+    color: rgb(var(--accent-ink));
+    box-shadow: 0 4px 10px rgba(34, 211, 238, .25);
+  }
+  .btn-accent:hover { filter: brightness(0.96); }
+  .btn-round { border-radius: 9999px; }
+
+.btn-bar {
+  @apply inline-flex items-center justify-center gap-2 h-8 px-3 rounded-full text-[12px] font-medium border;
+  background-color: #4c1d95;            /* violeta "aguado" como Objetivos */
+  color: #fff;
+  border-color: rgba(255, 255, 255, .35);
+  transition: background-color .15s ease, box-shadow .15s ease;
+}
+.btn-bar:hover { background-color: #5b21b6; }  /* un paso más intenso */
+
+  /* --- Tabs --- */
   .tab {
     @apply inline-flex items-center gap-2 px-3 py-2 rounded-[var(--radius)] border text-[13.5px];
   }
@@ -123,7 +162,7 @@
     border-color: rgb(var(--border));
   }
 
-  /* ----- Encabezados de sección ----- */
+  /* --- Encabezados / barras moradas --- */
   .heading-bar {
     @apply text-white font-semibold text-lg px-4 py-2 rounded-[var(--radius)]
            shadow-[var(--shadow)] flex items-center justify-between;
@@ -135,7 +174,22 @@
     background: linear-gradient(90deg, var(--brand-start-hex), var(--brand-end-hex));
   }
 
-  /* ----- Tablas ----- */
+  /* Header full-bleed para tablas/secciones */
+  .section-header {
+    @apply px-4 h-12 flex items-center text-white font-semibold;
+    background: linear-gradient(90deg, var(--brand-start-hex), var(--brand-end-hex));
+  }
+
+  /* --- KPIs violeta (igual Objetivos) --- */
+  .kpi-tile {
+    @apply rounded-2xl px-4 py-3 text-white ring-1 ring-white/10;
+    background: linear-gradient(135deg, #6d28d9 0%, #4c1d95 100%);
+    box-shadow: 0 10px 24px rgba(76,29,149,.20);
+  }
+  .kpi-tile .kpi-label { font-size: 12px; opacity: .9; }
+  .kpi-tile .kpi-value { font-size: 22px; font-weight: 800; }
+
+  /* --- Tablas --- */
   .table-th {
     @apply text-left text-[12px] uppercase tracking-wide text-white border-b px-3 py-2;
     border-color: rgba(255,255,255,0.1);
@@ -146,15 +200,17 @@
     border-color: rgb(var(--border));
   }
 
-  /* ----- Navbar / Footer ----- */
+  /* --- Navbar / Footer --- */
   .navbar {
-    @apply w-full text-[rgb(var(--primary-ink))];
+    @apply w-full;
+    color: rgb(var(--primary-ink)); /* <- FIX: sin clase arbitraria */
     background: linear-gradient(90deg, var(--brand-start-hex), var(--brand-end-hex));
   }
   .navbar-inner { @apply w-full h-full flex items-center justify-between; }
 
   .footer {
-    @apply w-full text-[rgb(var(--primary-ink))];
+    @apply w-full;
+    color: rgb(var(--primary-ink));
     background: linear-gradient(90deg, var(--brand-start-hex), var(--brand-end-hex));
   }
   .footer-inner {
@@ -178,14 +234,28 @@
     @apply inline-flex items-center rounded-[var(--radius)] text-[12px] px-2 py-1;
     background-color: rgb(var(--primary-soft));
   }
+
+  /* textura “grain” sutil para superficies */
+  .bg-grain-soft {
+    background-color: #f8f5ff;
+    background-image:
+      radial-gradient( rgba(76,29,149,0.06) 1px, transparent 1px ),
+      radial-gradient( rgba(76,29,149,0.04) 1px, transparent 1px );
+    background-size: 16px 16px, 24px 24px;
+    background-position: 0 0, 8px 8px;
+  }
+
+  /* anillo de foco con color de marca */
+  .ring-brand { box-shadow: 0 0 0 3px rgba(76,29,149,.16); }
 }
 
+/* botones icono auxiliares */
 .btn-warning-icon { @apply inline-flex items-center justify-center w-8 h-8 rounded-full text-white transition shadow-sm; background-color: #f59e0b; }
 .btn-warning-icon:hover { background-color: #d97706; }
 .btn-danger-icon  { @apply inline-flex items-center justify-center w-8 h-8 rounded-full text-white transition shadow-sm; background-color: #dc2626; }
 .btn-danger-icon:hover { background-color: #b91c1c; }
 
-/* --- HERO / LOGIN --- */
+/* --- HERO / LOGIN (fondos marketing) --- */
 .hero-bg {
   position: relative;
   overflow-x: clip;
@@ -200,7 +270,6 @@
     radial-gradient(1400px 800px at -10% -10%, rgba(167, 139, 250, 0.20), transparent 60%),
     radial-gradient(1200px 700px at 110% 120%, rgba(99, 102, 241, 0.16), transparent 60%),
     radial-gradient(2000px 1200px at 50% -15%, rgba(139, 92, 246, 0.10), transparent 65%),
-    /* >>> mismo espectro que la cabecera */
     linear-gradient(180deg, #3b0a69 0%, #2a0f5c 38%, #1c1347 72%, #0f0a2b 100%);
 }
 .hero-bg::after {
@@ -225,5 +294,6 @@
     radial-gradient(1200px 900px at 50% 80%, rgba(0,0,0,0.06), transparent 65%);
 }
 
-/* Tarjeta de login (tamaños cómodos) */
+/* tarjeta de login (tamaños cómodos) */
 .auth-card { max-width: 720px; }
+

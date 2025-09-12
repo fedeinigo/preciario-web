@@ -1,10 +1,7 @@
 // src/app/components/features/proposals/lib/items.ts
-// Utilidades para catálogo: fetch / CRUD hacia la API de ítems
-
 import type { UIItem } from "./types";
 import type { ItemFormData } from "@/app/components/ui/ItemForm";
 
-/** Fila tal como viene de /api/items */
 type CatalogRow = {
   id: string;
   sku: string;
@@ -13,15 +10,12 @@ type CatalogRow = {
   category: string;
   unitPrice: number;
   devHours: number;
-  // active?: boolean; // si en tu API existe, es opcional
 };
 
-/** Estado inicial inmediato (evita undefined en el primer render) */
 export function getInitialItems(): UIItem[] {
   return [];
 }
 
-/** Carga ítems activos desde /api/items y los adapta a UIItem */
 export async function fetchCatalogItems(): Promise<UIItem[]> {
   const res = await fetch("/api/items", { cache: "no-store" });
   if (!res.ok) throw new Error("No se pudo cargar el catálogo");
@@ -29,7 +23,13 @@ export async function fetchCatalogItems(): Promise<UIItem[]> {
   return data.map(toUIItem);
 }
 
-/** Crea un ítem en DB y lo retorna adaptado a UIItem */
+// NEW: popularidad desde API (itemId -> totalQty)
+export async function fetchItemsPopularity(): Promise<Record<string, number>> {
+  const r = await fetch("/api/items/popularity", { cache: "no-store" });
+  if (!r.ok) return {};
+  return (await r.json()) as Record<string, number>;
+}
+
 export async function createCatalogItem(data: ItemFormData): Promise<UIItem> {
   const res = await fetch("/api/items", {
     method: "POST",
@@ -51,7 +51,6 @@ export async function createCatalogItem(data: ItemFormData): Promise<UIItem> {
   return toUIItem(created);
 }
 
-/** Actualiza un ítem en DB (no devuelve nada) */
 export async function updateCatalogItem(id: string, data: ItemFormData): Promise<void> {
   const res = await fetch(`/api/items/${id}`, {
     method: "PATCH",
@@ -71,7 +70,6 @@ export async function updateCatalogItem(id: string, data: ItemFormData): Promise
   }
 }
 
-/** Elimina un ítem en DB */
 export async function deleteCatalogItem(id: string): Promise<void> {
   const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
   if (!res.ok) {
@@ -80,7 +78,6 @@ export async function deleteCatalogItem(id: string): Promise<void> {
   }
 }
 
-/** Adaptador a UI */
 function toUIItem(row: CatalogRow): UIItem {
   return {
     id: row.id,
@@ -93,5 +90,6 @@ function toUIItem(row: CatalogRow): UIItem {
     devHours: row.devHours,
     selected: false,
     quantity: 1,
+    discountPct: 0,
   };
 }

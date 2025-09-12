@@ -7,6 +7,7 @@ import { randomUUID } from "crypto";
 /** GET /api/proposals */
 export async function GET() {
   const rows = await prisma.proposal.findMany({
+    where: { deletedAt: null },
     orderBy: { createdAt: "desc" },
     include: {
       items: {
@@ -33,6 +34,8 @@ export async function GET() {
     userEmail: p.userEmail,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
+    status: p.status,
+    wonAt: p.wonAt,
     items: p.items.map((pi) => ({
       sku: pi.item?.sku ?? "",
       name: pi.item?.name ?? "",
@@ -61,7 +64,7 @@ export async function POST(req: Request) {
     items?: Array<{
       itemId: string;
       quantity: number;
-      unitPrice: number;
+      unitPrice: number; // NETO
       devHours: number;
     }>;
   };
@@ -86,7 +89,7 @@ export async function POST(req: Request) {
   }
 
   const data: Prisma.ProposalCreateInput = {
-    id: randomUUID(), // <-- necesario porque tu schema no da default al id
+    id: randomUUID(),
     companyName: body.companyName!,
     country: body.country!,
     countryId: body.countryId!,
@@ -99,10 +102,11 @@ export async function POST(req: Request) {
     docId: body.docId ?? null,
     userId: body.userId!,
     userEmail: body.userEmail!,
+    status: "OPEN",
     items: {
       create: body.items!.map((it) => ({
         quantity: it.quantity,
-        unitPrice: it.unitPrice,
+        unitPrice: it.unitPrice, // NETO
         devHours: it.devHours,
         item: { connect: { id: it.itemId } },
       })),
@@ -127,6 +131,8 @@ export async function POST(req: Request) {
       userEmail: true,
       createdAt: true,
       updatedAt: true,
+      status: true,
+      wonAt: true,
     },
   });
 

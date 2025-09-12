@@ -2,15 +2,31 @@
 import { useMemo } from "react";
 import type { UIItem } from "../lib/types";
 
-/**
- * Calcula los totales de la propuesta a partir de los ítems seleccionados.
- */
 export function useProposalTotals(items: UIItem[]) {
   return useMemo(() => {
-    const selectedItems = items.filter((i) => i.selected && i.quantity > 0);
+    const selected = items.filter((i) => i.selected && i.quantity > 0);
+
+    // enriquecer con unitNet
+    const selectedItems = selected.map((it) => {
+      const pct = Math.max(0, Math.min(100, Number(it.discountPct ?? 0)));
+      const unitNet = Math.max(0, it.unitPrice * (1 - pct / 100));
+      return {
+        id: it.id,
+        dbId: it.dbId,
+        sku: it.sku,
+        name: it.name,
+        category: it.category,
+        description: it.description,
+        devHours: it.devHours,
+        unitPrice: it.unitPrice,
+        discountPct: pct,
+        unitNet,
+        quantity: it.quantity,
+      };
+    });
 
     const totalAmount = selectedItems.reduce(
-      (sum, it) => sum + it.unitPrice * it.quantity,
+      (sum, it) => sum + it.unitNet * it.quantity,
       0
     );
 

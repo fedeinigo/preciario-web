@@ -242,7 +242,7 @@ export default function AdminUsersPage() {
                   value={renameName}
                   onChange={(e) => setRenameName(e.target.value)}
                 />
-                <button className="btn-ghost" onClick={renameTeam} disabled={!renameId || !renameName}>
+                <button className="btn-bar" onClick={renameTeam} disabled={!renameId || !renameName}>
                   Renombrar
                 </button>
               </div>

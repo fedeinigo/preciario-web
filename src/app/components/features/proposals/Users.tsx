@@ -1,10 +1,12 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 // src/app/components/features/proposals/Users.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "@/app/components/ui/toast";
-import { Copy, MoreHorizontal, X } from "lucide-react";
+import { Copy, MoreHorizontal, UserRound, X } from "lucide-react";
 import { copyToClipboard } from "./lib/clipboard";
+import UserProfileModal from "@/app/components/ui/UserProfileModal";
 
 type Role = "superadmin" | "lider" | "usuario";
 
@@ -17,6 +19,8 @@ type UserRow = {
   team: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Si el backend lo devuelve, lo mostramos sutilmente. Si no existe, simplemente se oculta. */
+  lastLoginAt?: string | null;
 };
 
 type TeamRow = { id: string; name: string };
@@ -48,6 +52,7 @@ function Avatar({ label }: { label: string }) {
       className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold shadow-soft ring-1 ring-black/5"
       style={{ backgroundColor: bg, color: fg }}
       aria-hidden
+      title={label}
     >
       {getInitials(label)}
     </div>
@@ -84,6 +89,9 @@ function FilterChip({
 
 const ROLES: Role[] = ["usuario", "lider", "superadmin"];
 
+type SortKey = "email" | "name" | "role" | "team";
+type SortDir = "asc" | "desc";
+
 /* ======================== COMPONENTE ======================== */
 export default function Users() {
   // ====== data ======
@@ -92,15 +100,37 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
 
+  // para KPIs: usuarios activos por propuestas en los últimos 30 días
+  const [activeLast30, setActiveLast30] = useState<number>(0);
+
   const load = async () => {
     setLoading(true);
     try {
-      const [u, t] = await Promise.all([
+      const [uRes, tRes] = await Promise.all([
         fetch("/api/admin/users", { cache: "no-store" }),
         fetch("/api/teams", { cache: "no-store" }),
       ]);
-      setUsers(u.ok ? await u.json() : []);
-      setTeams(t.ok ? await t.json() : []);
+      setUsers(uRes.ok ? await uRes.json() : []);
+      setTeams(tRes.ok ? await tRes.json() : []);
+
+      // activos 30d (sin bloquear la UI si falla)
+      try {
+        const pRes = await fetch("/api/proposals", { cache: "no-store" });
+        if (pRes.ok) {
+          const rows = (await pRes.json()) as Array<{ userEmail: string | null; createdAt: string }>;
+          const since = Date.now() - 30 * 24 * 3600 * 1000;
+          const set = new Set(
+            rows
+              .filter((r) => r.userEmail && new Date(r.createdAt).getTime() >= since)
+              .map((r) => r.userEmail as string)
+          );
+          setActiveLast30(set.size);
+        } else {
+          setActiveLast30(0);
+        }
+      } catch {
+        setActiveLast30(0);
+      }
     } finally {
       setLoading(false);
     }
@@ -110,7 +140,20 @@ export default function Users() {
     load();
   }, []);
 
-  const teamNames = useMemo(() => teams.map((t) => t.name), [teams]);
+  // Listado completo de equipos
+  const allTeamNames = useMemo(() => teams.map((t) => t.name), [teams]);
+
+  // Equipos NO vacíos (al menos 1 usuario) — para selects
+  const nonEmptyTeamNames = useMemo(() => {
+    const count: Record<string, number> = {};
+    users.forEach((u) => {
+      const name = u.team?.trim();
+      if (name) count[name] = (count[name] || 0) + 1;
+    });
+    return teams
+      .filter((t) => (count[t.name] ?? 0) > 0)
+      .map((t) => t.name);
+  }, [teams, users]);
 
   // ====== filtros listado ======
   const [q, setQ] = useState("");
@@ -118,14 +161,26 @@ export default function Users() {
   const [roleFilter, setRoleFilter] = useState<Role | "">("");
   const [teamFilter, setTeamFilter] = useState<string>("");
   const [onlyNoTeam, setOnlyNoTeam] = useState(false);
+  const [includeEmptyTeams, setIncludeEmptyTeams] = useState(false);
 
   useEffect(() => {
     const id = window.setTimeout(() => setQDebounced(q.trim().toLowerCase()), 250);
     return () => window.clearTimeout(id);
   }, [q]);
 
-  const filteredUsers = useMemo(() => {
-    return users.filter((u) => {
+  // ====== orden ======
+  const [sortKey, setSortKey] = useState<SortKey>("email");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const sortBy = (k: SortKey) => {
+    if (k === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(k);
+      setSortDir(k === "email" ? "asc" : "asc");
+    }
+  };
+
+  const filteredSortedUsers = useMemo(() => {
+    const filtered = users.filter((u) => {
       const byText =
         !qDebounced ||
         (u.email ?? "").toLowerCase().includes(qDebounced) ||
@@ -135,7 +190,24 @@ export default function Users() {
       const byOnlyNoTeam = !onlyNoTeam || !u.team;
       return byText && byRole && byTeam && byOnlyNoTeam;
     });
-  }, [users, qDebounced, roleFilter, teamFilter, onlyNoTeam]);
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    const roleIndex = (r: Role) => ROLES.indexOf(r);
+
+    return [...filtered].sort((a, b) => {
+      switch (sortKey) {
+        case "name":
+          return ((a.name || "").localeCompare(b.name || "")) * dir;
+        case "role":
+          return (roleIndex(a.role) - roleIndex(b.role)) * dir;
+        case "team":
+          return ((a.team || "").localeCompare(b.team || "")) * dir;
+        case "email":
+        default:
+          return ((a.email || "").localeCompare(b.email || "")) * dir;
+      }
+    });
+  }, [users, qDebounced, roleFilter, teamFilter, onlyNoTeam, sortKey, sortDir]);
 
   // ====== actualizar usuario (rol/equipo) ======
   const saveUser = async (userId: string, changes: Partial<UserRow>) => {
@@ -173,44 +245,121 @@ export default function Users() {
   const countSuperadmin = users.filter((u) => u.role === "superadmin").length;
   const countLeaders = users.filter((u) => u.role === "lider").length;
   const countNoTeam = users.filter((u) => !u.team).length;
+  const pctWithTeam = total ? ((total - countNoTeam) / total) * 100 : 0;
+
+  // ====== helpers ======
+  const effectiveTeamsForSelect = includeEmptyTeams ? allTeamNames : nonEmptyTeamNames;
+
+  const clearFilters = () => {
+    setQ("");
+    setRoleFilter("");
+    setTeamFilter("");
+    setOnlyNoTeam(false);
+  };
+
+  const openHistoryForEmail = (email: string | null) => {
+    if (!email) return;
+    // Deep-link simple a la pestaña de histórico con query email
+    window.location.href = `/#history?email=${encodeURIComponent(email)}`;
+  };
+
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileUser, setProfileUser] = useState<{ id: string; email: string | null; name: string | null } | null>(null);
+
+  const openProfile = (u: UserRow) => {
+    setProfileUser({ id: u.id, email: u.email, name: u.name });
+    setProfileOpen(true);
+  };
+
+  const exportCsv = () => {
+    const headers = ["Email", "Nombre", "Rol", "Equipo", "Último login", "Creado"];
+    const lines = filteredSortedUsers.map((u) => [
+      u.email || "",
+      u.name || "",
+      u.role,
+      u.team || "",
+      u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "",
+      new Date(u.createdAt).toLocaleString(),
+    ]);
+    const blob = new Blob([headers.join(","), "\n", lines.map((r) => r.join(",")).join("\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "usuarios.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exportado");
+  };
+
+  const formatLastLogin = (u: UserRow): string | null => {
+    const iso = u.lastLoginAt || null;
+    if (!iso) return null;
+    const d = new Date(iso).getTime();
+    const diff = Date.now() - d;
+    const days = Math.floor(diff / (24 * 3600 * 1000));
+    if (days >= 7) return new Date(iso).toLocaleDateString();
+    if (days >= 1) return `hace ${days}d`;
+    const hrs = Math.floor(diff / (3600 * 1000));
+    if (hrs >= 1) return `hace ${hrs}h`;
+    const min = Math.max(1, Math.floor(diff / (60 * 1000)));
+    return `hace ${min}m`;
+  };
 
   // ====== UI ======
   return (
     <div className="p-4 space-y-4">
-      {/* Tarjetas resumen */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded-md border-2 bg-white p-3 shadow-soft">
-          <div className="text-xs text-gray-500">Usuarios</div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <div className="text-2xl font-semibold">{total}</div>
-          </div>
+      {/* KPIs (estilo violeta) */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <div className="kpi-tile">
+          <div className="kpi-label">Usuarios</div>
+          <div className="kpi-value">{total}</div>
         </div>
-        <div className="rounded-md border-2 bg-white p-3 shadow-soft">
-          <div className="text-xs text-gray-500">Superadmins</div>
-          <div className="mt-1 text-2xl font-semibold">{countSuperadmin}</div>
+        <div className="kpi-tile">
+          <div className="kpi-label">Superadmins</div>
+          <div className="kpi-value">{countSuperadmin}</div>
         </div>
-        <div className="rounded-md border-2 bg-white p-3 shadow-soft">
-          <div className="text-xs text-gray-500">Líderes</div>
-          <div className="mt-1 text-2xl font-semibold">{countLeaders}</div>
+        <div className="kpi-tile">
+          <div className="kpi-label">Líderes</div>
+          <div className="kpi-value">{countLeaders}</div>
         </div>
-        <div className="rounded-md border-2 bg-white p-3 shadow-soft">
-          <div className="text-xs text-gray-500">Sin equipo</div>
-          <div className="mt-1 text-2xl font-semibold">{countNoTeam}</div>
+        <div className="kpi-tile">
+          <div className="kpi-label">Sin equipo</div>
+          <div className="kpi-value">{countNoTeam}</div>
+        </div>
+        <div className="kpi-tile">
+          <div className="kpi-label">Activos 30 días</div>
+          <div className="kpi-value">{activeLast30}</div>
+        </div>
+        <div className="kpi-tile">
+          <div className="kpi-label">% con equipo</div>
+          <div className="kpi-value">{pctWithTeam.toFixed(0)}%</div>
         </div>
       </div>
 
       {/* ======= Usuarios ======= */}
       <div className="card border-2 overflow-hidden">
-        <div className="heading-bar-sm">Usuarios</div>
+        <div className="heading-bar-sm flex items-center justify-between">
+          <span>Usuarios</span>
+          <div className="flex items-center gap-2">
+            <button className="btn-bar" onClick={exportCsv} title="Exportar CSV">
+              CSV
+            </button>
+            <button className="btn-bar" onClick={load} title="Refrescar">
+              Refrescar
+            </button>
+          </div>
+        </div>
 
         <div className="p-3 space-y-3">
-          {/* Filtros */}
+          {/* Filtros compactos */}
           <div className="border-2 bg-white rounded-md p-3">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
               <div className="md:col-span-2">
                 <label className="block text-xs text-gray-600 mb-1">Buscar</label>
                 <input
-                  className="input"
+                  className="input-pill w-full"
                   placeholder="Email o nombre…"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
@@ -219,7 +368,7 @@ export default function Users() {
               <div>
                 <label className="block text-xs text-gray-600 mb-1">Rol</label>
                 <select
-                  className="select"
+                  className="select-pill w-full"
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value as Role | "")}
                 >
@@ -234,69 +383,51 @@ export default function Users() {
               <div>
                 <label className="block text-xs text-gray-600 mb-1">Equipo</label>
                 <select
-                  className="select"
+                  className="select-pill w-full"
                   value={teamFilter}
                   onChange={(e) => setTeamFilter(e.target.value)}
                 >
                   <option value="">Todos</option>
-                  {teamNames.map((t) => (
+                  {effectiveTeamsForSelect.map((t) => (
                     <option key={t} value={t}>
                       {t}
                     </option>
                   ))}
                 </select>
               </div>
-              <div className="flex items-end gap-3">
-                <label className="inline-flex items-center gap-2 text-[13px] text-gray-700">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    checked={onlyNoTeam}
-                    onChange={(e) => setOnlyNoTeam(e.target.checked)}
-                  />
-                  Solo sin equipo
-                </label>
-              </div>
-            </div>
+              <label className="inline-flex items-center gap-2 text-[13px] text-gray-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={onlyNoTeam}
+                  onChange={(e) => setOnlyNoTeam(e.target.checked)}
+                />
+                Solo sin equipo
+              </label>
+              <label className="inline-flex items-center gap-2 text-[13px] text-gray-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={includeEmptyTeams}
+                  onChange={(e) => setIncludeEmptyTeams(e.target.checked)}
+                />
+                Incluir equipos vacíos
+              </label>
 
-            {/* Acciones filtros */}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <FilterChip
-                show={Boolean(qDebounced)}
-                label={`Buscar: "${qDebounced}"`}
-                onClear={() => setQ("")}
-              />
-              <FilterChip
-                show={Boolean(roleFilter)}
-                label={`Rol: ${roleFilter || ""}`}
-                onClear={() => setRoleFilter("")}
-              />
-              <FilterChip
-                show={Boolean(teamFilter)}
-                label={`Equipo: ${teamFilter || ""}`}
-                onClear={() => setTeamFilter("")}
-              />
-              <FilterChip
-                show={onlyNoTeam}
-                label="Solo sin equipo"
-                onClear={() => setOnlyNoTeam(false)}
-              />
+              <div className="md:col-span-6 flex flex-wrap items-center gap-2">
+                <FilterChip show={Boolean(qDebounced)} label={`Buscar: "${qDebounced}"`} onClear={() => setQ("")} />
+                <FilterChip show={Boolean(roleFilter)} label={`Rol: ${roleFilter || ""}`} onClear={() => setRoleFilter("")} />
+                <FilterChip show={Boolean(teamFilter)} label={`Equipo: ${teamFilter || ""}`} onClear={() => setTeamFilter("")} />
+                <FilterChip show={onlyNoTeam} label="Solo sin equipo" onClear={() => setOnlyNoTeam(false)} />
 
-              <div className="ml-auto flex items-center gap-2">
-                <button
-                  className="btn-ghost"
-                  onClick={() => {
-                    setQ("");
-                    setRoleFilter("");
-                    setTeamFilter("");
-                    setOnlyNoTeam(false);
-                  }}
-                >
-                  Limpiar
-                </button>
-                <button className="btn-primary" onClick={load}>
-                  Refrescar
-                </button>
+                <div className="ml-auto flex items-center gap-2">
+                  <button className="btn-ghost" onClick={clearFilters}>
+                    Limpiar
+                  </button>
+                  <button className="btn-primary" onClick={load}>
+                    Refrescar
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -309,17 +440,35 @@ export default function Users() {
               <table className="min-w-full bg-white text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr>
-                    <th className="table-th !bg-primary !text-white">Email</th>
-                    <th className="table-th !bg-primary !text-white">Nombre</th>
-                    <th className="table-th w-48 !bg-primary !text-white">Rol</th>
-                    <th className="table-th w-56 !bg-primary !text-white">Equipo</th>
-                    <th className="table-th w-16 !bg-primary !text-white text-center">
-                      <span className="sr-only">Acciones</span>
-                    </th>
+                    {(
+                      [
+                        ["email", "Email"],
+                        ["name", "Nombre"],
+                        ["role", "Rol"],
+                        ["team", "Equipo"],
+                        ["", "Acciones"],
+                      ] as Array<[SortKey | "", string]>
+                    ).map(([k, label], idx) => {
+                      const clickable = k !== "";
+                      const active = k === sortKey;
+                      const dir = sortDir === "asc" ? "▲" : "▼";
+                      return (
+                        <th
+                          key={idx}
+                          className={`table-th ${clickable ? "cursor-pointer select-none" : ""} ${
+                            active ? "!text-white !bg-primary" : "!bg-primary !text-white"
+                          }`}
+                          onClick={() => clickable && sortBy(k as SortKey)}
+                          title={clickable ? "Ordenar" : ""}
+                        >
+                          {label} {active && dir}
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((u, i) => (
+                  {filteredSortedUsers.map((u, i) => (
                     <tr
                       key={u.id}
                       className={
@@ -328,28 +477,44 @@ export default function Users() {
                           : "bg-[rgb(var(--primary-soft))]/40 hover:bg-white"
                       }
                     >
-                      {/* Email + avatar */}
+                      {/* Email + avatar + acciones rápidas */}
                       <td className="table-td">
                         <div className="flex items-center gap-3">
-                          <Avatar label={u.name || u.email || "U"} />
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{u.email ?? "—"}</span>
-                            {u.email ? (
-                              <button
-                                className="rounded p-1 hover:bg-black/5"
-                                title="Copiar email"
-                                onClick={async () => {
-                                  const ok = await copyToClipboard(u.email!);
-                                  if (ok) {
-                                    toast.success("Email copiado");
-                                  } else {
-                                    toast.error("No se pudo copiar");
-                                  }
-                                }}
-                                type="button"
-                              >
-                                <Copy className="h-4 w-4" />
-                              </button>
+                          <button onClick={() => openProfile(u)} className="rounded-full focus:outline-none" title="Abrir perfil">
+                            <Avatar label={u.name || u.email || "U"} />
+                          </button>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{u.email ?? "—"}</span>
+                              {u.email ? (
+                                <>
+                                  <button
+                                    className="rounded p-1 hover:bg-black/5"
+                                    title="Copiar email"
+                                    onClick={async () => {
+                                      const ok = await copyToClipboard(u.email!);
+                                      ok ? toast.success("Email copiado") : toast.error("No se pudo copiar");
+                                    }}
+                                    type="button"
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    className="rounded p-1 hover:bg-black/5"
+                                    title="Perfil"
+                                    onClick={() => openProfile(u)}
+                                    type="button"
+                                  >
+                                    <UserRound className="h-4 w-4" />
+                                  </button>
+                                </>
+                              ) : null}
+                            </div>
+                            {/* Último login sutil si existe */}
+                            {u.lastLoginAt ? (
+                              <span className="text-[11px] text-gray-500 -mt-0.5">
+                                Último inicio: {formatLastLogin(u)}
+                              </span>
                             ) : null}
                           </div>
                         </div>
@@ -365,6 +530,7 @@ export default function Users() {
                           value={u.role}
                           onChange={(e) => saveUser(u.id, { role: e.target.value as Role })}
                           disabled={saving === u.id}
+                          title="Cambiar rol"
                         >
                           {ROLES.map((r) => (
                             <option key={r} value={r}>
@@ -387,6 +553,7 @@ export default function Users() {
                           }
                           placeholder="(sin equipo)"
                           disabled={saving === u.id}
+                          title="Asignar equipo"
                         />
                       </td>
 
@@ -397,17 +564,13 @@ export default function Users() {
                             <summary className="list-none cursor-pointer rounded p-1 hover:bg-black/5 inline-flex">
                               <MoreHorizontal className="h-4 w-4" />
                             </summary>
-                            <div className="absolute right-0 mt-1 min-w-[160px] rounded-md border bg-white p-1 shadow-soft z-10">
+                            <div className="absolute right-0 mt-1 min-w-[180px] rounded-md border bg-white p-1 shadow-soft z-10">
                               <button
                                 className="w-full text-left rounded px-2 py-1.5 hover:bg-[rgb(var(--primary-soft))]"
                                 onClick={async () => {
                                   if (u.email) {
                                     const ok = await copyToClipboard(u.email);
-                                    if (ok) {
-                                      toast.success("Email copiado");
-                                    } else {
-                                      toast.error("No se pudo copiar");
-                                    }
+                                    ok ? toast.success("Email copiado") : toast.error("No se pudo copiar");
                                   } else {
                                     toast.info("El usuario no tiene email");
                                   }
@@ -418,10 +581,24 @@ export default function Users() {
                               </button>
                               <button
                                 className="w-full text-left rounded px-2 py-1.5 hover:bg-[rgb(var(--primary-soft))]"
+                                onClick={() => openHistoryForEmail(u.email)}
+                                type="button"
+                              >
+                                Ver historial
+                              </button>
+                              <button
+                                className="w-full text-left rounded px-2 py-1.5 hover:bg-[rgb(var(--primary-soft))]"
                                 onClick={() => saveUser(u.id, { team: null })}
                                 type="button"
                               >
                                 Quitar de equipo
+                              </button>
+                              <button
+                                className="w-full text-left rounded px-2 py-1.5 hover:bg-[rgb(var(--primary-soft))]"
+                                onClick={() => openProfile(u)}
+                                type="button"
+                              >
+                                Perfil
                               </button>
                             </div>
                           </details>
@@ -429,7 +606,7 @@ export default function Users() {
                       </td>
                     </tr>
                   ))}
-                  {filteredUsers.length === 0 ? (
+                  {filteredSortedUsers.length === 0 ? (
                     <tr>
                       <td className="table-td text-center text-gray-500" colSpan={5}>
                         Sin resultados para los filtros.
@@ -441,14 +618,24 @@ export default function Users() {
             )}
           </div>
 
-          {/* datalist para equipos */}
+          {/* datalist con SOLO equipos no vacíos (por defecto) o todos si “Incluir vacíos” */}
           <datalist id="users-teams">
-            {teamNames.map((t) => (
+            {(includeEmptyTeams ? allTeamNames : nonEmptyTeamNames).map((t) => (
               <option key={t} value={t} />
             ))}
           </datalist>
         </div>
       </div>
+
+      {/* Modal de perfil / objetivo (viewer: esta vista suele ser de admins; pasamos superadmin para edición) */}
+      {profileUser && (
+        <UserProfileModal
+          open={profileOpen}
+          onClose={() => setProfileOpen(false)}
+          viewer={{ role: "superadmin", team: null }}
+          targetUser={profileUser}
+        />
+      )}
     </div>
   );
 }

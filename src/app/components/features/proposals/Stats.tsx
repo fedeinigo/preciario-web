@@ -20,41 +20,51 @@ import {
   prevWeekRange,
 } from "./lib/dateRanges";
 
-// ---- UI helpers (estética consistente con el resto)
-const TitleBar = ({ children }: { children: React.ReactNode }) => (
-  <div className="heading-bar">{children}</div>
-);
-
-function StatCard({ label, value }: { label: string; value: string }) {
+/** Header full-bleed como en Objetivos */
+function PageHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-md border-2 bg-white px-4 py-3 shadow-soft">
-      <div className="text-sm text-gray-600">{label}</div>
-      <div className="text-2xl font-extrabold text-primary">{value}</div>
+    <div className="px-4 h-12 flex items-center text-white font-semibold bg-[#4c1d95] rounded-t-2xl">
+      {children}
     </div>
   );
 }
 
-function Section({
+/** Encabezado de sección (tablas) igual a Objetivos */
+function SectionHeader({
   title,
   actions,
-  children,
 }: {
-  title: string;
+  title: React.ReactNode;
   actions?: React.ReactNode;
-  children: React.ReactNode;
 }) {
   return (
-    <div className="mb-6">
-      <div className="heading-bar-sm flex items-center justify-between">
-        <span>{title}</span>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
-      </div>
-      <div className="overflow-x-auto rounded-md border-2 bg-white">{children}</div>
+    <div className="px-4 h-12 flex items-center justify-between text-white font-semibold bg-[#4c1d95] rounded-t-2xl">
+      <span className="truncate">{title}</span>
+      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
     </div>
   );
 }
 
-/** Botonera de rangos rápidos */
+/** KPI tipo “glass” como GoalKpi (Objetivos) */
+function VioletKpi({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-xl border bg-gradient-to-br from-[#6d28d9] to-[#4c1d95] text-white px-4 py-3 shadow-[0_6px_18px_rgba(76,29,149,0.25)]">
+      <div className="text-[12px] opacity-90">{label}</div>
+      <div className="text-2xl font-extrabold">{value}</div>
+      {hint ? <div className="text-[11px] opacity-80 mt-1">{hint}</div> : null}
+    </div>
+  );
+}
+
+/** Pastillas de rango rápido */
 function QuickRanges({
   setFrom,
   setTo,
@@ -77,7 +87,12 @@ function QuickRanges({
   return (
     <div className="flex flex-wrap gap-2 mb-3">
       {quarters.map((q) => (
-        <button key={q.label} className="btn-ghost !py-1" onClick={() => apply(q.get())}>
+        <button
+          key={q.label}
+          className="btn-ghost !py-1"
+          onClick={() => apply(q.get())}
+          title="Aplicar rango del trimestre"
+        >
           {q.label}
         </button>
       ))}
@@ -98,11 +113,9 @@ function QuickRanges({
 }
 
 type AdminUserRow = { email: string | null; role: AppRole; team: string | null };
-
 type ProposalForStats = ProposalRecord & {
   items?: Array<{ sku: string; name: string; quantity: number }>;
 };
-
 type OrderKey = "createdAt" | "totalAmount";
 type OrderDir = "asc" | "desc";
 
@@ -117,22 +130,20 @@ export default function Stats({
   leaderTeam: string | null;
   isSuperAdmin: boolean;
 }) {
-  // ---------- filtros
+  // filtros
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [teamFilter, setTeamFilter] = useState<string>("");
   const [countryFilter, setCountryFilter] = useState<string>("");
   const [userFilter, setUserFilter] = useState<string>("");
 
-  // orden general de las propuestas (para consistencia/export)
   const [orderKey, setOrderKey] = useState<OrderKey>("createdAt");
   const [orderDir, setOrderDir] = useState<OrderDir>("desc");
 
-  // límite top N para agregados + “ver todo”
   const [topN, setTopN] = useState<number>(20);
   const [showAll, setShowAll] = useState<boolean>(false);
 
-  // ---------- datos
+  // datos
   const [loading, setLoading] = useState(true);
   const [all, setAll] = useState<ProposalForStats[]>([]);
 
@@ -161,7 +172,7 @@ export default function Stats({
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  // emails -> team (para filtros por equipo)
+  // emails -> team
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
   useEffect(() => {
     if (isSuperAdmin || role === "lider") {
@@ -180,16 +191,20 @@ export default function Stats({
     return map;
   }, [adminUsers]);
 
-  // equipos (para filtro de superadmin)
-  const [teams, setTeams] = useState<string[]>([]);
-  useEffect(() => {
-    fetch("/api/teams")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((rows: Array<{ name: string }>) => setTeams(rows.map((t) => t.name)))
-      .catch(() => setTeams([]));
-  }, []);
+  /** Equipos visibles (con al menos 1 integrante) para el select de superadmin */
+  const visibleTeams: string[] = useMemo(() => {
+    const counts = new Map<string, number>();
+    adminUsers.forEach((u) => {
+      const t = (u.team || "").trim();
+      if (!t) return;
+      counts.set(t, (counts.get(t) || 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .filter(([, c]) => c > 0)
+      .map(([name]) => name)
+      .sort((a, b) => a.localeCompare(b));
+  }, [adminUsers]);
 
-  // opciones dinámicas
   const countryOptions = useMemo(
     () => Array.from(new Set(all.map((p) => p.country))).sort((a, b) => a.localeCompare(b)),
     [all]
@@ -199,10 +214,8 @@ export default function Stats({
     [all]
   );
 
-  // ---------- subset por permisos y filtros
   const subsetRaw = useMemo(() => {
     return all.filter((p) => {
-      // permisos
       if (isSuperAdmin) {
         if (teamFilter) {
           const t = emailToTeam.get(p.userEmail) ?? null;
@@ -215,16 +228,12 @@ export default function Stats({
         if (p.userEmail !== currentEmail) return false;
       }
 
-      // rango fechas
       const tms = new Date(p.createdAt as unknown as string).getTime();
       const f = from ? new Date(from).getTime() : -Infinity;
       const tt = to ? new Date(to).getTime() + 24 * 3600 * 1000 - 1 : Infinity;
       if (!(tms >= f && tms <= tt)) return false;
 
-      // país
       if (countryFilter && p.country !== countryFilter) return false;
-
-      // usuario
       if (userFilter && p.userEmail !== userFilter) return false;
 
       return true;
@@ -243,7 +252,6 @@ export default function Stats({
     emailToTeam,
   ]);
 
-  // orden (para export y consistencia)
   const subset = useMemo(() => {
     const arr = [...subsetRaw];
     return arr.sort((a, b) => {
@@ -258,7 +266,7 @@ export default function Stats({
     });
   }, [subsetRaw, orderKey, orderDir]);
 
-  // ---------- KPIs
+  // KPIs base
   const uniqueUsers = useMemo(() => new Set(subset.map((p) => p.userEmail)).size, [subset]);
   const uniqueCompanies = useMemo(() => new Set(subset.map((p) => p.companyName)).size, [subset]);
   const totalMonthly = useMemo(
@@ -270,8 +278,18 @@ export default function Stats({
     [subset.length, totalMonthly]
   );
 
-  // ---------- agregados
-  const bySkuFull = useMemo(
+  // KPIs WON
+  const wonRows = useMemo(
+    () => subset.filter((p) => String(p.status || "").toUpperCase() === "WON"),
+    [subset]
+  );
+  const wonCount = wonRows.length;
+  const wonAmount = wonRows.reduce((acc, p) => acc + (Number(p.totalAmount) || 0), 0);
+  const winRate = subset.length ? (wonCount / subset.length) * 100 : 0;
+  const wonAvgTicket = wonCount ? wonAmount / wonCount : 0;
+
+  // agregados
+  const bySkuFull: Array<[string, { name: string; qty: number }]> = useMemo(
     () =>
       Object.entries(
         subset.reduce<Record<string, { name: string; qty: number }>>((acc, p) => {
@@ -282,30 +300,30 @@ export default function Stats({
             acc[it.sku] = cur;
           });
           return acc;
-        }, {})
+        }, {} as Record<string, { name: string; qty: number }>)
       ).sort((a, b) => b[1].qty - a[1].qty),
     [subset]
   );
 
-  const byCountryFull = useMemo(
+  const byCountryFull: Array<[string, number]> = useMemo(
     () =>
       Object.entries(
         subset.reduce<Record<string, number>>((acc, p) => {
           acc[p.country] = (acc[p.country] ?? 0) + 1;
           return acc;
-        }, {})
+        }, {} as Record<string, number>)
       ).sort((a, b) => b[1] - a[1]),
     [subset]
   );
 
-  const byUserFull = useMemo(
+  const byUserFull: Array<[string, number]> = useMemo(
     () =>
       Object.entries(
         subset.reduce<Record<string, number>>((acc, p) => {
           const key = p.userEmail || "(sin email)";
           acc[key] = (acc[key] ?? 0) + 1;
           return acc;
-        }, {})
+        }, {} as Record<string, number>)
       ).sort((a, b) => b[1] - a[1]),
     [subset]
   );
@@ -323,7 +341,7 @@ export default function Stats({
     [byUserFull, topN, showAll]
   );
 
-  // ---------- CSV exports (sección + general)
+  // CSVs
   const exportSkuCsv = () => {
     const headers = ["SKU", "Ítem", "Cantidad total"];
     const rows = bySkuFull.map(([sku, info]) => [sku, info.name, info.qty]);
@@ -359,37 +377,62 @@ export default function Stats({
     toast.success("CSV de propuestas filtradas descargado");
   };
 
-  // ---------- UI
+  // textura suave como en Objetivos
+  const textureStyle: React.CSSProperties = {
+    backgroundColor: "#f8f5ff",
+    backgroundImage:
+      "radial-gradient( rgba(76,29,149,0.06) 1px, transparent 1px ), radial-gradient( rgba(76,29,149,0.04) 1px, transparent 1px )",
+    backgroundSize: "16px 16px, 24px 24px",
+    backgroundPosition: "0 0, 8px 8px",
+    borderRadius: "12px",
+  };
+
   return (
-    <div className="p-4">
-      <div className="card border-2">
-        <TitleBar>Estadísticas</TitleBar>
+    <div className="p-4" style={textureStyle}>
+      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+        <PageHeader>Estadísticas</PageHeader>
 
         <div className="p-3">
-          {/* Rangos rápidos */}
+          {/* Rango rápido */}
           <QuickRanges setFrom={setFrom} setTo={setTo} />
 
-          {/* Filtros principales */}
+          {/* Filtros */}
           <div className="rounded-md border-2 bg-white p-3 shadow-soft">
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 items-end">
               {/* fechas */}
               <div className="xl:col-span-2">
                 <label className="block text-xs text-gray-600 mb-1">Desde</label>
-                <input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} />
+                <input
+                  type="date"
+                  className="input"
+                  value={from}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFrom(e.target.value)}
+                />
               </div>
               <div className="xl:col-span-2">
                 <label className="block text-xs text-gray-600 mb-1">Hasta</label>
-                <input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} />
+                <input
+                  type="date"
+                  className="input"
+                  value={to}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTo(e.target.value)}
+                />
               </div>
 
-              {/* equipo (solo superadmin) */}
+              {/* equipo (solo superadmin) con filtro de equipos vacíos */}
               {isSuperAdmin ? (
                 <div className="xl:col-span-2">
                   <label className="block text-xs text-gray-600 mb-1">Equipo</label>
-                  <select className="select" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
+                  <select
+                    className="select"
+                    value={teamFilter}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTeamFilter(e.target.value)}
+                  >
                     <option value="">Todos</option>
-                    {teams.map((t) => (
-                      <option key={t} value={t}>{t}</option>
+                    {visibleTeams.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -400,10 +443,16 @@ export default function Stats({
               {/* país */}
               <div className="xl:col-span-2">
                 <label className="block text-xs text-gray-600 mb-1">País</label>
-                <select className="select" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}>
+                <select
+                  className="select"
+                  value={countryFilter}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCountryFilter(e.target.value)}
+                >
                   <option value="">Todos</option>
                   {countryOptions.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -414,13 +463,15 @@ export default function Stats({
                 <select
                   className="select"
                   value={userFilter}
-                  onChange={(e) => setUserFilter(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setUserFilter(e.target.value)}
                   disabled={role === "usuario"}
                 >
                   <option value="">{role === "usuario" ? currentEmail : "Todos"}</option>
                   {(role === "usuario" ? [currentEmail] : userOptions).map((u) =>
                     u ? (
-                      <option key={u} value={u}>{u}</option>
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
                     ) : null
                   )}
                 </select>
@@ -429,14 +480,26 @@ export default function Stats({
               {/* ordenar / dirección */}
               <div className="xl:col-span-2">
                 <label className="block text-xs text-gray-600 mb-1">Ordenar por</label>
-                <select className="select" value={orderKey} onChange={(e) => setOrderKey(e.target.value as OrderKey)}>
+                <select
+                  className="select"
+                  value={orderKey}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                    setOrderKey(e.target.value as OrderKey)
+                  }
+                >
                   <option value="createdAt">Fecha de creación</option>
                   <option value="totalAmount">Monto mensual</option>
                 </select>
               </div>
               <div className="xl:col-span-2">
                 <label className="block text-xs text-gray-600 mb-1">Dirección</label>
-                <select className="select" value={orderDir} onChange={(e) => setOrderDir(e.target.value as OrderDir)}>
+                <select
+                  className="select"
+                  value={orderDir}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                    setOrderDir(e.target.value as OrderDir)
+                  }
+                >
                   <option value="desc">Descendente</option>
                   <option value="asc">Ascendente</option>
                 </select>
@@ -445,7 +508,7 @@ export default function Stats({
               {/* acciones */}
               <div className="xl:col-span-2 flex gap-2">
                 <button
-                  className="btn-primary w-full transition hover:bg-[rgb(var(--primary))]/90"
+                  className="btn-bar w-full transition hover:bg-[rgb(var(--primary))]/90"
                   onClick={() => {
                     setFrom("");
                     setTo("");
@@ -461,35 +524,46 @@ export default function Stats({
                 >
                   Limpiar
                 </button>
-                <button className="btn-ghost w-full" onClick={exportFilteredProposalsCsv}>
+                <button className="btn-bar w-full" onClick={exportFilteredProposalsCsv}>
                   Exportar
                 </button>
               </div>
             </div>
           </div>
 
-          {/* KPIs */}
+          {/* KPIs (primera fila) */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 my-4">
-            <StatCard label="Propuestas generadas" value={String(subset.length)} />
-            <StatCard label="Usuarios únicos" value={String(uniqueUsers)} />
-            <StatCard label="Empresas distintas" value={String(uniqueCompanies)} />
-            <StatCard label="Monto mensual total" value={formatUSD(totalMonthly)} />
-            <StatCard label="Promedio por propuesta" value={formatUSD(avgPerProposal)} />
+            <VioletKpi label="Propuestas generadas" value={String(subset.length)} />
+            <VioletKpi label="Usuarios únicos" value={String(uniqueUsers)} />
+            <VioletKpi label="Empresas distintas" value={String(uniqueCompanies)} />
+            <VioletKpi label="Monto mensual total" value={formatUSD(totalMonthly)} />
+            <VioletKpi label="Promedio por propuesta" value={formatUSD(avgPerProposal)} />
           </div>
 
-          {/* Secciones: dos columnas (SKU / País) y luego Top usuarios */}
+          {/* KPIs WON (segunda fila) */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+            <VioletKpi label="Propuestas WON" value={String(wonCount)} />
+            <VioletKpi label="Monto WON" value={formatUSD(wonAmount)} />
+            <VioletKpi label="Win rate" value={`${winRate.toFixed(1)}%`} />
+            <VioletKpi label="Ticket promedio WON" value={formatUSD(wonAvgTicket)} />
+          </div>
+
+          {/* Grillas */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* Ítems por SKU */}
-            <div>
-              <Section
+            <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+              <SectionHeader
                 title="Ítems más cotizados (por SKU)"
                 actions={
                   <div className="flex items-center gap-3">
-                    <label className="inline-flex items-center gap-2 text-[12px] text-white/90">
+                    <label
+                      className="inline-flex items-center gap-2 text-[12px] text-white/90"
+                      title="Ver todos los resultados"
+                    >
                       <input
                         type="checkbox"
                         checked={showAll}
-                        onChange={(e) => setShowAll(e.target.checked)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShowAll(e.target.checked)}
                       />
                       Ver todo
                     </label>
@@ -497,7 +571,9 @@ export default function Stats({
                       <span className="text-[12px] text-white/90">Top N</span>
                       <select
                         value={topN}
-                        onChange={(e) => setTopN(Number(e.target.value))}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                          setTopN(Number(e.target.value))
+                        }
                         className="h-8 text-xs rounded border border-white/40 bg-white/10 text-white px-2 py-1
                                    focus:outline-none focus:ring-2 focus:ring-white/60 focus:border-white/60 disabled:opacity-50"
                         title="Top N (agregados)"
@@ -515,44 +591,43 @@ export default function Stats({
                     </button>
                   </div>
                 }
-              >
-                <table className="min-w-full bg-white">
-                  <thead>
-                    <tr>
-                      <th className="table-th">SKU</th>
-                      <th className="table-th">Ítem</th>
-                      <th className="table-th w-40 text-right">Cantidad total</th>
-                    </tr>
-                  </thead>
-                  {loading ? (
-                    <TableSkeletonRows rows={3} cols={3} />
-                  ) : (
-                    <tbody>
-                      {bySku.map(([sku, info]) => (
-                        <tr key={sku}>
-                          <td className="table-td">
-                            <span className="text-gray-500 font-mono">{sku}</span>
-                          </td>
-                          <td className="table-td">{info.name}</td>
-                          <td className="table-td text-right font-semibold">{info.qty}</td>
-                        </tr>
-                      ))}
-                      {!loading && bySku.length === 0 && (
-                        <tr>
-                          <td className="table-td text-center text-gray-500" colSpan={3}>
-                            Sin datos para los filtros seleccionados.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  )}
-                </table>
-              </Section>
+              />
+              <table className="min-w-full bg-white">
+                <thead>
+                  <tr>
+                    <th className="table-th">SKU</th>
+                    <th className="table-th">Ítem</th>
+                    <th className="table-th w-40 text-right">Cantidad total</th>
+                  </tr>
+                </thead>
+                {loading ? (
+                  <TableSkeletonRows rows={3} cols={3} />
+                ) : (
+                  <tbody>
+                    {bySku.map(([sku, info]) => (
+                      <tr key={sku}>
+                        <td className="table-td">
+                          <span className="text-gray-500 font-mono">{sku}</span>
+                        </td>
+                        <td className="table-td">{info.name}</td>
+                        <td className="table-td text-right font-semibold">{info.qty}</td>
+                      </tr>
+                    ))}
+                    {!loading && bySku.length === 0 && (
+                      <tr>
+                        <td className="table-td text-center text-gray-500" colSpan={3}>
+                          Sin datos para los filtros seleccionados.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                )}
+              </table>
             </div>
 
             {/* Propuestas por país */}
-            <div>
-              <Section
+            <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+              <SectionHeader
                 title="Propuestas por país"
                 actions={
                   <div className="flex items-center gap-2">
@@ -561,58 +636,56 @@ export default function Stats({
                     </button>
                   </div>
                 }
-              >
-                <table className="min-w-full bg-white">
-                  <thead>
-                    <tr>
-                      <th className="table-th">País</th>
-                      <th className="table-th w-40 text-right">Cantidad</th>
-                    </tr>
-                  </thead>
-                  {loading ? (
-                    <TableSkeletonRows rows={3} cols={2} />
-                  ) : (
-                    <tbody>
-                      {byCountry.map(([c, n]) => (
-                        <tr key={c}>
-                          <td className="table-td">
-                            {c}{" "}
-                            <span className="text-xs text-gray-500">({countryIdFromName(c)})</span>
-                          </td>
-                          <td className="table-td text-right font-semibold">{n}</td>
-                        </tr>
-                      ))}
-                      {!loading && byCountry.length === 0 && (
-                        <tr>
-                          <td className="table-td text-center text-gray-500" colSpan={2}>
-                            Sin datos para los filtros seleccionados.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  )}
-                </table>
-
-                {!loading && byCountryFull.length > 0 && (
-                  <div className="px-3 py-2 text-sm text-gray-600">
-                    {showAll
-                      ? `Mostrando todos (${byCountryFull.length})`
-                      : `Total países: ${byCountryFull.length}`}
-                  </div>
+              />
+              <table className="min-w-full bg-white">
+                <thead>
+                  <tr>
+                    <th className="table-th">País</th>
+                    <th className="table-th w-40 text-right">Cantidad</th>
+                  </tr>
+                </thead>
+                {loading ? (
+                  <TableSkeletonRows rows={3} cols={2} />
+                ) : (
+                  <tbody>
+                    {byCountry.map(([c, n]) => (
+                      <tr key={c}>
+                        <td className="table-td">
+                          {c}{" "}
+                          <span className="text-xs text-gray-500">({countryIdFromName(c)})</span>
+                        </td>
+                        <td className="table-td text-right font-semibold">{n}</td>
+                      </tr>
+                    ))}
+                    {!loading && byCountry.length === 0 && (
+                      <tr>
+                        <td className="table-td text-center text-gray-500" colSpan={2}>
+                          Sin datos para los filtros seleccionados.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
                 )}
-              </Section>
+              </table>
+
+              {!loading && byCountryFull.length > 0 && (
+                <div className="px-3 py-2 text-sm text-gray-600">
+                  {showAll ? `Mostrando todos (${byCountryFull.length})` : `Total países: ${byCountryFull.length}`}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Top usuarios */}
-          <Section
-            title="Top usuarios por cantidad de propuestas"
-            actions={
-              <button className="btn-ghost !py-1" onClick={exportUserCsv} title="Descargar CSV completo">
-                CSV
-              </button>
-            }
-          >
+          <div className="rounded-2xl border bg-white shadow-sm overflow-hidden mt-6">
+            <SectionHeader
+              title="Top usuarios por cantidad de propuestas"
+              actions={
+                <button className="btn-ghost !py-1" onClick={exportUserCsv} title="Descargar CSV completo">
+                  CSV
+                </button>
+              }
+            />
             <table className="min-w-full bg-white">
               <thead>
                 <tr>
@@ -640,7 +713,7 @@ export default function Stats({
                 </tbody>
               )}
             </table>
-          </Section>
+          </div>
         </div>
       </div>
     </div>
