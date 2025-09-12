@@ -3,84 +3,121 @@
 
 import React from "react";
 import { useSession } from "next-auth/react";
-import AuthLoginCard from "@/app/components/AuthLoginCard";
+import type { AppRole } from "@/constants/teams";
+
 import Generator from "./Generator";
 import History from "./History";
 import Stats from "./Stats";
+import GoalsPage from "../goals/GoalsPage";
 import Users from "./Users";
 import Teams from "./Teams";
-import OnboardingTeamModal from "./OnboardingTeamModal";
-import type { AppRole } from "@/constants/teams";
 
-type Tab = "generator" | "history" | "stats" | "users" | "teams";
+type Tab = "generator" | "history" | "stats" | "goals" | "users" | "teams";
 
-export default function ProposalApp() {
+function readHash(): Tab {
+  const h = (globalThis?.location?.hash || "").replace("#", "");
+  return (["generator", "history", "stats", "goals", "users", "teams"].includes(h)
+    ? (h as Tab)
+    : "generator");
+}
+
+export default function ProposalsIndex() {
+  // Este componente SOLO usa este hook
   const { data: session, status } = useSession();
-  const loading = status === "loading";
 
-  const rawRole = (session?.user?.role as string | undefined) ?? "usuario";
-  const role: AppRole =
-    rawRole === "comercial"
-      ? "usuario"
-      : (["superadmin", "lider", "usuario"].includes(rawRole)
-          ? (rawRole as AppRole)
-          : "usuario");
+  // Gateo temprano SIN otros hooks para cumplir reglas de hooks
+  if (status === "loading") return null;
+  if (status !== "authenticated") return null;
 
-  const team = (session?.user?.team as string | null) ?? null;
+  const role = (session?.user?.role as AppRole | undefined) ?? "usuario";
+  const currentEmail = session?.user?.email ?? "";
+  const leaderTeam = (session?.user?.team as string | null) ?? null;
   const isSuperAdmin = role === "superadmin";
-  const isLeader = role === "lider";
-  const userId = (session?.user?.id as string) || "";
-  const userEmail = session?.user?.email || "";
+  const userId = (session?.user?.id as string | undefined) ?? "";
+  const userEmail = currentEmail;
 
-  const initialTab = ((): Tab => {
-    const h = (globalThis?.location?.hash || "").replace("#", "");
-    const ok: Tab[] = ["generator", "history", "stats", "users", "teams"];
-    return ok.includes(h as Tab) ? (h as Tab) : "generator";
-  })();
+  // Paso el resto a un hijo autenticado para no llamar hooks condicionalmente
+  return (
+    <AuthedTabs
+      role={role}
+      currentEmail={currentEmail}
+      leaderTeam={leaderTeam}
+      isSuperAdmin={isSuperAdmin}
+      userId={userId}
+      userEmail={userEmail}
+    />
+  );
+}
 
-  const [activeTab, setActiveTab] = React.useState<Tab>(initialTab);
+/** Subcomponente: aquí sí se usan otros hooks, pero NUNCA condicionalmente */
+function AuthedTabs(props: {
+  role: AppRole | "usuario";
+  currentEmail: string;
+  leaderTeam: string | null;
+  isSuperAdmin: boolean;
+  userId: string;
+  userEmail: string;
+}) {
+  const { role, currentEmail, leaderTeam, isSuperAdmin, userId, userEmail } = props;
+
+  const [tab, setTab] = React.useState<Tab>(readHash());
 
   React.useEffect(() => {
-    const handler = (e: Event) => {
-      const t = (e as CustomEvent).detail as Tab;
-      setActiveTab(t);
+    const onHash = () => setTab(readHash());
+    const onCustom = (e: Event) => setTab((e as CustomEvent).detail as Tab);
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("app:setTab", onCustom as EventListener);
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("app:setTab", onCustom as EventListener);
     };
-    window.addEventListener("app:setTab", handler as EventListener);
-    return () => window.removeEventListener("app:setTab", handler as EventListener);
   }, []);
 
-  if (loading) return <div className="p-8 text-center">Cargando…</div>;
-  if (!session) return <AuthLoginCard />;
+  const handleSaved = React.useCallback(() => {
+    window.dispatchEvent(new CustomEvent("proposals:refresh"));
+  }, []);
 
   return (
-    <div className="w-full min-h-[calc(100vh-var(--nav-h)-var(--footer-h))] bg-gray-100 px-6 pb-8">
-      {activeTab === "generator" && (
-        <Generator isAdmin={isSuperAdmin} userId={userId} userEmail={userEmail} onSaved={() => {}} />
+    <div className="px-3 pt-6 w-full">
+      {tab === "generator" && (
+        <Generator
+          isAdmin={isSuperAdmin}
+          userId={userId}
+          userEmail={userEmail}
+          onSaved={handleSaved}
+        />
       )}
 
-      {activeTab === "history" && (
+      {tab === "history" && (
         <History
-          currentEmail={userEmail}
           role={role}
-          leaderTeam={isLeader ? team : null}
+          currentEmail={currentEmail}
+          leaderTeam={leaderTeam}
           isSuperAdmin={isSuperAdmin}
         />
       )}
 
-      {activeTab === "stats" && (
+      {tab === "stats" && (
         <Stats
-          currentEmail={userEmail}
           role={role}
-          leaderTeam={isLeader ? team : null}
+          currentEmail={currentEmail}
+          leaderTeam={leaderTeam}
           isSuperAdmin={isSuperAdmin}
         />
       )}
 
-      {activeTab === "teams" && <Teams isSuperAdmin={isSuperAdmin} />}
+      {tab === "goals" && (
+        <GoalsPage
+          role={role}
+          currentEmail={currentEmail}
+          leaderTeam={leaderTeam}
+          isSuperAdmin={isSuperAdmin}
+        />
+      )}
 
-      {activeTab === "users" && isSuperAdmin && <Users />}
+      {tab === "users" && isSuperAdmin && <Users />}
 
-      {!team && <OnboardingTeamModal />}
+      {tab === "teams" && <Teams isSuperAdmin={isSuperAdmin} />}
     </div>
   );
 }

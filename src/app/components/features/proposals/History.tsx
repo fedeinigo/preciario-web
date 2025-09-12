@@ -7,7 +7,7 @@ import { formatUSD, formatDateTime } from "./lib/format";
 import { buildCsv, downloadCsv } from "./lib/csv";
 import { copyToClipboard } from "./lib/clipboard";
 import { TableSkeletonRows } from "@/app/components/ui/Skeleton";
-import { ExternalLink, Copy } from "lucide-react";
+import { ExternalLink, Copy, Trash2, Trophy } from "lucide-react";
 import {
   q1Range,
   q2Range,
@@ -18,14 +18,15 @@ import {
   currentWeekRange,
   prevWeekRange,
 } from "./lib/dateRanges";
+import Modal from "@/app/components/ui/Modal";
+import { toast } from "@/app/components/ui/toast";
 
 type AppRole = "superadmin" | "lider" | "usuario";
 type AdminUserRow = { email: string | null; team: string | null; role?: AppRole };
 
-type SortKey = "id" | "company" | "country" | "email" | "monthly" | "created";
+type SortKey = "id" | "company" | "country" | "email" | "monthly" | "created" | "status";
 type SortDir = "asc" | "desc";
 
-/** Botonera de rangos rápidos */
 function QuickRanges({
   setFrom,
   setTo,
@@ -99,9 +100,10 @@ export default function History({
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  // ==== datos auxiliares ====
+  // Aux
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
   const [teams, setTeams] = useState<string[]>([]);
+
   useEffect(() => {
     if (isSuperAdmin || role === "lider") {
       fetch("/api/admin/users", { cache: "no-store" })
@@ -109,11 +111,23 @@ export default function History({
         .then((u: AdminUserRow[]) => setAdminUsers(u))
         .catch(() => setAdminUsers([]));
     }
-    fetch("/api/teams", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((t: Array<{ name: string }>) => setTeams(t.map((x) => x.name)))
-      .catch(() => setTeams([]));
   }, [isSuperAdmin, role]);
+
+  // sólo equipos con integrantes (igual que en Objetivos/Stats)
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    const counts = new Map<string, number>();
+    adminUsers.forEach((u) => {
+      const t = (u.team || "").trim();
+      if (!t) return;
+      counts.set(t, (counts.get(t) || 0) + 1);
+    });
+    const visible = Array.from(counts.entries())
+      .filter(([, c]) => c > 0)
+      .map(([name]) => name)
+      .sort((a, b) => a.localeCompare(b));
+    setTeams(visible);
+  }, [adminUsers, isSuperAdmin]);
 
   const emailToTeam = useMemo(() => {
     const m = new Map<string, string | null>();
@@ -123,7 +137,6 @@ export default function History({
     return m;
   }, [adminUsers]);
 
-  // opciones de país para filtro
   const countryOptions = useMemo(
     () =>
       Array.from(new Set(rows.map((r) => r.country).filter(Boolean))).sort((a, b) =>
@@ -132,7 +145,7 @@ export default function History({
     [rows]
   );
 
-  // ==== filtros ====
+  // filtros
   const [teamFilter, setTeamFilter] = useState<string>("");
   const [idQuery, setIdQuery] = useState("");
   const [companyQuery, setCompanyQuery] = useState("");
@@ -141,7 +154,7 @@ export default function History({
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
-  // ==== orden por click + paginación ====
+  // orden/pag
   const [sortKey, setSortKey] = useState<SortKey>("created");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(1);
@@ -169,10 +182,8 @@ export default function History({
     setPage(1);
   };
 
-  // ==== filtrado + orden ====
   const subset = useMemo(() => {
     const filtered = rows.filter((p) => {
-      // alcance según rol
       if (isSuperAdmin) {
         if (teamFilter) {
           const t = emailToTeam.get(p.userEmail) ?? null;
@@ -185,7 +196,6 @@ export default function History({
         if (p.userEmail !== currentEmail) return false;
       }
 
-      // filtros de texto
       const idOk = !idQuery || p.id.toLowerCase().includes(idQuery.toLowerCase());
       const compOk =
         !companyQuery || p.companyName.toLowerCase().includes(companyQuery.toLowerCase());
@@ -193,7 +203,6 @@ export default function History({
         !emailQuery || (p.userEmail ?? "").toLowerCase().includes(emailQuery.toLowerCase());
       const countryOk = !countryFilter || p.country === countryFilter;
 
-      // rango de fechas (inclusive)
       const ts = new Date(p.createdAt as unknown as string).getTime();
       const fromTs = from ? new Date(from).getTime() : -Infinity;
       const toTs = to ? new Date(to).getTime() + 24 * 3600 * 1000 - 1 : Infinity;
@@ -220,6 +229,8 @@ export default function History({
           return (a.userEmail || "").localeCompare(b.userEmail || "") * dir;
         case "monthly":
           return (am - bm) * dir;
+        case "status":
+          return ((a.status ?? "OPEN").localeCompare(b.status ?? "OPEN")) * dir;
         case "created":
         default:
           return (ta - tb) * dir;
@@ -234,7 +245,6 @@ export default function History({
     leaderTeam,
     role,
     isSuperAdmin,
-    // filtros
     teamFilter,
     idQuery,
     companyQuery,
@@ -242,7 +252,6 @@ export default function History({
     countryFilter,
     from,
     to,
-    // orden
     sortKey,
     sortDir,
   ]);
@@ -251,9 +260,8 @@ export default function History({
   const pageStart = (page - 1) * pageSize;
   const paged = subset.slice(pageStart, pageStart + pageSize);
 
-  // ==== CSV de la vista filtrada ====
   const downloadCurrentCsv = () => {
-    const headers = ["ID", "Empresa", "País", "Email", "Mensual", "Creado", "URL"];
+    const headers = ["ID", "Empresa", "País", "Email", "Mensual", "Creado", "Estado", "URL"];
     const data = subset.map((p) => [
       p.id,
       p.companyName,
@@ -261,10 +269,60 @@ export default function History({
       p.userEmail || "",
       Number(p.totalAmount).toFixed(2),
       formatDateTime(p.createdAt as unknown as string),
+      p.status ?? "OPEN",
       p.docUrl || "",
     ]);
     const csv = buildCsv(headers, data);
     downloadCsv("historico.csv", csv);
+  };
+
+  // Confirm delete modal
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  const canDelete = (p: ProposalRecord) =>
+    isSuperAdmin || (role === "usuario" && p.userEmail === currentEmail);
+
+  const setWon = async (id: string) => {
+    const r = await fetch(`/api/proposals/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "WON" }),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      toast.error(t || "No se pudo marcar como WON");
+      return;
+    }
+    toast.success("Marcado como WON");
+    load();
+  };
+
+  // NUEVO: revertir WON -> OPEN
+  const setOpen = async (id: string) => {
+    const r = await fetch(`/api/proposals/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "OPEN" }),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      toast.error(t || "No se pudo revertir a OPEN");
+      return;
+    }
+    toast.success("Propuesta vuelta a OPEN");
+    load();
+  };
+
+  const doDelete = async (id: string) => {
+    const r = await fetch(`/api/proposals/${id}`, { method: "DELETE" });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      toast.error(t || "No se pudo eliminar");
+      return;
+    }
+    toast.success("Propuesta eliminada");
+    setConfirmId(null);
+    load();
   };
 
   return (
@@ -274,23 +332,21 @@ export default function History({
           <span>Histórico</span>
           <div className="flex items-center gap-2">
             <button
-              className="btn-ghost !py-1"
+              className="btn-bar"
               onClick={downloadCurrentCsv}
               title="Descargar CSV de la vista filtrada"
             >
               CSV
             </button>
-            <button className="btn-ghost !py-1" onClick={load} title="Refrescar">
+            <button className="btn-bar" onClick={load} title="Refrescar">
               Refrescar
             </button>
           </div>
         </div>
 
         <div className="p-3">
-          {/* Rangos rápidos */}
           <QuickRanges setFrom={setFrom} setTo={setTo} />
 
-          {/* Filtros avanzados */}
           {(isSuperAdmin || role === "lider") && (
             <div className="mb-3 grid grid-cols-1 md:grid-cols-6 gap-3">
               <div>
@@ -356,20 +412,16 @@ export default function History({
               </div>
 
               <div className="flex items-end">
-  <button
-    className="btn-primary w-full transition hover:bg-[rgb(var(--primary))]/90"
-    onClick={clearAll}
-  >
-    Limpiar
-  </button>
-</div>
-
-
+                <button
+                  className="btn-bar w-full transition hover:bg-[rgb(var(--primary))]/90"
+                  onClick={clearAll}
+                >
+                  Limpiar
+                </button>
+              </div>
             </div>
-            
           )}
 
-          {/* Rango de fechas */}
           <div className="mb-3 grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs text-gray-600 mb-1">Desde</label>
@@ -389,7 +441,6 @@ export default function History({
                 onChange={(e) => setTo(e.target.value)}
               />
             </div>
-            {/* espacio para ajustar layout */}
             <div className="hidden md:block" />
             <div className="hidden md:block" />
           </div>
@@ -398,24 +449,25 @@ export default function History({
             <table className="min-w-full bg-white text-sm">
               <thead className="sticky top-0 z-10">
                 <tr>
-                  {([
-                    ["id", "ID"],
-                    ["company", "Empresa"],
-                    ["country", "País"],
-                    ["email", "Email"],
-                    ["monthly", "Mensual"],
-                    ["created", "Creado"],
-                    ["", "Acciones"],
-                  ] as Array<[SortKey | "", string]>).map(([k, label], idx) => {
+                  {(
+                    [
+                      ["id", "ID"],
+                      ["company", "Empresa"],
+                      ["country", "País"],
+                      ["email", "Email"],
+                      ["monthly", "Mensual"],
+                      ["created", "Creado"],
+                      ["status", "Estado"],
+                      ["", "Acciones"],
+                    ] as Array<[SortKey | "", string]>
+                  ).map(([k, label], idx) => {
                     const clickable = k !== "";
                     const active = k === sortKey;
                     const dir = sortDir === "asc" ? "▲" : "▼";
                     return (
                       <th
                         key={idx}
-                        className={`table-th ${
-                          clickable ? "cursor-pointer select-none" : ""
-                        } ${active ? "!text-white !bg-primary" : "!bg-primary !text-white"}`}
+                        className={`table-th ${clickable ? "cursor-pointer select-none" : ""}`}
                         onClick={() => clickable && sortBy(k as SortKey)}
                         title={clickable ? "Ordenar" : ""}
                       >
@@ -427,7 +479,7 @@ export default function History({
               </thead>
 
               {loading ? (
-                <TableSkeletonRows rows={6} cols={7} />
+                <TableSkeletonRows rows={6} cols={8} />
               ) : (
                 <tbody>
                   {paged.map((p, i) => (
@@ -441,7 +493,7 @@ export default function History({
                         <div className="flex items-center gap-2">
                           <span className="font-mono truncate max-w-[260px]">{p.id}</span>
                           <button
-                            className="btn-ghost px-2 py-1"
+                            className="btn-bar px-2 py-1"
                             onClick={() => copyToClipboard(p.id)}
                             title="Copiar ID"
                           >
@@ -452,19 +504,53 @@ export default function History({
                       <td className="table-td">{p.companyName}</td>
                       <td className="table-td">{p.country}</td>
                       <td className="table-td">{p.userEmail || "—"}</td>
-                      <td className="table-td text-right font-semibold">
+                      <td className="table-td text-right font-semibold" title="Mensual">
                         {formatUSD(Number(p.totalAmount) || 0)}
                       </td>
-                      <td className="table-td whitespace-nowrap">
+                      <td className="table-td whitespace-nowrap" title="Fecha de creación">
                         {formatDateTime(p.createdAt as unknown as string)}
                       </td>
                       <td className="table-td">
+                        <span
+                          className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${
+                            p.status === "WON"
+                              ? "bg-green-100 text-green-700"
+                              : p.status === "LOST"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
+                          title={p.status === "WON" ? "Ganada" : p.status === "LOST" ? "Perdida" : "Abierta"}
+                        >
+                          {p.status ?? "OPEN"}
+                        </span>
+                      </td>
+                      <td className="table-td">
                         <div className="flex items-center gap-2 justify-end">
+                          {/* Toggle WON / OPEN */}
+                          {p.status === "WON" ? (
+                            <button
+                              className="btn-ghost !py-1 text-[#4c1d95] hover:bg-[#4c1d95]/10"
+                              title="Revertir a OPEN"
+                              onClick={() => setOpen(p.id)}
+                            >
+                              OPEN
+                            </button>
+                          ) : (
+                            <button
+                              className="btn-ghost !py-1 text-emerald-600"
+                              title="Marcar como WON"
+                              onClick={() => setWon(p.id)}
+                            >
+                              <Trophy className="h-4 w-4 mr-1" />
+                              Won
+                            </button>
+                          )}
+
                           {p.docUrl ? (
                             <>
                               <a
                                 href={p.docUrl}
-                                className="btn-ghost inline-flex items-center justify-center !py-1"
+                                className="btn-bar inline-flex items-center justify-center !py-1"
                                 target="_blank"
                                 rel="noreferrer"
                                 title="Abrir propuesta"
@@ -473,7 +559,7 @@ export default function History({
                                 Ver
                               </a>
                               <button
-                                className="btn-ghost !py-1"
+                                className="btn-bar !py-1"
                                 title="Copiar link"
                                 onClick={() => p.docUrl && copyToClipboard(p.docUrl)}
                               >
@@ -483,13 +569,23 @@ export default function History({
                           ) : (
                             <span className="text-xs text-gray-400">—</span>
                           )}
+                          {canDelete(p) && (
+                            <button
+                              className="btn-ghost !py-1 text-red-700"
+                              title="Eliminar (no suma a estadísticas)"
+                              onClick={() => setConfirmId(p.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Eliminar
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
                   ))}
                   {paged.length === 0 && (
                     <tr>
-                      <td className="table-td text-center text-gray-500" colSpan={7}>
+                      <td className="table-td text-center text-gray-500" colSpan={8}>
                         Sin resultados para el filtro seleccionado.
                       </td>
                     </tr>
@@ -499,7 +595,6 @@ export default function History({
             </table>
           </div>
 
-          {/* Paginación */}
           {!loading && subset.length > 0 && (
             <div className="mt-3 flex flex-col sm:flex-row items-center justify-between gap-2">
               <div className="text-sm text-gray-600">
@@ -524,7 +619,7 @@ export default function History({
 
                 <div className="flex items-center gap-2">
                   <button
-                    className="btn-ghost"
+                    className="btn-bar"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
                   >
@@ -534,7 +629,7 @@ export default function History({
                     {page} / {totalPages}
                   </span>
                   <button
-                    className="btn-ghost"
+                    className="btn-bar"
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
                   >
@@ -546,6 +641,29 @@ export default function History({
           )}
         </div>
       </div>
+
+      <Modal
+        open={!!confirmId}
+        onClose={() => setConfirmId(null)}
+        title="Eliminar propuesta"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button className="btn-ghost" onClick={() => setConfirmId(null)}>
+              Cancelar
+            </button>
+            <button
+              className="btn-primary bg-red-600 hover:bg-red-700"
+              onClick={() => confirmId && doDelete(confirmId)}
+            >
+              Eliminar
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-gray-700">
+          Esta acción quitará la propuesta de las estadísticas. ¿Deseas continuar?
+        </p>
+      </Modal>
     </div>
   );
 }

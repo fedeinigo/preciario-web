@@ -2,39 +2,39 @@
 
 // Ítems para UI (catálogo + selección en generador)
 export type UIItem = {
-  id: string;           // id local (para selección en UI)
-  dbId?: string;        // id real en DB del catálogo
+  id: string;            // id local (para selección en UI)
+  dbId?: string;         // id real en DB del catálogo
   sku: string;
   category: string;
   name: string;
   description: string;
-  devHours: number;
-  unitPrice: number;
+  devHours: number;      // se mantiene para cálculo de oneShot, pero NO se muestra en tabla
+  unitPrice: number;     // unitario base (sin descuento)
   selected: boolean;
   quantity: number;
+  discountPct?: number;  // NEW: 0..100 (si está chequeado Descuento)
 };
 
-// Payload para guardar propuestas
+// Payload para guardar propuestas (unitPrice NETO por ítem)
 export type SaveProposalInput = {
   companyName: string;
   country: string;
   countryId: string;
   subsidiary: string;
   subsidiaryId: string;
-  totalAmount: number;
+  totalAmount: number;   // mensual NETO
   totalHours: number;
   oneShot: number;
   docUrl: string;
   docId?: string | null;
 
-  // 👇 necesarios para filtrar por equipo (History/Stats)
   userId: string;
   userEmail: string;
 
   items: Array<{
-    itemId: string;     // id del ítem de catálogo
+    itemId: string;      // id del ítem de catálogo
     quantity: number;
-    unitPrice: number;
+    unitPrice: number;   // NETO (con descuento aplicado si lo hubiera)
     devHours: number;
   }>;
 };
@@ -58,6 +58,8 @@ export type ProposalRecord = {
   createdAt: string | Date;
   updatedAt: string | Date;
 
-  // Para Stats (opcional si la API lo trae expandido)
+  status?: "OPEN" | "WON" | "LOST";
+  wonAt?: string | Date | null;
+
   items?: Array<{ sku: string; name: string; quantity: number }>;
 };
