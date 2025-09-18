@@ -31,6 +31,10 @@ pnpm-debug.log*
 # --- Entornos (no subir secretos) ---
 .env*
 !.env.example
+.env
+.env.* 
+!.env.example
+.env.local
 
 # --- SO / Editores ---
 .DS_Store

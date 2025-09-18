@@ -102,12 +102,20 @@ model Proposal {
   wonAt        DateTime?
   deletedAt    DateTime?
 
+  // NUEVO: integración Pipedrive (opcionales)
+  pipedriveLink       String?
+  pipedriveDealId     String?
+  pipedriveSyncedAt   DateTime?
+  pipedriveSyncStatus PipedriveSyncStatus?
+  pipedriveSyncNote   String?
+
   items        ProposalItem[]
 
   @@index([createdAt])
   @@index([userEmail])
   @@index([status])
   @@index([deletedAt])
+  @@index([pipedriveDealId])
 }
 
 model ProposalItem {
@@ -204,4 +212,10 @@ enum ProposalStatus {
   OPEN
   WON
   LOST
+}
+
+// NUEVO
+enum PipedriveSyncStatus {
+  OK
+  ERROR
 }

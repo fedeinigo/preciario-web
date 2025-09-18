@@ -12,7 +12,7 @@ export type UIItem = {
   unitPrice: number;     // unitario base (sin descuento)
   selected: boolean;
   quantity: number;
-  discountPct?: number;  // NEW: 0..100 (si está chequeado Descuento)
+  discountPct?: number;  // 0..100
 };
 
 // Payload para guardar propuestas (unitPrice NETO por ítem)
@@ -31,10 +31,14 @@ export type SaveProposalInput = {
   userId: string;
   userEmail: string;
 
+  // NUEVO (opcionales para no romper backend actual)
+  pipedriveLink?: string;
+  pipedriveDealId?: string;
+
   items: Array<{
     itemId: string;      // id del ítem de catálogo
     quantity: number;
-    unitPrice: number;   // NETO (con descuento aplicado si lo hubiera)
+    unitPrice: number;   // NETO
     devHours: number;
   }>;
 };
@@ -60,6 +64,13 @@ export type ProposalRecord = {
 
   status?: "OPEN" | "WON" | "LOST";
   wonAt?: string | Date | null;
+
+  // NUEVO (pueden venir null si todavía no sincronizaste)
+  pipedriveLink?: string | null;
+  pipedriveDealId?: string | null;
+  pipedriveSyncedAt?: string | Date | null;
+  pipedriveSyncStatus?: "OK" | "ERROR" | null;
+  pipedriveSyncNote?: string | null;
 
   items?: Array<{ sku: string; name: string; quantity: number }>;
 };

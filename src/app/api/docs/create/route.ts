@@ -44,12 +44,25 @@ interface DocumentBody { content?: StructuralElement[]; }
 interface DocumentGetResponse { body?: DocumentBody; }
 
 /** ----------------- Utils ----------------- */
+// Totales: sin decimales, como antes
 function formatUSD(n: number) {
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
+  }).format(n);
+}
+
+// Unitarios: con decimales cuando hace falta (para evitar “US$ 0” en 0.045, 0.014, etc.)
+function formatUSDFlex(n: number) {
+  const abs = Math.abs(n);
+  const digits = abs >= 1 ? 0 : abs >= 0.1 ? 2 : 3;
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   }).format(n);
 }
 
@@ -354,7 +367,8 @@ export async function POST(req: Request) {
       requests.push(
         { replaceAllText: { containsText: { text: `<item${n}>`, matchCase: false }, replaceText: it.name } },
         { replaceAllText: { containsText: { text: `<cantidad${n}>`, matchCase: false }, replaceText: String(it.quantity) } },
-        { replaceAllText: { containsText: { text: `<precio${n}>`, matchCase: false }, replaceText: formatUSD(it.unitPrice) } },
+        // 👉 aquí usamos el formateador flexible para que no aparezca "US$ 0" en unitarios muy chicos
+        { replaceAllText: { containsText: { text: `<precio${n}>`, matchCase: false }, replaceText: formatUSDFlex(it.unitPrice) } },
         { replaceAllText: { containsText: { text: `<total${n}>`, matchCase: false }, replaceText: formatUSD(it.unitPrice * it.quantity) } },
       );
     });

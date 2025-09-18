@@ -57,6 +57,23 @@ import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import ProposalCreatedModal from "./components/ProposalCreatedModal";
 
+/** ----------------- helpers Pipedrive ----------------- */
+function extractDealIdFromLink(s: string): string | null {
+  if (!s) return null;
+  const t = s.trim();
+  // permitir que peguen solo el número
+  const onlyNum = /^(\d+)$/.exec(t);
+  if (onlyNum) return onlyNum[1];
+  // formatos típicos: https://wcx.pipedrive.com/deal/42059  |  .../deal/42059/
+  const m = t.match(/\/deal\/(\d+)/i);
+  if (m) return m[1];
+  return null;
+}
+function computeUnitNet(unitPrice: number, discountPct?: number) {
+  const pct = Math.max(0, Math.min(100, Number(discountPct ?? 0)));
+  return Math.max(0, unitPrice * (1 - pct / 100));
+}
+
 type Props = {
   isAdmin: boolean;
   userId: string;
@@ -73,12 +90,16 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
   const [country, setCountry] = useState("");
   const [subsidiary, setSubsidiary] = useState("");
 
+  // NUEVO: Link Pipedrive + dealId parseado
+  const [pipedriveLink, setPipedriveLink] = useState("");
+  const [pipedriveDealId, setPipedriveDealId] = useState<string>("");
+
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
 
   // Ordenamiento
   const [sortKey, setSortKey] = useState<SortKey>("popular");
-  const [sortDir, ] = useState<SortDir>("desc");
+  const [sortDir] = useState<SortDir>("desc");
 
   // Paginación local
   const [page, setPage] = useState(1);
@@ -254,6 +275,13 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
       toast.info("Completa Empresa, País y Filial antes de continuar.");
       return;
     }
+    // NUEVO: validar Link Pipedrive
+    const id = extractDealIdFromLink(pipedriveLink);
+    if (!pipedriveLink || !id) {
+      toast.error("Pegá el Link de Pipedrive (formato: https://.../deal/42059).");
+      return;
+    }
+    setPipedriveDealId(id);
     setOpenSummary(true);
   };
 
@@ -263,6 +291,8 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
     setCompanyName("");
     setCountry("");
     setSubsidiary("");
+    setPipedriveLink("");
+    setPipedriveDealId("");
     setSearchTerm("");
     setCategoryFilter("");
     setPage(1);
@@ -289,7 +319,7 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
       const docItems = selectedItems.map(({ name, quantity, unitNet, devHours }) => ({
         name,
         quantity,
-        unitPrice: unitNet,   // valor neto con descuento
+        unitPrice: unitNet, // valor neto con descuento
         devHours,
       }));
 
@@ -354,10 +384,55 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
         docId: parsed.docId,
         userId,
         userEmail,
-        items: payloadItems,
+        // opcionales que tu backend puede ignorar si no están en el schema
+        pipedriveLink,
+        pipedriveDealId,
+        items: payloadItems.filter((p) => !!p.itemId),
       };
 
       await saveProposal(payload);
+
+      // --- NUEVO: Sincronizar con Pipedrive (server-side) ---
+try {
+  // construir líneas para Pipedrive DESDE selectedItems
+  const pipedriveItems = selectedItems
+    .map((i) => ({
+      sku: i.sku,                                     // debe coincidir con code en Pipedrive
+      quantity: Number(i.quantity) || 0,              // cantidad > 0
+      // mandamos unitNet; el backend también acepta unit_price
+      unitNet:
+        i.unitNet !== undefined
+          ? Number(i.unitNet)
+          : Number(computeUnitNet(i.unitPrice, i.discountPct)),
+    }))
+    .filter((l) => l.sku && l.quantity > 0);
+
+  // pequeño log en cliente, por si vuelve a fallar
+  console.log("[sync] items ->", { len: pipedriveItems.length, sample: pipedriveItems.slice(0, 3) });
+
+  const syncRes = await fetch("/api/pipedrive/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      dealId: pipedriveDealId,
+      proposalUrl: parsed.url,
+      oneShot: recordBase.oneShot, // puede ser 0; el backend ya lo acepta
+      items: pipedriveItems,
+    }),
+  });
+
+  const syncJson = await syncRes.json().catch(() => ({}));
+  if (!syncRes.ok) {
+    console.error("Pipedrive sync error:", syncJson);
+    toast.error("Se generó el documento, pero falló la sincronización con Pipedrive.");
+  } else {
+    toast.success("Propuesta sincronizada en Pipedrive.");
+  }
+} catch (err) {
+  console.error(err);
+  toast.error("Se generó el documento, pero no se pudo contactar a Pipedrive.");
+}
+
 
       // Mostrar modal con link
       setOpenSummary(false);
@@ -538,6 +613,38 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
           <div className="card border-2">
             <div className="heading-bar mb-3">Generador de Propuestas</div>
 
+            {/* NUEVO: Link Pipedrive (campo destacado) */}
+            <div className="mb-4 rounded-md border-2 border-[rgb(var(--primary))] bg-[rgb(var(--primary-soft))]/20 shadow-soft p-4">
+              <label className="block text-xs text-gray-700 mb-1">
+                Link Pipedrive <span className="text-red-600">*</span>
+              </label>
+              <input
+                className="input w-full h-10 ring-2 ring-[rgb(var(--primary))]/40"
+                placeholder="Ej: https://wcx.pipedrive.com/deal/42059"
+                value={pipedriveLink}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setPipedriveLink(v);
+                  const id = extractDealIdFromLink(v);
+                  setPipedriveDealId(id ?? "");
+                }}
+              />
+              <div className="mt-1 text-[12px] text-gray-600">
+                Pegá el enlace del trato en Pipedrive. Lo usamos para actualizar el valor,
+                el one-shot, el enlace del documento y las líneas de productos.
+              </div>
+              {pipedriveLink && !pipedriveDealId && (
+                <div className="mt-2 text-[12px] text-red-600">
+                  Formato inválido. Debe contener <code>/deal/&lt;ID&gt;</code>.
+                </div>
+              )}
+              {pipedriveDealId && (
+                <div className="mt-2 text-[12px] text-green-700">
+                  ID detectado: <strong>{pipedriveDealId}</strong>
+                </div>
+              )}
+            </div>
+
             {/* Datos de la empresa / país / filial */}
             <div className="mb-4 rounded-md border-2 bg-white shadow-soft overflow-hidden">
               <div className="heading-bar-sm">Datos de la empresa</div>
@@ -635,7 +742,6 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
                   </select>
                 </div>
               
-
                 <button onClick={generate} className="btn-bar">
                   Generar Propuesta
                 </button>
