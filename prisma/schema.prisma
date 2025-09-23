@@ -1,3 +1,4 @@
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -97,17 +98,22 @@ model Proposal {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
-  // NUEVO
+  // Estado comercial
   status       ProposalStatus @default(OPEN)
   wonAt        DateTime?
   deletedAt    DateTime?
 
-  // NUEVO: integración Pipedrive (opcionales)
+  // Integración Pipedrive (opcionales)
   pipedriveLink       String?
   pipedriveDealId     String?
   pipedriveSyncedAt   DateTime?
   pipedriveSyncStatus PipedriveSyncStatus?
   pipedriveSyncNote   String?
+
+  // Trazabilidad canal/API (nuevos)
+  createdChannel      CreatedChannel @default(API)
+  createdByExternalId String?        // ej: waId / phone hash
+  externalId          String?        @unique // idempotencia cross-sistema
 
   items        ProposalItem[]
 
@@ -116,6 +122,8 @@ model Proposal {
   @@index([status])
   @@index([deletedAt])
   @@index([pipedriveDealId])
+  @@index([createdChannel])
+  @@index([createdByExternalId])
 }
 
 model ProposalItem {
@@ -188,9 +196,6 @@ model QuarterlyGoal {
   @@unique([userId, year, quarter])
 }
 
-/**
- * NUEVO: Objetivo de equipo por trimestre (independiente de metas individuales)
- */
 model TeamQuarterlyGoal {
   id        String   @id @default(cuid())
   team      String
@@ -214,8 +219,14 @@ enum ProposalStatus {
   LOST
 }
 
-// NUEVO
 enum PipedriveSyncStatus {
   OK
   ERROR
+}
+
+// NUEVO
+enum CreatedChannel {
+  WEB
+  API
+  WHATSAPP
 }
