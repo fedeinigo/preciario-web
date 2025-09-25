@@ -1,348 +1,251 @@
 // src/app/api/bot/proposals/route.ts
-export const runtime = "nodejs";
-
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { z } from "zod";
-import { Prisma } from "@prisma/client";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import {
   createProposalDocSystem,
-  type LineItem as DocLineItem,
+  type AnyItemInput,
 } from "@/lib/google-system";
+import {
+  countryIdFromName,
+  subsidiaryIdFromName,
+  autoSubsidiaryForCountry,
+} from "@/app/components/features/proposals/lib/catalogs";
 import {
   replaceDealProducts,
   updateOneShotAndUrl,
+  type NormalizedLine,
 } from "@/lib/pipedrive";
 
-const RATE_ONESHOT_USD = Number(process.env.PROPOSAL_ONESHOT_RATE_USD ?? "50");
+/* ======================= Tipos de entrada ======================= */
+type IncomingItemSku = { sku: string; quantity: number };
+type IncomingItemNamed = {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  devHours: number;
+};
+type IncomingItem = IncomingItemSku | IncomingItemNamed;
 
-// API Key(s) válidas separadas por coma
-function isValidApiKey(header: string | null): boolean {
-  if (!header) return false;
-  const m = header.match(/^Bearer\s+(.+)$/i);
-  if (!m) return false;
-  const provided = m[1].trim();
-  const all = (process.env.BOT_API_KEYS ?? process.env.BOT_API_KEY ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return all.includes(provided);
+type BotBody = {
+  companyName?: string;
+  country?: string;
+  subsidiary?: string;      // opcional; si falta se infiere por país
+  creatorEmail?: string;    // opcional; si existe se asocia a userId si lo encontramos
+  items?: IncomingItem[];
+  pipedriveLink?: string;   // opcional
+};
+
+/* ======================= Helpers ======================= */
+function toNumber(n: unknown, fallback = 0): number {
+  const v = Number(n);
+  return Number.isFinite(v) ? v : fallback;
 }
 
-const LineSchema = z.object({
-  sku: z.string().min(1),
-  quantity: z.number().int().positive(),
-});
-
-const PayloadSchema = z.object({
-  companyName: z.string().min(1),
-  country: z.string().min(1),
-  pipedriveLink: z.string().url().optional(),
-  pipedriveDealId: z.string().min(1).optional(),
-  creatorEmail: z.string().email().optional(),
-  externalId: z.string().min(1).optional(), // idempotencia cross-sistema
-  items: z.array(LineSchema).min(1),
-});
-
-type Payload = z.infer<typeof PayloadSchema>;
-
-function normalizeKey(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .trim()
-    .toLowerCase();
+function extractDealIdFromLink(s?: string): string | null {
+  if (!s) return null;
+  const t = s.trim();
+  const onlyNum = /^(\d+)$/.exec(t);
+  if (onlyNum) return onlyNum[1];
+  const m = t.match(/\/deal\/(\d+)/i);
+  return m ? m[1] : null;
 }
 
-async function resolveCountry(country: string): Promise<{
-  countryId: string;
-  countryName: string;
-  subsidiaryId: string;
-  subsidiaryTitle: string;
-}> {
-  // 1) insensitive
-  let row = await prisma.filialCountry.findFirst({
-    where: { name: { equals: country, mode: "insensitive" } },
-    include: { group: true },
-  });
-
-  // 2) normalizado
-  if (!row) {
-    const all = await prisma.filialCountry.findMany({ include: { group: true } });
-    const needle = normalizeKey(country);
-    row = all.find((r) => normalizeKey(r.name) === needle) ?? null;
-  }
-
-  if (!row) {
-    throw new Response(
-      JSON.stringify({ error: "invalid_country", message: `País no encontrado: ${country}` }),
-      { status: 422, headers: { "content-type": "application/json" } }
-    );
-  }
-
-  return {
-    countryId: row.id,
-    countryName: row.name,
-    subsidiaryId: row.groupId,
-    subsidiaryTitle: row.group.title,
-  };
-}
-
-async function loadItemsBySku(lines: Array<{ sku: string; quantity: number }>): Promise<{
-  items: Array<{
-    itemId: string;
-    name: string;
-    sku: string;
-    unitPrice: Prisma.Decimal;
-    devHours: number;
-    quantity: number;
-  }>;
-  unknownSkus: string[];
-}> {
-  const skus = Array.from(new Set(lines.map((l) => l.sku.trim())));
-  const rows = await prisma.item.findMany({
-    where: { sku: { in: skus }, active: true },
-    select: { id: true, sku: true, name: true, unitPrice: true, devHours: true },
-  });
-
-  const bySku = new Map(rows.map((r) => [r.sku.toLowerCase(), r]));
-  const items: Array<{
-    itemId: string;
-    name: string;
-    sku: string;
-    unitPrice: Prisma.Decimal;
-    devHours: number;
-    quantity: number;
-  }> = [];
-
-  const unknownSkus: string[] = [];
-
-  for (const ln of lines) {
-    const key = ln.sku.toLowerCase();
-    const it = bySku.get(key);
-    if (!it) {
-      unknownSkus.push(ln.sku);
-      continue;
-    }
-    items.push({
-      itemId: it.id,
-      name: it.name,
-      sku: it.sku,
-      unitPrice: it.unitPrice,
-      devHours: it.devHours,
-      quantity: ln.quantity,
-    });
-  }
-
-  return { items, unknownSkus };
-}
-
-function sumDecimals(xs: Array<Prisma.Decimal>): Prisma.Decimal {
-  return xs.reduce((acc, v) => acc.add(v), new Prisma.Decimal(0));
-}
-
-function toNumber(d: Prisma.Decimal): number {
-  return Number(d.toFixed(2));
-}
-
+/* ======================= Handler ======================= */
 export async function POST(req: Request) {
-  if (!isValidApiKey(req.headers.get("authorization"))) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  let body: Payload;
   try {
-    const json = await req.json();
-    body = PayloadSchema.parse(json);
-  } catch (err) {
-    return NextResponse.json(
-      { error: "invalid_payload", detail: String(err) },
-      { status: 400 }
-    );
-  }
+    const body = (await req.json().catch(() => ({}))) as BotBody;
 
-  // Idempotencia por externalId / pipedriveDealId
-  const or: Prisma.ProposalWhereInput[] = [];
-  if (body.externalId) or.push({ externalId: body.externalId });
-  if (body.pipedriveDealId) or.push({ pipedriveDealId: body.pipedriveDealId });
-
-  if (or.length) {
-    const existing = await prisma.proposal.findFirst({
-      where: { OR: or },
-      select: { id: true, docUrl: true, pipedriveSyncStatus: true },
-    });
-    if (existing) {
+    const companyName = (body.companyName ?? "").trim();
+    const country = (body.country ?? "").trim();
+    if (!companyName || !country) {
       return NextResponse.json(
-        {
-          proposalId: existing.id,
-          docUrl: existing.docUrl ?? null,
-          pipedriveSyncStatus: existing.pipedriveSyncStatus ?? null,
-          idempotent: true,
-        },
-        { status: 200 }
+        { error: "Faltan campos: companyName y country son requeridos." },
+        { status: 400 }
       );
     }
-  }
 
-  // País / filial
-  const geo = await resolveCountry(body.country);
+    // Filial / IDs
+    const usedSubsidiary =
+      (body.subsidiary?.trim() || "") || autoSubsidiaryForCountry(country);
+    const countryId = countryIdFromName(country);
 
-  // Ítems
-  const loaded = await loadItemsBySku(body.items);
-  if (loaded.unknownSkus.length > 0) {
-    return NextResponse.json(
-      { error: "unknown_skus", skus: loaded.unknownSkus },
-      { status: 422 }
+    // Usuario (opcional)
+    const creatorEmail = body.creatorEmail?.trim() || null;
+    const user =
+      creatorEmail
+        ? await prisma.user.findFirst({ where: { email: creatorEmail } })
+        : null;
+    const userId = user?.id ?? null;
+
+    // Ítems entrantes
+    const incoming: IncomingItem[] = Array.isArray(body.items) ? body.items : [];
+    if (incoming.length === 0) {
+      return NextResponse.json(
+        { error: "Debes enviar al menos un ítem en items[]." },
+        { status: 400 }
+      );
+    }
+
+    // Resolver ítems contra catálogo (si viene sku) o usar valores explícitos (si vienen completos)
+    type ResolvedItem = {
+      sku?: string;
+      dbItemId?: string;
+      name: string;
+      quantity: number;
+      unitPrice: number; // neto
+      devHours: number;
+    };
+
+    const resolvedItems: ResolvedItem[] = [];
+    for (const it of incoming) {
+      if ("sku" in it && typeof it.sku === "string") {
+        const sku = it.sku.trim();
+        const qty = Math.max(1, toNumber(it.quantity, 1));
+        const db = await prisma.item.findUnique({ where: { sku } });
+        if (!db) {
+          return NextResponse.json(
+            { error: `SKU no encontrado en catálogo: ${sku}` },
+            { status: 400 }
+          );
+        }
+        resolvedItems.push({
+          sku,
+          dbItemId: db.id,
+          name: db.name,
+          quantity: qty,
+          unitPrice: Number(db.unitPrice),
+          devHours: db.devHours,
+        });
+      } else if (
+        "name" in it &&
+        typeof it.name === "string" &&
+        typeof it.quantity === "number" &&
+        typeof it.unitPrice === "number" &&
+        typeof it.devHours === "number"
+      ) {
+        resolvedItems.push({
+          name: it.name,
+          quantity: Math.max(1, toNumber(it.quantity, 1)),
+          unitPrice: Math.max(0, toNumber(it.unitPrice, 0)),
+          devHours: Math.max(0, toNumber(it.devHours, 0)),
+        });
+      }
+    }
+
+    if (resolvedItems.length === 0) {
+      return NextResponse.json(
+        { error: "Ningún ítem válido (con sku o con name/unitPrice/devHours)." },
+        { status: 400 }
+      );
+    }
+
+    // Totales preliminares
+    const HOURLY_RATE = Number(process.env.PROPOSAL_ONESHOT_RATE_USD ?? "50");
+    const totalAmount = resolvedItems.reduce(
+      (acc, r) => acc + r.unitPrice * r.quantity,
+      0
     );
-  }
+    const totalHours = resolvedItems.reduce(
+      (acc, r) => acc + r.devHours * r.quantity,
+      0
+    );
+    const oneShot = Math.round(totalHours * HOURLY_RATE);
 
-  // Totales
-  const totalAmount = sumDecimals(
-    loaded.items.map((ln) => ln.unitPrice.mul(ln.quantity))
-  );
-  const totalHours = loaded.items
-    .map((ln) => ln.devHours * ln.quantity)
-    .reduce((a, b) => a + b, 0);
+    // Crear Doc (se envían nombres, no SKUs)
+    const docItems: AnyItemInput[] = resolvedItems.map((r) => ({
+      name: r.name,
+      quantity: r.quantity,
+      unitPrice: r.unitPrice,
+      devHours: r.devHours,
+    }));
 
-  const oneShot = new Prisma.Decimal(RATE_ONESHOT_USD).mul(totalHours);
-
-  // Usuario (opcional)
-  let userId: string | null = null;
-  if (body.creatorEmail) {
-    const user = await prisma.user.findUnique({
-      where: { email: body.creatorEmail },
-      select: { id: true },
+    const {
+      docId,
+      docUrl,
+      totals: docTotals,          // { monthly, hours, oneShot }
+      subsidiary: docSubsidiary,  // por si la lib decide ajustar
+    } = await createProposalDocSystem({
+      companyName,
+      country,
+      subsidiary: usedSubsidiary,
+      items: docItems,
+      creatorEmail: creatorEmail || undefined,
     });
-    userId = user?.id ?? null;
-  }
 
-  // Crear propuesta + items
-  const proposalId = randomUUID();
+    // Alinear totales con lo que devolvió la lib (fallback a los preliminares)
+    const finalMonthly = toNumber(docTotals?.monthly, totalAmount);
+    const finalHours = toNumber(docTotals?.hours, totalHours);
+    const finalOneShot = toNumber(docTotals?.oneShot, oneShot);
+    const finalSubsidiary = (docSubsidiary || usedSubsidiary).trim();
 
-  const created = await prisma.$transaction(async (tx) => {
-    const proposal = await tx.proposal.create({
+    // Guardar propuesta + items (aparece en Histórico/Stats)
+    const proposalId = randomUUID();
+    await prisma.proposal.create({
       data: {
         id: proposalId,
-        companyName: body.companyName,
-        country: geo.countryName,
-        countryId: geo.countryId,
-        subsidiary: geo.subsidiaryTitle,
-        subsidiaryId: geo.subsidiaryId,
-
-        totalAmount,
-        totalHours,
-        oneShot,
-
         userId,
-        userEmail: body.creatorEmail ?? null,
-
-        pipedriveLink: body.pipedriveLink ?? null,
-        pipedriveDealId: body.pipedriveDealId ?? null,
-
-        // Campos nuevos -> requerís migración y prisma generate
-        createdChannel: "WHATSAPP",
-        createdByExternalId: body.externalId ?? null,
-        externalId: body.externalId ?? null,
-
+        userEmail: creatorEmail,
+        companyName,
+        country,
+        countryId,
+        subsidiary: finalSubsidiary,
+        subsidiaryId: subsidiaryIdFromName(finalSubsidiary),
+        totalAmount: finalMonthly,
+        totalHours: finalHours,
+        oneShot: finalOneShot,
+        docUrl: docUrl ?? null,
+        docId: docId ?? null,
+        createdChannel: "API",
         items: {
-          create: loaded.items.map((ln) => ({
-            itemId: ln.itemId,
-            quantity: ln.quantity,
-            unitPrice: ln.unitPrice,
-            devHours: ln.devHours,
-          })),
+          create: resolvedItems
+            .filter((r) => !!r.dbItemId)
+            .map((r) => ({
+              itemId: r.dbItemId as string,
+              quantity: r.quantity,
+              unitPrice: r.unitPrice,
+              devHours: r.devHours,
+            })),
         },
       },
-      select: { id: true },
     });
 
-    return proposal;
-  });
+    // Sincronización con Pipedrive (si vino link)
+    let pipedriveSyncStatus: "OK" | "ERROR" | null = null;
+    const dealId = extractDealIdFromLink(body.pipedriveLink);
 
-  // Generar Doc (sin sesión de usuario)
-  const docItems: DocLineItem[] = loaded.items.map((ln) => ({
-    name: `${ln.sku} - ${ln.name}`,
-    quantity: ln.quantity,
-    devHours: ln.devHours,
-    unitPrice: toNumber(ln.unitPrice),
-  }));
+    if (dealId) {
+      try {
+        const lines: NormalizedLine[] = resolvedItems
+          .filter((r): r is Required<Pick<ResolvedItem, "sku">> & ResolvedItem => !!r.sku)
+          .map((r) => ({
+            sku: r.sku as string,
+            quantity: r.quantity,
+            unitPrice: r.unitPrice,
+          }));
 
-  let docId: string | null = null;
-  let docUrl: string | null = null;
-  try {
-    const doc = await createProposalDocSystem({
-      companyName: body.companyName,
-      country: geo.countryName,
-      subsidiary: geo.subsidiaryTitle,
-      items: docItems,
-      totalAmount: toNumber(totalAmount),
-      totalHours,
-      oneShot: Number(oneShot.toFixed(2)),
-    });
-    docId = doc.docId;
-    docUrl = doc.docUrl;
+        await replaceDealProducts(dealId, lines);
+        await updateOneShotAndUrl(dealId, {
+          oneShot: finalOneShot,
+          proposalUrl: docUrl ?? undefined,
+        });
 
-    await prisma.proposal.update({
-      where: { id: created.id },
-      data: { docId, docUrl },
-    });
-  } catch (_err) {
-    // Log para debugging y que no salte ESLint
-    console.error("[docs:createProposalDocSystem] error", _err);
-    await prisma.proposal.update({
-      where: { id: created.id },
-      data: { docId: null, docUrl: null },
-    });
-  }
-
-  // Sync Pipedrive (opcional)
-  let pipedriveSyncStatus: "OK" | "ERROR" | null = null;
-  if (body.pipedriveDealId) {
-    try {
-      await replaceDealProducts(
-        body.pipedriveDealId,
-        docItems.map((ln) => ({
-          sku: ln.name.split(" - ")[0], // recupera el SKU exacto
-          quantity: ln.quantity,
-          unitPrice: ln.unitPrice,
-        }))
-      );
-
-      await updateOneShotAndUrl(body.pipedriveDealId, {
-        oneShot: Number(oneShot.toFixed(2)),
-        proposalUrl: docUrl ?? undefined,
-      });
-
-      await prisma.proposal.update({
-        where: { id: created.id },
-        data: {
-          pipedriveSyncedAt: new Date(),
-          pipedriveSyncStatus: "OK",
-          pipedriveSyncNote: null,
-        },
-      });
-      pipedriveSyncStatus = "OK";
-    } catch (err) {
-      console.error("[pipedrive:sync] error", err);
-      await prisma.proposal.update({
-        where: { id: created.id },
-        data: {
-          pipedriveSyncedAt: new Date(),
-          pipedriveSyncStatus: "ERROR",
-          pipedriveSyncNote: String(err),
-        },
-      });
-      pipedriveSyncStatus = "ERROR";
+        pipedriveSyncStatus = "OK";
+      } catch (e) {
+        console.error("[pipedrive sync error]", e);
+        pipedriveSyncStatus = "ERROR";
+      }
     }
-  }
 
-  return NextResponse.json(
-    {
-      proposalId: created.id,
+    return NextResponse.json({
+      proposalId,
+      docId,
       docUrl,
       pipedriveSyncStatus,
-    },
-    { status: 201 }
-  );
+      docsError: null,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error creating proposal";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
