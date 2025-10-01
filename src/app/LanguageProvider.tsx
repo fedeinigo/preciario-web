@@ -11,6 +11,11 @@ type LanguageContextValue = {
   locale: Locale;
   setLocale: (locale: Locale) => void;
   t: (key: string, replacements?: Replacements) => string;
+
+type LanguageContextValue = {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+  t: (key: string) => string;
 };
 
 const LanguageContext = React.createContext<LanguageContextValue | undefined>(
@@ -67,6 +72,15 @@ export function LanguageProvider({
     };
   }, [locale, setLocale]);
 
+  const value = React.useMemo<LanguageContextValue>(
+    () => ({
+      locale,
+      setLocale,
+      t: (key: string) => getMessage(locale, key, defaultLocale),
+    }),
+    [locale, setLocale]
+  );
+
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
@@ -83,6 +97,7 @@ export function useTranslations(namespace?: string) {
   return React.useCallback(
     (key: string, replacements?: Replacements) =>
       t(namespace ? `${namespace}.${key}` : key, replacements),
+    (key: string) => t(namespace ? `${namespace}.${key}` : key), 
     [namespace, t]
   );
 }
