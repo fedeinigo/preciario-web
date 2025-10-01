@@ -3,7 +3,6 @@ import type { Locale } from "./config";
 interface DeepRecord {
   [key: string]: string | DeepRecord;
 }
-
 export const messages: Record<Locale, DeepRecord> = {
   es: {
     common: {
