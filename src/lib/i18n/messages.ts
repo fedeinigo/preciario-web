@@ -118,6 +118,71 @@ export const messages: Record<Locale, DeepRecord> = {
       },
     },
     admin: {
+      usersLegacy: {
+        title: "Usuarios (admin)",
+        table: {
+          loading: "Cargando…",
+          headers: {
+            email: "Email",
+            name: "Nombre",
+            role: "Rol",
+            team: "Equipo",
+            actions: "Acciones",
+          },
+          fallback: "—",
+          teamPlaceholder: "(sin equipo)",
+          refresh: "Refrescar",
+        },
+        forms: {
+          title: "Gestión de equipos",
+          create: {
+            placeholder: "Nuevo equipo",
+            submit: "Crear",
+          },
+          rename: {
+            selectPlaceholder: "(elige equipo)",
+            placeholder: "Nuevo nombre",
+            submit: "Renombrar",
+          },
+          delete: {
+            selectPlaceholder: "(elige equipo)",
+            placeholder: "Mover usuarios a… (opcional)",
+            submit: "Eliminar / Mover",
+          },
+        },
+        feedback: {
+          save: {
+            success: "Cambios guardados",
+            error: {
+              generic: "No se pudieron guardar los cambios",
+              unauthorized: "No autorizado",
+            },
+          },
+          teams: {
+            create: {
+              success: "Equipo creado",
+              error: {
+                generic: "No se pudo crear el equipo",
+                unauthorized: "No autorizado",
+              },
+            },
+            rename: {
+              success: "Equipo renombrado",
+              error: {
+                generic: "No se pudo renombrar el equipo",
+                unauthorized: "No autorizado",
+              },
+            },
+            delete: {
+              success: "Equipo eliminado",
+              error: {
+                generic: "No se pudo eliminar el equipo",
+                unauthorized: "No autorizado",
+              },
+            },
+          },
+        },
+      },
       teams: {
         header: "Equipos",
         summary: {
@@ -1112,6 +1177,71 @@ export const messages: Record<Locale, DeepRecord> = {
       },
     },
     admin: {
+      usersLegacy: {
+        title: "Users (admin)",
+        table: {
+          loading: "Loading…",
+          headers: {
+            email: "Email",
+            name: "Name",
+            role: "Role",
+            team: "Team",
+            actions: "Actions",
+          },
+          fallback: "—",
+          teamPlaceholder: "(no team)",
+          refresh: "Refresh",
+        },
+        forms: {
+          title: "Team management",
+          create: {
+            placeholder: "New team",
+            submit: "Create",
+          },
+          rename: {
+            selectPlaceholder: "(choose team)",
+            placeholder: "New name",
+            submit: "Rename",
+          },
+          delete: {
+            selectPlaceholder: "(choose team)",
+            placeholder: "Move users to… (optional)",
+            submit: "Delete / Move",
+          },
+        },
+        feedback: {
+          save: {
+            success: "Changes saved",
+            error: {
+              generic: "Could not save changes",
+              unauthorized: "Not authorized",
+            },
+          },
+          teams: {
+            create: {
+              success: "Team created",
+              error: {
+                generic: "Could not create the team",
+                unauthorized: "Not authorized",
+              },
+            },
+            rename: {
+              success: "Team renamed",
+              error: {
+                generic: "Could not rename the team",
+                unauthorized: "Not authorized",
+              },
+            },
+            delete: {
+              success: "Team deleted",
+              error: {
+                generic: "Could not delete the team",
+                unauthorized: "Not authorized",
+              },
+            },
+          },
+        },
+      },
       teams: {
         header: "Teams",
         summary: {
@@ -2104,6 +2234,71 @@ export const messages: Record<Locale, DeepRecord> = {
       },
     },
     admin: {
+      usersLegacy: {
+        title: "Usuários (admin)",
+        table: {
+          loading: "Carregando…",
+          headers: {
+            email: "Email",
+            name: "Nome",
+            role: "Função",
+            team: "Equipe",
+            actions: "Ações",
+          },
+          fallback: "—",
+          teamPlaceholder: "(sem equipe)",
+          refresh: "Atualizar",
+        },
+        forms: {
+          title: "Gestão de equipes",
+          create: {
+            placeholder: "Nova equipe",
+            submit: "Criar",
+          },
+          rename: {
+            selectPlaceholder: "(escolha uma equipe)",
+            placeholder: "Novo nome",
+            submit: "Renomear",
+          },
+          delete: {
+            selectPlaceholder: "(escolha uma equipe)",
+            placeholder: "Mover usuários para… (opcional)",
+            submit: "Excluir / Mover",
+          },
+        },
+        feedback: {
+          save: {
+            success: "Alterações salvas",
+            error: {
+              generic: "Não foi possível salvar as alterações",
+              unauthorized: "Não autorizado",
+            },
+          },
+          teams: {
+            create: {
+              success: "Equipe criada",
+              error: {
+                generic: "Não foi possível criar a equipe",
+                unauthorized: "Não autorizado",
+              },
+            },
+            rename: {
+              success: "Equipe renomeada",
+              error: {
+                generic: "Não foi possível renomear a equipe",
+                unauthorized: "Não autorizado",
+              },
+            },
+            delete: {
+              success: "Equipe excluída",
+              error: {
+                generic: "Não foi possível excluir a equipe",
+                unauthorized: "Não autorizado",
+              },
+            },
+          },
+        },
+      },
       teams: {
         header: "Equipes",
         summary: {

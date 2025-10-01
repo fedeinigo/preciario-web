@@ -2,6 +2,9 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 
+import { useTranslations } from "@/app/LanguageProvider";
+import { toast } from "@/app/components/ui/toast";
+
 type Role = "superadmin" | "lider" | "usuario";
 
 type UserRow = {
@@ -20,13 +23,31 @@ type TeamRow = { id: string; name: string };
 const ROLES: Role[] = ["usuario", "lider", "superadmin"];
 
 export default function AdminUsersPage() {
+  const t = useTranslations("admin.usersLegacy");
+  const rolesT = useTranslations("common.roles");
+  const feedbackT = useTranslations("admin.usersLegacy.feedback");
+
   const [users, setUsers] = useState<UserRow[]>([]);
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; code: string } | null>(null);
+
+  const resolveErrorCode = (status: number, code?: string, allowed: string[] = []) => {
+    const normalized = code?.toLowerCase();
+    if (normalized && allowed.includes(normalized)) {
+      return normalized;
+    }
+    if (normalized === "unauthorized" || normalized === "forbidden") {
+      return "unauthorized";
+    }
+    if (status === 401 || status === 403) return "unauthorized";
+    return "generic";
+  };
 
   const load = async () => {
     setLoading(true);
+    setFeedback(null);
     try {
       const [u, t] = await Promise.all([
         fetch("/api/admin/users", { cache: "no-store" }),
@@ -60,15 +81,19 @@ export default function AdminUsersPage() {
 
       if (!r.ok) {
         const data: unknown = await r.json().catch(() => ({}));
-        const errorMsg =
-          typeof data === "object" && data && "error" in data
-            ? (data as { error?: string }).error
+        const errorCode =
+          typeof data === "object" && data && "code" in data && typeof (data as { code?: string }).code === "string"
+            ? (data as { code?: string }).code
             : undefined;
-        alert(errorMsg ?? "No autorizado");
+        const code = resolveErrorCode(r.status, errorCode);
+        toast.error(feedbackT(`save.error.${code}`));
+        setFeedback({ type: "error", code: `save.error.${code}` });
         return;
       }
 
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, ...changes } : u)));
+      toast.success(feedbackT("save.success"));
+      setFeedback({ type: "success", code: "save.success" });
     } finally {
       setSaving(null);
     }
@@ -92,8 +117,15 @@ export default function AdminUsersPage() {
     if (r.ok) {
       setNewTeam("");
       load();
+      toast.success(feedbackT("teams.create.success"));
     } else {
-      alert("No se pudo crear el equipo");
+      const data: unknown = await r.json().catch(() => ({}));
+      const errorCode =
+        typeof data === "object" && data && "code" in data && typeof (data as { code?: string }).code === "string"
+          ? (data as { code?: string }).code
+          : undefined;
+      const code = resolveErrorCode(r.status, errorCode ?? undefined);
+      toast.error(feedbackT(`teams.create.error.${code}`));
     }
   };
 
@@ -108,8 +140,15 @@ export default function AdminUsersPage() {
       setRenameId("");
       setRenameName("");
       load();
+      toast.success(feedbackT("teams.rename.success"));
     } else {
-      alert("No se pudo renombrar el equipo");
+      const data: unknown = await r.json().catch(() => ({}));
+      const errorCode =
+        typeof data === "object" && data && "code" in data && typeof (data as { code?: string }).code === "string"
+          ? (data as { code?: string }).code
+          : undefined;
+      const code = resolveErrorCode(r.status, errorCode ?? undefined);
+      toast.error(feedbackT(`teams.rename.error.${code}`));
     }
   };
 
@@ -127,8 +166,15 @@ export default function AdminUsersPage() {
       setDeleteId("");
       setDeleteReplace("");
       load();
+      toast.success(feedbackT("teams.delete.success"));
     } else {
-      alert("No se pudo eliminar el equipo");
+      const data: unknown = await r.json().catch(() => ({}));
+      const errorCode =
+        typeof data === "object" && data && "code" in data && typeof (data as { code?: string }).code === "string"
+          ? (data as { code?: string }).code
+          : undefined;
+      const code = resolveErrorCode(r.status, errorCode ?? undefined);
+      toast.error(feedbackT(`teams.delete.error.${code}`));
     }
   };
 
@@ -136,30 +182,30 @@ export default function AdminUsersPage() {
     <div className="p-4">
       <div className="border bg-white">
         <div className="bg-primary text-white font-semibold px-3 py-2 text-sm">
-          Usuarios (admin)
+          {t("title")}
         </div>
 
         <div className="p-3 space-y-6">
           {/* Tabla de usuarios */}
           <div className="overflow-x-auto">
             {loading ? (
-              <div className="text-sm text-gray-500">Cargando…</div>
+              <div className="text-sm text-gray-500">{t("table.loading")}</div>
             ) : (
               <table className="min-w-full bg-white">
                 <thead>
                   <tr>
-                    <th className="table-th">Email</th>
-                    <th className="table-th">Nombre</th>
-                    <th className="table-th w-48">Rol</th>
-                    <th className="table-th w-56">Equipo</th>
-                    <th className="table-th w-28"></th>
+                    <th className="table-th">{t("table.headers.email")}</th>
+                    <th className="table-th">{t("table.headers.name")}</th>
+                    <th className="table-th w-48">{t("table.headers.role")}</th>
+                    <th className="table-th w-56">{t("table.headers.team")}</th>
+                    <th className="table-th w-28">{t("table.headers.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((u) => (
                     <tr key={u.id}>
-                      <td className="table-td">{u.email ?? "—"}</td>
-                      <td className="table-td">{u.name ?? "—"}</td>
+                      <td className="table-td">{u.email ?? t("table.fallback")}</td>
+                      <td className="table-td">{u.name ?? t("table.fallback")}</td>
                       <td className="table-td">
                         <select
                           className="select"
@@ -169,7 +215,7 @@ export default function AdminUsersPage() {
                         >
                           {ROLES.map((r) => (
                             <option key={r} value={r}>
-                              {r}
+                              {rolesT(r)}
                             </option>
                           ))}
                         </select>
@@ -184,13 +230,13 @@ export default function AdminUsersPage() {
                               team: e.target.value ? e.target.value : null,
                             })
                           }
-                          placeholder="(sin equipo)"
+                          placeholder={t("table.teamPlaceholder")}
                           disabled={saving === u.id}
                         />
                       </td>
                       <td className="table-td">
                         <button className="btn-ghost" onClick={() => load()}>
-                          Refrescar
+                          {t("table.refresh")}
                         </button>
                       </td>
                     </tr>
@@ -202,7 +248,7 @@ export default function AdminUsersPage() {
 
           {/* Gestor de equipos */}
           <div className="rounded-md border bg-white p-3">
-            <div className="text-sm font-semibold mb-3">Gestión de equipos</div>
+            <div className="text-sm font-semibold mb-3">{t("forms.title")}</div>
 
             <datalist id="admin-teams">
               {teamNames.map((t) => (
@@ -214,12 +260,12 @@ export default function AdminUsersPage() {
               <div className="flex gap-2">
                 <input
                   className="input flex-1"
-                  placeholder="Nuevo equipo"
+                  placeholder={t("forms.create.placeholder")}
                   value={newTeam}
                   onChange={(e) => setNewTeam(e.target.value)}
                 />
                 <button className="btn-ghost" onClick={createTeam}>
-                  Crear
+                  {t("forms.create.submit")}
                 </button>
               </div>
 
@@ -229,7 +275,7 @@ export default function AdminUsersPage() {
                   value={renameId}
                   onChange={(e) => setRenameId(e.target.value)}
                 >
-                  <option value="">(elige equipo)</option>
+                  <option value="">{t("forms.rename.selectPlaceholder")}</option>
                   {teams.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
@@ -238,12 +284,12 @@ export default function AdminUsersPage() {
                 </select>
                 <input
                   className="input flex-1"
-                  placeholder="Nuevo nombre"
+                  placeholder={t("forms.rename.placeholder")}
                   value={renameName}
                   onChange={(e) => setRenameName(e.target.value)}
                 />
                 <button className="btn-bar" onClick={renameTeam} disabled={!renameId || !renameName}>
-                  Renombrar
+                  {t("forms.rename.submit")}
                 </button>
               </div>
 
@@ -253,7 +299,7 @@ export default function AdminUsersPage() {
                   value={deleteId}
                   onChange={(e) => setDeleteId(e.target.value)}
                 >
-                  <option value="">(elige equipo)</option>
+                  <option value="">{t("forms.delete.selectPlaceholder")}</option>
                   {teams.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
@@ -263,15 +309,27 @@ export default function AdminUsersPage() {
                 <input
                   className="input flex-1"
                   list="admin-teams"
-                  placeholder="Mover usuarios a… (opcional)"
+                  placeholder={t("forms.delete.placeholder")}
                   value={deleteReplace}
                   onChange={(e) => setDeleteReplace(e.target.value)}
                 />
                 <button className="btn-ghost" onClick={deleteTeam} disabled={!deleteId}>
-                  Eliminar / Mover
+                  {t("forms.delete.submit")}
                 </button>
               </div>
             </div>
+            {feedback ? (
+              <div
+                className={
+                  feedback.type === "success"
+                    ? "mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+                    : "mt-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"
+                }
+                role={feedback.type === "success" ? "status" : "alert"}
+              >
+                {feedbackT(feedback.code)}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
