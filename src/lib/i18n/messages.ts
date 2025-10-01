@@ -156,6 +156,8 @@ export const messages: Record<Locale, DeepRecord> = {
             error: {
               generic: "No se pudieron guardar los cambios",
               unauthorized: "No autorizado",
+              invalid: "Datos inválidos",
+              notFound: "Registro no encontrado",
             },
           },
           teams: {
@@ -164,6 +166,7 @@ export const messages: Record<Locale, DeepRecord> = {
               error: {
                 generic: "No se pudo crear el equipo",
                 unauthorized: "No autorizado",
+                invalid: "Ingresá un nombre válido",
               },
             },
             rename: {
@@ -171,6 +174,8 @@ export const messages: Record<Locale, DeepRecord> = {
               error: {
                 generic: "No se pudo renombrar el equipo",
                 unauthorized: "No autorizado",
+                invalid: "Seleccioná un equipo y nombre válido",
+                notFound: "No se encontró el equipo",
               },
             },
             delete: {
@@ -178,6 +183,8 @@ export const messages: Record<Locale, DeepRecord> = {
               error: {
                 generic: "No se pudo eliminar el equipo",
                 unauthorized: "No autorizado",
+                invalid: "Seleccioná un equipo válido",
+                notFound: "No se encontró el equipo",
               },
             },
           },
@@ -1241,6 +1248,8 @@ export const messages: Record<Locale, DeepRecord> = {
             error: {
               generic: "Could not save changes",
               unauthorized: "Not authorized",
+              invalid: "Invalid data",
+              notFound: "Record not found",
             },
           },
           teams: {
@@ -1249,6 +1258,7 @@ export const messages: Record<Locale, DeepRecord> = {
               error: {
                 generic: "Could not create the team",
                 unauthorized: "Not authorized",
+                invalid: "Enter a valid name",
               },
             },
             rename: {
@@ -1256,6 +1266,8 @@ export const messages: Record<Locale, DeepRecord> = {
               error: {
                 generic: "Could not rename the team",
                 unauthorized: "Not authorized",
+                invalid: "Choose a team and a valid name",
+                notFound: "Team not found",
               },
             },
             delete: {
@@ -1263,6 +1275,8 @@ export const messages: Record<Locale, DeepRecord> = {
               error: {
                 generic: "Could not delete the team",
                 unauthorized: "Not authorized",
+                invalid: "Choose a valid team",
+                notFound: "Team not found",
               },
             },
           },
@@ -2324,6 +2338,8 @@ export const messages: Record<Locale, DeepRecord> = {
             error: {
               generic: "Não foi possível salvar as alterações",
               unauthorized: "Não autorizado",
+              invalid: "Dados inválidos",
+              notFound: "Registro não encontrado",
             },
           },
           teams: {
@@ -2332,6 +2348,7 @@ export const messages: Record<Locale, DeepRecord> = {
               error: {
                 generic: "Não foi possível criar a equipe",
                 unauthorized: "Não autorizado",
+                invalid: "Informe um nome válido",
               },
             },
             rename: {
@@ -2339,6 +2356,8 @@ export const messages: Record<Locale, DeepRecord> = {
               error: {
                 generic: "Não foi possível renomear a equipe",
                 unauthorized: "Não autorizado",
+                invalid: "Escolha uma equipe e um nome válido",
+                notFound: "Equipe não encontrada",
               },
             },
             delete: {
@@ -2346,6 +2365,8 @@ export const messages: Record<Locale, DeepRecord> = {
               error: {
                 generic: "Não foi possível excluir a equipe",
                 unauthorized: "Não autorizado",
+                invalid: "Escolha uma equipe válida",
+                notFound: "Equipe não encontrada",
               },
             },
           },
