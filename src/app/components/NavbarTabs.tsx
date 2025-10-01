@@ -1,13 +1,13 @@
 // src/app/components/NavbarTabs.tsx
 "use client";
 
-import React from "react";
+import { type ComponentType } from "react";
 import { LayoutGrid, Clock, BarChart2, Users, Group } from "lucide-react";
 import { useTranslations } from "@/app/LanguageProvider";
 import { useSession } from "next-auth/react";
 
 type Tab = "generator" | "history" | "stats" | "teams" | "users";
-type IconType = React.ComponentType<{ className?: string }>;
+type IconType = ComponentType<{ className?: string }>;
 
 export default function NavbarTabs({
   active,
