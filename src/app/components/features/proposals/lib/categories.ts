@@ -1,3 +1,4 @@
+import type { Locale } from "@/lib/i18n/config";
 // src/app/components/features/proposals/lib/categories.ts
 import {
   createProposalCodeError,
@@ -28,9 +29,9 @@ async function parseCategoryError(
   return parseProposalErrorResponse(res, fallbackCode);
 }
 
-export async function fetchItemCategories(): Promise<string[]> {
+export async function fetchItemCategories(locale: Locale): Promise<string[]> {
   try {
-    const res = await fetch("/api/items/categories", { cache: "no-store" });
+    const res = await fetch(`/api/items/categories?locale=${locale}`, { cache: "no-store" });
     if (!res.ok) {
       throw await parseCategoryError(res, "catalog.categories.loadFailed");
     }
@@ -93,3 +94,4 @@ export async function deleteItemCategory(
     throw createProposalCodeError("catalog.categories.deleteFailed");
   }
 }
+

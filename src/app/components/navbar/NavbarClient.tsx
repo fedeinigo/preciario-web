@@ -3,6 +3,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
 import {
@@ -25,7 +26,9 @@ import {
   q3Range,
   q4Range,
 } from "@/app/components/features/proposals/lib/dateRanges";
-import { useTranslations } from "@/app/LanguageProvider";
+import { useLanguage, useTranslations } from "@/app/LanguageProvider";
+import type { Locale } from "@/lib/i18n/config";
+import { locales } from "@/lib/i18n/config";
 
 export type NavbarClientProps = {
   session: Session | null;
@@ -41,6 +44,12 @@ type AnyRole =
   | "usuario"
   | string
   | undefined;
+
+const LANGUAGE_LABEL_KEYS: Record<Locale, "spanish" | "english" | "portuguese"> = {
+  es: "spanish",
+  en: "english",
+  pt: "portuguese",
+};
 
 function TabBtn({
   id,
@@ -87,6 +96,8 @@ function readHash(): Tab {
 }
 
 export default function NavbarClient({ session }: NavbarClientProps) {
+  const router = useRouter();
+  const { locale, setLocale } = useLanguage();
   const t = useTranslations("navbar");
   const tabsT = useTranslations("navbar.tabs");
   const profileT = useTranslations("navbar.profile");
@@ -95,6 +106,16 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const modalLogT = useTranslations("navbar.modal.log");
   const toastT = useTranslations("navbar.toast");
   const fallbacksT = useTranslations("navbar.fallbacks");
+  const languageT = useTranslations("common.language");
+
+  const handleLocaleChange = React.useCallback(
+    (next: Locale) => {
+      if (next === locale) return;
+      setLocale(next);
+      router.refresh();
+    },
+    [locale, router, setLocale]
+  );
 
   const status = session ? "authenticated" : "unauthenticated";
   const showTabs = status === "authenticated";
@@ -298,6 +319,21 @@ export default function NavbarClient({ session }: NavbarClientProps) {
             </button>
           )}
           {showAuthActions && (
+            <select
+              className="rounded-md border border-white/25 bg-white/10 px-2 py-1 text-sm text-white focus:border-white focus:outline-none focus:ring-2 focus:ring-white/40"
+              value={locale}
+              onChange={(event) => handleLocaleChange(event.target.value as Locale)}
+              aria-label={languageT("label")}
+              title={languageT("label")}
+            >
+              {locales.map((code) => (
+                <option key={code} value={code} className="text-gray-900">
+                  {`${code.toUpperCase()} - ${languageT(LANGUAGE_LABEL_KEYS[code])}`}
+                </option>
+              ))}
+            </select>
+          )}
+          {showAuthActions && (
             <button
               onClick={() => signOut()}
               className="inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-white text-[#3b0a69] hover:bg-white/90"
@@ -435,3 +471,13 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     </nav>
   );
 }
+
+
+
+
+
+
+
+
+
+

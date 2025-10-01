@@ -5,6 +5,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
   LayoutGrid,
@@ -20,7 +21,9 @@ import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import { formatUSD } from "@/app/components/features/proposals/lib/format";
 import { q1Range, q2Range, q3Range, q4Range } from "@/app/components/features/proposals/lib/dateRanges";
-import { useTranslations } from "@/app/LanguageProvider";
+import { useLanguage, useTranslations } from "@/app/LanguageProvider";
+import type { Locale } from "@/lib/i18n/config";
+import { locales } from "@/lib/i18n/config";
 
 type Tab = "generator" | "history" | "stats" | "users" | "teams" | "goals";
 type AnyRole =
@@ -31,6 +34,12 @@ type AnyRole =
   | "usuario"
   | string
   | undefined;
+
+const LANGUAGE_LABEL_KEYS: Record<Locale, "spanish" | "english" | "portuguese"> = {
+  es: "spanish",
+  en: "english",
+  pt: "portuguese",
+};
 
 function TabBtn({
   id,
@@ -70,6 +79,8 @@ function initials(fullName: string) {
 }
 
 export default function Navbar() {
+  const router = useRouter();
+  const { locale, setLocale } = useLanguage();
   const t = useTranslations("navbar");
   const tabsT = useTranslations("navbar.tabs");
   const profileT = useTranslations("navbar.profile");
@@ -77,8 +88,18 @@ export default function Navbar() {
   const modalLabelsT = useTranslations("navbar.modal.labels");
   const toastT = useTranslations("navbar.toast");
   const fallbacksT = useTranslations("navbar.fallbacks");
+  const languageT = useTranslations("common.language");
   const profileModalT = useTranslations("common.profileModal");
   const goalsMetricsT = useTranslations("goals.individual.metrics");
+
+  const handleLocaleChange = React.useCallback(
+    (next: Locale) => {
+      if (next === locale) return;
+      setLocale(next);
+      router.refresh();
+    },
+    [locale, router, setLocale]
+  );
 
   const { data: session, status } = useSession();
 
@@ -292,17 +313,31 @@ export default function Navbar() {
         {/* DERECHA: perfil + cerrar sesión (autenticado) */}
         <div className="flex items-center gap-2">
           {showAuthActions && (
-            <button
-              onClick={() => setUserModal(true)}
-              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px]
-                         text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
-              title={profileT("open")}
-            >
-              {name} — {team}
-            </button>
-          )}
-          {showAuthActions && (
-            <button
+              <button
+                onClick={() => setUserModal(true)}
+                className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+                title={profileT("open")}
+              >
+                {name} - {team}
+              </button>
+            )}
+            {showAuthActions && (
+              <select
+                className="rounded-md border border-white/25 bg-white/10 px-2 py-1 text-sm text-white focus:border-white focus:outline-none focus:ring-2 focus:ring-white/40"
+                value={locale}
+                onChange={(event) => handleLocaleChange(event.target.value as Locale)}
+                aria-label={languageT("label")}
+                title={languageT("label")}
+              >
+                {locales.map((code) => (
+                  <option key={code} value={code} className="text-gray-900">
+                    {`${code.toUpperCase()} - ${languageT(LANGUAGE_LABEL_KEYS[code])}`}
+                  </option>
+                ))}
+              </select>
+            )}
+            {showAuthActions && (
+              <button
               onClick={() => signOut()}
               className="inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-white text-[#3b0a69] hover:bg-white/90"
             >
@@ -453,3 +488,15 @@ export default function Navbar() {
     </nav>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+

@@ -6,7 +6,7 @@ import Combobox from "@/app/components/ui/Combobox";
 import ItemForm, { type ItemFormData } from "@/app/components/ui/ItemForm";
 import { Plus } from "lucide-react";
 
-import { useTranslations } from "@/app/LanguageProvider";
+import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 
 import { formatUSD } from "./lib/format";
 import {
@@ -26,6 +26,7 @@ import {
   updateCatalogItem,
   deleteCatalogItem,
 } from "./lib/items";
+import { locales } from "@/lib/i18n/config";
 
 import {
   isWppAuth,
@@ -93,6 +94,7 @@ type SortKey = "popular" | "sku" | "unitPrice" | "name" | "category";
 type SortDir = "asc" | "desc";
 
 export default function Generator({ isAdmin, userId, userEmail }: Props) {
+  const { locale } = useLanguage();
   const generatorT = useTranslations("proposals.generator");
   const toastT = useTranslations("proposals.generator.toast");
   const confirmResetT = useTranslations("proposals.generator.confirmReset");
@@ -151,7 +153,7 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
   const [popularity, setPopularity] = useState<Record<string, number>>({}); // itemId -> totalQty
 
   useEffect(() => {
-    fetchCatalogItems()
+    fetchCatalogItems(locale)
       .then(setItems)
       .catch((error) => {
         setItems([]);
@@ -160,7 +162,7 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
     fetchItemsPopularity()
       .then(setPopularity)
       .catch(() => setPopularity({}));
-  }, [resolveProposalErrorMessage]);
+  }, [locale, resolveProposalErrorMessage]);
 
   const {
     filiales,
@@ -263,11 +265,11 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
     setEditingId(null);
     setEditingInitial({
       sku: "",
-      name: "",
-      description: "",
       devHours: 1,
       unitPrice: 100,
-      category: "general",
+      translations: Object.fromEntries(
+        locales.map((code) => [code, { name: "", description: "", category: "" }])
+      ) as ItemFormData["translations"],
     });
     setItemFormOpen(true);
   };
@@ -277,11 +279,9 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
     setEditingId(it.id);
     setEditingInitial({
       sku: it.sku,
-      name: it.name,
-      description: it.description,
       devHours: it.devHours,
       unitPrice: it.unitPrice,
-      category: it.category,
+      translations: it.translations,
     });
     setItemFormOpen(true);
   };
@@ -289,30 +289,31 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
   const handleSaveItem = async (data: ItemFormData) => {
     try {
       if (itemFormMode === "create") {
-        const created = await createCatalogItem(data);
+        const created = await createCatalogItem(locale, data);
         setItems((prev) => [created, ...prev]);
         toast.success(toastT("itemCreated"));
       } else if (itemFormMode === "edit" && editingId != null) {
         const current = items.find((i) => i.id === editingId);
         if (current?.dbId) {
           await updateCatalogItem(current.dbId, data);
+          setItems((prev) =>
+            prev.map((item) =>
+              item.id === editingId
+                ? {
+                    ...item,
+                    sku: data.sku?.trim() || item.sku,
+                    devHours: data.devHours,
+                    unitPrice: data.unitPrice,
+                    translations: data.translations,
+                    name: data.translations[locale].name,
+                    description: data.translations[locale].description,
+                    category: data.translations[locale].category,
+                  }
+                : item
+            )
+          );
+          toast.success(toastT("itemUpdated"));
         }
-        setItems((prev) =>
-          prev.map((i) =>
-            i.id === editingId
-              ? {
-                  ...i,
-                  sku: data.sku || i.sku,
-                  name: data.name,
-                  description: data.description ?? i.description,
-                  devHours: data.devHours,
-                  unitPrice: data.unitPrice,
-                  category: data.category ?? i.category,
-                }
-              : i
-          )
-        );
-        toast.success(toastT("itemUpdated"));
       }
     } catch (e) {
       const fallback: ProposalErrorCode =
@@ -971,3 +972,8 @@ try {
     </div>
   );
 }
+
+
+
+
+

@@ -1,4 +1,5 @@
 // src/app/components/features/proposals/lib/items.ts
+import type { Locale } from "@/lib/i18n/config";
 import type { UIItem } from "./types";
 import type { ItemFormData } from "@/app/components/ui/ItemForm";
 import {
@@ -6,6 +7,13 @@ import {
   isProposalError,
   parseProposalErrorResponse,
 } from "./errors";
+import { defaultLocale } from "@/lib/i18n/config";
+
+type ItemTranslations = Record<Locale, {
+  name: string;
+  description: string;
+  category: string;
+}>;
 
 type CatalogRow = {
   id: string;
@@ -15,15 +23,17 @@ type CatalogRow = {
   category: string;
   unitPrice: number;
   devHours: number;
+  active: boolean;
+  translations: ItemTranslations;
 };
 
 export function getInitialItems(): UIItem[] {
   return [];
 }
 
-export async function fetchCatalogItems(): Promise<UIItem[]> {
+export async function fetchCatalogItems(locale: Locale): Promise<UIItem[]> {
   try {
-    const res = await fetch("/api/items", { cache: "no-store" });
+    const res = await fetch(`/api/items?locale=${locale}`, { cache: "no-store" });
     if (!res.ok) {
       throw await parseProposalErrorResponse(res, "catalog.loadFailed");
     }
@@ -35,26 +45,22 @@ export async function fetchCatalogItems(): Promise<UIItem[]> {
   }
 }
 
-// NEW: popularidad desde API (itemId -> totalQty)
+// Popularidad desde API (itemId -> totalQty)
 export async function fetchItemsPopularity(): Promise<Record<string, number>> {
   const r = await fetch("/api/items/popularity", { cache: "no-store" });
   if (!r.ok) return {};
   return (await r.json()) as Record<string, number>;
 }
 
-export async function createCatalogItem(data: ItemFormData): Promise<UIItem> {
+export async function createCatalogItem(
+  locale: Locale,
+  data: ItemFormData
+): Promise<UIItem> {
   try {
-    const res = await fetch("/api/items", {
+    const res = await fetch(`/api/items?locale=${locale}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sku: data.sku,
-        name: data.name,
-        description: data.description ?? "",
-        category: data.category ?? "general",
-        unitPrice: data.unitPrice,
-        devHours: data.devHours,
-      }),
+      body: JSON.stringify(serializeItemPayload(data)),
     });
     if (!res.ok) {
       throw await parseProposalErrorResponse(res, "catalog.createFailed");
@@ -67,19 +73,15 @@ export async function createCatalogItem(data: ItemFormData): Promise<UIItem> {
   }
 }
 
-export async function updateCatalogItem(id: string, data: ItemFormData): Promise<void> {
+export async function updateCatalogItem(
+  id: string,
+  data: ItemFormData
+): Promise<void> {
   try {
     const res = await fetch(`/api/items/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sku: data.sku,
-        name: data.name,
-        description: data.description ?? "",
-        category: data.category ?? "general",
-        unitPrice: data.unitPrice,
-        devHours: data.devHours,
-      }),
+      body: JSON.stringify(serializeItemPayload(data)),
     });
     if (!res.ok) {
       throw await parseProposalErrorResponse(res, "catalog.updateFailed");
@@ -102,6 +104,27 @@ export async function deleteCatalogItem(id: string): Promise<void> {
   }
 }
 
+function serializeItemPayload(data: ItemFormData) {
+  const translations = Object.entries(data.translations).map(([locale, value]) => ({
+    locale,
+    name: value.name,
+    category: value.category,
+    description: value.description,
+  }));
+
+  const base = data.translations[defaultLocale];
+
+  return {
+    sku: data.sku,
+    unitPrice: data.unitPrice,
+    devHours: data.devHours,
+    name: base?.name,
+    category: base?.category,
+    description: base?.description ?? "",
+    translations,
+  };
+}
+
 function toUIItem(row: CatalogRow): UIItem {
   return {
     id: row.id,
@@ -115,5 +138,6 @@ function toUIItem(row: CatalogRow): UIItem {
     selected: false,
     quantity: 1,
     discountPct: 0,
+    translations: row.translations,
   };
 }
