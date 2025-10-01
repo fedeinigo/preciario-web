@@ -38,22 +38,21 @@ export default function NavUserButton() {
 
   if (!isAuthed) return null;
 
-  const name = session?.user?.name ?? fallbacksT("userName");
+  const name = session?.user?.name ?? fallbacksT("name");
   const team = (session?.user?.team as string | null) ?? fallbacksT("team");
 
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px]
-                   text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+        className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
         title={profileT("open")}
       >
         {name} — {team}
       </button>
       <button
         onClick={() => signOut()}
-        className="inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-white text-[#3b0a69] hover:bg-white/90 ml-2"
+        className="ml-2 inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-white text-[#3b0a69] hover:bg-white/90"
       >
         {profileT("signOut")}
       </button>

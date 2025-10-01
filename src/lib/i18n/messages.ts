@@ -117,7 +117,7 @@ export const messages: Record<Locale, DeepRecord> = {
         goalError: "No se pudo guardar el objetivo",
       },
       fallbacks: {
-        userName: "Usuario",
+        name: "Usuario",
         team: "—",
         email: "—",
       },
@@ -1276,7 +1276,7 @@ export const messages: Record<Locale, DeepRecord> = {
         goalError: "The goal could not be saved",
       },
       fallbacks: {
-        userName: "User",
+        name: "User",
         team: "—",
         email: "—",
       },
@@ -2433,7 +2433,7 @@ export const messages: Record<Locale, DeepRecord> = {
         goalError: "Não foi possível salvar a meta",
       },
       fallbacks: {
-        userName: "Usuário",
+        name: "Usuário",
         team: "—",
         email: "—",
       },
