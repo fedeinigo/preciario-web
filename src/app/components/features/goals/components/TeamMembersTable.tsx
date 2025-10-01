@@ -4,6 +4,7 @@
 import React from "react";
 import { toast } from "@/app/components/ui/toast";
 import { formatUSD } from "../../proposals/lib/format";
+import { useTranslations } from "@/app/LanguageProvider";
 
 export type TeamGoalRow = {
   userId: string;
@@ -29,6 +30,10 @@ export default function TeamMembersTable({
   onEditGoal: (userId: string, amount: number) => Promise<boolean> | boolean;
   onOpenProfile: (u: { id: string; email: string | null; name: string | null }) => void;
 }) {
+  const t = useTranslations("goals.table");
+  const headersT = useTranslations("goals.table.headers");
+  const actionsT = useTranslations("goals.table.actions");
+  const toastT = useTranslations("goals.toast");
   const [editing, setEditing] = React.useState<string | null>(null);
   const [tmp, setTmp] = React.useState<number>(0);
 
@@ -95,38 +100,38 @@ export default function TeamMembersTable({
             <tr className="bg-[#4c1d95] text-white">
               <th className="table-th rounded-tl-xl">
                 <button className="w-full text-left" onClick={() => handleSort("user")}>
-                  Usuario <Arrow active={sortKey === "user"} />
+                  {headersT("user")} <Arrow active={sortKey === "user"} />
                 </button>
               </th>
               <th className="table-th w-32 text-right">
                 <button className="w-full text-right" onClick={() => handleSort("goal")}>
-                  Objetivo <Arrow active={sortKey === "goal"} />
+                  {headersT("goal")} <Arrow active={sortKey === "goal"} />
                 </button>
               </th>
               <th className="table-th w-32 text-right">
                 <button className="w-full text-right" onClick={() => handleSort("progress")}>
-                  Avance <Arrow active={sortKey === "progress"} />
+                  {headersT("progress")} <Arrow active={sortKey === "progress"} />
                 </button>
               </th>
               <th className="table-th w-24 text-right">
                 <button className="w-full text-right" onClick={() => handleSort("pct")}>
-                  % Cumpl. <Arrow active={sortKey === "pct"} />
+                  {headersT("pct")} <Arrow active={sortKey === "pct"} />
                 </button>
               </th>
-              <th className="table-th w-48 text-right rounded-tr-xl">Acciones</th>
+              <th className="table-th w-48 text-right rounded-tr-xl">{actionsT("title")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {loading ? (
               <tr>
                 <td className="table-td text-center text-gray-500" colSpan={5}>
-                  Cargando…
+                  {t("loading")}
                 </td>
               </tr>
             ) : sorted.length === 0 ? (
               <tr>
                 <td className="table-td text-center text-gray-500" colSpan={5}>
-                  Sin miembros o sin datos.
+                  {t("empty")}
                 </td>
               </tr>
             ) : (
@@ -157,13 +162,13 @@ export default function TeamMembersTable({
                             className="h-9 px-4 rounded-full border border-gray-300 bg-white hover:bg-gray-50"
                             onClick={cancelEdit}
                           >
-                            Cancelar
+                            {actionsT("cancel")}
                           </button>
                           <button
                             className="h-9 px-4 rounded-full bg-cyan-400 text-[#2b0b57] font-semibold hover:brightness-95"
                             onClick={() => saveEdit(r.userId)}
                           >
-                            Guardar
+                            {actionsT("save")}
                           </button>
                         </div>
                       ) : (
@@ -172,19 +177,19 @@ export default function TeamMembersTable({
                             className="btn-bar"
                             onClick={() => onOpenProfile({ id: r.userId, email: r.email, name: r.name })}
                           >
-                            Perfil
+                            {actionsT("profile")}
                           </button>
                           <button
                             className="btn-bar"
                             onClick={() => {
                               if (!canEdit) {
-                                toast.info("Solo líderes o superadmins pueden editar objetivos de otros.");
+                                toast.info(toastT("restrictedEdit"));
                                 return;
                               }
                               startEdit(r);
                             }}
                           >
-                            Editar
+                            {actionsT("edit")}
                           </button>
                         </div>
                       )}
