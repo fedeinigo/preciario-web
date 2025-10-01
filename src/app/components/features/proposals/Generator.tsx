@@ -534,9 +534,10 @@ try {
       setOpenWpp(false);
       setPendingItemId(null);
       toast.success(toastT("whatsAppApplied"));
-    } catch (e) {
-      setWppError(e instanceof Error ? e.message : errorsT("generic"));
-      toast.error(toastT("whatsAppError"));
+    } catch (error) {
+      const message = resolveProposalErrorMessage(error, "pricing.whatsAppFailed");
+      setWppError(message);
+      toast.error(message);
     } finally {
       setApplyingWpp(false);
     }
@@ -570,9 +571,10 @@ try {
       setOpenMin(false);
       setPendingItemId(null);
       toast.success(toastT("minutesApplied"));
-    } catch (e) {
-      setMinError(e instanceof Error ? e.message : errorsT("generic"));
-      toast.error(toastT("minutesError"));
+    } catch (error) {
+      const message = resolveProposalErrorMessage(error, "pricing.minutesFailed");
+      setMinError(message);
+      toast.error(message);
     } finally {
       setApplyingMin(false);
     }

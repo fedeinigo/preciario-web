@@ -421,6 +421,12 @@ export const messages: Record<Locale, DeepRecord> = {
           createFailed: "No se pudo crear el ítem.",
           updateFailed: "No se pudo actualizar el ítem.",
           deleteFailed: "No se pudo eliminar el ítem.",
+          categories: {
+            loadFailed: "No se pudieron cargar las categorías.",
+            createFailed: "No se pudo crear la categoría.",
+            renameFailed: "No se pudo renombrar la categoría.",
+            deleteFailed: "No se pudo eliminar/mover la categoría.",
+          },
         },
         filiales: {
           loadFailed: "No se pudieron cargar las filiales.",
@@ -436,6 +442,10 @@ export const messages: Record<Locale, DeepRecord> = {
           createFailed: "No se pudo crear el enlace.",
           updateFailed: "No se pudo actualizar el enlace.",
           deleteFailed: "No se pudo eliminar el enlace.",
+        },
+        pricing: {
+          whatsAppFailed: "No se pudo calcular WhatsApp.",
+          minutesFailed: "No se pudo calcular Minutos.",
         },
         proposal: {
           saveFailed: "No se pudo guardar la propuesta.",
@@ -562,9 +572,7 @@ export const messages: Record<Locale, DeepRecord> = {
             "Se generó el documento, pero no se pudo contactar a Pipedrive.",
           proposalCreationError: "Error creando propuesta: {message}",
           whatsAppApplied: "Tarifas de WhatsApp aplicadas",
-          whatsAppError: "No se pudo calcular WhatsApp",
           minutesApplied: "Minutos aplicados",
-          minutesError: "No se pudo calcular Minutos",
           wiserApplied: "Wiser PRO agregado",
           itemDeleted: "Ítem eliminado",
           itemDeleteError: "No se pudo eliminar el ítem: {message}",
@@ -1505,6 +1513,12 @@ export const messages: Record<Locale, DeepRecord> = {
           createFailed: "Could not create the item.",
           updateFailed: "Could not update the item.",
           deleteFailed: "Could not delete the item.",
+          categories: {
+            loadFailed: "Categories could not be loaded.",
+            createFailed: "Category could not be created.",
+            renameFailed: "Category could not be renamed.",
+            deleteFailed: "Category could not be deleted/moved.",
+          },
         },
         filiales: {
           loadFailed: "Could not load subsidiaries.",
@@ -1520,6 +1534,10 @@ export const messages: Record<Locale, DeepRecord> = {
           createFailed: "Could not create the link.",
           updateFailed: "Could not update the link.",
           deleteFailed: "Could not delete the link.",
+        },
+        pricing: {
+          whatsAppFailed: "Could not calculate WhatsApp.",
+          minutesFailed: "Could not calculate Minutes.",
         },
         proposal: {
           saveFailed: "Could not save the proposal.",
@@ -1645,9 +1663,7 @@ export const messages: Record<Locale, DeepRecord> = {
             "The document was generated, but Pipedrive could not be reached.",
           proposalCreationError: "Error creating proposal: {message}",
           whatsAppApplied: "WhatsApp pricing applied",
-          whatsAppError: "Could not calculate WhatsApp",
           minutesApplied: "Minutes applied",
-          minutesError: "Could not calculate Minutes",
           wiserApplied: "Wiser PRO added",
           itemDeleted: "Item deleted",
           itemDeleteError: "Could not delete the item: {message}",
@@ -2589,6 +2605,12 @@ export const messages: Record<Locale, DeepRecord> = {
           createFailed: "Não foi possível criar o item.",
           updateFailed: "Não foi possível atualizar o item.",
           deleteFailed: "Não foi possível excluir o item.",
+          categories: {
+            loadFailed: "Não foi possível carregar as categorias.",
+            createFailed: "Não foi possível criar a categoria.",
+            renameFailed: "Não foi possível renomear a categoria.",
+            deleteFailed: "Não foi possível excluir/mover a categoria.",
+          },
         },
         filiales: {
           loadFailed: "Não foi possível carregar as filiais.",
@@ -2604,6 +2626,10 @@ export const messages: Record<Locale, DeepRecord> = {
           createFailed: "Não foi possível criar o link.",
           updateFailed: "Não foi possível atualizar o link.",
           deleteFailed: "Não foi possível excluir o link.",
+        },
+        pricing: {
+          whatsAppFailed: "Não foi possível calcular WhatsApp.",
+          minutesFailed: "Não foi possível calcular Minutos.",
         },
         proposal: {
           saveFailed: "Não foi possível salvar a proposta.",
@@ -2730,9 +2756,7 @@ export const messages: Record<Locale, DeepRecord> = {
             "O documento foi gerado, mas não foi possível contatar o Pipedrive.",
           proposalCreationError: "Erro ao criar a proposta: {message}",
           whatsAppApplied: "Valores de WhatsApp aplicados",
-          whatsAppError: "Não foi possível calcular WhatsApp",
           minutesApplied: "Minutos aplicados",
-          minutesError: "Não foi possível calcular Minutos",
           wiserApplied: "Wiser PRO adicionado",
           itemDeleted: "Item excluído",
           itemDeleteError: "Não foi possível excluir o item: {message}",
