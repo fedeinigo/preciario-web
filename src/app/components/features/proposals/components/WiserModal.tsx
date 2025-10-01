@@ -1,5 +1,7 @@
 import Modal from "@/app/components/ui/Modal";
 
+import { useTranslations } from "@/app/LanguageProvider";
+
 export function WiserModal({
   open,
   onConfirm,
@@ -9,11 +11,13 @@ export function WiserModal({
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  const t = useTranslations("proposals.wiserModal");
+
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Wiser PRO"
+      title={t("title")}
       footer={
         <div className="flex justify-end gap-2">
           <a
@@ -22,27 +26,21 @@ export function WiserModal({
             rel="noreferrer"
             className="btn-ghost"
           >
-            Ir al formulario
+            {t("actions.form")}
           </a>
           <button
             className="btn-primary"
             onClick={onConfirm}
-            title="Insertar ítem con cantidad 1, precio 0 y horas 0"
+            title={t("actions.confirmTitle")}
           >
-            Confirmar e insertar
+            {t("actions.confirm")}
           </button>
         </div>
       }
     >
       <div className="space-y-2">
-        <p className="text-sm text-gray-700">
-          Para cotizar <strong>Wiser PRO</strong> necesitamos información adicional. Completa el
-          formulario del equipo <strong>Mapaches</strong> y, mientras tanto, agregaremos el ítem con
-          <strong> cantidad 1</strong>, <strong>precio 0</strong> y <strong>horas 0</strong>.
-        </p>
-        <p className="text-sm text-gray-600">
-          Luego podrás actualizar el valor y reemitir la propuesta.
-        </p>
+        <p className="text-sm text-gray-700">{t("content.intro")}</p>
+        <p className="text-sm text-gray-600">{t("content.followup")}</p>
       </div>
     </Modal>
   );

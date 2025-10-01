@@ -20,6 +20,7 @@ import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import { formatUSD } from "@/app/components/features/proposals/lib/format";
 import { q1Range, q2Range, q3Range, q4Range } from "@/app/components/features/proposals/lib/dateRanges";
+import { useTranslations } from "@/app/LanguageProvider";
 
 type Tab = "generator" | "history" | "stats" | "users" | "teams" | "goals";
 type AnyRole =
@@ -69,6 +70,16 @@ function initials(fullName: string) {
 }
 
 export default function Navbar() {
+  const t = useTranslations("navbar");
+  const tabsT = useTranslations("navbar.tabs");
+  const profileT = useTranslations("navbar.profile");
+  const modalT = useTranslations("navbar.modal");
+  const modalLabelsT = useTranslations("navbar.modal.labels");
+  const toastT = useTranslations("navbar.toast");
+  const fallbacksT = useTranslations("navbar.fallbacks");
+  const profileModalT = useTranslations("common.profileModal");
+  const goalsMetricsT = useTranslations("goals.individual.metrics");
+
   const { data: session, status } = useSession();
 
   // Tabs/acciones solo cuando estoy autenticado
@@ -76,9 +87,9 @@ export default function Navbar() {
   const showAuthActions = status === "authenticated";
 
   const role = (session?.user?.role as AnyRole) ?? "usuario";
-  const team = (session?.user?.team as string | null) ?? "—";
-  const name = session?.user?.name ?? "Usuario";
-  const email = session?.user?.email ?? "—";
+  const team = (session?.user?.team as string | null) ?? fallbacksT("team");
+  const name = session?.user?.name ?? fallbacksT("userName");
+  const email = session?.user?.email ?? fallbacksT("email");
   const currentEmail = session?.user?.email ?? "";
   const canSeeUsers = role === "admin" || role === "superadmin";
 
@@ -197,9 +208,9 @@ export default function Navbar() {
       });
       if (!r.ok) throw new Error();
       setGoal(inputAmount);
-      toast.success("Objetivo actualizado");
+      toast.success(toastT("goalSaved"));
     } catch {
-      toast.error("No se pudo guardar el objetivo");
+      toast.error(toastT("goalError"));
     }
   };
 
@@ -209,7 +220,7 @@ export default function Navbar() {
   return (
     <nav
       role="navigation"
-      aria-label="Principal"
+      aria-label={t("ariaLabel")}
       className="navbar fixed top-0 inset-x-0 z-50 border-b border-white/15 backdrop-blur supports-[backdrop-filter]:bg-opacity-80"
       style={{ height: "var(--nav-h)" }}
     >
@@ -218,7 +229,7 @@ export default function Navbar() {
         <div className="flex items-center">
           <Image
             src="/logo.png"
-            alt="Wise CX"
+            alt={t("logoAlt")}
             width={140}
             height={36}
             className="h-9 w-auto object-contain"
@@ -231,35 +242,35 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-2">
             <TabBtn
               id="generator"
-              label="Generador"
+              label={tabsT("generator")}
               Icon={LayoutGrid}
               active={activeTab === "generator"}
               onClick={setTab}
             />
             <TabBtn
               id="history"
-              label="Histórico"
+              label={tabsT("history")}
               Icon={Clock}
               active={activeTab === "history"}
               onClick={setTab}
             />
             <TabBtn
               id="stats"
-              label="Estadísticas"
+              label={tabsT("stats")}
               Icon={BarChart2}
               active={activeTab === "stats"}
               onClick={setTab}
             />
             <TabBtn
               id="goals"
-              label="Objetivos"
+              label={tabsT("goals")}
               Icon={Target}
               active={activeTab === "goals"}
               onClick={setTab}
             />
             <TabBtn
               id="teams"
-              label="Equipos"
+              label={tabsT("teams")}
               Icon={Users2}
               active={activeTab === "teams"}
               onClick={setTab}
@@ -267,7 +278,7 @@ export default function Navbar() {
             {canSeeUsers && (
               <TabBtn
                 id="users"
-                label="Usuarios"
+                label={tabsT("users")}
                 Icon={Users}
                 active={activeTab === "users"}
                 onClick={setTab}
@@ -285,7 +296,7 @@ export default function Navbar() {
               onClick={() => setUserModal(true)}
               className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px]
                          text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
-              title="Ver perfil"
+              title={profileT("open")}
             >
               {name} — {team}
             </button>
@@ -295,7 +306,7 @@ export default function Navbar() {
               onClick={() => signOut()}
               className="inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-white text-[#3b0a69] hover:bg-white/90"
             >
-              Cerrar sesión
+              {profileT("signOut")}
             </button>
           )}
         </div>
@@ -305,23 +316,25 @@ export default function Navbar() {
       <Modal
         open={showAuthActions && userModal}
         onClose={() => setUserModal(false)}
-        title="Mi perfil y objetivo"
+        title={modalT("title")}
         variant="inverted"
         panelClassName="max-w-2xl"
         footer={
           <div className="flex justify-between items-center w-full">
             <div className="text-[12px] text-white/80">
-              Periodo: {yearSel} - Q{quarterSel} ({range.from} — {range.to})
+              {profileModalT("periodSummary", {
+                year: yearSel,
+                quarter: quarterSel,
+                from: range.from,
+                to: range.to,
+              })}
             </div>
             <div className="flex gap-2">
-              <button
-                className="btn-bar"
-                onClick={() => setUserModal(false)}
-              >
-                Cerrar
+              <button className="btn-bar" onClick={() => setUserModal(false)}>
+                {profileModalT("buttons.close")}
               </button>
               <button className="btn-bar" onClick={saveMyGoal}>
-                Guardar objetivo
+                {profileModalT("buttons.save")}
               </button>
             </div>
           </div>
@@ -347,14 +360,14 @@ export default function Navbar() {
             <div className="rounded-md border border-white/20 bg-white/10 px-3 py-2">
               <div className="text-[12px] text-white/80 flex items-center gap-1 mb-0.5">
                 <Shield className="h-3.5 w-3.5" />
-                Rol
+                {modalLabelsT("role")}
               </div>
               <div className="font-medium">{(role ?? "usuario").toString()}</div>
             </div>
             <div className="rounded-md border border-white/20 bg-white/10 px-3 py-2">
               <div className="text-[12px] text-white/80 flex items-center gap-1 mb-0.5">
                 <Users2 className="h-3.5 w-3.5" />
-                Equipo
+                {modalLabelsT("team")}
               </div>
               <div className="font-medium">{team}</div>
             </div>
@@ -363,7 +376,7 @@ export default function Navbar() {
           {/* Selectores y objetivo (estilo del modal de editar) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <label className="text-sm">
-              Año
+              {modalLabelsT("year")}
               <select
                 className="select-on-dark mt-1 w-full"
                 value={yearSel}
@@ -380,7 +393,7 @@ export default function Navbar() {
               </select>
             </label>
             <label className="text-sm">
-              Trimestre
+              {modalLabelsT("quarter")}
               <select
                 className="select-on-dark mt-1 w-full"
                 value={quarterSel}
@@ -393,7 +406,7 @@ export default function Navbar() {
               </select>
             </label>
             <label className="text-sm">
-              Objetivo (USD)
+              {modalLabelsT("goal")}
               <input
                 className="input-pill mt-1 w-full"
                 type="number"
@@ -408,22 +421,22 @@ export default function Navbar() {
           {/* KPIs y barra */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
-              <div className="text-xs text-white/80">Objetivo</div>
+              <div className="text-xs text-white/80">{goalsMetricsT("goal")}</div>
               <div className="text-xl font-semibold">{formatUSD(goal)}</div>
             </div>
             <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
-              <div className="text-xs text-white/80">Avance (WON)</div>
+              <div className="text-xs text-white/80">{modalLabelsT("progress")}</div>
               <div className="text-xl font-semibold">{formatUSD(progress)}</div>
             </div>
             <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
-              <div className="text-xs text-white/80">Faltante</div>
+              <div className="text-xs text-white/80">{goalsMetricsT("remaining")}</div>
               <div className="text-xl font-semibold">
                 {formatUSD(Math.max(0, goal - progress))}
               </div>
             </div>
             <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
-              <div className="text-xs text-white/80">% Cumplimiento</div>
-              <div className="text-xl font-semibold">{(pct).toFixed(1)}%</div>
+              <div className="text-xs text-white/80">{goalsMetricsT("pct")}</div>
+              <div className="text-xl font-semibold">{pct.toFixed(1)}%</div>
             </div>
           </div>
 

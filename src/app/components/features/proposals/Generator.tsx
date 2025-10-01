@@ -6,6 +6,8 @@ import Combobox from "@/app/components/ui/Combobox";
 import ItemForm, { type ItemFormData } from "@/app/components/ui/ItemForm";
 import { Plus } from "lucide-react";
 
+import { useTranslations } from "@/app/LanguageProvider";
+
 import { formatUSD } from "./lib/format";
 import {
   COUNTRY_NAMES,
@@ -86,6 +88,18 @@ type SortKey = "popular" | "sku" | "unitPrice" | "name" | "category";
 type SortDir = "asc" | "desc";
 
 export default function Generator({ isAdmin, userId, userEmail }: Props) {
+  const generatorT = useTranslations("proposals.generator");
+  const toastT = useTranslations("proposals.generator.toast");
+  const confirmResetT = useTranslations("proposals.generator.confirmReset");
+  const errorsT = useTranslations("proposals.generator.errors");
+  const pipedriveT = useTranslations("proposals.generator.pipedrive");
+  const companyT = useTranslations("proposals.generator.company");
+  const filtersT = useTranslations("proposals.generator.filters");
+  const orderT = useTranslations("proposals.generator.order");
+  const actionsT = useTranslations("proposals.generator.actions");
+  const totalsT = useTranslations("proposals.generator.totals");
+  const pipedriveExample = pipedriveT("exampleLink");
+  const emptyValue = generatorT("emptyValue");
   const [companyName, setCompanyName] = useState("");
   const [country, setCountry] = useState("");
   const [subsidiary, setSubsidiary] = useState("");
@@ -235,7 +249,7 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
       if (itemFormMode === "create") {
         const created = await createCatalogItem(data);
         setItems((prev) => [created, ...prev]);
-        toast.success("Ítem creado");
+        toast.success(toastT("itemCreated"));
       } else if (itemFormMode === "edit" && editingId != null) {
         const current = items.find((i) => i.id === editingId);
         if (current?.dbId) {
@@ -256,11 +270,11 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
               : i
           )
         );
-        toast.success("Ítem actualizado");
+        toast.success(toastT("itemUpdated"));
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Desconocido";
-      toast.error(`Error guardando ítem: ${msg}`);
+      const msg = e instanceof Error ? e.message : toastT("unknown");
+      toast.error(toastT("itemSaveError", { message: msg }));
     } finally {
       setItemFormOpen(false);
     }
@@ -268,17 +282,17 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
 
   const generate = () => {
     if (selectedItems.length === 0) {
-      toast.info("Selecciona al menos un ítem para generar la propuesta.");
+      toast.info(toastT("selectItems"));
       return;
     }
     if (!companyName || !country || !subsidiary) {
-      toast.info("Completa Empresa, País y Filial antes de continuar.");
+      toast.info(toastT("fillCompany"));
       return;
     }
     // NUEVO: validar Link Pipedrive
     const id = extractDealIdFromLink(pipedriveLink);
     if (!pipedriveLink || !id) {
-      toast.error("Pegá el Link de Pipedrive (formato: https://.../deal/42059).");
+      toast.error(toastT("pipedriveLinkRequired", { example: pipedriveExample }));
       return;
     }
     setPipedriveDealId(id);
@@ -300,7 +314,7 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
       prev.map((i) => ({ ...i, selected: false, quantity: 1, discountPct: 0 }))
     );
     setOpenSummary(false);
-    toast.info("Generador restablecido");
+    toast.info(toastT("reset"));
   };
 
   // Mapa seguro id(UI) -> dbId (o id como fallback)
@@ -355,13 +369,15 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
 
       const parsed = (await res.json()) as { url?: string; docId?: string; error?: string };
       if (!res.ok || !parsed.url)
-        throw new Error(parsed.error ?? "No se recibió la URL del documento.");
+        throw new Error(parsed.error ?? errorsT("missingDocumentUrl"));
 
       // Persistir propuesta (unitario NETO) con mapeo SEGURO de dbId
       const payloadItems = selectedItems.map((it) => {
         const dbId = idToDbId.get(it.id);
         if (!dbId) {
-          throw new Error(`Ítem sin dbId (id UI: ${it.id}). Actualiza el catálogo e intenta de nuevo.`);
+          throw new Error(
+            errorsT("missingItemDbId", { id: it.id })
+          );
         }
         return {
           itemId: dbId,
@@ -424,13 +440,13 @@ try {
   const syncJson = await syncRes.json().catch(() => ({}));
   if (!syncRes.ok) {
     console.error("Pipedrive sync error:", syncJson);
-    toast.error("Se generó el documento, pero falló la sincronización con Pipedrive.");
+    toast.error(toastT("pipedriveSyncFailed"));
   } else {
-    toast.success("Propuesta sincronizada en Pipedrive.");
+    toast.success(toastT("pipedriveSyncSuccess"));
   }
 } catch (err) {
   console.error(err);
-  toast.error("Se generó el documento, pero no se pudo contactar a Pipedrive.");
+  toast.error(toastT("pipedriveSyncUnavailable"));
 }
 
 
@@ -439,8 +455,8 @@ try {
       setCreatedUrl(parsed.url);
       setShowCreated(true);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Error desconocido";
-      toast.error(`Error creando propuesta: ${msg}`);
+      const msg = e instanceof Error ? e.message : toastT("unknown");
+      toast.error(toastT("proposalCreationError", { message: msg }));
     } finally {
       setCreatingDoc(false);
     }
@@ -473,10 +489,10 @@ try {
       );
       setOpenWpp(false);
       setPendingItemId(null);
-      toast.success("Tarifas de WhatsApp aplicadas");
+      toast.success(toastT("whatsAppApplied"));
     } catch (e) {
-      setWppError(e instanceof Error ? e.message : "Error");
-      toast.error("No se pudo calcular WhatsApp");
+      setWppError(e instanceof Error ? e.message : errorsT("generic"));
+      toast.error(toastT("whatsAppError"));
     } finally {
       setApplyingWpp(false);
     }
@@ -509,10 +525,10 @@ try {
       );
       setOpenMin(false);
       setPendingItemId(null);
-      toast.success("Minutos aplicados");
+      toast.success(toastT("minutesApplied"));
     } catch (e) {
-      setMinError(e instanceof Error ? e.message : "Error");
-      toast.error("No se pudo calcular Minutos");
+      setMinError(e instanceof Error ? e.message : errorsT("generic"));
+      toast.error(toastT("minutesError"));
     } finally {
       setApplyingMin(false);
     }
@@ -529,7 +545,7 @@ try {
     );
     setOpenWiser(false);
     setPendingItemId(null);
-    toast.success("WiserPro aplicado");
+    toast.success(toastT("wiserApplied"));
   };
 
   const handleToggleItem = (item: UIItem, checked: boolean) => {
@@ -581,10 +597,10 @@ try {
     try {
       if (target.dbId) await deleteCatalogItem(target.dbId);
       setItems((prev) => prev.filter((i) => i.id !== itemId));
-      toast.success("Ítem eliminado");
+      toast.success(toastT("itemDeleted"));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Desconocido";
-      toast.error(`No se pudo eliminar el ítem: ${msg}`);
+      const msg = e instanceof Error ? e.message : toastT("unknown");
+      toast.error(toastT("itemDeleteError", { message: msg }));
     }
   };
 
@@ -611,16 +627,17 @@ try {
 
         <section>
           <div className="card border-2">
-            <div className="heading-bar mb-3">Generador de Propuestas</div>
+            <div className="heading-bar mb-3">{generatorT("heading")}</div>
 
             {/* NUEVO: Link Pipedrive (campo destacado) */}
             <div className="mb-4 rounded-md border-2 border-[rgb(var(--primary))] bg-[rgb(var(--primary-soft))]/20 shadow-soft p-4">
               <label className="block text-xs text-gray-700 mb-1">
-                Link Pipedrive <span className="text-red-600">*</span>
+                {pipedriveT("label")}
+                <span className="text-red-600">*</span>
               </label>
               <input
                 className="input w-full h-10 ring-2 ring-[rgb(var(--primary))]/40"
-                placeholder="Ej: https://wcx.pipedrive.com/deal/42059"
+                placeholder={pipedriveT("placeholder", { example: pipedriveExample })}
                 value={pipedriveLink}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -630,33 +647,32 @@ try {
                 }}
               />
               <div className="mt-1 text-[12px] text-gray-600">
-                Pegá el enlace del trato en Pipedrive. Lo usamos para actualizar el valor,
-                el one-shot, el enlace del documento y las líneas de productos.
+                {pipedriveT("description")}
               </div>
               {pipedriveLink && !pipedriveDealId && (
                 <div className="mt-2 text-[12px] text-red-600">
-                  Formato inválido. Debe contener <code>/deal/&lt;ID&gt;</code>.
+                  {pipedriveT("invalid")}
                 </div>
               )}
               {pipedriveDealId && (
                 <div className="mt-2 text-[12px] text-green-700">
-                  ID detectado: <strong>{pipedriveDealId}</strong>
+                  {pipedriveT("detected")}: <strong>{pipedriveDealId}</strong>
                 </div>
               )}
             </div>
 
             {/* Datos de la empresa / país / filial */}
             <div className="mb-4 rounded-md border-2 bg-white shadow-soft overflow-hidden">
-              <div className="heading-bar-sm">Datos de la empresa</div>
+              <div className="heading-bar-sm">{companyT("title")}</div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
                 {/* Empresa */}
                 <div className="rounded-md border border-[rgb(var(--primary))]/25 bg-[rgb(var(--primary-soft))]/20 p-3">
                   <label className="block text-xs text-gray-700 mb-1">
-                    Nombre de la empresa
+                    {companyT("name.label")}
                   </label>
                   <input
                     className="input w-full h-10"
-                    placeholder="Ej: Acme S.A."
+                    placeholder={companyT("name.placeholder")}
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                   />
@@ -664,7 +680,9 @@ try {
 
                 {/* País */}
                 <div className="rounded-md border border-[rgb(var(--primary))]/25 bg-[rgb(var(--primary-soft))]/20 p-3">
-                  <label className="block text-xs text-gray-700 mb-1">País</label>
+                  <label className="block text-xs text-gray-700 mb-1">
+                    {companyT("country.label")}
+                  </label>
                   <Combobox
                     options={COUNTRY_NAMES}
                     value={country}
@@ -672,16 +690,18 @@ try {
                       setCountry(v);
                       setSubsidiary(autoSubsidiaryForCountry(v));
                     }}
-                    placeholder="Seleccione un país"
+                    placeholder={companyT("country.placeholder")}
                   />
                 </div>
 
                 {/* Filial */}
                 <div className="rounded-md border border-[rgb(var(--primary))]/25 bg-[rgb(var(--primary-soft))]/20 p-3">
-                  <label className="block text-xs text-gray-700 mb-1">Filial</label>
-                  <input className="input w-full h-10" value={subsidiary || "—"} readOnly />
+                  <label className="block text-xs text-gray-700 mb-1">
+                    {companyT("subsidiary.label")}
+                  </label>
+                  <input className="input w-full h-10" value={subsidiary || emptyValue} readOnly />
                   <p className="mt-1 text-[12px] text-gray-600">
-                    Se determina automáticamente según el país.
+                    {companyT("subsidiary.helper")}
                   </p>
                 </div>
               </div>
@@ -695,8 +715,8 @@ try {
                   <button
                     onClick={openCreateForm}
                     className="btn-bar px-2 py-2 w-9 h-9 rounded-full"
-                    title="Agregar ítem"
-                    aria-label="Agregar ítem"
+                    title={actionsT("addItem")}
+                    aria-label={actionsT("addItem")}
                   >
                     <Plus className="h-4 w-4" />
                   </button>
@@ -708,7 +728,7 @@ try {
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
                   >
-                    <option value="">Todas las categorías</option>
+                    <option value="">{filtersT("categoriesAll")}</option>
                     {Array.from(new Set(items.map((i) => i.category))).map((c) => (
                       <option key={c} value={c}>
                         {c}
@@ -718,7 +738,7 @@ try {
 
                   <input
                     className="input h-9"
-                    placeholder="Filtrar por texto (nombre, descripción o SKU)"
+                    placeholder={filtersT("searchPlaceholder")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -728,29 +748,29 @@ try {
               {/* Lado derecho: ordenar + acciones */}
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-700">Ordenar</span>
+                  <span className="text-sm text-gray-700">{orderT("label")}</span>
                   <select
                     className="select h-9"
                     value={sortKey}
                     onChange={(e) => setSortKey(e.target.value as SortKey)}
                   >
-                    <option value="popular">Más cotizados</option>
-                    <option value="sku">SKU</option>
-                    <option value="unitPrice">Unitario</option>
-                    <option value="name">Ítem</option>
-                    <option value="category">Categoría</option>
+                    <option value="popular">{orderT("options.popular")}</option>
+                    <option value="sku">{orderT("options.sku")}</option>
+                    <option value="unitPrice">{orderT("options.unitPrice")}</option>
+                    <option value="name">{orderT("options.name")}</option>
+                    <option value="category">{orderT("options.category")}</option>
                   </select>
                 </div>
-              
+
                 <button onClick={generate} className="btn-bar">
-                  Generar Propuesta
+                  {actionsT("generate")}
                 </button>
                 <button
                   onClick={() => setConfirmReset(true)}
-                  className="btn-bar%a"
-                  title="Restablecer generador"
+                  className="btn-bar"
+                  title={confirmResetT("title")}
                 >
-                  Resetear
+                  {actionsT("reset")}
                 </button>
               </div>
             </div>
@@ -786,7 +806,7 @@ try {
 
             <div className="mt-3 flex justify-end">
               <div className="rounded-sm border-2 bg-white px-5 py-3 shadow-soft text-right">
-                <div className="text-sm text-gray-500">Total mensual</div>
+                <div className="text-sm text-gray-500">{totalsT("monthly")}</div>
                 <div className="text-[22px] font-semibold text-primary">
                   {formatUSD(totalAmount)}
                 </div>
@@ -811,11 +831,11 @@ try {
           <Modal
             open={confirmReset}
             onClose={() => setConfirmReset(false)}
-            title="Restablecer generador"
+            title={confirmResetT("title")}
             footer={
               <div className="flex justify-end gap-2">
                 <button className="btn-ghost" onClick={() => setConfirmReset(false)}>
-                  Cancelar
+                  {confirmResetT("cancel")}
                 </button>
                 <button
                   className="btn-primary"
@@ -824,14 +844,12 @@ try {
                     doReset();
                   }}
                 >
-                  Confirmar
+                  {confirmResetT("confirm")}
                 </button>
               </div>
             }
           >
-            <p className="text-sm text-gray-700">
-              Esta acción limpia los campos y des-selecciona los ítems. ¿Deseas continuar?
-            </p>
+            <p className="text-sm text-gray-700">{confirmResetT("message")}</p>
           </Modal>
 
           <WhatsAppModal

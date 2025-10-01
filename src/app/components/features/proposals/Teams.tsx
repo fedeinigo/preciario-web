@@ -5,6 +5,7 @@ import React from "react";
 import { Users, Crown, Pencil, Trash2, UserCheck } from "lucide-react";
 import ConfirmDialog from "@/app/components/ui/ConfirmDialog";
 import { toast } from "@/app/components/ui/toast";
+import { useTranslations } from "@/app/LanguageProvider";
 
 type TeamRow = { id: string; name: string; emoji?: string | null };
 
@@ -55,6 +56,10 @@ function TeamCardSkeleton() {
 // ---------- Componente ----------
 export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const canEdit = isSuperAdmin;
+
+  const teamsT = useTranslations("admin.teams");
+  const toastT = useTranslations("admin.teams.toast");
+  const dialogT = useTranslations("admin.teams.dialogs");
 
   const [teams, setTeams] = React.useState<TeamRow[]>([]);
   const [users, setUsers] = React.useState<AdminUser[]>([]);
@@ -116,14 +121,14 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       });
       if (!r.ok) {
         const data: unknown = await r.json().catch(() => ({}));
-        toast.error(extractApiError(data) ?? "No se pudo crear el equipo");
+        toast.error(extractApiError(data) ?? toastT("createError"));
         return;
       }
       setNewTeam("");
-      toast.success("Equipo creado");
+      toast.success(toastT("createSuccess"));
       await load();
     } catch {
-      toast.error("No se pudo crear el equipo");
+      toast.error(toastT("createError"));
     } finally {
       setCreating(false);
     }
@@ -145,14 +150,14 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       });
       if (!r.ok) {
         const data: unknown = await r.json().catch(() => ({}));
-        toast.error(extractApiError(data) ?? "No se pudo renombrar el equipo");
+        toast.error(extractApiError(data) ?? toastT("renameError"));
         return;
       }
-      toast.success("Equipo renombrado");
+      toast.success(toastT("renameSuccess"));
       setRenameOpen(false);
       await load();
     } catch {
-      toast.error("No se pudo renombrar el equipo");
+      toast.error(toastT("renameError"));
     } finally {
       setRenaming(false);
     }
@@ -173,14 +178,14 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       });
       if (!r.ok) {
         const data: unknown = await r.json().catch(() => ({}));
-        toast.error(extractApiError(data) ?? "No se pudo eliminar el equipo");
+        toast.error(extractApiError(data) ?? toastT("deleteError"));
         return;
       }
-      toast.success("Equipo eliminado");
+      toast.success(toastT("deleteSuccess"));
       setDeleteOpen(false);
       await load();
     } catch {
-      toast.error("No se pudo eliminar el equipo");
+      toast.error(toastT("deleteError"));
     } finally {
       setDeleting(false);
     }
@@ -219,16 +224,13 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       {/* Contenedor principal */}
       <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
         {/* Header morado consistente */}
-        <div className="section-header">Equipos</div>
+        <div className="section-header">{teamsT("header")}</div>
 
         <div className="p-4 space-y-4">
           {/* Barra de controles (toggle admin) */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
             <div className="text-sm text-gray-700">
-              Mostrando:{" "}
-              <strong>
-                {canEdit && showAllTeams ? "todos los equipos" : "solo equipos con integrantes"}
-              </strong>
+              {teamsT("summary.label")} <strong>{teamsT(canEdit && showAllTeams ? "summary.all" : "summary.visible")}</strong>
             </div>
             {canEdit && (
               <label className="inline-flex items-center gap-2 text-sm">
@@ -238,7 +240,7 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
                   checked={showAllTeams}
                   onChange={(e) => setShowAllTeams(e.target.checked)}
                 />
-                Mostrar equipos vacíos (admin)
+                {teamsT("toggleEmpty")}
               </label>
             )}
           </div>
@@ -246,11 +248,11 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
           {/* Gestión (solo superadmin) */}
           {canEdit && (
             <div className="rounded-xl border bg-white p-3 shadow-soft">
-              <div className="text-sm font-semibold mb-2">Gestión de equipos</div>
+              <div className="text-sm font-semibold mb-2">{teamsT("management.title")}</div>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   className="input-pill flex-1"
-                  placeholder="Nuevo equipo"
+                  placeholder={teamsT("management.placeholder")}
                   value={newTeam}
                   onChange={(e) => setNewTeam(e.target.value)}
                 />
@@ -259,7 +261,7 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
                   onClick={createTeam}
                   disabled={!newTeam.trim() || creating}
                 >
-                  {creating ? "Creando…" : "Crear equipo"}
+                  {creating ? teamsT("management.creating") : teamsT("management.create")}
                 </button>
               </div>
             </div>
@@ -274,15 +276,14 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
             </div>
           ) : teams.length === 0 ? (
             <div className="rounded-md border bg-white p-8 text-center text-sm text-gray-600">
-              No hay equipos todavía.
-              {canEdit ? " Creá el primero con el formulario de arriba." : ""}
+              {teamsT("empty.noTeams")}
+              {canEdit ? ` ${teamsT("empty.createPrompt")}` : ""}
             </div>
           ) : teamsToRender.length === 0 ? (
             <div className="rounded-md border bg-white p-8 text-center text-sm text-gray-600">
-              No hay equipos visibles aún. <br />
-              <span className="text-gray-500">
-                Los equipos sin integrantes (sin líder ni miembros) se ocultan automáticamente.
-              </span>
+              {teamsT("empty.noVisible")}
+              <br />
+              <span className="text-gray-500">{teamsT("empty.hint")}</span>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -298,7 +299,7 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
                         <Users className="h-4 w-4" />
                         <span className="font-semibold text-[15px]">{t.name}</span>
                         {t.emoji ? <span className="text-sm">{t.emoji}</span> : null}
-                        <TitleBadge>{total} integrantes</TitleBadge>
+                        <TitleBadge>{teamsT("card.membersCount", { count: total })}</TitleBadge>
                       </div>
 
                       {canEdit && (
@@ -310,11 +311,11 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
                               setRenameFrom(t.name);
                               setRenameOpen(true);
                             }}
-                            title="Renombrar"
-                            aria-label="Renombrar equipo"
+                            title={teamsT("card.rename")}
+                            aria-label={teamsT("card.rename")}
                           >
                             <Pencil className="h-4 w-4" />
-                            Renombrar
+                            {teamsT("card.rename")}
                           </button>
                           <button
                             className="btn-bar"
@@ -323,11 +324,11 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
                               setDeleteName(t.name);
                               setDeleteOpen(true);
                             }}
-                            title="Eliminar"
-                            aria-label="Eliminar equipo"
+                            title={teamsT("card.delete")}
+                            aria-label={teamsT("card.delete")}
                           >
                             <Trash2 className="h-4 w-4" />
-                            Eliminar
+                            {teamsT("card.delete")}
                           </button>
                         </div>
                       )}
@@ -339,7 +340,7 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
                       <div className="mb-3">
                         <div className="flex items-center gap-2 text-[13px] font-semibold text-gray-700">
                           <Crown className="h-4 w-4 text-amber-600" />
-                          LÍDERES
+                          {teamsT("card.leaders")}
                         </div>
                         <div className="mt-2 border-t border-[rgb(var(--border))]" />
                         <div className="mt-2 space-y-1 text-[13px]">
@@ -360,7 +361,7 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
                       <div>
                         <div className="flex items-center gap-2 text-[13px] font-semibold text-gray-700">
                           <UserCheck className="h-4 w-4 text-emerald-600" />
-                          MIEMBROS
+                          {teamsT("card.members")}
                         </div>
                         <div className="mt-2 border-t border-[rgb(var(--border))]" />
                         <div className="mt-2 space-y-1 text-[13px]">
@@ -390,18 +391,20 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         open={renameOpen}
         onCancel={() => setRenameOpen(false)}
         onConfirm={(val) => (val ? doRenameTeam(val) : setRenameOpen(false))}
-        title="Renombrar equipo"
+        title={dialogT("rename.title")}
         description={
           <span className="text-sm">
-            Cambiar nombre de <strong>{renameFrom}</strong>.
+            {dialogT("rename.descriptionPrefix")}{" "}
+            <strong>{renameFrom}</strong>
+            {dialogT("rename.descriptionSuffix")}
           </span>
         }
-        inputLabel="Nuevo nombre"
-        inputPlaceholder="Ej: Lobos"
+        inputLabel={dialogT("rename.inputLabel")}
+        inputPlaceholder={dialogT("rename.inputPlaceholder")}
         inputDefaultValue={renameFrom}
         inputRequired
-        validateInput={(v) => (v.trim().length < 2 ? "Mínimo 2 caracteres" : null)}
-        confirmText="Renombrar"
+        validateInput={(v) => (v.trim().length < 2 ? dialogT("rename.validation") : null)}
+        confirmText={dialogT("rename.confirm")}
         loading={renaming}
       />
 
@@ -409,15 +412,15 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         open={deleteOpen}
         onCancel={() => setDeleteOpen(false)}
         onConfirm={doDeleteTeam}
-        title="Eliminar equipo"
+        title={dialogT("delete.title")}
         description={
           <div className="text-sm">
-            ¿Seguro que deseas eliminar el equipo{" "}
-            <strong>{deleteName || "(sin nombre)"}</strong>?<br />
-            Los usuarios quedarán sin equipo.
+            {dialogT("delete.description", {
+              team: deleteName || teamsT("card.unnamed"),
+            })}
           </div>
         }
-        confirmText="Eliminar"
+        confirmText={dialogT("delete.confirm")}
         destructive
         loading={deleting}
       />

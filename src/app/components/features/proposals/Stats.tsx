@@ -1,7 +1,7 @@
 // src/app/components/features/proposals/Stats.tsx
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import type { ProposalRecord } from "@/lib/types";
 import type { AppRole } from "@/constants/teams";
 import { countryIdFromName } from "./lib/catalogs";
@@ -19,6 +19,7 @@ import {
   currentWeekRange,
   prevWeekRange,
 } from "./lib/dateRanges";
+import { useTranslations } from "@/app/LanguageProvider";
 
 /** Header full-bleed como en Objetivos */
 function PageHeader({ children }: { children: React.ReactNode }) {
@@ -72,6 +73,7 @@ function QuickRanges({
   setFrom: (v: string) => void;
   setTo: (v: string) => void;
 }) {
+  const t = useTranslations("proposals.stats.quickRanges");
   const year = new Date().getFullYear();
   const apply = (r: { from: string; to: string }) => {
     setFrom(r.from);
@@ -91,22 +93,22 @@ function QuickRanges({
           key={q.label}
           className="btn-ghost !py-1"
           onClick={() => apply(q.get())}
-          title="Aplicar rango del trimestre"
+          title={t("quarterTooltip")}
         >
           {q.label}
         </button>
       ))}
       <button className="btn-ghost !py-1" onClick={() => apply(currentMonthRange())}>
-        Mes actual
+        {t("currentMonth")}
       </button>
       <button className="btn-ghost !py-1" onClick={() => apply(prevMonthRange())}>
-        Mes anterior
+        {t("previousMonth")}
       </button>
       <button className="btn-ghost !py-1" onClick={() => apply(currentWeekRange())}>
-        Semana actual
+        {t("currentWeek")}
       </button>
       <button className="btn-ghost !py-1" onClick={() => apply(prevWeekRange())}>
-        Semana anterior
+        {t("previousWeek")}
       </button>
     </div>
   );
@@ -130,6 +132,15 @@ export default function Stats({
   leaderTeam: string | null;
   isSuperAdmin: boolean;
 }) {
+  const t = useTranslations("proposals.stats");
+  const filtersT = useTranslations("proposals.stats.filters");
+  const actionsT = useTranslations("proposals.stats.actions");
+  const toastT = useTranslations("proposals.stats.toast");
+  const csvT = useTranslations("proposals.stats.csv");
+  const kpisT = useTranslations("proposals.stats.kpis");
+  const sectionsT = useTranslations("proposals.stats.sections");
+  const tableT = useTranslations("proposals.stats.table");
+
   // filtros
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -147,30 +158,30 @@ export default function Stats({
   const [loading, setLoading] = useState(true);
   const [all, setAll] = useState<ProposalForStats[]>([]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const r = await fetch("/api/proposals", { cache: "no-store" });
       if (!r.ok) {
-        toast.error("No se pudieron cargar las propuestas");
+        toast.error(toastT("loadError"));
         setAll([]);
       } else {
         setAll((await r.json()) as ProposalForStats[]);
       }
     } catch {
-      toast.error("Error de red al cargar propuestas");
+      toast.error(toastT("networkError"));
       setAll([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [toastT]);
 
   useEffect(() => {
     load();
     const onFocus = () => load();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, []);
+  }, [load]);
 
   // emails -> team
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
@@ -316,17 +327,18 @@ export default function Stats({
     [subset]
   );
 
-  const byUserFull: Array<[string, number]> = useMemo(
-    () =>
-      Object.entries(
-        subset.reduce<Record<string, number>>((acc, p) => {
-          const key = p.userEmail || "(sin email)";
-          acc[key] = (acc[key] ?? 0) + 1;
-          return acc;
-        }, {} as Record<string, number>)
-      ).sort((a, b) => b[1] - a[1]),
-    [subset]
-  );
+  const byUserFull: Array<[string, number]> = useMemo(() => {
+    const fallbackRaw = tableT("user.fallback");
+    const fallbackKey = "proposals.stats.table.user.fallback";
+    const fallback = fallbackRaw === fallbackKey ? "(sin email)" : fallbackRaw;
+    return Object.entries(
+      subset.reduce<Record<string, number>>((acc, p) => {
+        const key = p.userEmail || fallback;
+        acc[key] = (acc[key] ?? 0) + 1;
+        return acc;
+      }, {} as Record<string, number>)
+    ).sort((a, b) => b[1] - a[1]);
+  }, [subset, tableT]);
 
   const bySku = useMemo(
     () => (showAll ? bySkuFull : bySkuFull.slice(0, topN)),
@@ -343,25 +355,39 @@ export default function Stats({
 
   // CSVs
   const exportSkuCsv = () => {
-    const headers = ["SKU", "Ítem", "Cantidad total"];
+    const headers = [
+      csvT("sku.headers.sku"),
+      csvT("sku.headers.item"),
+      csvT("sku.headers.quantity"),
+    ];
     const rows = bySkuFull.map(([sku, info]) => [sku, info.name, info.qty]);
-    downloadCsv("stats_por_sku.csv", buildCsv(headers, rows));
-    toast.success("CSV de Ítems descargado");
+    downloadCsv(csvT("sku.fileName"), buildCsv(headers, rows));
+    toast.success(toastT("csv.sku"));
   };
   const exportCountryCsv = () => {
-    const headers = ["País", "Cantidad"];
+    const headers = [csvT("country.headers.country"), csvT("country.headers.quantity")];
     const rows = byCountryFull.map(([c, n]) => [c, n]);
-    downloadCsv("stats_por_pais.csv", buildCsv(headers, rows));
-    toast.success("CSV por País descargado");
+    downloadCsv(csvT("country.fileName"), buildCsv(headers, rows));
+    toast.success(toastT("csv.country"));
   };
   const exportUserCsv = () => {
-    const headers = ["Usuario (email)", "Propuestas"];
+    const headers = [csvT("user.headers.user"), csvT("user.headers.proposals")];
     const rows = byUserFull.map(([u, n]) => [u, n]);
-    downloadCsv("stats_por_usuario.csv", buildCsv(headers, rows));
-    toast.success("CSV por Usuario descargado");
+    downloadCsv(csvT("user.fileName"), buildCsv(headers, rows));
+    toast.success(toastT("csv.user"));
   };
   const exportFilteredProposalsCsv = () => {
-    const headers = ["ID", "Empresa", "País", "Usuario", "Mensual", "Horas", "OneShot", "Creado", "URL"];
+    const headers = [
+      csvT("filtered.headers.id"),
+      csvT("filtered.headers.company"),
+      csvT("filtered.headers.country"),
+      csvT("filtered.headers.user"),
+      csvT("filtered.headers.monthly"),
+      csvT("filtered.headers.hours"),
+      csvT("filtered.headers.oneShot"),
+      csvT("filtered.headers.created"),
+      csvT("filtered.headers.url"),
+    ];
     const rows = subset.map((p) => [
       p.id,
       p.companyName,
@@ -373,8 +399,8 @@ export default function Stats({
       formatDateTime(p.createdAt as unknown as string),
       p.docUrl || "",
     ]);
-    downloadCsv("propuestas_filtradas.csv", buildCsv(headers, rows));
-    toast.success("CSV de propuestas filtradas descargado");
+    downloadCsv(csvT("filtered.fileName"), buildCsv(headers, rows));
+    toast.success(toastT("csv.filtered"));
   };
 
   // textura suave como en Objetivos
@@ -390,7 +416,7 @@ export default function Stats({
   return (
     <div className="p-4" style={textureStyle}>
       <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-        <PageHeader>Estadísticas</PageHeader>
+        <PageHeader>{t("title")}</PageHeader>
 
         <div className="p-3">
           {/* Rango rápido */}
@@ -401,7 +427,7 @@ export default function Stats({
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 items-end">
               {/* fechas */}
               <div className="xl:col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">Desde</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("from")}</label>
                 <input
                   type="date"
                   className="input"
@@ -410,7 +436,7 @@ export default function Stats({
                 />
               </div>
               <div className="xl:col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">Hasta</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("to")}</label>
                 <input
                   type="date"
                   className="input"
@@ -422,13 +448,13 @@ export default function Stats({
               {/* equipo (solo superadmin) con filtro de equipos vacíos */}
               {isSuperAdmin ? (
                 <div className="xl:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">Equipo</label>
+                  <label className="block text-xs text-gray-600 mb-1">{filtersT("team.label")}</label>
                   <select
                     className="select"
                     value={teamFilter}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTeamFilter(e.target.value)}
                   >
-                    <option value="">Todos</option>
+                    <option value="">{filtersT("team.all")}</option>
                     {visibleTeams.map((t) => (
                       <option key={t} value={t}>
                         {t}
@@ -442,13 +468,13 @@ export default function Stats({
 
               {/* país */}
               <div className="xl:col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">País</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("country.label")}</label>
                 <select
                   className="select"
                   value={countryFilter}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCountryFilter(e.target.value)}
                 >
-                  <option value="">Todos</option>
+                  <option value="">{filtersT("country.all")}</option>
                   {countryOptions.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -459,14 +485,16 @@ export default function Stats({
 
               {/* usuario */}
               <div className="xl:col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">Usuario</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("user.label")}</label>
                 <select
                   className="select"
                   value={userFilter}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setUserFilter(e.target.value)}
                   disabled={role === "usuario"}
                 >
-                  <option value="">{role === "usuario" ? currentEmail : "Todos"}</option>
+                  <option value="">
+                    {role === "usuario" ? currentEmail : filtersT("user.all")}
+                  </option>
                   {(role === "usuario" ? [currentEmail] : userOptions).map((u) =>
                     u ? (
                       <option key={u} value={u}>
@@ -479,7 +507,7 @@ export default function Stats({
 
               {/* ordenar / dirección */}
               <div className="xl:col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">Ordenar por</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("orderBy.label")}</label>
                 <select
                   className="select"
                   value={orderKey}
@@ -487,12 +515,12 @@ export default function Stats({
                     setOrderKey(e.target.value as OrderKey)
                   }
                 >
-                  <option value="createdAt">Fecha de creación</option>
-                  <option value="totalAmount">Monto mensual</option>
+                  <option value="createdAt">{filtersT("orderBy.createdAt")}</option>
+                  <option value="totalAmount">{filtersT("orderBy.totalAmount")}</option>
                 </select>
               </div>
               <div className="xl:col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">Dirección</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("direction.label")}</label>
                 <select
                   className="select"
                   value={orderDir}
@@ -500,8 +528,8 @@ export default function Stats({
                     setOrderDir(e.target.value as OrderDir)
                   }
                 >
-                  <option value="desc">Descendente</option>
-                  <option value="asc">Ascendente</option>
+                  <option value="desc">{filtersT("direction.desc")}</option>
+                  <option value="asc">{filtersT("direction.asc")}</option>
                 </select>
               </div>
 
@@ -519,13 +547,13 @@ export default function Stats({
                     setOrderDir("desc");
                     setTopN(20);
                     setShowAll(false);
-                    toast.info("Filtros restablecidos");
+                    toast.info(toastT("reset"));
                   }}
                 >
-                  Limpiar
+                  {actionsT("reset")}
                 </button>
                 <button className="btn-bar w-full" onClick={exportFilteredProposalsCsv}>
-                  Exportar
+                  {actionsT("exportFiltered")}
                 </button>
               </div>
             </div>
@@ -533,19 +561,19 @@ export default function Stats({
 
           {/* KPIs (primera fila) */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 my-4">
-            <VioletKpi label="Propuestas generadas" value={String(subset.length)} />
-            <VioletKpi label="Usuarios únicos" value={String(uniqueUsers)} />
-            <VioletKpi label="Empresas distintas" value={String(uniqueCompanies)} />
-            <VioletKpi label="Monto mensual total" value={formatUSD(totalMonthly)} />
-            <VioletKpi label="Promedio por propuesta" value={formatUSD(avgPerProposal)} />
+            <VioletKpi label={kpisT("generated")} value={String(subset.length)} />
+            <VioletKpi label={kpisT("uniqueUsers")} value={String(uniqueUsers)} />
+            <VioletKpi label={kpisT("uniqueCompanies")} value={String(uniqueCompanies)} />
+            <VioletKpi label={kpisT("totalMonthly")} value={formatUSD(totalMonthly)} />
+            <VioletKpi label={kpisT("averagePerProposal")} value={formatUSD(avgPerProposal)} />
           </div>
 
           {/* KPIs WON (segunda fila) */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
-            <VioletKpi label="Propuestas WON" value={String(wonCount)} />
-            <VioletKpi label="Monto WON" value={formatUSD(wonAmount)} />
-            <VioletKpi label="Win rate" value={`${winRate.toFixed(1)}%`} />
-            <VioletKpi label="Ticket promedio WON" value={formatUSD(wonAvgTicket)} />
+            <VioletKpi label={kpisT("wonCount")} value={String(wonCount)} />
+            <VioletKpi label={kpisT("wonAmount")} value={formatUSD(wonAmount)} />
+            <VioletKpi label={kpisT("winRate")} value={`${winRate.toFixed(1)}%`} />
+            <VioletKpi label={kpisT("wonAverageTicket")} value={formatUSD(wonAvgTicket)} />
           </div>
 
           {/* Grillas */}
@@ -553,22 +581,22 @@ export default function Stats({
             {/* Ítems por SKU */}
             <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
               <SectionHeader
-                title="Ítems más cotizados (por SKU)"
+                title={sectionsT("bySku.title")}
                 actions={
                   <div className="flex items-center gap-3">
                     <label
                       className="inline-flex items-center gap-2 text-[12px] text-white/90"
-                      title="Ver todos los resultados"
+                      title={actionsT("showAllTitle")}
                     >
                       <input
                         type="checkbox"
                         checked={showAll}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShowAll(e.target.checked)}
                       />
-                      Ver todo
+                      {actionsT("showAll")}
                     </label>
                     <div className="inline-flex items-center gap-1">
-                      <span className="text-[12px] text-white/90">Top N</span>
+                      <span className="text-[12px] text-white/90">{actionsT("topN")}</span>
                       <select
                         value={topN}
                         onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -576,7 +604,7 @@ export default function Stats({
                         }
                         className="h-8 text-xs rounded border border-white/40 bg-white/10 text-white px-2 py-1
                                    focus:outline-none focus:ring-2 focus:ring-white/60 focus:border-white/60 disabled:opacity-50"
-                        title="Top N (agregados)"
+                        title={actionsT("topNTitle")}
                         disabled={showAll}
                       >
                         {[5, 10, 20, 50, 100].map((n) => (
@@ -586,8 +614,12 @@ export default function Stats({
                         ))}
                       </select>
                     </div>
-                    <button className="btn-ghost !py-1" onClick={exportSkuCsv} title="Descargar CSV completo">
-                      CSV
+                    <button
+                      className="btn-ghost !py-1"
+                      onClick={exportSkuCsv}
+                      title={actionsT("csvTooltip")}
+                    >
+                      {actionsT("csvButton")}
                     </button>
                   </div>
                 }
@@ -595,9 +627,9 @@ export default function Stats({
               <table className="min-w-full bg-white">
                 <thead>
                   <tr>
-                    <th className="table-th">SKU</th>
-                    <th className="table-th">Ítem</th>
-                    <th className="table-th w-40 text-right">Cantidad total</th>
+                    <th className="table-th">{tableT("sku.headers.sku")}</th>
+                    <th className="table-th">{tableT("sku.headers.item")}</th>
+                    <th className="table-th w-40 text-right">{tableT("sku.headers.quantity")}</th>
                   </tr>
                 </thead>
                 {loading ? (
@@ -616,7 +648,7 @@ export default function Stats({
                     {!loading && bySku.length === 0 && (
                       <tr>
                         <td className="table-td text-center text-gray-500" colSpan={3}>
-                          Sin datos para los filtros seleccionados.
+                          {tableT("empty")}
                         </td>
                       </tr>
                     )}
@@ -628,11 +660,15 @@ export default function Stats({
             {/* Propuestas por país */}
             <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
               <SectionHeader
-                title="Propuestas por país"
+                title={sectionsT("byCountry.title")}
                 actions={
                   <div className="flex items-center gap-2">
-                    <button className="btn-ghost !py-1" onClick={exportCountryCsv} title="Descargar CSV completo">
-                      CSV
+                    <button
+                      className="btn-ghost !py-1"
+                      onClick={exportCountryCsv}
+                      title={actionsT("csvTooltip")}
+                    >
+                      {actionsT("csvButton")}
                     </button>
                   </div>
                 }
@@ -640,8 +676,8 @@ export default function Stats({
               <table className="min-w-full bg-white">
                 <thead>
                   <tr>
-                    <th className="table-th">País</th>
-                    <th className="table-th w-40 text-right">Cantidad</th>
+                    <th className="table-th">{tableT("country.headers.country")}</th>
+                    <th className="table-th w-40 text-right">{tableT("country.headers.quantity")}</th>
                   </tr>
                 </thead>
                 {loading ? (
@@ -660,7 +696,7 @@ export default function Stats({
                     {!loading && byCountry.length === 0 && (
                       <tr>
                         <td className="table-td text-center text-gray-500" colSpan={2}>
-                          Sin datos para los filtros seleccionados.
+                          {tableT("empty")}
                         </td>
                       </tr>
                     )}
@@ -670,7 +706,9 @@ export default function Stats({
 
               {!loading && byCountryFull.length > 0 && (
                 <div className="px-3 py-2 text-sm text-gray-600">
-                  {showAll ? `Mostrando todos (${byCountryFull.length})` : `Total países: ${byCountryFull.length}`}
+                  {showAll
+                    ? tableT("country.footer.showAll", { count: byCountryFull.length })
+                    : tableT("country.footer.total", { count: byCountryFull.length })}
                 </div>
               )}
             </div>
@@ -679,18 +717,22 @@ export default function Stats({
           {/* Top usuarios */}
           <div className="rounded-2xl border bg-white shadow-sm overflow-hidden mt-6">
             <SectionHeader
-              title="Top usuarios por cantidad de propuestas"
+              title={sectionsT("byUser.title")}
               actions={
-                <button className="btn-ghost !py-1" onClick={exportUserCsv} title="Descargar CSV completo">
-                  CSV
+                <button
+                  className="btn-ghost !py-1"
+                  onClick={exportUserCsv}
+                  title={actionsT("csvTooltip")}
+                >
+                  {actionsT("csvButton")}
                 </button>
               }
             />
             <table className="min-w-full bg-white">
               <thead>
                 <tr>
-                  <th className="table-th">Usuario (email)</th>
-                  <th className="table-th w-40 text-right">Propuestas</th>
+                  <th className="table-th">{tableT("user.headers.user")}</th>
+                  <th className="table-th w-40 text-right">{tableT("user.headers.proposals")}</th>
                 </tr>
               </thead>
               {loading ? (
@@ -706,7 +748,7 @@ export default function Stats({
                   {!loading && byUser.length === 0 && (
                     <tr>
                       <td className="table-td text-center text-gray-500" colSpan={2}>
-                        Sin datos para los filtros seleccionados.
+                        {tableT("empty")}
                       </td>
                     </tr>
                   )}

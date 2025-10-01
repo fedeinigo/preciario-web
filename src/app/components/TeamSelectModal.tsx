@@ -3,6 +3,7 @@
 
 import Modal from "@/app/components/ui/Modal";
 import React from "react";
+import { useTranslations } from "@/app/LanguageProvider";
 
 export type TeamName =
   | "Leones" | "Lobos" | "Tigres" | "Panteras" | "Jaguares" | "Pirañas" | "Tiburones"
@@ -36,28 +37,31 @@ export default function TeamSelectModal({
   submitting?: boolean;
 }) {
   const [selected, setSelected] = React.useState<TeamName | null>(null);
+  const t = useTranslations("common.teamSelectModal");
 
   return (
     <Modal
       open={open}
-      onClose={() => { if (!submitting) onClose(); }}
-      title="Elegí tu equipo"
+      onClose={() => {
+        if (!submitting) onClose();
+      }}
+      title={t("title")}
       footer={
         <div className="flex justify-end gap-2">
-          <button className="btn-ghost" onClick={onClose} disabled={submitting}>Cancelar</button>
+          <button className="btn-ghost" onClick={onClose} disabled={submitting}>
+            {t("cancel")}
+          </button>
           <button
             className="btn-primary"
             onClick={() => selected && onConfirm(selected)}
             disabled={!selected || submitting}
           >
-            {submitting ? "Guardando…" : "Confirmar"}
+            {submitting ? t("saving") : t("confirm")}
           </button>
         </div>
       }
     >
-      <p className="text-sm text-muted mb-3">
-        Esta selección se usará para segmentar Histórico y Estadísticas.
-      </p>
+      <p className="text-sm text-muted mb-3">{t("description")}</p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {TEAMS.map((t) => {

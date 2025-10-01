@@ -3,6 +3,8 @@
 import Modal from "@/app/components/ui/Modal";
 import Combobox from "@/app/components/ui/Combobox";
 
+import { useTranslations } from "@/app/LanguageProvider";
+
 /** === Tipos expuestos para que Generator.tsx los importe === */
 export type MinutesKind = "out" | "in";
 export type MinForm = { qty: number; destCountry: string };
@@ -85,20 +87,24 @@ export function MinutesModal({
   error?: string;
   applying?: boolean;
 }) {
-  const label = kind === "out" ? "Salientes (min)" : "Entrantes (min)";
+  const t = useTranslations("proposals.minutesModal");
+  const sharedT = useTranslations("proposals.generator");
+  const emptyValue = sharedT("emptyValue");
+  const label = t(`kinds.${kind}`);
+  const countryLabel = kind === "in" ? t("fields.countryLabelInbound") : t("fields.countryLabel");
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Calcular minutos de telefonía"
+      title={t("title")}
       footer={
         <div className="flex justify-end gap-2">
           <button className="btn-ghost" onClick={onClose} disabled={applying}>
-            Cancelar
+            {t("actions.cancel")}
           </button>
           <button className="btn-primary" onClick={onApply} disabled={applying}>
-            {applying ? "Calculando…" : "Aplicar"}
+            {applying ? t("actions.calculating") : t("actions.apply")}
           </button>
         </div>
       }
@@ -106,8 +112,8 @@ export function MinutesModal({
       <div className="relative space-y-4">
         {/* Encabezado con badge */}
         <div className="flex items-center justify-between">
-          <span className="chip">Tipo: {label}</span>
-          <span className="text-xs text-muted">Minutos mensuales para cálculo del PPM.</span>
+          <span className="chip">{t("badge", { kind: label })}</span>
+          <span className="text-xs text-muted">{t("hint")}</span>
         </div>
 
         {/* Campos */}
@@ -125,31 +131,29 @@ export function MinutesModal({
                 disabled={applying}
               />
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
-                min
+                {t("fields.qtySuffix")}
               </span>
             </div>
-            <p className="mt-1 text-[12px] text-muted">Cantidad mensual estimada.</p>
+            <p className="mt-1 text-[12px] text-muted">{t("fields.qtyHelp")}</p>
           </div>
 
           {/* País destino: visible/activo solo si es Saliente */}
           <div className={kind === "in" ? "opacity-50 pointer-events-none" : ""}>
-            <label className="block text-xs text-gray-600 mb-1">
-              País destino{kind === "in" ? " (no aplica para entrantes)" : ""}
-            </label>
+            <label className="block text-xs text-gray-600 mb-1">{countryLabel}</label>
             <Combobox
               options={DESTINATION_COUNTRIES}
               value={form.destCountry}
               onChange={(v) => onChange({ destCountry: v })}
-              placeholder="Seleccione país"
+              placeholder={t("fields.countryPlaceholder")}
             />
-            <p className="mt-1 text-[12px] text-muted">Se usa para el lookup de tarifas.</p>
+            <p className="mt-1 text-[12px] text-muted">{t("fields.countryHelp")}</p>
           </div>
 
           {/* Filial de facturación (solo lectura) */}
           <div>
-            <label className="block text-xs text-gray-600 mb-1">Filial de facturación</label>
-            <input className="input" value={billingSubsidiary || "—"} readOnly />
-            <p className="mt-1 text-[12px] text-muted">Determinada por el país de la propuesta.</p>
+            <label className="block text-xs text-gray-600 mb-1">{t("fields.billingLabel")}</label>
+            <input className="input" value={billingSubsidiary || emptyValue} readOnly />
+            <p className="mt-1 text-[12px] text-muted">{t("fields.billingHelp")}</p>
           </div>
         </div>
 
@@ -165,7 +169,7 @@ export function MinutesModal({
           <div className="absolute inset-0 z-[60] rounded-sm bg-white/75 backdrop-blur-[1px] flex items-center justify-center">
             <div className="flex items-center gap-3 text-gray-700">
               <span className="h-5 w-5 rounded-full border-2 border-gray-300 border-t-gray-700 animate-spin" />
-              <span>Calculando precios…</span>
+              <span>{t("loading")}</span>
             </div>
           </div>
         )}

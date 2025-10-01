@@ -5,8 +5,10 @@ import type { Metadata } from "next";
 import Navbar from "@/app/components/Navbar";
 import ClientSessionBoundary from "@/app/ClientSessionBoundary";
 import SessionProviderWrapper from "./SessionProviderWrapper";
+import { LanguageProvider } from "./LanguageProvider";
 import { auth } from "@/lib/auth";
 import { isFeatureEnabled } from "@/lib/feature-flags";
+import { defaultLocale } from "@/lib/i18n/config";
 
 export const metadata: Metadata = {
   title: "Wise CX — Preciario",
@@ -34,12 +36,14 @@ export default async function RootLayout({
 }) {
   if (!isFeatureEnabled("appShellRsc")) {
     return (
-      <html lang="es">
+      <html lang={defaultLocale}>
         <body>
-          <SessionProviderWrapper>
-            <Navbar />
-            <main className="pt-[var(--nav-h)]">{children}</main>
-          </SessionProviderWrapper>
+          <LanguageProvider>
+            <SessionProviderWrapper>
+              <Navbar />
+              <main className="pt-[var(--nav-h)]">{children}</main>
+            </SessionProviderWrapper>
+          </LanguageProvider>
         </body>
       </html>
     );
@@ -48,12 +52,14 @@ export default async function RootLayout({
   const session = await auth();
 
   return (
-    <html lang="es">
+    <html lang={defaultLocale}>
       <body>
-        <ClientSessionBoundary session={session ?? null}>
-          <Navbar session={session} />
-          <main className="pt-[var(--nav-h)]">{children}</main>
-        </ClientSessionBoundary>
+        <LanguageProvider>
+          <ClientSessionBoundary session={session ?? null}>
+            <Navbar session={session} />
+            <main className="pt-[var(--nav-h)]">{children}</main>
+          </ClientSessionBoundary>
+        </LanguageProvider>
       </body>
     </html>
   );
