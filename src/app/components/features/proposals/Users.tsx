@@ -7,6 +7,7 @@ import { toast } from "@/app/components/ui/toast";
 import { Copy, MoreHorizontal, UserRound, X } from "lucide-react";
 import { copyToClipboard } from "./lib/clipboard";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
+import { useTranslations } from "@/app/LanguageProvider";
 
 type Role = "superadmin" | "lider" | "usuario";
 
@@ -64,10 +65,12 @@ function FilterChip({
   show,
   label,
   onClear,
+  clearLabel,
 }: {
   show: boolean;
   label: string;
   onClear?: () => void;
+  clearLabel: string;
 }) {
   if (!show) return null;
   return (
@@ -77,7 +80,7 @@ function FilterChip({
         <button
           className="ml-1 rounded hover:bg-black/10 p-0.5"
           onClick={onClear}
-          aria-label="Quitar filtro"
+          aria-label={clearLabel}
           type="button"
         >
           <X className="h-3.5 w-3.5" />
@@ -94,6 +97,18 @@ type SortDir = "asc" | "desc";
 
 /* ======================== COMPONENTE ======================== */
 export default function Users() {
+  const t = useTranslations("admin.users");
+  const kpisT = useTranslations("admin.users.kpis");
+  const actionsT = useTranslations("admin.users.actions");
+  const filtersT = useTranslations("admin.users.filters");
+  const chipsT = useTranslations("admin.users.filters.chips");
+  const tableT = useTranslations("admin.users.table");
+  const dropdownT = useTranslations("admin.users.table.dropdown");
+  const toastT = useTranslations("admin.users.toast");
+  const exportT = useTranslations("admin.users.export");
+  const relativeT = useTranslations("admin.users.relative");
+  const rolesT = useTranslations("common.roles");
+
   // ====== data ======
   const [users, setUsers] = useState<UserRow[]>([]);
   const [teams, setTeams] = useState<TeamRow[]>([]);
@@ -229,12 +244,12 @@ export default function Users() {
           typeof data === "object" && data && "error" in data
             ? (data as { error?: string }).error
             : undefined;
-        toast.error(msg ?? "No autorizado");
+        toast.error(msg ?? toastT("unauthorized"));
         return;
       }
 
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, ...changes } : u)));
-      toast.success("Cambios guardados");
+      toast.success(toastT("saved"));
     } finally {
       setSaving(null);
     }
@@ -272,7 +287,14 @@ export default function Users() {
   };
 
   const exportCsv = () => {
-    const headers = ["Email", "Nombre", "Rol", "Equipo", "Último login", "Creado"];
+    const headers = [
+      exportT("headers.email"),
+      exportT("headers.name"),
+      exportT("headers.role"),
+      exportT("headers.team"),
+      exportT("headers.lastLogin"),
+      exportT("headers.created"),
+    ];
     const lines = filteredSortedUsers.map((u) => [
       u.email || "",
       u.name || "",
@@ -287,10 +309,10 @@ export default function Users() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "usuarios.csv";
+    a.download = exportT("filename");
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("CSV exportado");
+    toast.success(toastT("csvExported"));
   };
 
   const formatLastLogin = (u: UserRow): string | null => {
@@ -300,11 +322,11 @@ export default function Users() {
     const diff = Date.now() - d;
     const days = Math.floor(diff / (24 * 3600 * 1000));
     if (days >= 7) return new Date(iso).toLocaleDateString();
-    if (days >= 1) return `hace ${days}d`;
+    if (days >= 1) return relativeT("days", { count: days });
     const hrs = Math.floor(diff / (3600 * 1000));
-    if (hrs >= 1) return `hace ${hrs}h`;
+    if (hrs >= 1) return relativeT("hours", { count: hrs });
     const min = Math.max(1, Math.floor(diff / (60 * 1000)));
-    return `hace ${min}m`;
+    return relativeT("minutes", { count: min });
   };
 
   // ====== UI ======
@@ -313,27 +335,27 @@ export default function Users() {
       {/* KPIs (estilo violeta) */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <div className="kpi-tile">
-          <div className="kpi-label">Usuarios</div>
+          <div className="kpi-label">{kpisT("total")}</div>
           <div className="kpi-value">{total}</div>
         </div>
         <div className="kpi-tile">
-          <div className="kpi-label">Superadmins</div>
+          <div className="kpi-label">{kpisT("superadmins")}</div>
           <div className="kpi-value">{countSuperadmin}</div>
         </div>
         <div className="kpi-tile">
-          <div className="kpi-label">Líderes</div>
+          <div className="kpi-label">{kpisT("leaders")}</div>
           <div className="kpi-value">{countLeaders}</div>
         </div>
         <div className="kpi-tile">
-          <div className="kpi-label">Sin equipo</div>
+          <div className="kpi-label">{kpisT("withoutTeam")}</div>
           <div className="kpi-value">{countNoTeam}</div>
         </div>
         <div className="kpi-tile">
-          <div className="kpi-label">Activos 30 días</div>
+          <div className="kpi-label">{kpisT("active30")}</div>
           <div className="kpi-value">{activeLast30}</div>
         </div>
         <div className="kpi-tile">
-          <div className="kpi-label">% con equipo</div>
+          <div className="kpi-label">{kpisT("pctWithTeam")}</div>
           <div className="kpi-value">{pctWithTeam.toFixed(0)}%</div>
         </div>
       </div>
@@ -341,13 +363,13 @@ export default function Users() {
       {/* ======= Usuarios ======= */}
       <div className="card border-2 overflow-hidden">
         <div className="heading-bar-sm flex items-center justify-between">
-          <span>Usuarios</span>
+          <span>{t("title")}</span>
           <div className="flex items-center gap-2">
-            <button className="btn-bar" onClick={exportCsv} title="Exportar CSV">
-              CSV
+            <button className="btn-bar" onClick={exportCsv} title={actionsT("exportCsv")}>
+              {actionsT("exportCsv")}
             </button>
-            <button className="btn-bar" onClick={load} title="Refrescar">
-              Refrescar
+            <button className="btn-bar" onClick={load} title={actionsT("refresh")}>
+              {actionsT("refresh")}
             </button>
           </div>
         </div>
@@ -357,37 +379,37 @@ export default function Users() {
           <div className="border-2 bg-white rounded-md p-3">
             <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
               <div className="md:col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">Buscar</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("searchLabel")}</label>
                 <input
                   className="input-pill w-full"
-                  placeholder="Email o nombre…"
+                  placeholder={filtersT("searchPlaceholder")}
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Rol</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("roleLabel")}</label>
                 <select
                   className="select-pill w-full"
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value as Role | "")}
                 >
-                  <option value="">Todos</option>
+                  <option value="">{filtersT("allOption")}</option>
                   {ROLES.map((r) => (
                     <option key={r} value={r}>
-                      {r}
+                      {rolesT(r)}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Equipo</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("teamLabel")}</label>
                 <select
                   className="select-pill w-full"
                   value={teamFilter}
                   onChange={(e) => setTeamFilter(e.target.value)}
                 >
-                  <option value="">Todos</option>
+                  <option value="">{filtersT("allOption")}</option>
                   {effectiveTeamsForSelect.map((t) => (
                     <option key={t} value={t}>
                       {t}
@@ -402,7 +424,7 @@ export default function Users() {
                   checked={onlyNoTeam}
                   onChange={(e) => setOnlyNoTeam(e.target.checked)}
                 />
-                Solo sin equipo
+                {filtersT("onlyNoTeam")}
               </label>
               <label className="inline-flex items-center gap-2 text-[13px] text-gray-700">
                 <input
@@ -411,21 +433,41 @@ export default function Users() {
                   checked={includeEmptyTeams}
                   onChange={(e) => setIncludeEmptyTeams(e.target.checked)}
                 />
-                Incluir equipos vacíos
+                {filtersT("includeEmptyTeams")}
               </label>
 
               <div className="md:col-span-6 flex flex-wrap items-center gap-2">
-                <FilterChip show={Boolean(qDebounced)} label={`Buscar: "${qDebounced}"`} onClear={() => setQ("")} />
-                <FilterChip show={Boolean(roleFilter)} label={`Rol: ${roleFilter || ""}`} onClear={() => setRoleFilter("")} />
-                <FilterChip show={Boolean(teamFilter)} label={`Equipo: ${teamFilter || ""}`} onClear={() => setTeamFilter("")} />
-                <FilterChip show={onlyNoTeam} label="Solo sin equipo" onClear={() => setOnlyNoTeam(false)} />
+                <FilterChip
+                  show={Boolean(qDebounced)}
+                  label={chipsT("query", { query: qDebounced })}
+                  onClear={() => setQ("")}
+                  clearLabel={filtersT("clearAria")}
+                />
+                <FilterChip
+                  show={Boolean(roleFilter)}
+                  label={chipsT("role", { role: roleFilter ? rolesT(roleFilter as Role) : "" })}
+                  onClear={() => setRoleFilter("")}
+                  clearLabel={filtersT("clearAria")}
+                />
+                <FilterChip
+                  show={Boolean(teamFilter)}
+                  label={chipsT("team", { team: teamFilter || "" })}
+                  onClear={() => setTeamFilter("")}
+                  clearLabel={filtersT("clearAria")}
+                />
+                <FilterChip
+                  show={onlyNoTeam}
+                  label={chipsT("onlyNoTeam")}
+                  onClear={() => setOnlyNoTeam(false)}
+                  clearLabel={filtersT("clearAria")}
+                />
 
                 <div className="ml-auto flex items-center gap-2">
                   <button className="btn-ghost" onClick={clearFilters}>
-                    Limpiar
+                    {filtersT("clear")}
                   </button>
                   <button className="btn-primary" onClick={load}>
-                    Refrescar
+                    {actionsT("refresh")}
                   </button>
                 </div>
               </div>
@@ -435,18 +477,18 @@ export default function Users() {
           {/* Tabla */}
           <div className="overflow-auto rounded-md border-2 max-h-[65vh]">
             {loading ? (
-              <div className="text-sm text-gray-500 p-3">Cargando…</div>
+              <div className="text-sm text-gray-500 p-3">{tableT("loading")}</div>
             ) : (
               <table className="min-w-full bg-white text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr>
                     {(
                       [
-                        ["email", "Email"],
-                        ["name", "Nombre"],
-                        ["role", "Rol"],
-                        ["team", "Equipo"],
-                        ["", "Acciones"],
+                        ["email", tableT("headers.email")],
+                        ["name", tableT("headers.name")],
+                        ["role", tableT("headers.role")],
+                        ["team", tableT("headers.team")],
+                        ["", tableT("headers.actions")],
                       ] as Array<[SortKey | "", string]>
                     ).map(([k, label], idx) => {
                       const clickable = k !== "";
@@ -459,7 +501,7 @@ export default function Users() {
                             active ? "!text-white !bg-primary" : "!bg-primary !text-white"
                           }`}
                           onClick={() => clickable && sortBy(k as SortKey)}
-                          title={clickable ? "Ordenar" : ""}
+                          title={clickable ? tableT("sortTooltip") : ""}
                         >
                           {label} {active && dir}
                         </th>
@@ -480,7 +522,11 @@ export default function Users() {
                       {/* Email + avatar + acciones rápidas */}
                       <td className="table-td">
                         <div className="flex items-center gap-3">
-                          <button onClick={() => openProfile(u)} className="rounded-full focus:outline-none" title="Abrir perfil">
+                          <button
+                            onClick={() => openProfile(u)}
+                            className="rounded-full focus:outline-none"
+                            title={tableT("openProfile")}
+                          >
                             <Avatar label={u.name || u.email || "U"} />
                           </button>
                           <div className="flex flex-col">
@@ -490,10 +536,12 @@ export default function Users() {
                                 <>
                                   <button
                                     className="rounded p-1 hover:bg-black/5"
-                                    title="Copiar email"
+                                    title={dropdownT("copyEmail")}
                                     onClick={async () => {
                                       const ok = await copyToClipboard(u.email!);
-                                      ok ? toast.success("Email copiado") : toast.error("No se pudo copiar");
+                                      ok
+                                        ? toast.success(toastT("copySuccess"))
+                                        : toast.error(toastT("copyError"));
                                     }}
                                     type="button"
                                   >
@@ -501,7 +549,7 @@ export default function Users() {
                                   </button>
                                   <button
                                     className="rounded p-1 hover:bg-black/5"
-                                    title="Perfil"
+                                    title={dropdownT("viewProfile")}
                                     onClick={() => openProfile(u)}
                                     type="button"
                                   >
@@ -513,7 +561,7 @@ export default function Users() {
                             {/* Último login sutil si existe */}
                             {u.lastLoginAt ? (
                               <span className="text-[11px] text-gray-500 -mt-0.5">
-                                Último inicio: {formatLastLogin(u)}
+                                {tableT("lastLogin", { value: formatLastLogin(u) ?? "" })}
                               </span>
                             ) : null}
                           </div>
@@ -530,11 +578,11 @@ export default function Users() {
                           value={u.role}
                           onChange={(e) => saveUser(u.id, { role: e.target.value as Role })}
                           disabled={saving === u.id}
-                          title="Cambiar rol"
+                          title={tableT("changeRole")}
                         >
                           {ROLES.map((r) => (
                             <option key={r} value={r}>
-                              {r}
+                              {rolesT(r)}
                             </option>
                           ))}
                         </select>
@@ -551,9 +599,9 @@ export default function Users() {
                               team: e.target.value ? e.target.value : null,
                             })
                           }
-                          placeholder="(sin equipo)"
+                          placeholder={tableT("placeholderTeam")}
                           disabled={saving === u.id}
-                          title="Asignar equipo"
+                          title={tableT("assignTeam")}
                         />
                       </td>
 
@@ -570,35 +618,37 @@ export default function Users() {
                                 onClick={async () => {
                                   if (u.email) {
                                     const ok = await copyToClipboard(u.email);
-                                    ok ? toast.success("Email copiado") : toast.error("No se pudo copiar");
+                                    ok
+                                      ? toast.success(toastT("copySuccess"))
+                                      : toast.error(toastT("copyError"));
                                   } else {
-                                    toast.info("El usuario no tiene email");
+                                    toast.info(toastT("missingEmail"));
                                   }
                                 }}
                                 type="button"
                               >
-                                Copiar email
+                                {dropdownT("copyEmail")}
                               </button>
                               <button
                                 className="w-full text-left rounded px-2 py-1.5 hover:bg-[rgb(var(--primary-soft))]"
                                 onClick={() => openHistoryForEmail(u.email)}
                                 type="button"
                               >
-                                Ver historial
+                                {dropdownT("viewHistory")}
                               </button>
                               <button
                                 className="w-full text-left rounded px-2 py-1.5 hover:bg-[rgb(var(--primary-soft))]"
                                 onClick={() => saveUser(u.id, { team: null })}
                                 type="button"
                               >
-                                Quitar de equipo
+                                {dropdownT("removeTeam")}
                               </button>
                               <button
                                 className="w-full text-left rounded px-2 py-1.5 hover:bg-[rgb(var(--primary-soft))]"
                                 onClick={() => openProfile(u)}
                                 type="button"
                               >
-                                Perfil
+                                {dropdownT("viewProfile")}
                               </button>
                             </div>
                           </details>
@@ -609,7 +659,7 @@ export default function Users() {
                   {filteredSortedUsers.length === 0 ? (
                     <tr>
                       <td className="table-td text-center text-gray-500" colSpan={5}>
-                        Sin resultados para los filtros.
+                        {tableT("noResults")}
                       </td>
                     </tr>
                   ) : null}
