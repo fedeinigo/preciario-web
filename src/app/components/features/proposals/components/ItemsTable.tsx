@@ -4,6 +4,7 @@
 import React, { useMemo } from "react";
 
 import { useTranslations } from "@/app/LanguageProvider";
+import type { Locale } from "@/lib/i18n/config";
 
 import { formatUSD } from "../lib/format";
 import type { UIItem } from "../lib/types";
@@ -20,6 +21,7 @@ type Props = {
   pageSize: number;
   onPageChange: (p: number) => void;
   onPageSizeChange: (n: number) => void;
+  locale: Locale;
 };
 
 export default function ItemsTable({
@@ -34,13 +36,14 @@ export default function ItemsTable({
   pageSize,
   onPageChange,
   onPageSizeChange,
+  locale,
 }: Props) {
   const totalRows = items.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
   const currentPage = Math.min(Math.max(1, page), totalPages);
   const start = (currentPage - 1) * pageSize;
   const visible = useMemo(() => items.slice(start, start + pageSize), [items, start, pageSize]);
-  const colSpan = isAdmin ? 8 : 7;
+  const colSpan = isAdmin ? 9 : 8;
   const baseT = useTranslations("proposals.itemsTable");
   const headersT = useTranslations("proposals.itemsTable.headers");
   const titlesT = useTranslations("proposals.itemsTable.titles");
@@ -65,6 +68,9 @@ export default function ItemsTable({
             <th className="table-th w-40 text-right" title={titlesT("discount")}>
               {headersT("discount")}
             </th>
+            <th className="table-th w-40 text-right" title={titlesT("subtotal")}>
+              {headersT("subtotal")}
+            </th>
             {isAdmin && <th className="table-th w-36 text-center">{headersT("actions")}</th>}
           </tr>
         </thead>
@@ -72,6 +78,10 @@ export default function ItemsTable({
           {visible.map((it) => {
             const pct = Math.max(0, Math.min(100, Number(it.discountPct ?? 0)));
             const unitNet = Math.max(0, it.unitPrice * (1 - pct / 100));
+            const translation = it.translations?.[locale];
+            const displayName = translation?.name ?? it.name;
+            const displayDescription = translation?.description ?? it.description;
+            const subtotal = Math.max(0, unitNet * it.quantity);
             return (
               <tr key={it.id}>
                 <td className="table-td">
@@ -87,9 +97,9 @@ export default function ItemsTable({
                 </td>
                 <td className="table-td">{it.category}</td>
                 <td className="table-td">
-                  <div className="font-medium">{it.name}</div>
-                  {it.description && (
-                    <div className="text-xs text-gray-500">{it.description}</div>
+                  <div className="font-medium">{displayName}</div>
+                  {displayDescription && (
+                    <div className="text-xs text-gray-500">{displayDescription}</div>
                   )}
                 </td>
                 <td className="table-td text-right">
@@ -123,6 +133,7 @@ export default function ItemsTable({
                     </span>
                   </div>
                 </td>
+                <td className="table-td text-right" title={titlesT("subtotalValue")}>{formatUSD(subtotal)}</td>
                 {isAdmin && (
                   <td className="table-td text-center">
                     <div className="flex items-center justify-center gap-2">
@@ -204,3 +215,4 @@ export default function ItemsTable({
     </div>
   );
 }
+

@@ -9,7 +9,7 @@ import { isFeatureEnabled } from "@/lib/feature-flags";
 import prisma from "@/lib/prisma";
 
 const proposalItemSchema = z.object({
-  itemId: z.string().uuid({ message: "itemId debe ser un UUID válido" }),
+  itemId: z.string().min(1, { message: "itemId requerido" }),
   quantity: z.number().int().positive({ message: "quantity debe ser mayor a cero" }),
   unitPrice: z.number().nonnegative({ message: "unitPrice debe ser mayor o igual a cero" }),
   devHours: z.number().nonnegative({ message: "devHours debe ser mayor o igual a cero" }),
@@ -26,8 +26,8 @@ const proposalPayloadSchema = z.object({
   oneShot: z.number(),
   docUrl: z.string().url().nullable().optional(),
   docId: z.string().min(1).nullable().optional(),
-  userId: z.string().uuid({ message: "userId debe ser un UUID válido" }),
-  userEmail: z.string().email(),
+  userId: z.string().min(1).optional(),
+  userEmail: z.string().email().optional(),
   items: z.array(proposalItemSchema).min(1),
 });
 
@@ -177,10 +177,14 @@ export async function POST(req: Request) {
 
   const body = parsed.data;
 
+  const resolvedUserId = body.userId?.trim() || session?.user?.id || null;
+  const resolvedUserEmail = body.userEmail?.trim() || session?.user?.email || null;
+
   if (
     isFeatureEnabled("secureApiRoutes") &&
     session?.user?.id &&
-    body.userId !== session.user.id
+    resolvedUserId &&
+    resolvedUserId !== session.user.id
   ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -197,8 +201,8 @@ export async function POST(req: Request) {
     oneShot: body.oneShot,
     docUrl: body.docUrl ?? null,
     docId: body.docId ?? null,
-    userId: body.userId,
-    userEmail: body.userEmail,
+    userId: resolvedUserId,
+    userEmail: resolvedUserEmail,
     status: "OPEN",
     items: {
       create: body.items.map((it) => ({
@@ -235,3 +239,13 @@ export async function POST(req: Request) {
 
   return NextResponse.json(created, { status: 201 });
 }
+
+
+
+
+
+
+
+
+
+

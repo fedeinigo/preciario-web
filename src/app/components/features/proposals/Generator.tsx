@@ -26,7 +26,7 @@ import {
   updateCatalogItem,
   deleteCatalogItem,
 } from "./lib/items";
-import { locales } from "@/lib/i18n/config";
+import { locales, defaultLocale } from "@/lib/i18n/config";
 
 import {
   isWppAuth,
@@ -307,7 +307,7 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
                     translations: data.translations,
                     name: data.translations[locale].name,
                     description: data.translations[locale].description,
-                    category: data.translations[locale].category,
+                    category: data.translations[defaultLocale].category,
                   }
                 : item
             )
@@ -849,6 +849,7 @@ try {
                 setPageSize(n);
                 setPage(1);
               }}
+              locale={locale}
             />
 
             <div className="mt-3 flex justify-end">
@@ -972,6 +973,8 @@ try {
     </div>
   );
 }
+
+
 
 
 

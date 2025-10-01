@@ -539,6 +539,7 @@ export const messages: Record<Locale, DeepRecord> = {
           quantity: "Cant.",
           unitPrice: "Unitario",
           discount: "Descuento (%)",
+          subtotal: "Subtotal",
           actions: "Acciones",
         },
         titles: {
@@ -550,6 +551,8 @@ export const messages: Record<Locale, DeepRecord> = {
           selectAction: "Seleccionar para la propuesta",
           netUnit: "Unitario neto",
           unitPriceWithNet: "Neto: {value}",
+          subtotal: "Subtotal",
+          subtotalValue: "Subtotal = cantidad * unitario neto",
           previous: "Anterior",
           next: "Siguiente",
         },
@@ -1697,6 +1700,7 @@ export const messages: Record<Locale, DeepRecord> = {
           quantity: "Qty.",
           unitPrice: "Unit price",
           discount: "Discount (%)",
+          subtotal: "Subtotal",
           actions: "Actions",
         },
         titles: {
@@ -3510,3 +3514,4 @@ export function getMessage(locale: Locale, key: string, fallbackLocale: Locale):
     key
   );
 }
+

@@ -286,6 +286,10 @@ export default function ItemForm({
     }
   };
 
+  if (!open) {
+    return null;
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-3xl rounded-lg bg-white shadow-xl">
@@ -543,6 +547,7 @@ export default function ItemForm({
     </div>
   );
 }
+
 
 
 
