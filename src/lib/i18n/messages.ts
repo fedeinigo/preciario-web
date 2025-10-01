@@ -12,6 +12,11 @@ export const messages: Record<Locale, DeepRecord> = {
         english: "Inglés",
         portuguese: "Portugués",
       },
+      combobox: {
+        placeholder: "Seleccionar…",
+        noResults: "Sin resultados",
+        open: "Abrir",
+      },
       dialog: {
         title: "Confirmar",
         confirm: "Confirmar",
@@ -1097,6 +1102,11 @@ export const messages: Record<Locale, DeepRecord> = {
         english: "English",
         portuguese: "Portuguese",
       },
+      combobox: {
+        placeholder: "Select…",
+        noResults: "No results",
+        open: "Open",
+      },
       dialog: {
         title: "Confirm",
         confirm: "Confirm",
@@ -2179,6 +2189,11 @@ export const messages: Record<Locale, DeepRecord> = {
         spanish: "Espanhol",
         english: "Inglês",
         portuguese: "Português",
+      },
+      combobox: {
+        placeholder: "Selecionar…",
+        noResults: "Sem resultados",
+        open: "Abrir",
       },
       dialog: {
         title: "Confirmar",

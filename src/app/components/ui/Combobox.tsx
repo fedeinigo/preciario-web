@@ -9,6 +9,7 @@ import React, {
   useLayoutEffect,
 } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "@/app/LanguageProvider";
 
 interface ComboboxProps {
   options: string[];
@@ -17,6 +18,7 @@ interface ComboboxProps {
   placeholder?: string;
   className?: string;
   noResultsText?: string;
+  openLabel?: string;
 }
 
 /** Renderiza el popup en portal (fixed) para evitar que lo recorten los modales/overflows */
@@ -24,10 +26,16 @@ export default function Combobox({
   options,
   value,
   onChange,
-  placeholder = "Seleccionar…",
+  placeholder,
   className = "",
-  noResultsText = "Sin resultados",
+  noResultsText,
+  openLabel,
 }: ComboboxProps) {
+  const t = useTranslations("common.combobox");
+  const resolvedPlaceholder = placeholder ?? t("placeholder");
+  const resolvedNoResultsText = noResultsText ?? t("noResults");
+  const resolvedOpenLabel = openLabel ?? t("open");
+
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
@@ -129,7 +137,7 @@ export default function Combobox({
           <div
             id={listboxId}
             role="listbox"
-            aria-label={placeholder}
+            aria-label={resolvedPlaceholder}
             style={{
               position: "fixed",
               left: popupRect.left,
@@ -140,7 +148,7 @@ export default function Combobox({
             className="rounded-lg border bg-white shadow-soft max-h-64 overflow-auto"
           >
             {filtered.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-gray-500">{noResultsText}</div>
+              <div className="px-3 py-2 text-sm text-gray-500">{resolvedNoResultsText}</div>
             ) : (
               filtered.map((opt, idx) => {
                 const active = idx === highlight;
@@ -179,7 +187,7 @@ export default function Combobox({
         aria-controls={listboxId}
         aria-autocomplete="list"
         aria-activedescendant={open && filtered[highlight] ? optionId(highlight) : undefined}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         className="input pr-10"
         value={displayValue}
         onFocus={() => setOpen(true)}
@@ -194,7 +202,7 @@ export default function Combobox({
       {/* Flechita */}
       <button
         type="button"
-        aria-label="Abrir"
+        aria-label={resolvedOpenLabel}
         className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 hover:bg-gray-100"
         onMouseDown={(e) => {
           e.preventDefault();
