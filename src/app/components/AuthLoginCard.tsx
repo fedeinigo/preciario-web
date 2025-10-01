@@ -3,7 +3,12 @@
 import Image from "next/image";
 import { signIn } from "next-auth/react";
 
+import LanguageSelector from "@/app/components/LanguageSelector";
+import { useTranslations } from "@/app/LanguageProvider";
+
 export default function AuthLoginCard() {
+  const t = useTranslations("auth.login");
+
   return (
     // Fondo degradado y tamaño exacto: alto de la ventana menos navbar+footer
     <div className="hero-bg min-h-[calc(100vh-var(--nav-h)-var(--footer-h))] w-full flex items-center justify-center px-4 py-10">
@@ -18,10 +23,8 @@ export default function AuthLoginCard() {
             className="auth-logo mx-auto mb-3 h-auto w-[180px] max-w-[60vw]"
             priority
           />
-          <h1 className="text-xl font-extrabold">Bienvenido al Preciario Web</h1>
-          <p className="mt-1 text-sm text-white/85">
-            Inicia sesión para generar propuestas.
-          </p>
+          <h1 className="text-xl font-extrabold">{t("title")}</h1>
+          <p className="mt-1 text-sm text-white/85">{t("subtitle")}</p>
         </div>
 
         {/* Acción */}
@@ -37,12 +40,14 @@ export default function AuthLoginCard() {
               height={18}
               className="google-logo"
             />
-            Continuar con Google
+            {t("googleCta")}
           </button>
 
-          <p className="mt-3 text-center text-[12px] text-white/80">
-            Al continuar aceptas las políticas internas de Wise CX.
-          </p>
+          <p className="mt-3 text-center text-[12px] text-white/80">{t("disclaimer")}</p>
+        </div>
+
+        <div className="px-8 pb-6">
+          <LanguageSelector className="text-white" />
         </div>
       </div>
     </div>
