@@ -3,8 +3,6 @@ import type { Locale } from "./config";
 interface DeepRecord {
   [key: string]: string | DeepRecord;
 }
-
-
 export const messages: Record<Locale, DeepRecord> = {
   es: {
     common: {
@@ -51,7 +49,6 @@ export const messages: Record<Locale, DeepRecord> = {
           email: "—",
         },
       },
-
     },
     auth: {
       login: {
@@ -203,7 +200,6 @@ export const messages: Record<Locale, DeepRecord> = {
         nonNegative: "Debe ser ≥ 0",
       },
     },
-
     proposals: {
       onboarding: {
         title: "Selecciona tu equipo",
@@ -589,6 +585,265 @@ export const messages: Record<Locale, DeepRecord> = {
               title: "Eliminar enlace",
               message: "¿Eliminar el enlace {label}?",
             },
+          },
+        },
+      },
+      history: {
+        title: "Histórico",
+        actions: {
+          downloadCsvTitle: "Descargar CSV de la vista filtrada",
+          downloadCsv: "CSV",
+          refreshTitle: "Refrescar",
+          refresh: "Refrescar",
+        },
+        quickRanges: {
+          currentMonth: "Mes actual",
+          previousMonth: "Mes anterior",
+          currentWeek: "Semana actual",
+          previousWeek: "Semana anterior",
+        },
+        filters: {
+          team: {
+            label: "Equipo",
+            all: "Todos",
+          },
+          id: {
+            label: "ID",
+            placeholder: "Buscar por ID",
+          },
+          company: {
+            label: "Empresa",
+            placeholder: "Buscar empresa",
+          },
+          country: {
+            label: "País",
+            all: "Todos",
+          },
+          email: {
+            label: "Email",
+            placeholder: "Buscar email",
+          },
+          clear: "Limpiar",
+          from: "Desde",
+          to: "Hasta",
+        },
+        table: {
+          headers: {
+            id: "ID",
+            company: "Empresa",
+            country: "País",
+            email: "Email",
+            monthly: "Mensual",
+            created: "Creado",
+            status: "Estado",
+            actions: "Acciones",
+          },
+          sortTooltip: "Ordenar",
+          copyId: "Copiar ID",
+          emailFallback: "—",
+          monthlyTitle: "Mensual",
+          createdTitle: "Fecha de creación",
+          statusBadges: {
+            won: "Ganada",
+            lost: "Perdida",
+            open: "Abierta",
+          },
+          statusLabels: {
+            won: "Ganada",
+            lost: "Perdida",
+            open: "Abierta",
+          },
+          actions: {
+            reopenTooltip: "Revertir a OPEN",
+            reopen: "OPEN",
+            markWonTooltip: "Marcar como WON",
+            markWon: "WON",
+            open: "Abrir propuesta",
+            view: "Ver",
+            copyLink: "Copiar link",
+            copy: "Copiar",
+            noLink: "—",
+            deleteTooltip: "Eliminar (no suma a estadísticas)",
+            delete: "Eliminar",
+          },
+          empty: "Sin resultados para el filtro seleccionado.",
+        },
+        pagination: {
+          display: "Mostrando {start}–{end} de {total}",
+          perPage: "{count} / página",
+          previous: "Anterior",
+          next: "Siguiente",
+          pageStatus: "{current} / {total}",
+        },
+        deleteModal: {
+          title: "Eliminar propuesta",
+          cancel: "Cancelar",
+          confirm: "Eliminar",
+          message: "Esta acción quitará la propuesta de las estadísticas. ¿Deseas continuar?",
+        },
+        toast: {
+          markWonError: "No se pudo marcar como WON",
+          markWonSuccess: "Marcado como WON",
+          markOpenError: "No se pudo revertir a OPEN",
+          markOpenSuccess: "Propuesta vuelta a OPEN",
+          deleteError: "No se pudo eliminar",
+          deleteSuccess: "Propuesta eliminada",
+        },
+        csv: {
+          fileName: "historico.csv",
+          headers: {
+            id: "ID",
+            company: "Empresa",
+            country: "País",
+            email: "Email",
+            monthly: "Mensual",
+            created: "Creado",
+            status: "Estado",
+            url: "URL",
+          },
+        },
+      },
+      stats: {
+        title: "Estadísticas",
+        quickRanges: {
+          quarterTooltip: "Aplicar rango del trimestre",
+          currentMonth: "Mes actual",
+          previousMonth: "Mes anterior",
+          currentWeek: "Semana actual",
+          previousWeek: "Semana anterior",
+        },
+        filters: {
+          from: "Desde",
+          to: "Hasta",
+          team: {
+            label: "Equipo",
+            all: "Todos",
+          },
+          country: {
+            label: "País",
+            all: "Todos",
+          },
+          user: {
+            label: "Usuario",
+            all: "Todos",
+          },
+          orderBy: {
+            label: "Ordenar por",
+            createdAt: "Fecha de creación",
+            totalAmount: "Monto mensual",
+          },
+          direction: {
+            label: "Dirección",
+            desc: "Descendente",
+            asc: "Ascendente",
+          },
+        },
+        actions: {
+          reset: "Limpiar",
+          exportFiltered: "Exportar",
+          showAll: "Ver todo",
+          showAllTitle: "Ver todos los resultados",
+          topN: "Top N",
+          topNTitle: "Top N (agregados)",
+          csvButton: "CSV",
+          csvTooltip: "Descargar CSV completo",
+        },
+        toast: {
+          loadError: "No se pudieron cargar las propuestas",
+          networkError: "Error de red al cargar propuestas",
+          reset: "Filtros restablecidos",
+          csv: {
+            sku: "CSV de ítems descargado",
+            country: "CSV por país descargado",
+            user: "CSV por usuario descargado",
+            filtered: "CSV de propuestas filtradas descargado",
+          },
+        },
+        csv: {
+          sku: {
+            fileName: "stats_por_sku.csv",
+            headers: {
+              sku: "SKU",
+              item: "Ítem",
+              quantity: "Cantidad total",
+            },
+          },
+          country: {
+            fileName: "stats_por_pais.csv",
+            headers: {
+              country: "País",
+              quantity: "Cantidad",
+            },
+          },
+          user: {
+            fileName: "stats_por_usuario.csv",
+            headers: {
+              user: "Usuario (email)",
+              proposals: "Propuestas",
+            },
+          },
+          filtered: {
+            fileName: "propuestas_filtradas.csv",
+            headers: {
+              id: "ID",
+              company: "Empresa",
+              country: "País",
+              user: "Usuario",
+              monthly: "Mensual",
+              hours: "Horas",
+              oneShot: "OneShot",
+              created: "Creado",
+              url: "URL",
+            },
+          },
+        },
+        kpis: {
+          generated: "Propuestas generadas",
+          uniqueUsers: "Usuarios únicos",
+          uniqueCompanies: "Empresas distintas",
+          totalMonthly: "Monto mensual total",
+          averagePerProposal: "Promedio por propuesta",
+          wonCount: "Propuestas WON",
+          wonAmount: "Monto WON",
+          winRate: "Win rate",
+          wonAverageTicket: "Ticket promedio WON",
+        },
+        sections: {
+          bySku: {
+            title: "Ítems más cotizados (por SKU)",
+          },
+          byCountry: {
+            title: "Propuestas por país",
+          },
+          byUser: {
+            title: "Top usuarios por cantidad de propuestas",
+          },
+        },
+        table: {
+          empty: "Sin datos para los filtros seleccionados.",
+          sku: {
+            headers: {
+              sku: "SKU",
+              item: "Ítem",
+              quantity: "Cantidad total",
+            },
+          },
+          country: {
+            headers: {
+              country: "País",
+              quantity: "Cantidad",
+            },
+            footer: {
+              showAll: "Mostrando todos ({count})",
+              total: "Total países: {count}",
+            },
+          },
+          user: {
+            headers: {
+              user: "Usuario (email)",
+              proposals: "Propuestas",
+            },
+            fallback: "(sin email)",
           },
         },
       },
@@ -1176,6 +1431,265 @@ export const messages: Record<Locale, DeepRecord> = {
           },
         },
       },
+      history: {
+        title: "History",
+        actions: {
+          downloadCsvTitle: "Download filtered view CSV",
+          downloadCsv: "CSV",
+          refreshTitle: "Refresh",
+          refresh: "Refresh",
+        },
+        quickRanges: {
+          currentMonth: "Current month",
+          previousMonth: "Previous month",
+          currentWeek: "Current week",
+          previousWeek: "Previous week",
+        },
+        filters: {
+          team: {
+            label: "Team",
+            all: "All",
+          },
+          id: {
+            label: "ID",
+            placeholder: "Search by ID",
+          },
+          company: {
+            label: "Company",
+            placeholder: "Search company",
+          },
+          country: {
+            label: "Country",
+            all: "All",
+          },
+          email: {
+            label: "Email",
+            placeholder: "Search email",
+          },
+          clear: "Clear",
+          from: "From",
+          to: "To",
+        },
+        table: {
+          headers: {
+            id: "ID",
+            company: "Company",
+            country: "Country",
+            email: "Email",
+            monthly: "Monthly",
+            created: "Created",
+            status: "Status",
+            actions: "Actions",
+          },
+          sortTooltip: "Sort",
+          copyId: "Copy ID",
+          emailFallback: "—",
+          monthlyTitle: "Monthly",
+          createdTitle: "Created at",
+          statusBadges: {
+            won: "Won",
+            lost: "Lost",
+            open: "Open",
+          },
+          statusLabels: {
+            won: "Won",
+            lost: "Lost",
+            open: "Open",
+          },
+          actions: {
+            reopenTooltip: "Revert to OPEN",
+            reopen: "OPEN",
+            markWonTooltip: "Mark as WON",
+            markWon: "WON",
+            open: "Open proposal",
+            view: "View",
+            copyLink: "Copy link",
+            copy: "Copy",
+            noLink: "—",
+            deleteTooltip: "Delete (excluded from stats)",
+            delete: "Delete",
+          },
+          empty: "No results for the selected filters.",
+        },
+        pagination: {
+          display: "Showing {start}–{end} of {total}",
+          perPage: "{count} / page",
+          previous: "Previous",
+          next: "Next",
+          pageStatus: "{current} / {total}",
+        },
+        deleteModal: {
+          title: "Delete proposal",
+          cancel: "Cancel",
+          confirm: "Delete",
+          message: "This action removes the proposal from statistics. Continue?",
+        },
+        toast: {
+          markWonError: "Could not mark as WON",
+          markWonSuccess: "Marked as WON",
+          markOpenError: "Could not revert to OPEN",
+          markOpenSuccess: "Proposal reverted to OPEN",
+          deleteError: "Could not delete proposal",
+          deleteSuccess: "Proposal deleted",
+        },
+        csv: {
+          fileName: "history.csv",
+          headers: {
+            id: "ID",
+            company: "Company",
+            country: "Country",
+            email: "Email",
+            monthly: "Monthly",
+            created: "Created",
+            status: "Status",
+            url: "URL",
+          },
+        },
+      },
+      stats: {
+        title: "Statistics",
+        quickRanges: {
+          quarterTooltip: "Apply quarter range",
+          currentMonth: "Current month",
+          previousMonth: "Previous month",
+          currentWeek: "Current week",
+          previousWeek: "Previous week",
+        },
+        filters: {
+          from: "From",
+          to: "To",
+          team: {
+            label: "Team",
+            all: "All",
+          },
+          country: {
+            label: "Country",
+            all: "All",
+          },
+          user: {
+            label: "User",
+            all: "All",
+          },
+          orderBy: {
+            label: "Order by",
+            createdAt: "Created date",
+            totalAmount: "Monthly amount",
+          },
+          direction: {
+            label: "Direction",
+            desc: "Descending",
+            asc: "Ascending",
+          },
+        },
+        actions: {
+          reset: "Clear",
+          exportFiltered: "Export",
+          showAll: "Show all",
+          showAllTitle: "Show all results",
+          topN: "Top N",
+          topNTitle: "Top N (aggregated)",
+          csvButton: "CSV",
+          csvTooltip: "Download full CSV",
+        },
+        toast: {
+          loadError: "Could not load proposals",
+          networkError: "Network error while loading proposals",
+          reset: "Filters reset",
+          csv: {
+            sku: "Item CSV downloaded",
+            country: "Country CSV downloaded",
+            user: "User CSV downloaded",
+            filtered: "Filtered proposals CSV downloaded",
+          },
+        },
+        csv: {
+          sku: {
+            fileName: "stats_by_sku.csv",
+            headers: {
+              sku: "SKU",
+              item: "Item",
+              quantity: "Total quantity",
+            },
+          },
+          country: {
+            fileName: "stats_by_country.csv",
+            headers: {
+              country: "Country",
+              quantity: "Quantity",
+            },
+          },
+          user: {
+            fileName: "stats_by_user.csv",
+            headers: {
+              user: "User (email)",
+              proposals: "Proposals",
+            },
+          },
+          filtered: {
+            fileName: "filtered_proposals.csv",
+            headers: {
+              id: "ID",
+              company: "Company",
+              country: "Country",
+              user: "User",
+              monthly: "Monthly",
+              hours: "Hours",
+              oneShot: "One-shot",
+              created: "Created",
+              url: "URL",
+            },
+          },
+        },
+        kpis: {
+          generated: "Proposals generated",
+          uniqueUsers: "Unique users",
+          uniqueCompanies: "Unique companies",
+          totalMonthly: "Total monthly amount",
+          averagePerProposal: "Average per proposal",
+          wonCount: "WON proposals",
+          wonAmount: "WON amount",
+          winRate: "Win rate",
+          wonAverageTicket: "Average WON ticket",
+        },
+        sections: {
+          bySku: {
+            title: "Top quoted items (by SKU)",
+          },
+          byCountry: {
+            title: "Proposals by country",
+          },
+          byUser: {
+            title: "Top users by proposal count",
+          },
+        },
+        table: {
+          empty: "No data for the selected filters.",
+          sku: {
+            headers: {
+              sku: "SKU",
+              item: "Item",
+              quantity: "Total quantity",
+            },
+          },
+          country: {
+            headers: {
+              country: "Country",
+              quantity: "Quantity",
+            },
+            footer: {
+              showAll: "Showing all ({count})",
+              total: "Total countries: {count}",
+            },
+          },
+          user: {
+            headers: {
+              user: "User (email)",
+              proposals: "Proposals",
+            },
+            fallback: "(no email)",
+          },
+        },
+      },
     },
   },
   pt: {
@@ -1759,6 +2273,265 @@ export const messages: Record<Locale, DeepRecord> = {
               title: "Excluir link",
               message: "Excluir o link {label}?",
             },
+          },
+        },
+      },
+      history: {
+        title: "Histórico",
+        actions: {
+          downloadCsvTitle: "Baixar CSV da visão filtrada",
+          downloadCsv: "CSV",
+          refreshTitle: "Atualizar",
+          refresh: "Atualizar",
+        },
+        quickRanges: {
+          currentMonth: "Mês atual",
+          previousMonth: "Mês anterior",
+          currentWeek: "Semana atual",
+          previousWeek: "Semana anterior",
+        },
+        filters: {
+          team: {
+            label: "Equipe",
+            all: "Todas",
+          },
+          id: {
+            label: "ID",
+            placeholder: "Buscar por ID",
+          },
+          company: {
+            label: "Empresa",
+            placeholder: "Buscar empresa",
+          },
+          country: {
+            label: "País",
+            all: "Todos",
+          },
+          email: {
+            label: "Email",
+            placeholder: "Buscar email",
+          },
+          clear: "Limpar",
+          from: "De",
+          to: "Até",
+        },
+        table: {
+          headers: {
+            id: "ID",
+            company: "Empresa",
+            country: "País",
+            email: "Email",
+            monthly: "Mensal",
+            created: "Criado",
+            status: "Status",
+            actions: "Ações",
+          },
+          sortTooltip: "Ordenar",
+          copyId: "Copiar ID",
+          emailFallback: "—",
+          monthlyTitle: "Mensal",
+          createdTitle: "Data de criação",
+          statusBadges: {
+            won: "Ganha",
+            lost: "Perdida",
+            open: "Aberta",
+          },
+          statusLabels: {
+            won: "Ganha",
+            lost: "Perdida",
+            open: "Aberta",
+          },
+          actions: {
+            reopenTooltip: "Reverter para OPEN",
+            reopen: "OPEN",
+            markWonTooltip: "Marcar como WON",
+            markWon: "WON",
+            open: "Abrir proposta",
+            view: "Ver",
+            copyLink: "Copiar link",
+            copy: "Copiar",
+            noLink: "—",
+            deleteTooltip: "Excluir (não conta nas estatísticas)",
+            delete: "Excluir",
+          },
+          empty: "Sem resultados para o filtro selecionado.",
+        },
+        pagination: {
+          display: "Mostrando {start}–{end} de {total}",
+          perPage: "{count} / página",
+          previous: "Anterior",
+          next: "Próxima",
+          pageStatus: "{current} / {total}",
+        },
+        deleteModal: {
+          title: "Excluir proposta",
+          cancel: "Cancelar",
+          confirm: "Excluir",
+          message: "Esta ação remove a proposta das estatísticas. Deseja continuar?",
+        },
+        toast: {
+          markWonError: "Não foi possível marcar como WON",
+          markWonSuccess: "Marcada como WON",
+          markOpenError: "Não foi possível reverter para OPEN",
+          markOpenSuccess: "Proposta revertida para OPEN",
+          deleteError: "Não foi possível excluir",
+          deleteSuccess: "Proposta excluída",
+        },
+        csv: {
+          fileName: "historico.csv",
+          headers: {
+            id: "ID",
+            company: "Empresa",
+            country: "País",
+            email: "Email",
+            monthly: "Mensal",
+            created: "Criado",
+            status: "Status",
+            url: "URL",
+          },
+        },
+      },
+      stats: {
+        title: "Estatísticas",
+        quickRanges: {
+          quarterTooltip: "Aplicar intervalo do trimestre",
+          currentMonth: "Mês atual",
+          previousMonth: "Mês anterior",
+          currentWeek: "Semana atual",
+          previousWeek: "Semana anterior",
+        },
+        filters: {
+          from: "De",
+          to: "Até",
+          team: {
+            label: "Equipe",
+            all: "Todas",
+          },
+          country: {
+            label: "País",
+            all: "Todos",
+          },
+          user: {
+            label: "Usuário",
+            all: "Todos",
+          },
+          orderBy: {
+            label: "Ordenar por",
+            createdAt: "Data de criação",
+            totalAmount: "Valor mensal",
+          },
+          direction: {
+            label: "Direção",
+            desc: "Descendente",
+            asc: "Ascendente",
+          },
+        },
+        actions: {
+          reset: "Limpar",
+          exportFiltered: "Exportar",
+          showAll: "Ver tudo",
+          showAllTitle: "Ver todos os resultados",
+          topN: "Top N",
+          topNTitle: "Top N (agregado)",
+          csvButton: "CSV",
+          csvTooltip: "Baixar CSV completo",
+        },
+        toast: {
+          loadError: "Não foi possível carregar as propostas",
+          networkError: "Erro de rede ao carregar propostas",
+          reset: "Filtros redefinidos",
+          csv: {
+            sku: "CSV de itens baixado",
+            country: "CSV por país baixado",
+            user: "CSV por usuário baixado",
+            filtered: "CSV de propostas filtradas baixado",
+          },
+        },
+        csv: {
+          sku: {
+            fileName: "stats_por_sku.csv",
+            headers: {
+              sku: "SKU",
+              item: "Item",
+              quantity: "Quantidade total",
+            },
+          },
+          country: {
+            fileName: "stats_por_pais.csv",
+            headers: {
+              country: "País",
+              quantity: "Quantidade",
+            },
+          },
+          user: {
+            fileName: "stats_por_usuario.csv",
+            headers: {
+              user: "Usuário (email)",
+              proposals: "Propostas",
+            },
+          },
+          filtered: {
+            fileName: "propostas_filtradas.csv",
+            headers: {
+              id: "ID",
+              company: "Empresa",
+              country: "País",
+              user: "Usuário",
+              monthly: "Mensal",
+              hours: "Horas",
+              oneShot: "OneShot",
+              created: "Criado",
+              url: "URL",
+            },
+          },
+        },
+        kpis: {
+          generated: "Propostas geradas",
+          uniqueUsers: "Usuários únicos",
+          uniqueCompanies: "Empresas distintas",
+          totalMonthly: "Valor mensal total",
+          averagePerProposal: "Média por proposta",
+          wonCount: "Propostas WON",
+          wonAmount: "Valor WON",
+          winRate: "Taxa de ganho",
+          wonAverageTicket: "Ticket médio WON",
+        },
+        sections: {
+          bySku: {
+            title: "Itens mais cotados (por SKU)",
+          },
+          byCountry: {
+            title: "Propostas por país",
+          },
+          byUser: {
+            title: "Top usuários por quantidade de propostas",
+          },
+        },
+        table: {
+          empty: "Sem dados para os filtros selecionados.",
+          sku: {
+            headers: {
+              sku: "SKU",
+              item: "Item",
+              quantity: "Quantidade total",
+            },
+          },
+          country: {
+            headers: {
+              country: "País",
+              quantity: "Quantidade",
+            },
+            footer: {
+              showAll: "Mostrando todos ({count})",
+              total: "Total de países: {count}",
+            },
+          },
+          user: {
+            headers: {
+              user: "Usuário (email)",
+              proposals: "Propostas",
+            },
+            fallback: "(sem email)",
           },
         },
       },
