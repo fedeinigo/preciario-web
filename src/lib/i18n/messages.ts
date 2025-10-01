@@ -4,6 +4,8 @@ interface DeepRecord {
   [key: string]: string | DeepRecord;
 }
 
+type DeepRecord = Record<string, string | DeepRecord>;
+
 export const messages: Record<Locale, DeepRecord> = {
   es: {
     common: {
