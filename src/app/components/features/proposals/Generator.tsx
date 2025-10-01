@@ -58,6 +58,11 @@ import { useProposalTotals } from "./hooks/useProposalTotals";
 import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import ProposalCreatedModal from "./components/ProposalCreatedModal";
+import {
+  isProposalError,
+  type ProposalError,
+  type ProposalErrorCode,
+} from "./lib/errors";
 
 /** ----------------- helpers Pipedrive ----------------- */
 function extractDealIdFromLink(s: string): string | null {
@@ -92,6 +97,7 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
   const toastT = useTranslations("proposals.generator.toast");
   const confirmResetT = useTranslations("proposals.generator.confirmReset");
   const errorsT = useTranslations("proposals.generator.errors");
+  const proposalErrorsT = useTranslations("proposals.errors");
   const pipedriveT = useTranslations("proposals.generator.pipedrive");
   const companyT = useTranslations("proposals.generator.company");
   const filtersT = useTranslations("proposals.generator.filters");
@@ -107,6 +113,25 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
   // NUEVO: Link Pipedrive + dealId parseado
   const [pipedriveLink, setPipedriveLink] = useState("");
   const [pipedriveDealId, setPipedriveDealId] = useState<string>("");
+
+  const resolveProposalActionError = React.useCallback(
+    (error: ProposalError) =>
+      error.kind === "message" ? error.message : proposalErrorsT(error.code),
+    [proposalErrorsT]
+  );
+
+  const resolveProposalErrorMessage = React.useCallback(
+    (error: unknown, fallbackCode: ProposalErrorCode) => {
+      if (isProposalError(error)) {
+        return resolveProposalActionError(error);
+      }
+      if (error instanceof Error && error.message) {
+        return error.message;
+      }
+      return proposalErrorsT(fallbackCode);
+    },
+    [proposalErrorsT, resolveProposalActionError]
+  );
 
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
@@ -128,14 +153,18 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
   useEffect(() => {
     fetchCatalogItems()
       .then(setItems)
-      .catch(() => setItems([]));
+      .catch((error) => {
+        setItems([]);
+        toast.error(resolveProposalErrorMessage(error, "catalog.loadFailed"));
+      });
     fetchItemsPopularity()
       .then(setPopularity)
       .catch(() => setPopularity({}));
-  }, []);
+  }, [resolveProposalErrorMessage]);
 
   const {
     filiales,
+    load: loadFiliales,
     addFilial,
     editFilialTitle,
     removeFilial,
@@ -144,7 +173,20 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
     removeCountry,
   } = useFiliales();
 
-  const { glossary, addLink, editLink, removeLink } = useGlossary();
+  const { glossary, load: loadGlossary, addLink, editLink, removeLink } = useGlossary();
+
+  useEffect(() => {
+    loadFiliales().then((result) => {
+      if (!result.ok) {
+        toast.error(resolveProposalActionError(result.error));
+      }
+    });
+    loadGlossary().then((result) => {
+      if (!result.ok) {
+        toast.error(resolveProposalActionError(result.error));
+      }
+    });
+  }, [loadFiliales, loadGlossary, resolveProposalActionError]);
 
   const [openSummary, setOpenSummary] = useState(false);
   const [creatingDoc, setCreatingDoc] = useState(false);
@@ -273,7 +315,9 @@ export default function Generator({ isAdmin, userId, userEmail }: Props) {
         toast.success(toastT("itemUpdated"));
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : toastT("unknown");
+      const fallback: ProposalErrorCode =
+        itemFormMode === "create" ? "catalog.createFailed" : "catalog.updateFailed";
+      const msg = resolveProposalErrorMessage(e, fallback);
       toast.error(toastT("itemSaveError", { message: msg }));
     } finally {
       setItemFormOpen(false);
@@ -455,7 +499,7 @@ try {
       setCreatedUrl(parsed.url);
       setShowCreated(true);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : toastT("unknown");
+      const msg = resolveProposalErrorMessage(e, "proposal.saveFailed");
       toast.error(toastT("proposalCreationError", { message: msg }));
     } finally {
       setCreatingDoc(false);
@@ -599,7 +643,7 @@ try {
       setItems((prev) => prev.filter((i) => i.id !== itemId));
       toast.success(toastT("itemDeleted"));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : toastT("unknown");
+      const msg = resolveProposalErrorMessage(e, "catalog.deleteFailed");
       toast.error(toastT("itemDeleteError", { message: msg }));
     }
   };

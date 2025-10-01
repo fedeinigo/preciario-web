@@ -1,6 +1,11 @@
 // src/app/components/features/proposals/lib/items.ts
 import type { UIItem } from "./types";
 import type { ItemFormData } from "@/app/components/ui/ItemForm";
+import {
+  createProposalCodeError,
+  isProposalError,
+  parseProposalErrorResponse,
+} from "./errors";
 
 type CatalogRow = {
   id: string;
@@ -17,10 +22,17 @@ export function getInitialItems(): UIItem[] {
 }
 
 export async function fetchCatalogItems(): Promise<UIItem[]> {
-  const res = await fetch("/api/items", { cache: "no-store" });
-  if (!res.ok) throw new Error("No se pudo cargar el catálogo");
-  const data = (await res.json()) as CatalogRow[];
-  return data.map(toUIItem);
+  try {
+    const res = await fetch("/api/items", { cache: "no-store" });
+    if (!res.ok) {
+      throw await parseProposalErrorResponse(res, "catalog.loadFailed");
+    }
+    const data = (await res.json()) as CatalogRow[];
+    return data.map(toUIItem);
+  } catch (error) {
+    if (isProposalError(error)) throw error;
+    throw createProposalCodeError("catalog.loadFailed");
+  }
 }
 
 // NEW: popularidad desde API (itemId -> totalQty)
@@ -31,50 +43,62 @@ export async function fetchItemsPopularity(): Promise<Record<string, number>> {
 }
 
 export async function createCatalogItem(data: ItemFormData): Promise<UIItem> {
-  const res = await fetch("/api/items", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sku: data.sku,
-      name: data.name,
-      description: data.description ?? "",
-      category: data.category ?? "general",
-      unitPrice: data.unitPrice,
-      devHours: data.devHours,
-    }),
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(txt || "No se pudo crear el ítem");
+  try {
+    const res = await fetch("/api/items", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sku: data.sku,
+        name: data.name,
+        description: data.description ?? "",
+        category: data.category ?? "general",
+        unitPrice: data.unitPrice,
+        devHours: data.devHours,
+      }),
+    });
+    if (!res.ok) {
+      throw await parseProposalErrorResponse(res, "catalog.createFailed");
+    }
+    const created = (await res.json()) as CatalogRow;
+    return toUIItem(created);
+  } catch (error) {
+    if (isProposalError(error)) throw error;
+    throw createProposalCodeError("catalog.createFailed");
   }
-  const created = (await res.json()) as CatalogRow;
-  return toUIItem(created);
 }
 
 export async function updateCatalogItem(id: string, data: ItemFormData): Promise<void> {
-  const res = await fetch(`/api/items/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sku: data.sku,
-      name: data.name,
-      description: data.description ?? "",
-      category: data.category ?? "general",
-      unitPrice: data.unitPrice,
-      devHours: data.devHours,
-    }),
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(txt || "No se pudo actualizar el ítem");
+  try {
+    const res = await fetch(`/api/items/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sku: data.sku,
+        name: data.name,
+        description: data.description ?? "",
+        category: data.category ?? "general",
+        unitPrice: data.unitPrice,
+        devHours: data.devHours,
+      }),
+    });
+    if (!res.ok) {
+      throw await parseProposalErrorResponse(res, "catalog.updateFailed");
+    }
+  } catch (error) {
+    if (isProposalError(error)) throw error;
+    throw createProposalCodeError("catalog.updateFailed");
   }
 }
 
 export async function deleteCatalogItem(id: string): Promise<void> {
-  const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(txt || "No se pudo eliminar el ítem");
+  try {
+    const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      throw await parseProposalErrorResponse(res, "catalog.deleteFailed");
+    }
+  } catch (error) {
+    if (isProposalError(error)) throw error;
+    throw createProposalCodeError("catalog.deleteFailed");
   }
 }
 
