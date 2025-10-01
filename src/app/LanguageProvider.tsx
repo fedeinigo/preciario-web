@@ -72,6 +72,7 @@ export function LanguageProvider({
     };
   }, [locale, setLocale]);
 
+
   const value = React.useMemo<LanguageContextValue>(
     () => ({
       locale,
@@ -97,6 +98,7 @@ export function useTranslations(namespace?: string) {
   return React.useCallback(
     (key: string, replacements?: Replacements) =>
       t(namespace ? `${namespace}.${key}` : key, replacements),
+
     (key: string) => t(namespace ? `${namespace}.${key}` : key), 
     [namespace, t]
   );

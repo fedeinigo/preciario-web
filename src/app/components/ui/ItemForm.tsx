@@ -1,8 +1,10 @@
 // src/app/components/ui/ItemForm.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "@/app/components/ui/toast";
+
+import { useTranslations } from "@/app/LanguageProvider";
 
 export type ItemFormData = {
   sku?: string;
@@ -31,6 +33,11 @@ export default function ItemForm({
   onSave,
   existingSkus = [],
 }: Props) {
+  const formT = useTranslations("proposals.itemForm");
+  const fieldsT = useTranslations("proposals.itemForm.fields");
+  const toastT = useTranslations("proposals.itemForm.toast");
+  const managementT = useTranslations("proposals.itemForm.management");
+  const actionsT = useTranslations("proposals.itemForm.actions");
   // -------- Form state
   const [sku, setSku] = useState(initial?.sku ?? "");
   const [name, setName] = useState(initial?.name ?? "");
@@ -53,19 +60,19 @@ export default function ItemForm({
   const [categories, setCategories] = useState<string[]>([]);
   const [catsBusy, setCatsBusy] = useState(false);
 
-  const loadCats = async () => {
+  const loadCats = useCallback(async () => {
     try {
       const r = await fetch("/api/items/categories", { cache: "no-store" });
       setCategories(r.ok ? ((await r.json()) as string[]) : []);
     } catch {
       setCategories([]);
-      toast("No se pudieron cargar las categorías");
+      toast(toastT("loadCategoriesError"));
     }
-  };
+  }, [toastT]);
 
   useEffect(() => {
-    if (open) loadCats();
-  }, [open]);
+    if (open) void loadCats();
+  }, [loadCats, open]);
 
   // Gestión
   const [showCatMgmt, setShowCatMgmt] = useState(false);
@@ -92,15 +99,15 @@ export default function ItemForm({
         body: JSON.stringify({ name }),
       });
       if (!r.ok) {
-        toast("No se pudo crear la categoría");
+        toast(toastT("createCategoryError"));
         return;
       }
       setNewCat("");
       await loadCats();
       setCategory(name);
-      toast("Categoría creada");
+      toast(toastT("createCategorySuccess"));
     } catch {
-      toast("No se pudo crear la categoría");
+      toast(toastT("createCategoryError"));
     } finally {
       setCatsBusy(false);
     }
@@ -118,16 +125,16 @@ export default function ItemForm({
         body: JSON.stringify({ from, to }),
       });
       if (!r.ok) {
-        toast("No se pudo renombrar la categoría");
+        toast(toastT("renameCategoryError"));
         return;
       }
       setRenameFrom("");
       setRenameTo("");
       await loadCats();
       if (category === from) setCategory(to);
-      toast("Categoría renombrada");
+      toast(toastT("renameCategorySuccess"));
     } catch {
-      toast("No se pudo renombrar la categoría");
+      toast(toastT("renameCategoryError"));
     } finally {
       setCatsBusy(false);
     }
@@ -146,16 +153,16 @@ export default function ItemForm({
         body: JSON.stringify({ name, replaceWith }),
       });
       if (!r.ok) {
-        toast("No se pudo eliminar/mover la categoría");
+        toast(toastT("deleteCategoryError"));
         return;
       }
       setDelFrom("");
       setDelTo("");
       await loadCats();
       if (category === name) setCategory(replaceWith ?? "general");
-      toast("Categoría eliminada / ítems movidos");
+      toast(toastT("deleteCategorySuccess"));
     } catch {
-      toast("No se pudo eliminar/mover la categoría");
+      toast(toastT("deleteCategoryError"));
     } finally {
       setCatsBusy(false);
     }
@@ -175,11 +182,11 @@ export default function ItemForm({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast("El nombre es requerido");
+      toast(toastT("nameRequired"));
       return;
     }
     if (dupSku) {
-      toast("El SKU ya existe. Por favor, elige otro.");
+      toast(toastT("skuDuplicate"));
       return;
     }
     setSaving(true);
@@ -193,11 +200,8 @@ export default function ItemForm({
         category: category || "general",
       });
     } catch (err) {
-      toast(
-        `No se pudo guardar el ítem${
-          err instanceof Error ? `: ${err.message}` : ""
-        }`
-      );
+      const message = err instanceof Error ? err.message : toastT("unknown");
+      toast(toastT("saveError", { message }));
     } finally {
       setSaving(false);
     }
@@ -210,7 +214,7 @@ export default function ItemForm({
       <div className="w-full max-w-3xl rounded-md bg-white shadow-xl">
         {/* Header */}
         <div className="bg-primary text-white font-semibold px-4 py-3">
-          {mode === "create" ? "Nuevo ítem" : "Editar ítem"}
+          {mode === "create" ? formT("title.create") : formT("title.edit")}
         </div>
 
         <form onSubmit={submit} className="p-4 space-y-4">
@@ -218,23 +222,23 @@ export default function ItemForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-600 mb-1">
-                SKU <span className="text-gray-400">(opcional)</span>
+                {fieldsT("sku.label")} <span className="text-gray-400">{fieldsT("sku.optional")}</span>
               </label>
               <input
                 className={`input w-full ${dupSku ? "border-red-400 ring-1 ring-red-400" : ""}`}
-                placeholder="ABC-123"
+                placeholder={fieldsT("sku.placeholder")}
                 value={sku}
                 onChange={(e) => setSku(e.target.value)}
               />
               {dupSku && (
                 <p className="mt-1 text-[12px] text-red-600">
-                  Ya existe un ítem con este SKU.
+                  {fieldsT("sku.duplicate")}
                 </p>
               )}
             </div>
 
             <div>
-              <label className="block text-xs text-gray-600 mb-1">Categoría</label>
+              <label className="block text-xs text-gray-600 mb-1">{fieldsT("category.label")}</label>
               <select
                 className="select w-full"
                 value={category}
@@ -252,17 +256,19 @@ export default function ItemForm({
                 className="mt-1 text-xs text-primary underline"
                 onClick={() => setShowCatMgmt((p) => !p)}
               >
-                {showCatMgmt ? "Ocultar gestión de categorías" : "Mostrar gestión de categorías"}
+                {showCatMgmt
+                  ? fieldsT("category.hideManagement")
+                  : fieldsT("category.showManagement")}
               </button>
             </div>
           </div>
 
           {/* Nombre */}
           <div>
-            <label className="block text-xs text-gray-600 mb-1">Nombre</label>
+            <label className="block text-xs text-gray-600 mb-1">{fieldsT("name.label")}</label>
             <input
               className="input w-full"
-              placeholder="Nombre del ítem"
+              placeholder={fieldsT("name.placeholder")}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -270,10 +276,10 @@ export default function ItemForm({
 
           {/* Descripción */}
           <div>
-            <label className="block text-xs text-gray-600 mb-1">Descripción</label>
+            <label className="block text-xs text-gray-600 mb-1">{fieldsT("description.label")}</label>
             <textarea
               className="input w-full min-h-[96px] resize-y"
-              placeholder="Descripción corta..."
+              placeholder={fieldsT("description.placeholder")}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -282,7 +288,7 @@ export default function ItemForm({
           {/* Horas / Precio */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-600 mb-1">Horas de desarrollo</label>
+              <label className="block text-xs text-gray-600 mb-1">{fieldsT("devHours.label")}</label>
               <input
                 type="number"
                 min={0}
@@ -293,7 +299,7 @@ export default function ItemForm({
             </div>
 
             <div>
-              <label className="block text-xs text-gray-600 mb-1">Precio unitario (USD)</label>
+              <label className="block text-xs text-gray-600 mb-1">{fieldsT("unitPrice.label")}</label>
               <input
                 type="number"
                 min={0}
@@ -307,17 +313,17 @@ export default function ItemForm({
           {/* Gestión de categorías (2 filas) */}
           {showCatMgmt && (
             <div className="mt-2 rounded-md border bg-gray-50 p-3">
-              <div className="text-[12px] font-semibold mb-2">Gestión de categorías</div>
+              <div className="text-[12px] font-semibold mb-2">{managementT("title")}</div>
 
               {/* FILA 1: Crear / Renombrar */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {/* Crear */}
                 <div className="rounded bg-white p-3 border">
-                  <div className="text-xs text-gray-600 mb-2">Crear nueva</div>
+                  <div className="text-xs text-gray-600 mb-2">{managementT("create.title")}</div>
                   <div className="flex gap-2">
                     <input
                       className="input flex-1"
-                      placeholder="Nombre de la categoría"
+                      placeholder={managementT("create.placeholder")}
                       value={newCat}
                       onChange={(e) => setNewCat(e.target.value)}
                     />
@@ -327,21 +333,21 @@ export default function ItemForm({
                       onClick={createCategory}
                       disabled={!newCat.trim() || catsBusy}
                     >
-                      {catsBusy ? "…" : "Crear"}
+                      {catsBusy ? "…" : managementT("create.action")}
                     </button>
                   </div>
                 </div>
 
                 {/* Renombrar */}
                 <div className="rounded bg-white p-3 border">
-                  <div className="text-xs text-gray-600 mb-2">Renombrar existente</div>
+                  <div className="text-xs text-gray-600 mb-2">{managementT("rename.title")}</div>
                   <div className="flex gap-2">
                     <select
                       className="select flex-1"
                       value={renameFrom}
                       onChange={(e) => setRenameFrom(e.target.value)}
                     >
-                      <option value="">(elige)</option>
+                      <option value="">{managementT("selectPlaceholder")}</option>
                       {orderedCats.map((c) => (
                         <option key={c} value={c}>
                           {c}
@@ -350,7 +356,7 @@ export default function ItemForm({
                     </select>
                     <input
                       className="input flex-1"
-                      placeholder="Nuevo nombre"
+                      placeholder={managementT("rename.placeholder")}
                       value={renameTo}
                       onChange={(e) => setRenameTo(e.target.value)}
                     />
@@ -360,7 +366,7 @@ export default function ItemForm({
                       onClick={renameCategory}
                       disabled={!renameFrom || !renameTo.trim() || catsBusy}
                     >
-                      {catsBusy ? "…" : "Aplicar"}
+                      {catsBusy ? "…" : managementT("rename.action")}
                     </button>
                   </div>
                 </div>
@@ -369,14 +375,14 @@ export default function ItemForm({
               {/* FILA 2: Eliminar / mover */}
               <div className="grid grid-cols-1 gap-3 mt-3">
                 <div className="rounded bg-white p-3 border">
-                  <div className="text-xs text-gray-600 mb-2">Eliminar / mover a</div>
+                  <div className="text-xs text-gray-600 mb-2">{managementT("delete.title")}</div>
                   <div className="flex flex-wrap gap-2">
                     <select
                       className="select"
                       value={delFrom}
                       onChange={(e) => setDelFrom(e.target.value)}
                     >
-                      <option value="">(elige)</option>
+                      <option value="">{managementT("selectPlaceholder")}</option>
                       {orderedCats.map((c) => (
                         <option key={c} value={c}>
                           {c}
@@ -389,7 +395,7 @@ export default function ItemForm({
                       value={delTo}
                       onChange={(e) => setDelTo(e.target.value)}
                     >
-                      <option value="">(sin mover)</option>
+                      <option value="">{managementT("delete.keepPlaceholder")}</option>
                       {orderedCats.map((c) => (
                         <option key={c} value={c}>
                           {c}
@@ -402,12 +408,10 @@ export default function ItemForm({
                       onClick={deleteOrMove}
                       disabled={!delFrom || catsBusy}
                     >
-                      {catsBusy ? "…" : "Eliminar / Mover"}
+                      {catsBusy ? "…" : managementT("delete.action")}
                     </button>
                   </div>
-                  <p className="text-[12px] text-gray-500 mt-2">
-                    * Si elegís destino, se mueven los ítems y se elimina la categoría origen.
-                  </p>
+                  <p className="text-[12px] text-gray-500 mt-2">{managementT("delete.note")}</p>
                 </div>
               </div>
             </div>
@@ -416,10 +420,10 @@ export default function ItemForm({
           {/* Footer */}
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" className="btn-ghost" onClick={onClose} disabled={saving}>
-              Cancelar
+              {actionsT("cancel")}
             </button>
             <button type="submit" className="btn-primary" disabled={dupSku || saving}>
-              {saving ? "Guardando…" : "Guardar"}
+              {saving ? actionsT("saving") : actionsT("save")}
             </button>
           </div>
         </form>
