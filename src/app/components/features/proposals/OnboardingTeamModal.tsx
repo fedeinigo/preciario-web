@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "@/app/components/ui/toast";
 
+import { useTranslations } from "@/app/LanguageProvider";
+
 type Team = { id: string; name: string };
 
 const SEEN_KEY = "onboardingTeam_seen_session";
@@ -11,6 +13,7 @@ export default function OnboardingTeamModal() {
   const [open, setOpen] = useState(false);
   const [teams, setTeams] = useState<Team[]>([]);
   const [value, setValue] = useState("");
+  const t = useTranslations("proposals.onboarding");
 
   useEffect(() => {
     (async () => {
@@ -49,9 +52,9 @@ export default function OnboardingTeamModal() {
     });
     if (r.ok) {
       closeForSession();
-      toast.success("Equipo guardado");
+      toast.success(t("toasts.saved"));
     } else {
-      toast.error("No se pudo guardar el equipo");
+      toast.error(t("toasts.error"));
     }
   };
 
@@ -60,21 +63,21 @@ export default function OnboardingTeamModal() {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
       <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl overflow-hidden">
-        <div className="heading-bar-sm">Selecciona tu equipo</div>
+        <div className="heading-bar-sm">{t("title")}</div>
         <div className="p-4 space-y-3">
-          <p className="text-sm text-gray-700">
-            Bienvenido. Para personalizar tu experiencia, indícanos a qué equipo perteneces.
-          </p>
+          <p className="text-sm text-gray-700">{t("intro")}</p>
           <select className="select w-full" value={value} onChange={(e) => setValue(e.target.value)}>
-            <option value="">(elige un equipo)</option>
+            <option value="">{t("selectPlaceholder")}</option>
             {teams.map((t) => (
               <option key={t.id} value={t.name}>{t.name}</option>
             ))}
           </select>
         </div>
         <div className="px-4 py-3 flex justify-end gap-2 bg-gray-50 border-t">
-          <button className="btn-ghost" onClick={closeForSession}>Más tarde</button>
-          <button className="btn-primary" disabled={!value} onClick={save}>Guardar</button>
+          <button className="btn-ghost" onClick={closeForSession}>{t("actions.later")}</button>
+          <button className="btn-primary" disabled={!value} onClick={save}>
+            {t("actions.save")}
+          </button>
         </div>
       </div>
     </div>
