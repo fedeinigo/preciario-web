@@ -4,7 +4,6 @@ interface DeepRecord {
   [key: string]: string | DeepRecord;
 }
 
-type DeepRecord = Record<string, string | DeepRecord>;
 
 export const messages: Record<Locale, DeepRecord> = {
   es: {
@@ -15,6 +14,44 @@ export const messages: Record<Locale, DeepRecord> = {
         english: "Inglés",
         portuguese: "Portugués",
       },
+      dialog: {
+        title: "Confirmar",
+        confirm: "Confirmar",
+        cancel: "Cancelar",
+        processing: "Procesando…",
+        required: "Este campo es obligatorio.",
+      },
+      loading: {
+        session: "Cargando tu sesión…",
+      },
+      roles: {
+        superadmin: "Superadmin",
+        lider: "Líder",
+        usuario: "Usuario",
+        unknown: "Rol sin definir",
+      },
+      profileModal: {
+        title: "Mi perfil y objetivo",
+        periodSummary: "Periodo: {year} - Q{quarter} ({from} — {to})",
+        buttons: {
+          close: "Cerrar",
+          save: "Guardar objetivo",
+        },
+        viewerBadge: "Edición por {role}",
+        labels: {
+          role: "Rol",
+          team: "Equipo",
+          year: "Año",
+          quarter: "Trimestre",
+          goal: "Objetivo (USD)",
+        },
+        fallbacks: {
+          name: "(sin nombre)",
+          team: "—",
+          email: "—",
+        },
+      },
+
     },
     auth: {
       login: {
@@ -69,6 +106,104 @@ export const messages: Record<Locale, DeepRecord> = {
         email: "—",
       },
     },
+    goals: {
+      page: {
+        title: "Objetivos",
+        teamTitle: "Mi equipo",
+        teamTitleWithName: "Equipo {team} — Detalle",
+        emptySuperadmin: "Selecciona un equipo arriba para ver sus objetivos.",
+        emptyMember: "Aún no pertenecés a un equipo.",
+      },
+      quarterPicker: {
+        year: "Año",
+        quarter: "Trimestre",
+      },
+      individual: {
+        title: "Objetivo individual",
+        progressTitle: "Progreso del trimestre {year} — Q{quarter}",
+        period: "Periodo: {from} — {to}",
+        editCta: "Editar mi objetivo",
+        metrics: {
+          goal: "Objetivo",
+          progress: "Avance (WON)",
+          remaining: "Faltante",
+          pct: "% Cumplimiento",
+        },
+        dialog: {
+          title: "Editar objetivo personal",
+          description: "Ingresa el objetivo del trimestre en USD.",
+          inputLabel: "Monto (USD)",
+          inputPlaceholder: "Ej: 5000",
+          confirm: "Guardar",
+        },
+      },
+      team: {
+        title: "Objetivo del equipo",
+        selectPlaceholder: "Selecciona equipo…",
+        exportCsv: "CSV",
+        empty: {
+          superadmin: "Selecciona un equipo para ver sus objetivos.",
+          member: "Aún no pertenecés a un equipo.",
+        },
+        progressTitle: "Progreso del trimestre {year} — Q{quarter}",
+        deltaLabel: "Delta objetivo vs suma miembros:",
+        editCta: "Editar objetivo del equipo",
+        metrics: {
+          goal: "Objetivo del equipo",
+          progress: "Avance (WON)",
+          remaining: "Faltante",
+          pct: "% Cumplimiento",
+        },
+        dialog: {
+          title: "Editar objetivo del equipo",
+          description:
+            "Define el objetivo del trimestre en USD. No tiene por qué coincidir con la suma individual.",
+          inputLabel: "Monto (USD)",
+          inputPlaceholder: "Ej: 25000",
+          confirm: "Guardar",
+        },
+      },
+      table: {
+        headers: {
+          user: "Usuario",
+          goal: "Objetivo",
+          progress: "Avance",
+          pct: "% Cumpl.",
+        },
+        actions: {
+          title: "Acciones",
+          profile: "Perfil",
+          edit: "Editar",
+          cancel: "Cancelar",
+          save: "Guardar",
+        },
+        loading: "Cargando…",
+        empty: "Sin miembros o sin datos.",
+      },
+      csv: {
+        headers: {
+          user: "Usuario",
+          goal: "Objetivo Q",
+          progress: "Avance (WON)",
+          pct: "%",
+        },
+        fileName: "objetivos_{team}.csv",
+        fallbackTeam: "equipo",
+      },
+      toast: {
+        myGoalSaved: "Objetivo actualizado",
+        myGoalError: "No se pudo guardar tu objetivo",
+        userGoalSaved: "Objetivo del usuario actualizado",
+        userGoalError: "No se pudo actualizar el objetivo del usuario",
+        teamGoalSaved: "Objetivo del equipo actualizado",
+        teamGoalError: "No se pudo actualizar el objetivo del equipo",
+        restrictedEdit: "Solo líderes o superadmins pueden editar objetivos de otros.",
+      },
+      validation: {
+        nonNegative: "Debe ser ≥ 0",
+      },
+    },
+
     proposals: {
       onboarding: {
         title: "Selecciona tu equipo",
@@ -467,6 +602,43 @@ export const messages: Record<Locale, DeepRecord> = {
         english: "English",
         portuguese: "Portuguese",
       },
+      dialog: {
+        title: "Confirm",
+        confirm: "Confirm",
+        cancel: "Cancel",
+        processing: "Processing…",
+        required: "This field is required.",
+      },
+      loading: {
+        session: "Loading your session…",
+      },
+      roles: {
+        superadmin: "Superadmin",
+        lider: "Leader",
+        usuario: "User",
+        unknown: "Role not set",
+      },
+      profileModal: {
+        title: "My profile and goal",
+        periodSummary: "Period: {year} - Q{quarter} ({from} — {to})",
+        buttons: {
+          close: "Close",
+          save: "Save goal",
+        },
+        viewerBadge: "Edited as {role}",
+        labels: {
+          role: "Role",
+          team: "Team",
+          year: "Year",
+          quarter: "Quarter",
+          goal: "Goal (USD)",
+        },
+        fallbacks: {
+          name: "(no name)",
+          team: "—",
+          email: "—",
+        },
+      },
     },
     auth: {
       login: {
@@ -519,6 +691,102 @@ export const messages: Record<Locale, DeepRecord> = {
         userName: "User",
         team: "—",
         email: "—",
+      },
+    },
+    goals: {
+      page: {
+        title: "Goals",
+        teamTitle: "My team",
+        teamTitleWithName: "Team {team} — Detail",
+        emptySuperadmin: "Select a team above to see its goals.",
+        emptyMember: "You are not assigned to a team yet.",
+      },
+      quarterPicker: {
+        year: "Year",
+        quarter: "Quarter",
+      },
+      individual: {
+        title: "Individual goal",
+        progressTitle: "Quarter progress {year} — Q{quarter}",
+        period: "Period: {from} — {to}",
+        editCta: "Edit my goal",
+        metrics: {
+          goal: "Goal",
+          progress: "Progress (WON)",
+          remaining: "Remaining",
+          pct: "% Completion",
+        },
+        dialog: {
+          title: "Edit personal goal",
+          description: "Enter this quarter's goal in USD.",
+          inputLabel: "Amount (USD)",
+          inputPlaceholder: "Ex: 5000",
+          confirm: "Save",
+        },
+      },
+      team: {
+        title: "Team goal",
+        selectPlaceholder: "Select a team…",
+        exportCsv: "CSV",
+        empty: {
+          superadmin: "Select a team to view its goals.",
+          member: "You are not assigned to a team yet.",
+        },
+        progressTitle: "Quarter progress {year} — Q{quarter}",
+        deltaLabel: "Goal vs members delta:",
+        editCta: "Edit team goal",
+        metrics: {
+          goal: "Team goal",
+          progress: "Progress (WON)",
+          remaining: "Remaining",
+          pct: "% Completion",
+        },
+        dialog: {
+          title: "Edit team goal",
+          description: "Set the quarter goal in USD. It does not need to match the sum of members.",
+          inputLabel: "Amount (USD)",
+          inputPlaceholder: "Ex: 25000",
+          confirm: "Save",
+        },
+      },
+      table: {
+        headers: {
+          user: "User",
+          goal: "Goal",
+          progress: "Progress",
+          pct: "% Compl.",
+        },
+        actions: {
+          title: "Actions",
+          profile: "Profile",
+          edit: "Edit",
+          cancel: "Cancel",
+          save: "Save",
+        },
+        loading: "Loading…",
+        empty: "No members or no data.",
+      },
+      csv: {
+        headers: {
+          user: "User",
+          goal: "Quarter goal",
+          progress: "Progress (WON)",
+          pct: "%",
+        },
+        fileName: "goals_{team}.csv",
+        fallbackTeam: "team",
+      },
+      toast: {
+        myGoalSaved: "Goal updated",
+        myGoalError: "Could not save your goal",
+        userGoalSaved: "User goal updated",
+        userGoalError: "Could not update the user's goal",
+        teamGoalSaved: "Team goal updated",
+        teamGoalError: "Could not update the team goal",
+        restrictedEdit: "Only leaders or superadmins can edit other people's goals.",
+      },
+      validation: {
+        nonNegative: "Must be ≥ 0",
       },
     },
     proposals: {
@@ -918,6 +1186,43 @@ export const messages: Record<Locale, DeepRecord> = {
         english: "Inglês",
         portuguese: "Português",
       },
+      dialog: {
+        title: "Confirmar",
+        confirm: "Confirmar",
+        cancel: "Cancelar",
+        processing: "Processando…",
+        required: "Este campo é obrigatório.",
+      },
+      loading: {
+        session: "Carregando sua sessão…",
+      },
+      roles: {
+        superadmin: "Superadmin",
+        lider: "Líder",
+        usuario: "Usuário",
+        unknown: "Função indefinida",
+      },
+      profileModal: {
+        title: "Meu perfil e meta",
+        periodSummary: "Período: {year} - Q{quarter} ({from} — {to})",
+        buttons: {
+          close: "Fechar",
+          save: "Salvar meta",
+        },
+        viewerBadge: "Edição como {role}",
+        labels: {
+          role: "Função",
+          team: "Equipe",
+          year: "Ano",
+          quarter: "Trimestre",
+          goal: "Meta (USD)",
+        },
+        fallbacks: {
+          name: "(sem nome)",
+          team: "—",
+          email: "—",
+        },
+      },
     },
     auth: {
       login: {
@@ -970,6 +1275,103 @@ export const messages: Record<Locale, DeepRecord> = {
         userName: "Usuário",
         team: "—",
         email: "—",
+      },
+    },
+    goals: {
+      page: {
+        title: "Metas",
+        teamTitle: "Minha equipe",
+        teamTitleWithName: "Equipe {team} — Detalhe",
+        emptySuperadmin: "Selecione uma equipe acima para ver as metas.",
+        emptyMember: "Você ainda não faz parte de uma equipe.",
+      },
+      quarterPicker: {
+        year: "Ano",
+        quarter: "Trimestre",
+      },
+      individual: {
+        title: "Meta individual",
+        progressTitle: "Progresso do trimestre {year} — Q{quarter}",
+        period: "Período: {from} — {to}",
+        editCta: "Editar minha meta",
+        metrics: {
+          goal: "Meta",
+          progress: "Progresso (WON)",
+          remaining: "Restante",
+          pct: "% Conclusão",
+        },
+        dialog: {
+          title: "Editar meta pessoal",
+          description: "Informe a meta do trimestre em USD.",
+          inputLabel: "Valor (USD)",
+          inputPlaceholder: "Ex: 5000",
+          confirm: "Salvar",
+        },
+      },
+      team: {
+        title: "Meta da equipe",
+        selectPlaceholder: "Selecione uma equipe…",
+        exportCsv: "CSV",
+        empty: {
+          superadmin: "Selecione uma equipe para ver as metas.",
+          member: "Você ainda não faz parte de uma equipe.",
+        },
+        progressTitle: "Progresso do trimestre {year} — Q{quarter}",
+        deltaLabel: "Delta da meta vs soma dos membros:",
+        editCta: "Editar meta da equipe",
+        metrics: {
+          goal: "Meta da equipe",
+          progress: "Progresso (WON)",
+          remaining: "Restante",
+          pct: "% Conclusão",
+        },
+        dialog: {
+          title: "Editar meta da equipe",
+          description:
+            "Defina a meta do trimestre em USD. Não precisa coincidir com a soma individual.",
+          inputLabel: "Valor (USD)",
+          inputPlaceholder: "Ex: 25000",
+          confirm: "Salvar",
+        },
+      },
+      table: {
+        headers: {
+          user: "Usuário",
+          goal: "Meta",
+          progress: "Progresso",
+          pct: "% Concl.",
+        },
+        actions: {
+          title: "Ações",
+          profile: "Perfil",
+          edit: "Editar",
+          cancel: "Cancelar",
+          save: "Salvar",
+        },
+        loading: "Carregando…",
+        empty: "Sem membros ou sem dados.",
+      },
+      csv: {
+        headers: {
+          user: "Usuário",
+          goal: "Meta trimestral",
+          progress: "Progresso (WON)",
+          pct: "%",
+        },
+        fileName: "metas_{team}.csv",
+        fallbackTeam: "equipe",
+      },
+      toast: {
+        myGoalSaved: "Meta atualizada",
+        myGoalError: "Não foi possível salvar sua meta",
+        userGoalSaved: "Meta do usuário atualizada",
+        userGoalError: "Não foi possível atualizar a meta do usuário",
+        teamGoalSaved: "Meta da equipe atualizada",
+        teamGoalError: "Não foi possível atualizar a meta da equipe",
+        restrictedEdit: "Apenas líderes ou superadmins podem editar metas de outras pessoas.",
+      },
+      validation: {
+        nonNegative: "Deve ser ≥ 0",
       },
     },
     proposals: {

@@ -2,6 +2,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "@/app/LanguageProvider";
 
 export default function QuarterPicker({
   year,
@@ -14,6 +15,7 @@ export default function QuarterPicker({
   onYear: (v: number) => void;
   onQuarter: (v: 1 | 2 | 3 | 4) => void;
 }) {
+  const t = useTranslations("goals.quarterPicker");
   const years = React.useMemo(() => {
     const y = new Date().getFullYear();
     return [y - 2, y - 1, y, y + 1, y + 2];
@@ -22,7 +24,7 @@ export default function QuarterPicker({
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
       <label className="block">
-        <span className="block text-xs text-gray-600 mb-1">Año</span>
+        <span className="block text-xs text-gray-600 mb-1">{t("year")}</span>
         <select
           className="w-full h-10 px-4 rounded-full border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#4c1d95]/30"
           value={year}
@@ -34,7 +36,7 @@ export default function QuarterPicker({
         </select>
       </label>
       <label className="block">
-        <span className="block text-xs text-gray-600 mb-1">Trimestre</span>
+        <span className="block text-xs text-gray-600 mb-1">{t("quarter")}</span>
         <select
           className="w-full h-10 px-4 rounded-full border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#4c1d95]/30"
           value={quarter}

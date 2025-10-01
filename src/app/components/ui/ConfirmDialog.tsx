@@ -3,6 +3,7 @@
 
 import React from "react";
 import Modal from "@/app/components/ui/Modal";
+import { useTranslations } from "@/app/LanguageProvider";
 
 type ConfirmDialogProps = {
   /** Controla apertura */
@@ -11,9 +12,9 @@ type ConfirmDialogProps = {
   title?: React.ReactNode;
   /** Texto o nodo descriptivo */
   description?: React.ReactNode;
-  /** Texto del botón confirmar (default: "Confirmar") */
+  /** Texto del botón confirmar (default traducido) */
   confirmText?: string;
-  /** Texto del botón cancelar (default: "Cancelar") */
+  /** Texto del botón cancelar (default traducido) */
   cancelText?: string;
   /** Llamado al confirmar. Si hay input, recibe el valor */
   onConfirm: (value?: string) => void | Promise<void>;
@@ -36,10 +37,10 @@ type ConfirmDialogProps = {
 
 export default function ConfirmDialog({
   open,
-  title = "Confirmar",
+  title,
   description,
-  confirmText = "Confirmar",
-  cancelText = "Cancelar",
+  confirmText,
+  cancelText,
   onConfirm,
   onCancel,
   loading = false,
@@ -50,6 +51,7 @@ export default function ConfirmDialog({
   inputRequired = false,
   validateInput,
 }: ConfirmDialogProps) {
+  const t = useTranslations("common.dialog");
   const [value, setValue] = React.useState(inputDefaultValue);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -64,7 +66,7 @@ export default function ConfirmDialog({
     if (inputLabel) {
       const trimmed = (value ?? "").trim();
       if (inputRequired && !trimmed) {
-        setError("Este campo es obligatorio.");
+        setError(t("required"));
         return;
       }
       if (validateInput) {
@@ -84,11 +86,11 @@ export default function ConfirmDialog({
     <Modal
       open={open}
       onClose={loading ? () => {} : onCancel}
-      title={title}
+      title={title ?? t("title")}
       footer={
         <div className="flex justify-end gap-2">
           <button className="btn-ghost" onClick={onCancel} disabled={loading}>
-            {cancelText}
+            {cancelText ?? t("cancel")}
           </button>
           <button
             className={
@@ -99,7 +101,7 @@ export default function ConfirmDialog({
             onClick={handleConfirm}
             disabled={loading}
           >
-            {loading ? "Procesando…" : confirmText}
+            {loading ? t("processing") : (confirmText ?? t("confirm"))}
           </button>
         </div>
       }

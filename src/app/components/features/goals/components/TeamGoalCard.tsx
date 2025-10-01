@@ -6,6 +6,7 @@ import GoalKpi from "./GoalKpi";
 import ProgressBar from "./ProgressBar";
 import { formatUSD } from "../../proposals/lib/format";
 import ConfirmDialog from "@/app/components/ui/ConfirmDialog";
+import { useTranslations } from "@/app/LanguageProvider";
 
 export default function TeamGoalCard({
   year,
@@ -34,6 +35,11 @@ export default function TeamGoalCard({
   onExportCsv: () => void;
   onSaveTeamGoal: (amount: number) => Promise<void> | void;
 }) {
+  const t = useTranslations("goals.team");
+  const metricsT = useTranslations("goals.team.metrics");
+  const dialogT = useTranslations("goals.team.dialog");
+  const validationT = useTranslations("goals.validation");
+  const emptyT = useTranslations("goals.team.empty");
   const pct = teamGoal > 0 ? (teamProgress / teamGoal) * 100 : 0;
   const remaining = Math.max(0, teamGoal - teamProgress);
   const delta = sumMembersGoal - teamGoal;
@@ -43,7 +49,7 @@ export default function TeamGoalCard({
   return (
     <div className="rounded-2xl border bg-white shadow-md overflow-hidden flex flex-col h-full">
       <div className="px-4 h-12 flex items-center justify-between text-white font-semibold bg-[#4c1d95]">
-        <span>Objetivo del equipo</span>
+        <span>{t("title")}</span>
         <div className="flex items-center gap-2">
           {isSuperAdmin && (
             <select
@@ -51,7 +57,7 @@ export default function TeamGoalCard({
               value={effectiveTeam}
               onChange={(e) => onChangeTeam(e.target.value)}
             >
-              <option className="text-black" value="">Selecciona equipo…</option>
+              <option className="text-black" value="">{t("selectPlaceholder")}</option>
               {allTeams.map((t) => (
                 <option className="text-black" key={t} value={t}>{t}</option>
               ))}
@@ -61,7 +67,7 @@ export default function TeamGoalCard({
             className="h-9 px-4 rounded-full border border-white/30 bg-white/10 text-white hover:bg-white/20"
             onClick={onExportCsv}
           >
-            CSV
+            {t("exportCsv")}
           </button>
         </div>
       </div>
@@ -69,24 +75,22 @@ export default function TeamGoalCard({
       <div className="p-4 space-y-4 flex-1">
         {!effectiveTeam ? (
           <div className="rounded-lg border bg-white p-4 text-sm text-gray-600">
-            {isSuperAdmin ? "Selecciona un equipo para ver sus objetivos." : "Aún no pertenecés a un equipo."}
+            {isSuperAdmin ? emptyT("superadmin") : emptyT("member")}
           </div>
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <GoalKpi label="Objetivo del equipo" value={formatUSD(teamGoal)} />
-              <GoalKpi label="Avance (WON)" value={formatUSD(teamProgress)} />
-              <GoalKpi label="Faltante" value={formatUSD(remaining)} />
-              <GoalKpi label="% Cumplimiento" value={`${(teamGoal ? (teamProgress / teamGoal) * 100 : 0).toFixed(1)}%`} />
+              <GoalKpi label={metricsT("goal")} value={formatUSD(teamGoal)} />
+              <GoalKpi label={metricsT("progress")} value={formatUSD(teamProgress)} />
+              <GoalKpi label={metricsT("remaining")} value={formatUSD(remaining)} />
+              <GoalKpi label={metricsT("pct")} value={`${(teamGoal ? (teamProgress / teamGoal) * 100 : 0).toFixed(1)}%`} />
             </div>
 
             <div className="rounded-xl border bg-white p-3">
-              <div className="text-xs text-gray-600 mb-1">
-                Progreso del trimestre {year} — Q{quarter}
-              </div>
+              <div className="text-xs text-gray-600 mb-1">{t("progressTitle", { year, quarter })}</div>
               <ProgressBar pct={pct} height={12} title={`${pct.toFixed(1)}%`} />
               <div className="text-xs text-gray-600 mt-1">
-                Delta objetivo vs suma miembros:{" "}
+                {t("deltaLabel")} {" "}
                 <b className={delta === 0 ? "text-gray-600" : delta > 0 ? "text-emerald-600" : "text-rose-600"}>
                   {delta > 0 ? "+" : ""}{formatUSD(delta)}
                 </b>
@@ -99,7 +103,7 @@ export default function TeamGoalCard({
                   className="btn-bar"
                   onClick={() => setEditOpen(true)}
                 >
-                  Editar objetivo del equipo
+                  {t("editCta")}
                 </button>
               </div>
             )}
@@ -115,14 +119,14 @@ export default function TeamGoalCard({
           if (Number.isFinite(num) && num >= 0) onSaveTeamGoal(num);
           setEditOpen(false);
         }}
-        title="Editar objetivo del equipo"
-        description={<span className="text-sm">Define el objetivo del trimestre en USD. No tiene por qué coincidir con la suma individual.</span>}
-        inputLabel="Monto (USD)"
-        inputPlaceholder="Ej: 25000"
+        title={dialogT("title")}
+        description={<span className="text-sm">{dialogT("description")}</span>}
+        inputLabel={dialogT("inputLabel")}
+        inputPlaceholder={dialogT("inputPlaceholder")}
         inputDefaultValue={String(teamGoal)}
         inputRequired
-        validateInput={(v) => (Number(v) < 0 ? "Debe ser ≥ 0" : null)}
-        confirmText="Guardar"
+        validateInput={(v) => (Number(v) < 0 ? validationT("nonNegative") : null)}
+        confirmText={dialogT("confirm")}
       />
     </div>
   );
