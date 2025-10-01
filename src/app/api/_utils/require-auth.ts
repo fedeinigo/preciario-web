@@ -1,4 +1,3 @@
-// src/app/api/_utils/require-auth.ts
 import { NextResponse } from "next/server";
 
 import { isFeatureEnabled } from "@/lib/feature-flags";
@@ -6,7 +5,7 @@ import { auth } from "@/lib/auth";
 
 export type ApiSession = Awaited<ReturnType<typeof auth>>;
 
-type RequireSessionResult = {
+export type RequireSessionResult = {
   session: ApiSession;
   response?: NextResponse;
 };
