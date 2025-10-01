@@ -35,13 +35,15 @@ export default function AdminUsersPage() {
 
   const resolveErrorCode = (status: number, code?: string, allowed: string[] = []) => {
     const normalized = code?.toLowerCase();
-    if (normalized && allowed.includes(normalized)) {
+    if (normalized && allowed.some((value) => value.toLowerCase() === normalized)) {
       return normalized;
     }
     if (normalized === "unauthorized" || normalized === "forbidden") {
       return "unauthorized";
     }
     if (status === 401 || status === 403) return "unauthorized";
+    if (status === 404) return "notFound";
+    if (status === 400) return "invalid";
     return "generic";
   };
 
