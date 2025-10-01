@@ -5,6 +5,8 @@ import Modal from "@/app/components/ui/Modal";
 import { formatUSD } from "../lib/format";
 import React from "react";
 
+import { useTranslations } from "@/app/LanguageProvider";
+
 type SelectedItemRow = {
   name: string;
   quantity: number;
@@ -37,21 +39,25 @@ export function SummaryModal({
   totalHours: number;
   totalAmount: number;
 }) {
+  const t = useTranslations("proposals.summary");
+  const generatorT = useTranslations("proposals.generator");
+  const emptyValue = generatorT("emptyValue");
+
   return (
-    <Modal open={open} onClose={onClose} title="Resumen de la propuesta">
+    <Modal open={open} onClose={onClose} title={t("title")}>
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <div className="text-xs text-gray-600">Empresa</div>
-            <div className="font-semibold">{companyName || "—"}</div>
+            <div className="text-xs text-gray-600">{t("company.label")}</div>
+            <div className="font-semibold">{companyName || emptyValue}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-600">País</div>
-            <div className="font-semibold">{country || "—"}</div>
+            <div className="text-xs text-gray-600">{t("country.label")}</div>
+            <div className="font-semibold">{country || emptyValue}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-600">Filial</div>
-            <div className="font-semibold">{subsidiary || "—"}</div>
+            <div className="text-xs text-gray-600">{t("subsidiary.label")}</div>
+            <div className="font-semibold">{subsidiary || emptyValue}</div>
           </div>
         </div>
 
@@ -59,12 +65,12 @@ export function SummaryModal({
           <table className="min-w-full bg-white">
             <thead>
               <tr>
-                <th className="table-th">Ítem</th>
-                <th className="table-th w-20 text-right">Cant.</th>
-                <th className="table-th w-28 text-right">Unitario</th>
-                <th className="table-th w-24 text-right">Desc. %</th>
-                <th className="table-th w-32 text-right">Unit. Neto</th>
-                <th className="table-th w-36 text-right">Subtotal</th>
+                <th className="table-th">{t("table.headers.item")}</th>
+                <th className="table-th w-20 text-right">{t("table.headers.quantity")}</th>
+                <th className="table-th w-28 text-right">{t("table.headers.unitPrice")}</th>
+                <th className="table-th w-24 text-right">{t("table.headers.discount")}</th>
+                <th className="table-th w-32 text-right">{t("table.headers.netUnit")}</th>
+                <th className="table-th w-36 text-right">{t("table.headers.subtotal")}</th>
               </tr>
             </thead>
             <tbody>
@@ -85,7 +91,7 @@ export function SummaryModal({
               {selectedItems.length === 0 && (
                 <tr>
                   <td className="table-td text-center text-gray-500" colSpan={6}>
-                    No hay ítems seleccionados.
+                    {t("table.empty")}
                   </td>
                 </tr>
               )}
@@ -95,23 +101,23 @@ export function SummaryModal({
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
           <div className="rounded-sm border-2 bg-white px-4 py-3 shadow-soft text-right">
-            <div className="text-sm text-gray-500">Total mensual</div>
+            <div className="text-sm text-gray-500">{t("totals.monthly")}</div>
             <div className="text-xl font-semibold text-primary">
               {formatUSD(totalAmount)}
             </div>
           </div>
           <div className="rounded-sm border-2 bg-white px-4 py-3 shadow-soft text-right">
-            <div className="text-sm text-gray-500">Horas de desarrollo</div>
+            <div className="text-sm text-gray-500">{t("totals.hours")}</div>
             <div className="text-xl font-semibold">{totalHours}</div>
           </div>
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
           <button className="btn-ghost" onClick={onClose} disabled={creating}>
-            Cancelar
+            {t("actions.cancel")}
           </button>
           <button className="btn-primary" onClick={onGenerate} disabled={creating}>
-            {creating ? "Generando…" : "Generar documento"}
+            {creating ? t("actions.generating") : t("actions.generate")}
           </button>
         </div>
       </div>
