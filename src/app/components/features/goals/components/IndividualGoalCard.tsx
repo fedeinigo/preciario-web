@@ -6,6 +6,7 @@ import GoalKpi from "./GoalKpi";
 import ProgressBar from "./ProgressBar";
 import { formatUSD } from "../../proposals/lib/format";
 import ConfirmDialog from "@/app/components/ui/ConfirmDialog";
+import { useTranslations } from "@/app/LanguageProvider";
 
 export default function IndividualGoalCard({
   year,
@@ -22,6 +23,10 @@ export default function IndividualGoalCard({
   myProgress: number;
   onSave: (amount: number) => Promise<void> | void;
 }) {
+  const t = useTranslations("goals.individual");
+  const metricsT = useTranslations("goals.individual.metrics");
+  const dialogT = useTranslations("goals.individual.dialog");
+  const validationT = useTranslations("goals.validation");
   const pct = myGoal > 0 ? (myProgress / myGoal) * 100 : 0;
   const remaining = Math.max(0, myGoal - myProgress);
 
@@ -32,33 +37,29 @@ export default function IndividualGoalCard({
   return (
     <div className="rounded-2xl border bg-white shadow-md overflow-hidden flex flex-col h-full">
       <div className="px-4 h-12 flex items-center text-white font-semibold bg-[#4c1d95]">
-        Objetivo individual
+        {t("title")}
       </div>
 
       <div className="p-4 space-y-4 flex-1">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <GoalKpi label="Objetivo" value={formatUSD(myGoal)} />
-          <GoalKpi label="Avance (WON)" value={formatUSD(myProgress)} />
-          <GoalKpi label="Faltante" value={formatUSD(remaining)} />
-          <GoalKpi label="% Cumplimiento" value={`${(myGoal ? (myProgress / myGoal) * 100 : 0).toFixed(1)}%`} />
+          <GoalKpi label={metricsT("goal")} value={formatUSD(myGoal)} />
+          <GoalKpi label={metricsT("progress")} value={formatUSD(myProgress)} />
+          <GoalKpi label={metricsT("remaining")} value={formatUSD(remaining)} />
+          <GoalKpi label={metricsT("pct")} value={`${(myGoal ? (myProgress / myGoal) * 100 : 0).toFixed(1)}%`} />
         </div>
 
         <div className="rounded-xl border bg-white p-3">
-          <div className="text-xs text-gray-600 mb-1">
-            Progreso del trimestre {year} — Q{quarter}
-          </div>
+          <div className="text-xs text-gray-600 mb-1">{t("progressTitle", { year, quarter })}</div>
           <ProgressBar pct={pct} height={12} title={`${pct.toFixed(1)}%`} />
-          <div className="text-xs text-gray-600 mt-1">
-            Periodo: {range.from} — {range.to}
-          </div>
+          <div className="text-xs text-gray-600 mt-1">{t("period", { from: range.from, to: range.to })}</div>
         </div>
 
         <div>
-          <button 
+          <button
             className="btn-bar"
             onClick={() => setOpen(true)}
           >
-            Editar mi objetivo
+            {t("editCta")}
           </button>
         </div>
       </div>
@@ -71,14 +72,14 @@ export default function IndividualGoalCard({
           if (Number.isFinite(num) && num >= 0) onSave(num);
           setOpen(false);
         }}
-        title="Editar objetivo personal"
-        description={<span className="text-sm">Ingresa el objetivo del trimestre en USD.</span>}
-        inputLabel="Monto (USD)"
-        inputPlaceholder="Ej: 5000"
+        title={dialogT("title")}
+        description={<span className="text-sm">{dialogT("description")}</span>}
+        inputLabel={dialogT("inputLabel")}
+        inputPlaceholder={dialogT("inputPlaceholder")}
         inputDefaultValue={String(tmp)}
         inputRequired
-        validateInput={(v) => (Number(v) < 0 ? "Debe ser ≥ 0" : null)}
-        confirmText="Guardar"
+        validateInput={(v) => (Number(v) < 0 ? validationT("nonNegative") : null)}
+        confirmText={dialogT("confirm")}
       />
     </div>
   );

@@ -20,6 +20,7 @@ import {
 } from "./lib/dateRanges";
 import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
+import { useTranslations } from "@/app/LanguageProvider";
 
 type AppRole = "superadmin" | "lider" | "usuario";
 type AdminUserRow = { email: string | null; team: string | null; role?: AppRole };
@@ -34,6 +35,7 @@ function QuickRanges({
   setFrom: (v: string) => void;
   setTo: (v: string) => void;
 }) {
+  const t = useTranslations("proposals.history.quickRanges");
   const year = new Date().getFullYear();
   const apply = (r: { from: string; to: string }) => {
     setFrom(r.from);
@@ -54,16 +56,16 @@ function QuickRanges({
         </button>
       ))}
       <button className="btn-ghost !py-1" onClick={() => apply(currentMonthRange())}>
-        Mes actual
+        {t("currentMonth")}
       </button>
       <button className="btn-ghost !py-1" onClick={() => apply(prevMonthRange())}>
-        Mes anterior
+        {t("previousMonth")}
       </button>
       <button className="btn-ghost !py-1" onClick={() => apply(currentWeekRange())}>
-        Semana actual
+        {t("currentWeek")}
       </button>
       <button className="btn-ghost !py-1" onClick={() => apply(prevWeekRange())}>
-        Semana anterior
+        {t("previousWeek")}
       </button>
     </div>
   );
@@ -80,6 +82,15 @@ export default function History({
   leaderTeam: string | null;
   isSuperAdmin: boolean;
 }) {
+  const t = useTranslations("proposals.history");
+  const filtersT = useTranslations("proposals.history.filters");
+  const tableT = useTranslations("proposals.history.table");
+  const paginationT = useTranslations("proposals.history.pagination");
+  const modalT = useTranslations("proposals.history.deleteModal");
+  const toastT = useTranslations("proposals.history.toast");
+  const csvT = useTranslations("proposals.history.csv");
+  const statusT = useTranslations("proposals.history.table.statusLabels");
+
   const [rows, setRows] = useState<ProposalRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -260,8 +271,24 @@ export default function History({
   const pageStart = (page - 1) * pageSize;
   const paged = subset.slice(pageStart, pageStart + pageSize);
 
+  const translateStatus = (status: string | null | undefined) => {
+    const normalized = String(status ?? "open").toLowerCase();
+    const key = `proposals.history.table.statusLabels.${normalized}`;
+    const translated = statusT(normalized);
+    return translated === key ? status ?? "OPEN" : translated;
+  };
+
   const downloadCurrentCsv = () => {
-    const headers = ["ID", "Empresa", "País", "Email", "Mensual", "Creado", "Estado", "URL"];
+    const headers = [
+      csvT("headers.id"),
+      csvT("headers.company"),
+      csvT("headers.country"),
+      csvT("headers.email"),
+      csvT("headers.monthly"),
+      csvT("headers.created"),
+      csvT("headers.status"),
+      csvT("headers.url"),
+    ];
     const data = subset.map((p) => [
       p.id,
       p.companyName,
@@ -269,11 +296,11 @@ export default function History({
       p.userEmail || "",
       Number(p.totalAmount).toFixed(2),
       formatDateTime(p.createdAt as unknown as string),
-      p.status ?? "OPEN",
+      translateStatus(p.status ?? "OPEN"),
       p.docUrl || "",
     ]);
     const csv = buildCsv(headers, data);
-    downloadCsv("historico.csv", csv);
+    downloadCsv(csvT("fileName"), csv);
   };
 
   // Confirm delete modal
@@ -289,11 +316,11 @@ export default function History({
       body: JSON.stringify({ status: "WON" }),
     });
     if (!r.ok) {
-      const t = await r.text().catch(() => "");
-      toast.error(t || "No se pudo marcar como WON");
+      const errorText = await r.text().catch(() => "");
+      toast.error(errorText || toastT("markWonError"));
       return;
     }
-    toast.success("Marcado como WON");
+    toast.success(toastT("markWonSuccess"));
     load();
   };
 
@@ -305,22 +332,22 @@ export default function History({
       body: JSON.stringify({ status: "OPEN" }),
     });
     if (!r.ok) {
-      const t = await r.text().catch(() => "");
-      toast.error(t || "No se pudo revertir a OPEN");
+      const errorText = await r.text().catch(() => "");
+      toast.error(errorText || toastT("markOpenError"));
       return;
     }
-    toast.success("Propuesta vuelta a OPEN");
+    toast.success(toastT("markOpenSuccess"));
     load();
   };
 
   const doDelete = async (id: string) => {
     const r = await fetch(`/api/proposals/${id}`, { method: "DELETE" });
     if (!r.ok) {
-      const t = await r.text().catch(() => "");
-      toast.error(t || "No se pudo eliminar");
+      const errorText = await r.text().catch(() => "");
+      toast.error(errorText || toastT("deleteError"));
       return;
     }
-    toast.success("Propuesta eliminada");
+    toast.success(toastT("deleteSuccess"));
     setConfirmId(null);
     load();
   };
@@ -329,17 +356,17 @@ export default function History({
     <div className="p-4">
       <div className="card border-2 overflow-hidden">
         <div className="heading-bar-sm flex items-center justify-between">
-          <span>Histórico</span>
+          <span>{t("title")}</span>
           <div className="flex items-center gap-2">
             <button
               className="btn-bar"
               onClick={downloadCurrentCsv}
-              title="Descargar CSV de la vista filtrada"
+              title={t("actions.downloadCsvTitle")}
             >
-              CSV
+              {t("actions.downloadCsv")}
             </button>
-            <button className="btn-bar" onClick={load} title="Refrescar">
-              Refrescar
+            <button className="btn-bar" onClick={load} title={t("actions.refreshTitle")}>
+              {t("actions.refresh")}
             </button>
           </div>
         </div>
@@ -350,13 +377,13 @@ export default function History({
           {(isSuperAdmin || role === "lider") && (
             <div className="mb-3 grid grid-cols-1 md:grid-cols-6 gap-3">
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Equipo</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("team.label")}</label>
                 <select
                   className="select"
                   value={teamFilter}
                   onChange={(e) => setTeamFilter(e.target.value)}
                 >
-                  <option value="">Todos</option>
+                  <option value="">{filtersT("team.all")}</option>
                   {teams.map((t) => (
                     <option key={t} value={t}>
                       {t}
@@ -366,33 +393,33 @@ export default function History({
               </div>
 
               <div>
-                <label className="block text-xs text-gray-600 mb-1">ID</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("id.label")}</label>
                 <input
                   className="input"
-                  placeholder="Buscar por ID"
+                  placeholder={filtersT("id.placeholder")}
                   value={idQuery}
                   onChange={(e) => setIdQuery(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Empresa</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("company.label")}</label>
                 <input
                   className="input"
-                  placeholder="Buscar empresa"
+                  placeholder={filtersT("company.placeholder")}
                   value={companyQuery}
                   onChange={(e) => setCompanyQuery(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-xs text-gray-600 mb-1">País</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("country.label")}</label>
                 <select
                   className="select"
                   value={countryFilter}
                   onChange={(e) => setCountryFilter(e.target.value)}
                 >
-                  <option value="">Todos</option>
+                  <option value="">{filtersT("country.all")}</option>
                   {countryOptions.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -402,10 +429,10 @@ export default function History({
               </div>
 
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Email</label>
+                <label className="block text-xs text-gray-600 mb-1">{filtersT("email.label")}</label>
                 <input
                   className="input"
-                  placeholder="Buscar email"
+                  placeholder={filtersT("email.placeholder")}
                   value={emailQuery}
                   onChange={(e) => setEmailQuery(e.target.value)}
                 />
@@ -416,7 +443,7 @@ export default function History({
                   className="btn-bar w-full transition hover:bg-[rgb(var(--primary))]/90"
                   onClick={clearAll}
                 >
-                  Limpiar
+                  {filtersT("clear")}
                 </button>
               </div>
             </div>
@@ -424,7 +451,7 @@ export default function History({
 
           <div className="mb-3 grid grid-cols-1 md:grid-cols-4 gap-3">
             <div>
-              <label className="block text-xs text-gray-600 mb-1">Desde</label>
+              <label className="block text-xs text-gray-600 mb-1">{filtersT("from")}</label>
               <input
                 type="date"
                 className="input"
@@ -433,7 +460,7 @@ export default function History({
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">Hasta</label>
+              <label className="block text-xs text-gray-600 mb-1">{filtersT("to")}</label>
               <input
                 type="date"
                 className="input"
@@ -451,14 +478,14 @@ export default function History({
                 <tr>
                   {(
                     [
-                      ["id", "ID"],
-                      ["company", "Empresa"],
-                      ["country", "País"],
-                      ["email", "Email"],
-                      ["monthly", "Mensual"],
-                      ["created", "Creado"],
-                      ["status", "Estado"],
-                      ["", "Acciones"],
+                      ["id", tableT("headers.id")],
+                      ["company", tableT("headers.company")],
+                      ["country", tableT("headers.country")],
+                      ["email", tableT("headers.email")],
+                      ["monthly", tableT("headers.monthly")],
+                      ["created", tableT("headers.created")],
+                      ["status", tableT("headers.status")],
+                      ["", tableT("headers.actions")],
                     ] as Array<[SortKey | "", string]>
                   ).map(([k, label], idx) => {
                     const clickable = k !== "";
@@ -469,7 +496,7 @@ export default function History({
                         key={idx}
                         className={`table-th ${clickable ? "cursor-pointer select-none" : ""}`}
                         onClick={() => clickable && sortBy(k as SortKey)}
-                        title={clickable ? "Ordenar" : ""}
+                        title={clickable ? tableT("sortTooltip") : ""}
                       >
                         {label} {active && dir}
                       </th>
@@ -495,7 +522,7 @@ export default function History({
                           <button
                             className="btn-bar px-2 py-1"
                             onClick={() => copyToClipboard(p.id)}
-                            title="Copiar ID"
+                            title={tableT("copyId")}
                           >
                             <Copy className="h-4 w-4" />
                           </button>
@@ -503,11 +530,11 @@ export default function History({
                       </td>
                       <td className="table-td">{p.companyName}</td>
                       <td className="table-td">{p.country}</td>
-                      <td className="table-td">{p.userEmail || "—"}</td>
-                      <td className="table-td text-right font-semibold" title="Mensual">
+                      <td className="table-td">{p.userEmail || tableT("emailFallback")}</td>
+                      <td className="table-td text-right font-semibold" title={tableT("monthlyTitle")}>
                         {formatUSD(Number(p.totalAmount) || 0)}
                       </td>
-                      <td className="table-td whitespace-nowrap" title="Fecha de creación">
+                      <td className="table-td whitespace-nowrap" title={tableT("createdTitle")}>
                         {formatDateTime(p.createdAt as unknown as string)}
                       </td>
                       <td className="table-td">
@@ -519,9 +546,15 @@ export default function History({
                               ? "bg-red-100 text-red-700"
                               : "bg-gray-100 text-gray-700"
                           }`}
-                          title={p.status === "WON" ? "Ganada" : p.status === "LOST" ? "Perdida" : "Abierta"}
+                          title={
+                            p.status === "WON"
+                              ? tableT("statusBadges.won")
+                              : p.status === "LOST"
+                              ? tableT("statusBadges.lost")
+                              : tableT("statusBadges.open")
+                          }
                         >
-                          {p.status ?? "OPEN"}
+                          {translateStatus(p.status)}
                         </span>
                       </td>
                       <td className="table-td">
@@ -530,19 +563,19 @@ export default function History({
                           {p.status === "WON" ? (
                             <button
                               className="btn-ghost !py-1 text-[#4c1d95] hover:bg-[#4c1d95]/10"
-                              title="Revertir a OPEN"
+                              title={tableT("actions.reopenTooltip")}
                               onClick={() => setOpen(p.id)}
                             >
-                              OPEN
+                              {tableT("actions.reopen")}
                             </button>
                           ) : (
                             <button
                               className="btn-ghost !py-1 text-emerald-600"
-                              title="Marcar como WON"
+                              title={tableT("actions.markWonTooltip")}
                               onClick={() => setWon(p.id)}
                             >
                               <Trophy className="h-4 w-4 mr-1" />
-                              Won
+                              {tableT("actions.markWon")}
                             </button>
                           )}
 
@@ -553,30 +586,30 @@ export default function History({
                                 className="btn-bar inline-flex items-center justify-center !py-1"
                                 target="_blank"
                                 rel="noreferrer"
-                                title="Abrir propuesta"
+                                title={tableT("actions.open")}
                               >
                                 <ExternalLink className="h-4 w-4 mr-1" />
-                                Ver
+                                {tableT("actions.view")}
                               </a>
                               <button
                                 className="btn-bar !py-1"
-                                title="Copiar link"
+                                title={tableT("actions.copyLink")}
                                 onClick={() => p.docUrl && copyToClipboard(p.docUrl)}
                               >
-                                Copiar
+                                {tableT("actions.copy")}
                               </button>
                             </>
                           ) : (
-                            <span className="text-xs text-gray-400">—</span>
+                            <span className="text-xs text-gray-400">{tableT("actions.noLink")}</span>
                           )}
                           {canDelete(p) && (
                             <button
                               className="btn-ghost !py-1 text-red-700"
-                              title="Eliminar (no suma a estadísticas)"
+                              title={tableT("actions.deleteTooltip")}
                               onClick={() => setConfirmId(p.id)}
                             >
                               <Trash2 className="h-4 w-4 mr-1" />
-                              Eliminar
+                              {tableT("actions.delete")}
                             </button>
                           )}
                         </div>
@@ -586,7 +619,7 @@ export default function History({
                   {paged.length === 0 && (
                     <tr>
                       <td className="table-td text-center text-gray-500" colSpan={8}>
-                        Sin resultados para el filtro seleccionado.
+                        {tableT("empty")}
                       </td>
                     </tr>
                   )}
@@ -598,8 +631,11 @@ export default function History({
           {!loading && subset.length > 0 && (
             <div className="mt-3 flex flex-col sm:flex-row items-center justify-between gap-2">
               <div className="text-sm text-gray-600">
-                Mostrando {pageStart + 1}–{Math.min(pageStart + pageSize, subset.length)} de{" "}
-                {subset.length}
+                {paginationT("display", {
+                  start: pageStart + 1,
+                  end: Math.min(pageStart + pageSize, subset.length),
+                  total: subset.length,
+                })}
               </div>
               <div className="flex items-center gap-2">
                 <select
@@ -612,7 +648,7 @@ export default function History({
                 >
                   {[10, 20, 50, 100].map((n) => (
                     <option key={n} value={n}>
-                      {n} / página
+                      {paginationT("perPage", { count: n })}
                     </option>
                   ))}
                 </select>
@@ -623,17 +659,17 @@ export default function History({
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
                   >
-                    Anterior
+                    {paginationT("previous")}
                   </button>
                   <span className="text-sm">
-                    {page} / {totalPages}
+                    {paginationT("pageStatus", { current: page, total: totalPages })}
                   </span>
                   <button
                     className="btn-bar"
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
                   >
-                    Siguiente
+                    {paginationT("next")}
                   </button>
                 </div>
               </div>
@@ -645,23 +681,23 @@ export default function History({
       <Modal
         open={!!confirmId}
         onClose={() => setConfirmId(null)}
-        title="Eliminar propuesta"
+        title={modalT("title")}
         footer={
           <div className="flex justify-end gap-2">
             <button className="btn-ghost" onClick={() => setConfirmId(null)}>
-              Cancelar
+              {modalT("cancel")}
             </button>
             <button
               className="btn-primary bg-red-600 hover:bg-red-700"
               onClick={() => confirmId && doDelete(confirmId)}
             >
-              Eliminar
+              {modalT("confirm")}
             </button>
           </div>
         }
       >
         <p className="text-sm text-gray-700">
-          Esta acción quitará la propuesta de las estadísticas. ¿Deseas continuar?
+          {modalT("message")}
         </p>
       </Modal>
     </div>

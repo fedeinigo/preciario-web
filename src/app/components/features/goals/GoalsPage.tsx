@@ -5,6 +5,7 @@ import React from "react";
 import type { AppRole } from "@/constants/teams";
 import { toast } from "@/app/components/ui/toast";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
+import { useTranslations } from "@/app/LanguageProvider";
 import { q1Range, q2Range, q3Range, q4Range } from "../proposals/lib/dateRanges";
 import QuarterPicker from "./components/QuarterPicker";
 import IndividualGoalCard from "./components/IndividualGoalCard";
@@ -25,6 +26,10 @@ export default function GoalsPage({
   leaderTeam,
   isSuperAdmin,
 }: Props) {
+  const pageT = useTranslations("goals.page");
+  const toastT = useTranslations("goals.toast");
+  const csvT = useTranslations("goals.csv");
+
   const now = new Date();
   const [year, setYear] = React.useState<number>(now.getFullYear());
   const [quarter, setQuarter] = React.useState<1 | 2 | 3 | 4>(() => {
@@ -90,8 +95,8 @@ export default function GoalsPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amount, year, quarter }),
     });
-    if (!r.ok) return toast.error("No se pudo guardar tu objetivo");
-    toast.success("Objetivo actualizado");
+    if (!r.ok) return toast.error(toastT("myGoalError"));
+    toast.success(toastT("myGoalSaved"));
     setMyGoal(amount);
   };
 
@@ -156,8 +161,11 @@ export default function GoalsPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, amount, year, quarter }),
     });
-    if (!res.ok) { toast.error("No se pudo actualizar el objetivo del usuario"); return false; }
-    toast.success("Objetivo del usuario actualizado");
+    if (!res.ok) {
+      toast.error(toastT("userGoalError"));
+      return false;
+    }
+    toast.success(toastT("userGoalSaved"));
     setRows((prev) =>
       prev.map((r) =>
         r.userId === userId ? { ...r, goal: amount, pct: (r.progress / (amount || 1)) * 100 } : r
@@ -174,21 +182,29 @@ export default function GoalsPage({
         body: JSON.stringify({ team: effectiveTeam, year, quarter, amount }),
       });
       if (!res.ok) throw new Error("fail");
-      toast.success("Objetivo del equipo actualizado");
+      toast.success(toastT("teamGoalSaved"));
       setTeamGoal(amount);
     } catch {
-      toast.error("No se pudo actualizar el objetivo del equipo");
+      toast.error(toastT("teamGoalError"));
     }
   };
 
   const exportCsv = () => {
-    const headers = ["Usuario", "Objetivo Q", "Avance (WON)", "%"];
+    const headers = [
+      csvT("headers.user"),
+      csvT("headers.goal"),
+      csvT("headers.progress"),
+      csvT("headers.pct"),
+    ];
     const lines = rows.map((r) =>
       [(r.name || r.email || r.userId), r.goal.toFixed(2), r.progress.toFixed(2), `${r.pct.toFixed(1)}%`].join(",")
     );
     const blob = new Blob([headers.join(","), "\n", lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = `objetivos_${effectiveTeam || "equipo"}.csv`;
+    const a = document.createElement("a");
+    a.href = url;
+    const fileTeam = effectiveTeam || csvT("fallbackTeam");
+    a.download = csvT("fileName", { team: fileTeam });
     a.click(); URL.revokeObjectURL(url);
   };
 
@@ -211,14 +227,16 @@ export default function GoalsPage({
     borderRadius: "12px",
   };
 
-  const teamTitle = effectiveTeam ? `Equipo ${effectiveTeam} — Detalle` : "Mi equipo";
+  const teamTitle = effectiveTeam
+    ? pageT("teamTitleWithName", { team: effectiveTeam })
+    : pageT("teamTitle");
 
   return (
     <div className="space-y-6" style={textureStyle}>
       {/* Header Objetivos */}
       <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
         <div className="px-4 h-12 flex items-center text-white font-semibold bg-[#4c1d95]">
-          Objetivos
+          {pageT("title")}
         </div>
         <div className="p-4">
           <QuarterPicker year={year} quarter={quarter} onYear={setYear} onQuarter={setQuarter} />
@@ -260,7 +278,7 @@ export default function GoalsPage({
         <div className="p-4">
           {!effectiveTeam ? (
             <div className="rounded-lg border bg-white p-4 text-sm text-gray-600">
-              {isSuperAdmin ? "Selecciona un equipo arriba para ver sus objetivos." : "Aún no pertenecés a un equipo."}
+              {isSuperAdmin ? pageT("emptySuperadmin") : pageT("emptyMember")}
             </div>
           ) : (
             <TeamMembersTable
