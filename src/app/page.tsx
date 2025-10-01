@@ -1,15 +1,24 @@
 // src/app/page.tsx
-"use client";
-
-import { useSession } from "next-auth/react";
 import AuthLoginCard from "@/app/components/AuthLoginCard";
 import ProposalApp from "@/app/components/features/proposals";
+import ClientSessionBoundary from "@/app/ClientSessionBoundary";
+import LegacyHomePage from "@/app/page.legacy";
+import { auth } from "@/lib/auth";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 
-export default function HomePage() {
-  const { status } = useSession();
+export default async function HomePage() {
+  if (!isFeatureEnabled("appShellRsc")) {
+    return <LegacyHomePage />;
+  }
 
-  if (status === "loading") return null;            // evita parpadeo
-  if (status !== "authenticated") return <AuthLoginCard />; // sin sesión -> login
+  const session = await auth();
+  if (!session) {
+    return <AuthLoginCard />;
+  }
 
-  return <ProposalApp />; // con sesión -> app completa
+  return (
+    <ClientSessionBoundary session={session}>
+      <ProposalApp session={session} />
+    </ClientSessionBoundary>
+  );
 }

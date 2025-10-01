@@ -107,3 +107,11 @@
 | feat/accessibility-feedback | Skeletons accesibles, focus trap, metadatos SEO. | Bajo | 1 día |
 | chore/db-index-proposal-user | Índice Prisma + ADR + plan rollback. | Bajo | 0.5 días |
 
+## Seguimiento de implementación
+
+- ✅ `refactor/app-session-split`: layout híbrido con `FEATURE_APP_SHELL_RSC`, `ClientSessionBoundary`, navbar modular y ADR `docs/adr/2025-10-01-app-shell.md`.
+- ✅ `feat/accessibility-feedback`: skeleton accesible detrás de flag y `Modal` con focus trap/cierre vía `Escape`.
+- ✅ `chore/db-index-proposal-user`: migración `20251001123000_add_proposal_user_idx` y rollback documentado en `docs/adr/2025-10-01-db-index.md`.
+- ✅ `docs/env-hardening`: ampliación de `docs/ENV.md` con flags adicionales y dominios autorizados para OAuth.
+- ✅ `docs/perf`: carpeta dedicada con baseline `docs/perf/2025-10-01-base.md` y guía `docs/perf/README.md`.
+=======

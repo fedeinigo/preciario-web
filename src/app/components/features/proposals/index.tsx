@@ -1,123 +1,33 @@
 // src/app/components/features/proposals/index.tsx
-"use client";
+import type { Session } from "next-auth";
 
-import React from "react";
-import { useSession } from "next-auth/react";
+import ProposalsTabsClient from "@/app/components/features/proposals/ProposalsTabsClient";
+import LegacyClientApp from "@/app/components/features/proposals/LegacyClientApp";
 import type { AppRole } from "@/constants/teams";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 
-import Generator from "./Generator";
-import History from "./History";
-import Stats from "./Stats";
-import GoalsPage from "../goals/GoalsPage";
-import Users from "./Users";
-import Teams from "./Teams";
-
-type Tab = "generator" | "history" | "stats" | "goals" | "users" | "teams";
-
-function readHash(): Tab {
-  const h = (globalThis?.location?.hash || "").replace("#", "");
-  return (["generator", "history", "stats", "goals", "users", "teams"].includes(h)
-    ? (h as Tab)
-    : "generator");
-}
-
-export default function ProposalsIndex() {
-  // Este componente SOLO usa este hook
-  const { data: session, status } = useSession();
-
-  // Gateo temprano SIN otros hooks para cumplir reglas de hooks
-  if (status === "loading") return null;
-  if (status !== "authenticated") return null;
-
-  const role = (session?.user?.role as AppRole | undefined) ?? "usuario";
-  const currentEmail = session?.user?.email ?? "";
-  const leaderTeam = (session?.user?.team as string | null) ?? null;
-  const isSuperAdmin = role === "superadmin";
-  const userId = (session?.user?.id as string | undefined) ?? "";
-  const userEmail = currentEmail;
-
-  // Paso el resto a un hijo autenticado para no llamar hooks condicionalmente
-  return (
-    <AuthedTabs
-      role={role}
-      currentEmail={currentEmail}
-      leaderTeam={leaderTeam}
-      isSuperAdmin={isSuperAdmin}
-      userId={userId}
-      userEmail={userEmail}
-    />
-  );
-}
-
-/** Subcomponente: aquí sí se usan otros hooks, pero NUNCA condicionalmente */
-function AuthedTabs(props: {
+export interface ProposalViewer {
+  id: string;
+  email: string;
   role: AppRole | "usuario";
-  currentEmail: string;
-  leaderTeam: string | null;
-  isSuperAdmin: boolean;
-  userId: string;
-  userEmail: string;
+  team: string | null;
+}
+
+export default function ProposalApp({
+  session,
+}: {
+  session?: Session | null;
 }) {
-  const { role, currentEmail, leaderTeam, isSuperAdmin, userId, userEmail } = props;
+  if (!isFeatureEnabled("proposalsClientRefactor") || !session) {
+    return <LegacyClientApp />;
+  }
 
-  const [tab, setTab] = React.useState<Tab>(readHash());
+  const viewer: ProposalViewer = {
+    id: (session.user?.id as string | undefined) ?? "",
+    email: session.user?.email ?? "",
+    role: (session.user?.role as AppRole | undefined) ?? "usuario",
+    team: (session.user?.team as string | null | undefined) ?? null,
+  };
 
-  React.useEffect(() => {
-    const onHash = () => setTab(readHash());
-    const onCustom = (e: Event) => setTab((e as CustomEvent).detail as Tab);
-    window.addEventListener("hashchange", onHash);
-    window.addEventListener("app:setTab", onCustom as EventListener);
-    return () => {
-      window.removeEventListener("hashchange", onHash);
-      window.removeEventListener("app:setTab", onCustom as EventListener);
-    };
-  }, []);
-
-  const handleSaved = React.useCallback(() => {
-    window.dispatchEvent(new CustomEvent("proposals:refresh"));
-  }, []);
-
-  return (
-    <div className="px-3 pt-6 w-full">
-      {tab === "generator" && (
-        <Generator
-          isAdmin={isSuperAdmin}
-          userId={userId}
-          userEmail={userEmail}
-          onSaved={handleSaved}
-        />
-      )}
-
-      {tab === "history" && (
-        <History
-          role={role}
-          currentEmail={currentEmail}
-          leaderTeam={leaderTeam}
-          isSuperAdmin={isSuperAdmin}
-        />
-      )}
-
-      {tab === "stats" && (
-        <Stats
-          role={role}
-          currentEmail={currentEmail}
-          leaderTeam={leaderTeam}
-          isSuperAdmin={isSuperAdmin}
-        />
-      )}
-
-      {tab === "goals" && (
-        <GoalsPage
-          role={role}
-          currentEmail={currentEmail}
-          leaderTeam={leaderTeam}
-          isSuperAdmin={isSuperAdmin}
-        />
-      )}
-
-      {tab === "users" && isSuperAdmin && <Users />}
-
-      {tab === "teams" && <Teams isSuperAdmin={isSuperAdmin} />}
-    </div>
-  );
+  return <ProposalsTabsClient viewer={viewer} />;
 }
