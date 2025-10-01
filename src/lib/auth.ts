@@ -4,7 +4,8 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { Adapter } from "next-auth/adapters";
 import type { JWT } from "next-auth/jwt";
-import prisma from "@/lib/prisma";
+import prisma from "./prisma";
+import { isFeatureEnabled } from "./feature-flags";
 
 // Mantén este alias si no lo traes de otro lado
 type AppRole = "superadmin" | "lider" | "usuario";
@@ -21,7 +22,7 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      allowDangerousEmailAccountLinking: true, // evita OAuthAccountNotLinked si ya existe un User con ese email
+      allowDangerousEmailAccountLinking: !isFeatureEnabled("strictOauthLinking"), // evita OAuthAccountNotLinked si ya existe un User con ese email
       authorization: {
         params: {
           access_type: "offline",

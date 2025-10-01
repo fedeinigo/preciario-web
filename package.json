@@ -6,13 +6,19 @@
     "postinstall": "prisma generate",
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:analyze": "next build --analyze",
     "vercel-build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "typecheck:strict": "tsc --noEmit -p tsconfig.typecheck.json",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:reset": "prisma migrate reset --force",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test": "npm run test:unit",
+    "test:unit": "node -e \"require('fs').rmSync('.tmp/test-dist', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .tmp/test-dist/tests/unit",
+    "test:e2e": "node -e \"require('fs').rmSync('.tmp/test-dist', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .tmp/test-dist/tests/e2e"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",

@@ -31,6 +31,53 @@ export default function Modal({
   variant = "default",
   disableCloseOnBackdrop = false,
 }: Props) {
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const titleId = React.useId();
+
+  React.useEffect(() => {
+    if (!open) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const selectors =
+      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+    const focusable = Array.from(panel.querySelectorAll<HTMLElement>(selectors));
+    const initialTarget = focusable[0] ?? panel;
+    initialTarget.focus({ preventScroll: true });
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !disableCloseOnBackdrop) {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      if (focusable.length === 0) {
+        event.preventDefault();
+        panel.focus();
+        return;
+      }
+
+      const active = document.activeElement as HTMLElement | null;
+      const currentIndex = active ? focusable.indexOf(active) : -1;
+      let nextIndex = currentIndex;
+
+      if (event.shiftKey) {
+        nextIndex = currentIndex <= 0 ? focusable.length - 1 : currentIndex - 1;
+      } else {
+        nextIndex = currentIndex === focusable.length - 1 ? 0 : currentIndex + 1;
+      }
+
+      event.preventDefault();
+      focusable[nextIndex]?.focus();
+    };
+
+    panel.addEventListener("keydown", handleKeyDown);
+    return () => panel.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose, disableCloseOnBackdrop]);
+
   if (!open) return null;
 
   const isInverted = variant === "inverted";
@@ -40,10 +87,10 @@ export default function Modal({
       className={`fixed inset-0 z-[9999] flex items-center justify-center p-4
                   bg-black/50 backdrop-blur-md ${backdropClassName}`}
       onClick={!disableCloseOnBackdrop ? onClose : undefined}
-      aria-modal="true"
-      role="dialog"
+      aria-hidden="true"
     >
       <div
+        ref={panelRef}
         className={[
           "w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden border",
           isInverted
@@ -52,6 +99,10 @@ export default function Modal({
           panelClassName,
         ].join(" ")}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        tabIndex={-1}
       >
         {title !== undefined && (
           <div
@@ -61,6 +112,7 @@ export default function Modal({
                 ? "border-b border-white/10"
                 : "bg-gray-50 border-b border-gray-200",
             ].join(" ")}
+            id={titleId}
           >
             {title}
           </div>
@@ -84,7 +136,6 @@ export default function Modal({
     </div>
   );
 
-  // Portal al body para que no quede dentro del navbar ni afecte el layout
   if (typeof window !== "undefined") {
     return createPortal(content, document.body);
   }

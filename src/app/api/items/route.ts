@@ -1,8 +1,23 @@
 // src/app/api/items/route.ts
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import { requireApiSession } from "@/app/api/_utils/require-auth";
 import prisma from "@/lib/prisma";
 
+const itemPayloadSchema = z.object({
+  sku: z.string().trim().optional(),
+  category: z.string().trim().optional(),
+  name: z.string().min(1),
+  description: z.string().optional(),
+  unitPrice: z.number().nonnegative(),
+  devHours: z.number().nonnegative(),
+});
+
 export async function GET() {
+  const { response } = await requireApiSession();
+  if (response) return response;
+
   const rows = await prisma.item.findMany({
     where: { active: true },
     orderBy: [{ category: "asc" }, { name: "asc" }],
@@ -23,15 +38,23 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const body: {
-    sku?: string;
-    category?: string;
-    name: string;
-    description?: string;
-    unitPrice: number;
-    devHours: number;
-  } = await req.json();
+  const { response } = await requireApiSession();
+  if (response) return response;
 
+  const raw = await req.json();
+  const parsed = itemPayloadSchema.safeParse(raw);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Payload inválido",
+        details: parsed.error.format(),
+      },
+      { status: 400 }
+    );
+  }
+
+  const body = parsed.data;
   const sku = (body.sku ?? "").trim();
 
   if (sku) {
