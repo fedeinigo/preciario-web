@@ -3,7 +3,7 @@
 
 import React from "react";
 import { LayoutGrid, Clock, BarChart2, Users, Group } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/app/LanguageProvider";
 import { useSession } from "next-auth/react";
 
 type Tab = "generator" | "history" | "stats" | "teams" | "users";
