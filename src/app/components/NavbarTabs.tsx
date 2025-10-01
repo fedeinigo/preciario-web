@@ -26,11 +26,11 @@ export default function NavbarTabs({
   const Btn = ({
     id,
     icon: Icon,
-    label,
+    labelKey,
   }: {
     id: Tab;
     icon: IconType;
-    label: string;
+    labelKey: Tab;
   }) => (
     <button
       className={`px-3 py-2 rounded-[var(--radius)] text-[13.5px] font-medium
@@ -40,7 +40,7 @@ export default function NavbarTabs({
       onClick={() => onChange(id)}
     >
       <span className="inline-flex items-center gap-2">
-        <Icon className="mr-1 h-4 w-4" /> {label}
+        <Icon className="mr-1 h-4 w-4" /> {tabsT(labelKey)}
       </span>
     </button>
   );
@@ -48,11 +48,11 @@ export default function NavbarTabs({
   return (
     <div className="w-full bg-[rgb(var(--primary))]">
       <div className="max-w-7xl mx-auto px-4 py-2 flex gap-2">
-        <Btn id="generator" icon={LayoutGrid} label={tabsT("generator")} />
-        <Btn id="history" icon={Clock} label={tabsT("history")} />
-        <Btn id="stats" icon={BarChart2} label={tabsT("stats")} />
-        <Btn id="teams" icon={Group} label={tabsT("teams")} />
-        {showUsers && <Btn id="users" icon={Users} label={tabsT("users")} />}
+        <Btn id="generator" icon={LayoutGrid} labelKey="generator" />
+        <Btn id="history" icon={Clock} labelKey="history" />
+        <Btn id="stats" icon={BarChart2} labelKey="stats" />
+        <Btn id="teams" icon={Group} labelKey="teams" />
+        {showUsers && <Btn id="users" icon={Users} labelKey="users" />}
       </div>
     </div>
   );
