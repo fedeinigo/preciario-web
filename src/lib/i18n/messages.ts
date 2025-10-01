@@ -350,6 +350,32 @@ export const messages: Record<Locale, DeepRecord> = {
       },
     },
     proposals: {
+      errors: {
+        catalog: {
+          loadFailed: "No se pudo cargar el catálogo.",
+          createFailed: "No se pudo crear el ítem.",
+          updateFailed: "No se pudo actualizar el ítem.",
+          deleteFailed: "No se pudo eliminar el ítem.",
+        },
+        filiales: {
+          loadFailed: "No se pudieron cargar las filiales.",
+          createGroupFailed: "No se pudo crear la filial.",
+          renameGroupFailed: "No se pudo renombrar la filial.",
+          deleteGroupFailed: "No se pudo eliminar la filial.",
+          createCountryFailed: "No se pudo agregar el país.",
+          renameCountryFailed: "No se pudo renombrar el país.",
+          deleteCountryFailed: "No se pudo eliminar el país.",
+        },
+        glossary: {
+          loadFailed: "No se pudo cargar el glosario.",
+          createFailed: "No se pudo crear el enlace.",
+          updateFailed: "No se pudo actualizar el enlace.",
+          deleteFailed: "No se pudo eliminar el enlace.",
+        },
+        proposal: {
+          saveFailed: "No se pudo guardar la propuesta.",
+        },
+      },
       onboarding: {
         title: "Selecciona tu equipo",
         intro:
@@ -1343,6 +1369,32 @@ export const messages: Record<Locale, DeepRecord> = {
       },
     },
     proposals: {
+      errors: {
+        catalog: {
+          loadFailed: "Could not load the catalog.",
+          createFailed: "Could not create the item.",
+          updateFailed: "Could not update the item.",
+          deleteFailed: "Could not delete the item.",
+        },
+        filiales: {
+          loadFailed: "Could not load subsidiaries.",
+          createGroupFailed: "Could not create the subsidiary.",
+          renameGroupFailed: "Could not rename the subsidiary.",
+          deleteGroupFailed: "Could not delete the subsidiary.",
+          createCountryFailed: "Could not add the country.",
+          renameCountryFailed: "Could not rename the country.",
+          deleteCountryFailed: "Could not delete the country.",
+        },
+        glossary: {
+          loadFailed: "Could not load the glossary.",
+          createFailed: "Could not create the link.",
+          updateFailed: "Could not update the link.",
+          deleteFailed: "Could not delete the link.",
+        },
+        proposal: {
+          saveFailed: "Could not save the proposal.",
+        },
+      },
       onboarding: {
         title: "Choose your team",
         intro:
@@ -2336,6 +2388,32 @@ export const messages: Record<Locale, DeepRecord> = {
       },
     },
     proposals: {
+      errors: {
+        catalog: {
+          loadFailed: "Não foi possível carregar o catálogo.",
+          createFailed: "Não foi possível criar o item.",
+          updateFailed: "Não foi possível atualizar o item.",
+          deleteFailed: "Não foi possível excluir o item.",
+        },
+        filiales: {
+          loadFailed: "Não foi possível carregar as filiais.",
+          createGroupFailed: "Não foi possível criar a filial.",
+          renameGroupFailed: "Não foi possível renomear a filial.",
+          deleteGroupFailed: "Não foi possível excluir a filial.",
+          createCountryFailed: "Não foi possível adicionar o país.",
+          renameCountryFailed: "Não foi possível renomear o país.",
+          deleteCountryFailed: "Não foi possível excluir o país.",
+        },
+        glossary: {
+          loadFailed: "Não foi possível carregar o glossário.",
+          createFailed: "Não foi possível criar o link.",
+          updateFailed: "Não foi possível atualizar o link.",
+          deleteFailed: "Não foi possível excluir o link.",
+        },
+        proposal: {
+          saveFailed: "Não foi possível salvar a proposta.",
+        },
+      },
       onboarding: {
         title: "Selecione sua equipe",
         intro:

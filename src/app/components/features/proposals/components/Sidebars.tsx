@@ -4,6 +4,11 @@ import React from "react";
 import Modal from "@/app/components/ui/Modal";
 
 import { useTranslations } from "@/app/LanguageProvider";
+import { toast } from "@/app/components/ui/toast";
+import type {
+  ProposalActionResult,
+  ProposalError,
+} from "../lib/errors";
 
 /** País puede venir como string ("Argentina") o como objeto {id,name}. */
 type CountryLike = string | { id: string; name: string };
@@ -27,7 +32,7 @@ function PromptDialog({
   title: string;
   fields: Field[];
   onCancel: () => void;
-  onConfirm: (values: Record<string, string>) => void;
+  onConfirm: (values: Record<string, string>) => void | Promise<void>;
 }) {
   const dialogT = useTranslations("proposals.sidebars.dialog");
   const [values, setValues] = React.useState<Record<string, string>>({});
@@ -46,7 +51,14 @@ function PromptDialog({
       footer={
         <div className="flex justify-end gap-2">
           <button className="btn-ghost" onClick={onCancel}>{dialogT("cancel")}</button>
-          <button className="btn-primary" onClick={() => onConfirm(values)}>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              Promise.resolve(onConfirm(values)).catch((err) => {
+                console.error(err);
+              });
+            }}
+          >
             {dialogT("accept")}
           </button>
         </div>
@@ -82,7 +94,7 @@ function ConfirmDialog({
   message: string | React.ReactNode;
   confirmLabel?: string;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
 }) {
   const dialogT = useTranslations("proposals.sidebars.dialog");
   return (
@@ -93,7 +105,14 @@ function ConfirmDialog({
       footer={
         <div className="flex justify-end gap-2">
           <button className="btn-ghost" onClick={onCancel}>{dialogT("cancel")}</button>
-          <button className="btn-primary" onClick={onConfirm}>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              Promise.resolve(onConfirm()).catch((err) => {
+                console.error(err);
+              });
+            }}
+          >
             {confirmLabel ?? dialogT("confirm")}
           </button>
         </div>
@@ -121,25 +140,46 @@ export function FilialesSidebar({
 }: {
   isAdmin: boolean;
   filiales: GroupLike[];
-  addFilial: (title: string) => void;
-  editFilialTitle: (id: string, title: string) => void;
-  removeFilial: (id: string) => void;
-  addCountry: (groupId: string, name: string) => void;
-  editCountry: (groupId: string, oldName: string, newName: string) => void | Promise<void>;
-  removeCountry: (groupId: string, name: string) => void | Promise<void>;
+  addFilial: (title: string) => Promise<ProposalActionResult>;
+  editFilialTitle: (id: string, title: string) => Promise<ProposalActionResult>;
+  removeFilial: (id: string) => Promise<ProposalActionResult>;
+  addCountry: (groupId: string, name: string) => Promise<ProposalActionResult>;
+  editCountry: (
+    groupId: string,
+    oldName: string,
+    newName: string
+  ) => Promise<ProposalActionResult>;
+  removeCountry: (groupId: string, name: string) => Promise<ProposalActionResult>;
 }) {
   const filialesT = useTranslations("proposals.sidebars.filiales");
+  const errorsT = useTranslations("proposals.errors");
   const [promptCfg, setPromptCfg] = React.useState<{
     title: string;
     fields: Field[];
-    onConfirm: (values: Record<string, string>) => void;
+    onConfirm: (values: Record<string, string>) => void | Promise<void>;
   } | null>(null);
 
   const [confirmCfg, setConfirmCfg] = React.useState<{
     title: string;
     message: string | React.ReactNode;
-    onConfirm: () => void;
+    onConfirm: () => void | Promise<void>;
   } | null>(null);
+
+  const resolveError = React.useCallback(
+    (error: ProposalError) =>
+      error.kind === "message" ? error.message : errorsT(error.code),
+    [errorsT]
+  );
+
+  const handleResult = React.useCallback(
+    (result: ProposalActionResult) => {
+      if (!result.ok) {
+        toast.error(resolveError(result.error));
+      }
+      return result.ok;
+    },
+    [resolveError]
+  );
 
   return (
     <div className="card border p-3 space-y-3">
@@ -160,8 +200,14 @@ export function FilialesSidebar({
               ],
               onConfirm: ({ title }) => {
                 const t = (title ?? "").trim();
-                if (t) addFilial(t);
-                setPromptCfg(null);
+                if (!t) {
+                  setPromptCfg(null);
+                  return;
+                }
+                return addFilial(t).then((result) => {
+                  handleResult(result);
+                  setPromptCfg(null);
+                });
               },
             })
           }
@@ -189,14 +235,20 @@ export function FilialesSidebar({
                             initial: g.title,
                           },
                         ],
-                        onConfirm: ({ title }) => {
-                          const t = (title ?? "").trim();
-                          if (t) editFilialTitle(g.id, t);
+                      onConfirm: ({ title }) => {
+                        const t = (title ?? "").trim();
+                        if (!t) {
                           setPromptCfg(null);
-                        },
-                      })
-                    }
-                  >
+                          return;
+                        }
+                        return editFilialTitle(g.id, t).then((result) => {
+                          handleResult(result);
+                          setPromptCfg(null);
+                        });
+                      },
+                    })
+                  }
+                >
                     {filialesT("buttons.edit")}
                   </button>
                   <button
@@ -208,7 +260,7 @@ export function FilialesSidebar({
                           group: g.title,
                         }),
                         onConfirm: () => {
-                          removeFilial(g.id);
+                          void removeFilial(g.id).then(handleResult);
                           setConfirmCfg(null);
                         },
                       })
@@ -243,8 +295,14 @@ export function FilialesSidebar({
                               ],
                               onConfirm: ({ name: newName }) => {
                                 const t = (newName ?? "").trim();
-                                if (t) editCountry(g.id, name, t);
-                                setPromptCfg(null);
+                                if (!t) {
+                                  setPromptCfg(null);
+                                  return;
+                                }
+                                return editCountry(g.id, name, t).then((result) => {
+                                  handleResult(result);
+                                  setPromptCfg(null);
+                                });
                               },
                             })
                           }
@@ -261,7 +319,7 @@ export function FilialesSidebar({
                                 group: g.title,
                               }),
                               onConfirm: () => {
-                                removeCountry(g.id, name);
+                                void removeCountry(g.id, name).then(handleResult);
                                 setConfirmCfg(null);
                               },
                             })
@@ -291,8 +349,14 @@ export function FilialesSidebar({
                         ],
                         onConfirm: ({ name }) => {
                           const n = (name ?? "").trim();
-                          if (n) addCountry(g.id, n);
-                          setPromptCfg(null);
+                          if (!n) {
+                            setPromptCfg(null);
+                            return;
+                          }
+                          return addCountry(g.id, n).then((result) => {
+                            handleResult(result);
+                            setPromptCfg(null);
+                          });
                         },
                       })
                     }
@@ -348,22 +412,39 @@ export function GlossarySidebar({
 }: {
   isAdmin: boolean;
   glossary: GlossaryLink[];
-  addLink: (label: string, url: string) => void;
-  editLink: (id: string, label: string, url: string) => void;
-  removeLink: (id: string) => void;
+  addLink: (label: string, url: string) => Promise<ProposalActionResult>;
+  editLink: (id: string, label: string, url: string) => Promise<ProposalActionResult>;
+  removeLink: (id: string) => Promise<ProposalActionResult>;
 }) {
   const glossaryT = useTranslations("proposals.sidebars.glossary");
+  const errorsT = useTranslations("proposals.errors");
   const [promptCfg, setPromptCfg] = React.useState<{
     title: string;
     fields: Field[];
-    onConfirm: (values: Record<string, string>) => void;
+    onConfirm: (values: Record<string, string>) => void | Promise<void>;
   } | null>(null);
 
   const [confirmCfg, setConfirmCfg] = React.useState<{
     title: string;
     message: string | React.ReactNode;
-    onConfirm: () => void;
+    onConfirm: () => void | Promise<void>;
   } | null>(null);
+
+  const resolveError = React.useCallback(
+    (error: ProposalError) =>
+      error.kind === "message" ? error.message : errorsT(error.code),
+    [errorsT]
+  );
+
+  const handleResult = React.useCallback(
+    (result: ProposalActionResult) => {
+      if (!result.ok) {
+        toast.error(resolveError(result.error));
+      }
+      return result.ok;
+    },
+    [resolveError]
+  );
 
   return (
     <div className="card border p-3 space-y-3">
@@ -390,8 +471,14 @@ export function GlossarySidebar({
               onConfirm: ({ label, url }) => {
                 const l = (label ?? "").trim();
                 const u = (url ?? "").trim();
-                if (l && u) addLink(l, u);
-                setPromptCfg(null);
+                if (!l || !u) {
+                  setPromptCfg(null);
+                  return;
+                }
+                return addLink(l, u).then((result) => {
+                  handleResult(result);
+                  setPromptCfg(null);
+                });
               },
             })
           }
@@ -433,8 +520,14 @@ export function GlossarySidebar({
                       onConfirm: ({ label, url }) => {
                         const l = (label ?? "").trim();
                         const u = (url ?? "").trim();
-                        if (l && u) editLink(g.id, l, u);
-                        setPromptCfg(null);
+                        if (!l || !u) {
+                          setPromptCfg(null);
+                          return;
+                        }
+                        return editLink(g.id, l, u).then((result) => {
+                          handleResult(result);
+                          setPromptCfg(null);
+                        });
                       },
                     })
                   }
@@ -449,12 +542,12 @@ export function GlossarySidebar({
                       message: glossaryT("confirmations.delete.message", {
                         label: g.label,
                       }),
-                      onConfirm: () => {
-                        removeLink(g.id);
-                        setConfirmCfg(null);
-                      },
-                    })
-                  }
+                    onConfirm: () => {
+                      void removeLink(g.id).then(handleResult);
+                      setConfirmCfg(null);
+                    },
+                  })
+                }
                 >
                   {glossaryT("buttons.delete")}
                 </button>
