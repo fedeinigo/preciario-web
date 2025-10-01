@@ -1,10 +1,54 @@
+import {
+  createProposalCodeError,
+  isProposalError,
+  parseProposalErrorResponse,
+  type ProposalError,
+} from "./errors";
+
 type PricingOk = {
   ok: true;
   totalQty: number;
   totalAmount: number;
   unitPrice: number;
 };
-type PricingErr = { ok: false; error: string };
+type PricingErr = { ok: false; error?: string };
+
+async function parsePricingError(
+  res: Response,
+  fallbackCode: "pricing.whatsAppFailed" | "pricing.minutesFailed"
+): Promise<ProposalError> {
+  try {
+    const data = (await res.clone().json()) as PricingErr;
+    if (typeof data?.error === "string" && data.error.trim()) {
+      return { kind: "message", message: data.error };
+    }
+  } catch {
+    // ignore JSON parsing errors
+  }
+  return parseProposalErrorResponse(res, fallbackCode);
+}
+
+async function ensurePricingOk(
+  res: Response,
+  fallbackCode: "pricing.whatsAppFailed" | "pricing.minutesFailed"
+): Promise<PricingOk> {
+  try {
+    if (!res.ok) {
+      throw await parsePricingError(res, fallbackCode);
+    }
+    const data = (await res.json()) as PricingOk | PricingErr;
+    if (!data.ok) {
+      if (typeof data.error === "string" && data.error.trim()) {
+        throw { kind: "message", message: data.error } satisfies ProposalError;
+      }
+      throw createProposalCodeError(fallbackCode);
+    }
+    return data;
+  } catch (error) {
+    if (isProposalError(error)) throw error;
+    throw createProposalCodeError(fallbackCode);
+  }
+}
 
 export async function priceWhatsApp(input: {
   subsidiary: string;
@@ -25,9 +69,7 @@ export async function priceWhatsApp(input: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = (await res.json()) as PricingOk | PricingErr;
-  if (!data.ok) throw new Error(data.error);
-  return data;
+  return ensurePricingOk(res, "pricing.whatsAppFailed");
 }
 
 export async function priceMinutes(input: {
@@ -48,7 +90,5 @@ export async function priceMinutes(input: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = (await res.json()) as PricingOk | PricingErr;
-  if (!data.ok) throw new Error(data.error);
-  return data;
+  return ensurePricingOk(res, "pricing.minutesFailed");
 }

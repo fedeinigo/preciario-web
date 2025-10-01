@@ -5,6 +5,16 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "@/app/components/ui/toast";
 
 import { useTranslations } from "@/app/LanguageProvider";
+import {
+  createItemCategory,
+  deleteItemCategory,
+  fetchItemCategories,
+  renameItemCategory,
+} from "@/app/components/features/proposals/lib/categories";
+import {
+  isProposalError,
+  type ProposalErrorCode,
+} from "@/app/components/features/proposals/lib/errors";
 
 export type ItemFormData = {
   sku?: string;
@@ -38,6 +48,7 @@ export default function ItemForm({
   const toastT = useTranslations("proposals.itemForm.toast");
   const managementT = useTranslations("proposals.itemForm.management");
   const actionsT = useTranslations("proposals.itemForm.actions");
+  const proposalErrorsT = useTranslations("proposals.errors");
   // -------- Form state
   const [sku, setSku] = useState(initial?.sku ?? "");
   const [name, setName] = useState(initial?.name ?? "");
@@ -60,15 +71,34 @@ export default function ItemForm({
   const [categories, setCategories] = useState<string[]>([]);
   const [catsBusy, setCatsBusy] = useState(false);
 
+  const resolveProposalErrorMessage = useCallback(
+    (error: unknown, fallback: ProposalErrorCode) => {
+      if (isProposalError(error)) {
+        return error.kind === "message"
+          ? error.message
+          : proposalErrorsT(error.code);
+      }
+      if (error instanceof Error && error.message) {
+        return error.message;
+      }
+      return proposalErrorsT(fallback);
+    },
+    [proposalErrorsT]
+  );
+
   const loadCats = useCallback(async () => {
     try {
-      const r = await fetch("/api/items/categories", { cache: "no-store" });
-      setCategories(r.ok ? ((await r.json()) as string[]) : []);
-    } catch {
+      const data = await fetchItemCategories();
+      setCategories(data);
+    } catch (error) {
       setCategories([]);
-      toast(toastT("loadCategoriesError"));
+      const message = resolveProposalErrorMessage(
+        error,
+        "catalog.categories.loadFailed"
+      );
+      toast.error(message);
     }
-  }, [toastT]);
+  }, [resolveProposalErrorMessage]);
 
   useEffect(() => {
     if (open) void loadCats();
@@ -93,21 +123,17 @@ export default function ItemForm({
     if (!name) return;
     setCatsBusy(true);
     try {
-      const r = await fetch("/api/items/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      if (!r.ok) {
-        toast(toastT("createCategoryError"));
-        return;
-      }
+      await createItemCategory(name);
       setNewCat("");
       await loadCats();
       setCategory(name);
-      toast(toastT("createCategorySuccess"));
-    } catch {
-      toast(toastT("createCategoryError"));
+      toast.success(toastT("createCategorySuccess"));
+    } catch (error) {
+      const message = resolveProposalErrorMessage(
+        error,
+        "catalog.categories.createFailed"
+      );
+      toast.error(message);
     } finally {
       setCatsBusy(false);
     }
@@ -119,22 +145,18 @@ export default function ItemForm({
     if (!from || !to) return;
     setCatsBusy(true);
     try {
-      const r = await fetch("/api/items/categories", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to }),
-      });
-      if (!r.ok) {
-        toast(toastT("renameCategoryError"));
-        return;
-      }
+      await renameItemCategory(from, to);
       setRenameFrom("");
       setRenameTo("");
       await loadCats();
       if (category === from) setCategory(to);
-      toast(toastT("renameCategorySuccess"));
-    } catch {
-      toast(toastT("renameCategoryError"));
+      toast.success(toastT("renameCategorySuccess"));
+    } catch (error) {
+      const message = resolveProposalErrorMessage(
+        error,
+        "catalog.categories.renameFailed"
+      );
+      toast.error(message);
     } finally {
       setCatsBusy(false);
     }
@@ -147,22 +169,18 @@ export default function ItemForm({
     setCatsBusy(true);
     try {
       // ⚠️ Server-side espera { name, replaceWith? } (ver /api/items/categories/route.ts)
-      const r = await fetch("/api/items/categories", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, replaceWith }),
-      });
-      if (!r.ok) {
-        toast(toastT("deleteCategoryError"));
-        return;
-      }
+      const target = await deleteItemCategory(name, replaceWith);
       setDelFrom("");
       setDelTo("");
       await loadCats();
-      if (category === name) setCategory(replaceWith ?? "general");
-      toast(toastT("deleteCategorySuccess"));
-    } catch {
-      toast(toastT("deleteCategoryError"));
+      if (category === name) setCategory(target ?? "general");
+      toast.success(toastT("deleteCategorySuccess"));
+    } catch (error) {
+      const message = resolveProposalErrorMessage(
+        error,
+        "catalog.categories.deleteFailed"
+      );
+      toast.error(message);
     } finally {
       setCatsBusy(false);
     }

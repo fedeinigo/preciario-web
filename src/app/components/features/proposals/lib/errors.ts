@@ -4,6 +4,10 @@ export type ProposalErrorCode =
   | "catalog.createFailed"
   | "catalog.updateFailed"
   | "catalog.deleteFailed"
+  | "catalog.categories.loadFailed"
+  | "catalog.categories.createFailed"
+  | "catalog.categories.renameFailed"
+  | "catalog.categories.deleteFailed"
   | "filiales.loadFailed"
   | "filiales.createGroupFailed"
   | "filiales.renameGroupFailed"
@@ -15,6 +19,8 @@ export type ProposalErrorCode =
   | "glossary.createFailed"
   | "glossary.updateFailed"
   | "glossary.deleteFailed"
+  | "pricing.whatsAppFailed"
+  | "pricing.minutesFailed"
   | "proposal.saveFailed";
 
 export type ProposalError =
@@ -31,6 +37,23 @@ export async function parseProposalErrorResponse(
   res: Response,
   fallbackCode: ProposalErrorCode
 ): Promise<ProposalError> {
+  try {
+    const data = (await res.clone().json()) as {
+      error?: unknown;
+      message?: unknown;
+    };
+    const message =
+      typeof data?.error === "string"
+        ? data.error
+        : typeof data?.message === "string"
+        ? data.message
+        : undefined;
+    if (message) {
+      return { kind: "message", message };
+    }
+  } catch {
+    // ignore JSON parsing errors and fall back to text body
+  }
   const text = await res.text().catch(() => "");
   if (text) return { kind: "message", message: text };
   return createProposalCodeError(fallbackCode);
