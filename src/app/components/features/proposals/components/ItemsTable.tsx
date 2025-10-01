@@ -2,8 +2,11 @@
 "use client";
 
 import React, { useMemo } from "react";
-import type { UIItem } from "../lib/types";
+
+import { useTranslations } from "@/app/LanguageProvider";
+
 import { formatUSD } from "../lib/format";
+import type { UIItem } from "../lib/types";
 
 type Props = {
   items: UIItem[];
@@ -38,22 +41,31 @@ export default function ItemsTable({
   const start = (currentPage - 1) * pageSize;
   const visible = useMemo(() => items.slice(start, start + pageSize), [items, start, pageSize]);
   const colSpan = isAdmin ? 8 : 7;
+  const baseT = useTranslations("proposals.itemsTable");
+  const headersT = useTranslations("proposals.itemsTable.headers");
+  const titlesT = useTranslations("proposals.itemsTable.titles");
+  const actionsT = useTranslations("proposals.itemsTable.actions");
+  const paginationT = useTranslations("proposals.itemsTable.pagination");
 
   return (
     <div className="overflow-x-auto rounded-md border-2 bg-white">
       <table className="min-w-full">
         <thead>
           <tr>
-            <th className="table-th w-10" title="Seleccionar ítem"></th>
-            <th className="table-th">SKU</th>
-            <th className="table-th">Categoría</th>
-            <th className="table-th">Ítem</th>
-            <th className="table-th w-28 text-right" title="Cantidad">Cant.</th>
-            <th className="table-th w-32 text-right" title="Precio unitario (base)">Unitario</th>
-            <th className="table-th w-40 text-right" title="Aplicar descuento al subtotal del ítem">
-              Descuento (%)
+            <th className="table-th w-10" title={titlesT("select")}></th>
+            <th className="table-th">{headersT("sku")}</th>
+            <th className="table-th">{headersT("category")}</th>
+            <th className="table-th">{headersT("item")}</th>
+            <th className="table-th w-28 text-right" title={titlesT("quantity")}>
+              {headersT("quantity")}
             </th>
-            {isAdmin && <th className="table-th w-36 text-center">Acciones</th>}
+            <th className="table-th w-32 text-right" title={titlesT("unitPrice")}>
+              {headersT("unitPrice")}
+            </th>
+            <th className="table-th w-40 text-right" title={titlesT("discount")}>
+              {headersT("discount")}
+            </th>
+            {isAdmin && <th className="table-th w-36 text-center">{headersT("actions")}</th>}
           </tr>
         </thead>
         <tbody>
@@ -67,7 +79,7 @@ export default function ItemsTable({
                     type="checkbox"
                     checked={it.selected}
                     onChange={(e) => onToggle(it, e.target.checked)}
-                    title="Seleccionar para la propuesta"
+                    title={titlesT("selectAction")}
                   />
                 </td>
                 <td className="table-td">
@@ -89,7 +101,10 @@ export default function ItemsTable({
                     onChange={(e) => onChangeQty(it.id, Number(e.target.value))}
                   />
                 </td>
-                <td className="table-td text-right" title={`Neto: ${formatUSD(unitNet)}`}>
+                <td
+                  className="table-td text-right"
+                  title={titlesT("unitPriceWithNet", { value: formatUSD(unitNet) })}
+                >
                   {formatUSD(it.unitPrice)}
                 </td>
                 <td className="table-td text-right">
@@ -101,9 +116,9 @@ export default function ItemsTable({
                       max={100}
                       value={pct}
                       onChange={(e) => onChangeDiscountPct(it.id, Number(e.target.value))}
-                      title="Porcentaje de descuento (0 a 100)"
+                      title={titlesT("discountInput")}
                     />
-                    <span className="text-xs text-gray-500 mr-1" title="Unitario neto">
+                    <span className="text-xs text-gray-500 mr-1" title={titlesT("netUnit")}>
                       {formatUSD(unitNet)}
                     </span>
                   </div>
@@ -111,11 +126,19 @@ export default function ItemsTable({
                 {isAdmin && (
                   <td className="table-td text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <button className="btn-ghost" onClick={() => onEdit(it)} title="Editar ítem">
-                        Editar
+                      <button
+                        className="btn-ghost"
+                        onClick={() => onEdit(it)}
+                        title={actionsT("edit")}
+                      >
+                        {actionsT("edit")}
                       </button>
-                      <button className="btn-ghost" onClick={() => onDelete(it.id)} title="Eliminar ítem">
-                        Borrar
+                      <button
+                        className="btn-ghost"
+                        onClick={() => onDelete(it.id)}
+                        title={actionsT("delete")}
+                      >
+                        {actionsT("delete")}
                       </button>
                     </div>
                   </td>
@@ -126,7 +149,7 @@ export default function ItemsTable({
           {totalRows === 0 && (
             <tr>
               <td className="table-td text-center text-gray-500" colSpan={colSpan}>
-                No hay ítems.
+                {baseT("empty")}
               </td>
             </tr>
           )}
@@ -136,7 +159,11 @@ export default function ItemsTable({
       {totalRows > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 border-t">
           <div className="text-sm text-gray-600">
-            Mostrando {start + 1}–{Math.min(start + pageSize, totalRows)} de {totalRows}
+            {paginationT("display", {
+              start: start + 1,
+              end: Math.min(start + pageSize, totalRows),
+              total: totalRows,
+            })}
           </div>
           <div className="flex items-center gap-2">
             <select
@@ -146,7 +173,7 @@ export default function ItemsTable({
             >
               {[10, 20, 50, 100].map((n) => (
                 <option key={n} value={n}>
-                  {n} / página
+                  {paginationT("perPage", { count: n })}
                 </option>
               ))}
             </select>
@@ -155,20 +182,20 @@ export default function ItemsTable({
                 className="btn-bar"
                 onClick={() => onPageChange(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                title="Anterior"
+                title={titlesT("previous")}
               >
-                Anterior
+                {paginationT("previous")}
               </button>
               <span className="text-sm">
-                {currentPage} / {totalPages}
+                {paginationT("pageStatus", { current: currentPage, total: totalPages })}
               </span>
               <button
                 className="btn-bar"
                 onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
-                title="Siguiente"
+                title={titlesT("next")}
               >
-                Siguiente
+                {paginationT("next")}
               </button>
             </div>
           </div>

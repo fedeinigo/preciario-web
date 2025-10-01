@@ -1,6 +1,8 @@
 import type { Locale } from "./config";
 
-type DeepRecord = Record<string, string | DeepRecord>;
+interface DeepRecord {
+  [key: string]: string | DeepRecord;
+}
 
 export const messages: Record<Locale, DeepRecord> = {
   es: {
@@ -63,6 +65,57 @@ export const messages: Record<Locale, DeepRecord> = {
         userName: "Usuario",
         team: "—",
         email: "—",
+      },
+    },
+    proposals: {
+      onboarding: {
+        title: "Selecciona tu equipo",
+        intro:
+          "Bienvenido. Para personalizar tu experiencia, indícanos a qué equipo perteneces.",
+        selectPlaceholder: "(elige un equipo)",
+        actions: {
+          later: "Más tarde",
+          save: "Guardar",
+        },
+        toasts: {
+          saved: "Equipo guardado",
+          error: "No se pudo guardar el equipo",
+        },
+      },
+      itemsTable: {
+        headers: {
+          sku: "SKU",
+          category: "Categoría",
+          item: "Ítem",
+          quantity: "Cant.",
+          unitPrice: "Unitario",
+          discount: "Descuento (%)",
+          actions: "Acciones",
+        },
+        titles: {
+          select: "Seleccionar ítem",
+          quantity: "Cantidad",
+          unitPrice: "Precio unitario (base)",
+          discount: "Aplicar descuento al subtotal del ítem",
+          discountInput: "Porcentaje de descuento (0 a 100)",
+          selectAction: "Seleccionar para la propuesta",
+          netUnit: "Unitario neto",
+          unitPriceWithNet: "Neto: {value}",
+          previous: "Anterior",
+          next: "Siguiente",
+        },
+        actions: {
+          edit: "Editar",
+          delete: "Borrar",
+        },
+        empty: "No hay ítems.",
+        pagination: {
+          display: "Mostrando {start}–{end} de {total}",
+          perPage: "{count} / página",
+          previous: "Anterior",
+          next: "Siguiente",
+          pageStatus: "{current} / {total}",
+        },
       },
     },
   },
@@ -128,6 +181,57 @@ export const messages: Record<Locale, DeepRecord> = {
         email: "—",
       },
     },
+    proposals: {
+      onboarding: {
+        title: "Choose your team",
+        intro:
+          "Welcome! To personalize your experience, let us know which team you belong to.",
+        selectPlaceholder: "(choose a team)",
+        actions: {
+          later: "Later",
+          save: "Save",
+        },
+        toasts: {
+          saved: "Team saved",
+          error: "Could not save the team",
+        },
+      },
+      itemsTable: {
+        headers: {
+          sku: "SKU",
+          category: "Category",
+          item: "Item",
+          quantity: "Qty.",
+          unitPrice: "Unit price",
+          discount: "Discount (%)",
+          actions: "Actions",
+        },
+        titles: {
+          select: "Select item",
+          quantity: "Quantity",
+          unitPrice: "Base unit price",
+          discount: "Apply a discount to the item subtotal",
+          discountInput: "Discount percentage (0 to 100)",
+          selectAction: "Select for the proposal",
+          netUnit: "Net unit price",
+          unitPriceWithNet: "Net: {value}",
+          previous: "Previous",
+          next: "Next",
+        },
+        actions: {
+          edit: "Edit",
+          delete: "Delete",
+        },
+        empty: "No items.",
+        pagination: {
+          display: "Showing {start}–{end} of {total}",
+          perPage: "{count} / page",
+          previous: "Previous",
+          next: "Next",
+          pageStatus: "{current} / {total}",
+        },
+      },
+    },
   },
   pt: {
     common: {
@@ -189,6 +293,57 @@ export const messages: Record<Locale, DeepRecord> = {
         userName: "Usuário",
         team: "—",
         email: "—",
+      },
+    },
+    proposals: {
+      onboarding: {
+        title: "Selecione sua equipe",
+        intro:
+          "Bem-vindo. Para personalizar sua experiência, diga-nos a qual equipe você pertence.",
+        selectPlaceholder: "(escolha uma equipe)",
+        actions: {
+          later: "Mais tarde",
+          save: "Salvar",
+        },
+        toasts: {
+          saved: "Equipe salva",
+          error: "Não foi possível salvar a equipe",
+        },
+      },
+      itemsTable: {
+        headers: {
+          sku: "SKU",
+          category: "Categoria",
+          item: "Item",
+          quantity: "Qtd.",
+          unitPrice: "Unitário",
+          discount: "Desconto (%)",
+          actions: "Ações",
+        },
+        titles: {
+          select: "Selecionar item",
+          quantity: "Quantidade",
+          unitPrice: "Preço unitário (base)",
+          discount: "Aplicar desconto ao subtotal do item",
+          discountInput: "Porcentagem de desconto (0 a 100)",
+          selectAction: "Selecionar para a proposta",
+          netUnit: "Unitário líquido",
+          unitPriceWithNet: "Líquido: {value}",
+          previous: "Anterior",
+          next: "Próximo",
+        },
+        actions: {
+          edit: "Editar",
+          delete: "Excluir",
+        },
+        empty: "Não há itens.",
+        pagination: {
+          display: "Mostrando {start}–{end} de {total}",
+          perPage: "{count} / página",
+          previous: "Anterior",
+          next: "Próximo",
+          pageStatus: "{current} / {total}",
+        },
       },
     },
   },
