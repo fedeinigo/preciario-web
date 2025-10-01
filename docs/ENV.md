@@ -27,6 +27,3 @@ Estas variables son utilizadas por la aplicación. Los nuevos flags se introduce
 - **Producción:** `https://preciario.wisecx.com`
 
 Asegúrate de registrar estos dominios en Google Cloud OAuth y de actualizar `NEXTAUTH_URL`/`AUTH_URL` según el entorno donde se despliegue la app.
-=======
-
-> Nota: los flags pueden declararse como `true` o `1` para activarlos. Mantenerlos apagados garantiza compatibilidad con el comportamiento previo mientras se completan las pruebas de regresión.
