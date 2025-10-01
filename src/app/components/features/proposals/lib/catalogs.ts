@@ -1,5 +1,8 @@
 // src/app/components/features/proposals/lib/catalogs.ts
 
+import { defaultLocale, type Locale } from "@/lib/i18n/config";
+import { getMessage } from "@/lib/i18n/messages";
+
 /** ==================== Catálogo de países de la PROPUESTA ====================
  *  País elegido al crear la propuesta. La FILIAL se determina automáticamente
  *  con COUNTRY_TO_SUBSIDIARY y se muestra como sólo-lectura.
@@ -133,3 +136,18 @@ export const DESTINATION_COUNTRIES = [
   "Resto de America",
   "Other",
 ];
+
+export type DestinationCountryId = (typeof DESTINATION_COUNTRIES)[number];
+
+export type LocalizedCountry = { id: DestinationCountryId; label: string };
+
+export function getLocalizedCountries(locale: Locale = defaultLocale): LocalizedCountry[] {
+  return DESTINATION_COUNTRIES.map((id) => ({
+    id,
+    label: getMessage(locale, `proposals.countries.${id}`, defaultLocale),
+  }));
+}
+
+export function getCountryLabel(id: DestinationCountryId, locale: Locale = defaultLocale): string {
+  return getMessage(locale, `proposals.countries.${id}`, defaultLocale);
+}

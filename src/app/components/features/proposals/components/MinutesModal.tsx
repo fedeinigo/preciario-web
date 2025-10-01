@@ -1,69 +1,16 @@
 "use client";
 
+import { useCallback, useMemo } from "react";
+
 import Modal from "@/app/components/ui/Modal";
 import Combobox from "@/app/components/ui/Combobox";
 
-import { useTranslations } from "@/app/LanguageProvider";
+import { useLanguage, useTranslations } from "@/app/LanguageProvider";
+import { getLocalizedCountries } from "../lib/catalogs";
 
 /** === Tipos expuestos para que Generator.tsx los importe === */
 export type MinutesKind = "out" | "in";
 export type MinForm = { qty: number; destCountry: string };
-
-/** Lista PROPIA de países destino (mismo set que WhatsApp) */
-const DESTINATION_COUNTRIES: string[] = [
-  "Argentina",
-  "Alemania",
-  "Aruba",
-  "Belgica",
-  "Bolivia",
-  "Brasil",
-  "Canadá",
-  "Chile",
-  "Colombia",
-  "Costa Rica",
-  "Ecuador",
-  "Egipto",
-  "El Salvador",
-  "España",
-  "Estados Unidos",
-  "Francia",
-  "Guatemala",
-  "Haití",
-  "Honduras",
-  "India",
-  "Indonesia",
-  "Israel",
-  "Italia",
-  "Jamaica",
-  "Malasia",
-  "México",
-  "Nicaragua",
-  "Nigeria",
-  "Noruega",
-  "Países Bajos",
-  "Pakistán",
-  "Panamá",
-  "Paraguay",
-  "Perú",
-  "Polonia",
-  "Puerto Rico",
-  "Reino Unido",
-  "República Dominicana",
-  "Rumania",
-  "Rusia",
-  "Arabia Saudita",
-  "Suecia",
-  "Suiza",
-  "Turquía",
-  "Uruguay",
-  "Venezuela",
-  "Emiratos Árabes Unidos",
-  "Resto de Asia",
-  "Resto de Europa",
-  "Resto de Africa",
-  "Resto de America",
-  "Other",
-];
 
 export function MinutesModal({
   open,
@@ -87,11 +34,31 @@ export function MinutesModal({
   error?: string;
   applying?: boolean;
 }) {
+  const { locale } = useLanguage();
   const t = useTranslations("proposals.minutesModal");
   const sharedT = useTranslations("proposals.generator");
   const emptyValue = sharedT("emptyValue");
   const label = t(`kinds.${kind}`);
   const countryLabel = kind === "in" ? t("fields.countryLabelInbound") : t("fields.countryLabel");
+
+  const countries = useMemo(() => getLocalizedCountries(locale), [locale]);
+  const countryOptions = useMemo(() => countries.map((country) => country.label), [countries]);
+  const selectedCountryLabel = useMemo(() => {
+    if (!form.destCountry) return "";
+    return (
+      countries.find((country) => country.id === form.destCountry)?.label || form.destCountry
+    );
+  }, [countries, form.destCountry]);
+
+  const handleCountryChange = useCallback(
+    (label: string) => {
+      const match = countries.find((country) => country.label === label);
+      if (match) {
+        onChange({ destCountry: match.id });
+      }
+    },
+    [countries, onChange]
+  );
 
   return (
     <Modal
@@ -141,9 +108,9 @@ export function MinutesModal({
           <div className={kind === "in" ? "opacity-50 pointer-events-none" : ""}>
             <label className="block text-xs text-gray-600 mb-1">{countryLabel}</label>
             <Combobox
-              options={DESTINATION_COUNTRIES}
-              value={form.destCountry}
-              onChange={(v) => onChange({ destCountry: v })}
+              options={countryOptions}
+              value={selectedCountryLabel}
+              onChange={handleCountryChange}
               placeholder={t("fields.countryPlaceholder")}
             />
             <p className="mt-1 text-[12px] text-muted">{t("fields.countryHelp")}</p>
