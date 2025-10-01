@@ -4,6 +4,7 @@ interface DeepRecord {
   [key: string]: string | DeepRecord;
 }
 
+
 export const messages: Record<Locale, DeepRecord> = {
   es: {
     common: {
@@ -50,6 +51,7 @@ export const messages: Record<Locale, DeepRecord> = {
           email: "—",
         },
       },
+
     },
     auth: {
       login: {
@@ -201,6 +203,7 @@ export const messages: Record<Locale, DeepRecord> = {
         nonNegative: "Debe ser ≥ 0",
       },
     },
+
     proposals: {
       onboarding: {
         title: "Selecciona tu equipo",
