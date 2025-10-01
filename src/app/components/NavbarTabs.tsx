@@ -3,6 +3,7 @@
 
 import React from "react";
 import { LayoutGrid, Clock, BarChart2, Users, Group } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 
 type Tab = "generator" | "history" | "stats" | "teams" | "users";
@@ -18,6 +19,7 @@ export default function NavbarTabs({
   showUsers?: boolean;
 }) {
   const { status } = useSession();
+  const tabsT = useTranslations("navbar.tabs");
   const isAuthed = status === "authenticated";
   if (!isAuthed) return null;
 
@@ -46,11 +48,11 @@ export default function NavbarTabs({
   return (
     <div className="w-full bg-[rgb(var(--primary))]">
       <div className="max-w-7xl mx-auto px-4 py-2 flex gap-2">
-        <Btn id="generator" icon={LayoutGrid} label="Generador" />
-        <Btn id="history" icon={Clock} label="Histórico" />
-        <Btn id="stats" icon={BarChart2} label="Estadísticas" />
-        <Btn id="teams" icon={Group} label="Equipos" />
-        {showUsers && <Btn id="users" icon={Users} label="Usuarios" />}
+        <Btn id="generator" icon={LayoutGrid} label={tabsT("generator")} />
+        <Btn id="history" icon={Clock} label={tabsT("history")} />
+        <Btn id="stats" icon={BarChart2} label={tabsT("stats")} />
+        <Btn id="teams" icon={Group} label={tabsT("teams")} />
+        {showUsers && <Btn id="users" icon={Users} label={tabsT("users")} />}
       </div>
     </div>
   );
