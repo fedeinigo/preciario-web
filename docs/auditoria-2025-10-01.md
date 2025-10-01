@@ -114,3 +114,4 @@
 - ✅ `chore/db-index-proposal-user`: migración `20251001123000_add_proposal_user_idx` y rollback documentado en `docs/adr/2025-10-01-db-index.md`.
 - ✅ `docs/env-hardening`: ampliación de `docs/ENV.md` con flags adicionales y dominios autorizados para OAuth.
 - ✅ `docs/perf`: carpeta dedicada con baseline `docs/perf/2025-10-01-base.md` y guía `docs/perf/README.md`.
+=======
