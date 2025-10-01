@@ -9,8 +9,6 @@ export type FeatureFlag =
   | "appShellRsc"
   | "proposalsClientRefactor"
   | "accessibilitySkeletons";
-=======
-  | "strictOauthLinking";
 
 function readBooleanFlag(value: string | undefined): boolean {
   return value === "1" || value === "true";
@@ -23,7 +21,6 @@ export const featureFlags: Record<FeatureFlag, boolean> = {
   appShellRsc: readBooleanFlag(process.env.FEATURE_APP_SHELL_RSC),
   proposalsClientRefactor: readBooleanFlag(process.env.FEATURE_PROPOSALS_CLIENT_REFACTOR),
   accessibilitySkeletons: readBooleanFlag(process.env.FEATURE_ACCESSIBILITY_SKELETONS),
-=======
 };
 
 export function isFeatureEnabled(flag: FeatureFlag): boolean {
