@@ -66,7 +66,6 @@ export function LanguageProvider({
         format(getMessage(locale, key, defaultLocale), replacements),
     };
   }, [locale, setLocale]);
-
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
