@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "@/app/LanguageProvider";
+import { normalizeSearchText } from "@/lib/normalize-search-text";
 
 interface ComboboxProps {
   options: string[];
@@ -50,9 +51,9 @@ export default function Combobox({
   const optionId = (idx: number) => `${listboxId}-opt-${idx}`;
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((o) => o.toLowerCase().includes(q));
+    const normalizedQuery = normalizeSearchText(query.trim());
+    if (!normalizedQuery) return options;
+    return options.filter((o) => normalizeSearchText(o).includes(normalizedQuery));
   }, [options, query]);
 
   // cerrar al click exterior

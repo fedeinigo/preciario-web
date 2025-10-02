@@ -20,6 +20,7 @@ import {
   deleteCatalogItem,
 } from "./lib/items";
 import { locales, defaultLocale, type Locale } from "@/lib/i18n/config";
+import { normalizeSearchText } from "@/lib/normalize-search-text";
 
 import {
   isWppAuth,
@@ -243,12 +244,13 @@ export default function Generator({ isAdmin, userId, userEmail, onSaved }: Props
   } = useWiserModal();
 
   const filtered = useMemo(() => {
-    const q = searchTerm.toLowerCase();
+    const normalizedQuery = normalizeSearchText(searchTerm);
     return items.filter((it) => {
       const matchesText =
-        it.name.toLowerCase().includes(q) ||
-        it.description.toLowerCase().includes(q) ||
-        it.sku.toLowerCase().includes(q);
+        !normalizedQuery ||
+        normalizeSearchText(it.name).includes(normalizedQuery) ||
+        normalizeSearchText(it.description).includes(normalizedQuery) ||
+        normalizeSearchText(it.sku).includes(normalizedQuery);
       const matchesCat = !categoryFilter || it.category === categoryFilter;
       return matchesText && matchesCat;
     });
