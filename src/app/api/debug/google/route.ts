@@ -1,5 +1,6 @@
 // src/app/api/debug/google/route.ts
 import { NextResponse } from "next/server";
+import { ensureSessionRole, requireApiSession } from "@/app/api/_utils/require-auth";
 import { createProposalDocSystem, type AnyItemInput } from "@/lib/google-system";
 
 type DebugBody = Partial<{
@@ -10,6 +11,12 @@ type DebugBody = Partial<{
 }>;
 
 export async function POST(req: Request) {
+  const { session, response } = await requireApiSession();
+  if (response) return response;
+
+  const forbidden = ensureSessionRole(session, ["superadmin"], 403);
+  if (forbidden) return forbidden;
+
   // Body tipado: si falla el parseo usamos {} tipado como DebugBody
   const json = (await req.json().catch(() => ({}))) as DebugBody;
 
@@ -31,7 +38,7 @@ export async function POST(req: Request) {
       items,
     });
 
-    // result suele incluir { docId, docUrl } y puede traer más campos (totals, subsidiary)
+    // result suele incluir { docId, docUrl } y puede traer mas campos (totals, subsidiary)
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

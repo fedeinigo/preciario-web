@@ -86,6 +86,7 @@ const ONE_SHOT_RATE = Number.isFinite(RAW_ONE_SHOT_RATE) && RAW_ONE_SHOT_RATE > 
 
 type Props = {
   isAdmin: boolean;
+  canViewSku: boolean;
   userId: string;
   userEmail: string;
   onSaved: (id: string) => void;
@@ -94,7 +95,7 @@ type Props = {
 type SortKey = "popular" | "sku" | "unitPrice" | "name" | "category";
 type SortDir = "asc" | "desc";
 
-export default function Generator({ isAdmin, userId, userEmail, onSaved }: Props) {
+export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSaved }: Props) {
   const { locale } = useLanguage();
   const generatorT = useTranslations("proposals.generator");
   const toastT = useTranslations("proposals.generator.toast");
@@ -829,6 +830,7 @@ export default function Generator({ isAdmin, userId, userEmail, onSaved }: Props
     () => ({
       items: ordered,
       isAdmin,
+      showSku: canViewSku,
       onToggle: handleToggleItem,
       onChangeQty: handleQuantityChange,
       onChangeDiscountPct: handleDiscountChange,
@@ -843,6 +845,7 @@ export default function Generator({ isAdmin, userId, userEmail, onSaved }: Props
     [
       ordered,
       isAdmin,
+      canViewSku,
       handleToggleItem,
       handleQuantityChange,
       handleDiscountChange,

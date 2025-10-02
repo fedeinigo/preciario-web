@@ -1,4 +1,4 @@
-// src/app/api/proposals/create/helpers.ts
+﻿// src/app/api/proposals/create/helpers.ts
 
 export type LineItem = {
   name: string;
@@ -58,7 +58,13 @@ function formatFechaDia(d = new Date()) {
 }
 
 export function resolveHourlyRate(env: Record<string, string | undefined>): number {
-  const hourlyRateEnv = Number(env.PROPOSALS_ONESHOT_RATE ?? env.ONESHOT_RATE ?? 50);
+  const hourlyRateEnv = Number(
+    env.PROPOSALS_ONESHOT_RATE ??
+      env.PROPOSAL_ONESHOT_RATE ??
+      env.PROPOSAL_ONESHOT_RATE_USD ??
+      env.ONESHOT_RATE ??
+      50
+  );
   return Number.isFinite(hourlyRateEnv) && hourlyRateEnv > 0 ? hourlyRateEnv : 50;
 }
 
@@ -127,3 +133,4 @@ export function buildReplaceRequests({
 
   return requests;
 }
+

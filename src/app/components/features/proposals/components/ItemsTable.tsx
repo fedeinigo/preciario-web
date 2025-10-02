@@ -12,6 +12,7 @@ import type { UIItem } from "../lib/types";
 type Props = {
   items: UIItem[];
   isAdmin: boolean;
+  showSku: boolean;
   onToggle: (item: UIItem, checked: boolean) => void;
   onChangeQty: (itemId: string, qty: number) => void;
   onChangeDiscountPct: (itemId: string, pct: number) => void;
@@ -45,6 +46,7 @@ const ItemsTableRow = React.memo(function ItemsTableRow({
   item,
   locale,
   isAdmin,
+  showSku,
   onToggle,
   onChangeQty,
   onChangeDiscountPct,
@@ -56,6 +58,7 @@ const ItemsTableRow = React.memo(function ItemsTableRow({
   item: UIItem;
   locale: Locale;
   isAdmin: boolean;
+  showSku: boolean;
   onToggle: (item: UIItem, checked: boolean) => void;
   onChangeQty: (itemId: string, qty: number) => void;
   onChangeDiscountPct: (itemId: string, pct: number) => void;
@@ -109,14 +112,17 @@ const ItemsTableRow = React.memo(function ItemsTableRow({
       <td className="table-td">
         <input
           type="checkbox"
+          className="h-5 w-5"
           checked={item.selected}
           onChange={handleToggle}
           title={titlesT("selectAction")}
         />
       </td>
-      <td className="table-td">
-        <span className="font-mono text-gray-600">{item.sku}</span>
-      </td>
+      {showSku && (
+        <td className="table-td">
+          <span className="font-mono text-gray-600">{item.sku}</span>
+        </td>
+      )}
       <td className="table-td">{item.category}</td>
       <td className="table-td">
         <div className="font-medium">{displayName}</div>
@@ -257,6 +263,7 @@ ItemsTablePagination.displayName = "ItemsTablePagination";
 export default function ItemsTable({
   items,
   isAdmin,
+  showSku,
   onToggle,
   onChangeQty,
   onChangeDiscountPct,
@@ -294,7 +301,8 @@ export default function ItemsTable({
     [currentPage, totalPages, startIndex, endIndex, totalRows]
   );
 
-  const colSpan = useMemo(() => (isAdmin ? 9 : 8), [isAdmin]);
+  const baseColumns = useMemo(() => (showSku ? 8 : 7), [showSku]);
+  const colSpan = useMemo(() => (isAdmin ? baseColumns + 1 : baseColumns), [isAdmin, baseColumns]);
 
   const baseT = useTranslations("proposals.itemsTable");
   const headersT = useTranslations("proposals.itemsTable.headers");
@@ -307,8 +315,8 @@ export default function ItemsTable({
       <table className="min-w-full">
         <thead>
           <tr>
-            <th className="table-th w-10" title={titlesT("select")} />
-            <th className="table-th">{headersT("sku")}</th>
+            <th className="table-th w-12" title={titlesT("select")} />
+            {showSku && <th className="table-th">{headersT("sku")}</th>}
             <th className="table-th">{headersT("category")}</th>
             <th className="table-th">{headersT("item")}</th>
             <th className="table-th w-28 text-right" title={titlesT("quantity")}>
@@ -333,6 +341,7 @@ export default function ItemsTable({
               item={item}
               locale={locale}
               isAdmin={isAdmin}
+              showSku={showSku}
               onToggle={onToggle}
               onChangeQty={onChangeQty}
               onChangeDiscountPct={onChangeDiscountPct}

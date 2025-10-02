@@ -1,10 +1,11 @@
 // src/app/api/teams/route.ts
 import { NextResponse } from "next/server";
+import { requireApiSession } from "@/app/api/_utils/require-auth";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { Role as DbRole } from "@prisma/client";
 
-// Sólo superadmin
+// Solo superadmin
 async function ensureSuperadmin() {
   const session = await auth();
   const myRole = (session?.user?.role as DbRole | undefined) ?? "usuario";
@@ -19,6 +20,9 @@ async function ensureSuperadmin() {
  * GET -> [{id, name}]
  */
 export async function GET() {
+  const { response } = await requireApiSession();
+  if (response) return response;
+
   const rows = await prisma.teamCatalog.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true },
@@ -54,19 +58,21 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id, name } = (await req.json()) as { id?: string; name?: string };
-  if (!id || !name?.trim()) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
+  if (!id || !name?.trim()) {
+    return NextResponse.json({ error: "Datos invalidos" }, { status: 400 });
+  }
 
   const current = await prisma.teamCatalog.findUnique({ where: { id } });
   if (!current) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
-  // Actualiza nombre en catálogo
+  // Actualiza nombre en catalogo
   const updated = await prisma.teamCatalog.update({
     where: { id },
     data: { name: name.trim() },
     select: { id: true, name: true },
   });
 
-  // También sincroniza usuarios que tenían el nombre anterior
+  // Tambien sincroniza usuarios que tenian el nombre anterior
   await prisma.user.updateMany({
     where: { team: current.name },
     data: { team: updated.name },
@@ -89,7 +95,7 @@ export async function DELETE(req: Request) {
   const row = await prisma.teamCatalog.findUnique({ where: { id } });
   if (!row) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
-  // Mueve o limpia usuarios que tenían ese equipo
+  // Mueve o limpia usuarios que tenian ese equipo
   await prisma.user.updateMany({
     where: { team: row.name },
     data: { team: replaceWith ? replaceWith : null },

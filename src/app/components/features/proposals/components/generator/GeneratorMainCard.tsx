@@ -51,6 +51,7 @@ export interface GeneratorMainCardProps {
   itemsTable: {
     items: UIItem[];
     isAdmin: boolean;
+    showSku: boolean;
     onToggle: (item: UIItem, checked: boolean) => void;
     onChangeQty: (itemId: string, qty: number) => void;
     onChangeDiscountPct: (itemId: string, pct: number) => void;
@@ -122,6 +123,7 @@ export default function GeneratorMainCard({
       <ItemsTable
         items={itemsTable.items}
         isAdmin={itemsTable.isAdmin}
+        showSku={itemsTable.showSku}
         onToggle={itemsTable.onToggle}
         onChangeQty={itemsTable.onChangeQty}
         onChangeDiscountPct={itemsTable.onChangeDiscountPct}

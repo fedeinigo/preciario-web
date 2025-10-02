@@ -34,9 +34,37 @@ type BotBody = {
   creatorEmail?: string;    // opcional; si existe se asocia a userId si lo encontramos
   items?: IncomingItem[];
   pipedriveLink?: string;   // opcional
+  apiKey?: string;          // opcional, compatibilidad
 };
 
 /* ======================= Helpers ======================= */
+function parseConfiguredKeys(): string[] {
+  const rawValues = [process.env.BOT_API_KEY, process.env.BOT_API_KEYS].filter(Boolean) as string[];
+  const tokens = new Set<string>();
+  rawValues.forEach((value) => {
+    value
+      .split(/[,;\s]+/)
+      .map((token) => token.trim())
+      .filter(Boolean)
+      .forEach((token) => tokens.add(token));
+  });
+  return Array.from(tokens);
+}
+
+function extractRequestKey(req: Request, body: BotBody): string | null {
+  const headerKey = req.headers.get("x-api-key")?.trim();
+  if (headerKey) return headerKey;
+
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.toLowerCase().startsWith("bearer ")) {
+    const token = authHeader.slice(7).trim();
+    if (token) return token;
+  }
+
+  const bodyKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
+  return bodyKey || null;
+}
+
 function toNumber(n: unknown, fallback = 0): number {
   const v = Number(n);
   return Number.isFinite(v) ? v : fallback;
@@ -55,6 +83,14 @@ function extractDealIdFromLink(s?: string): string | null {
 export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => ({}))) as BotBody;
+
+    const allowedKeys = parseConfiguredKeys();
+    if (allowedKeys.length > 0) {
+      const providedKey = extractRequestKey(req, body);
+      if (!providedKey || !allowedKeys.includes(providedKey)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
 
     const companyName = (body.companyName ?? "").trim();
     const country = (body.country ?? "").trim();

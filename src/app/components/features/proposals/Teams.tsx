@@ -85,29 +85,32 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
 
   const loading = loadingTeams || adminUsersLoading;
 
-  async function load({ refreshUsers = false }: { refreshUsers?: boolean } = {}) {
-    setLoadingTeams(true);
-    const reloadPromise =
-      refreshUsers && isSuperAdmin
-        ? reloadAdminUsers().catch(() => undefined)
-        : Promise.resolve();
-    try {
-      const t = await fetch("/api/teams", { cache: "no-store" });
-      setTeams(t.ok ? (await t.json()) : []);
-    } catch {
-      setTeams([]);
-    } finally {
-      setLoadingTeams(false);
-    }
-    await reloadPromise;
-  }
+  const load = React.useCallback(
+    async ({ refreshUsers = false }: { refreshUsers?: boolean } = {}) => {
+      setLoadingTeams(true);
+      const reloadPromise =
+        refreshUsers && isSuperAdmin
+          ? reloadAdminUsers().catch(() => undefined)
+          : Promise.resolve();
+      try {
+        const t = await fetch("/api/teams", { cache: "no-store" });
+        setTeams(t.ok ? (await t.json()) : []);
+      } catch {
+        setTeams([]);
+      } finally {
+        setLoadingTeams(false);
+      }
+      await reloadPromise;
+    },
+    [isSuperAdmin, reloadAdminUsers]
+  );
 
   React.useEffect(() => {
     load();
     const onFocus = () => load({ refreshUsers: true });
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, []);
+  }, [load]);
 
   // --- Mutaciones ---
   const createTeam = async () => {

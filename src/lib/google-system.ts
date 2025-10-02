@@ -257,7 +257,7 @@ async function getWhatsappRows(accessToken: string, filial: string): Promise<str
   return out;
 }
 
-/** ===================== Lógica auxiliar ===================== */
+/** ===================== LÃ³gica auxiliar ===================== */
 function pickTemplateIdByCountry(country?: string): string {
   const main = process.env.GOOGLE_DOCS_TEMPLATE_ID ?? process.env.GOOGLE_DOC_TEMPLATE_ID ?? "";
   if (!main) throw new Error("Falta GOOGLE_DOCS_TEMPLATE_ID en .env.local");
@@ -269,63 +269,100 @@ function pickTemplateIdByCountry(country?: string): string {
 }
 
 function autoSubsidiaryForCountry(countryName: string): string {
-  // Mismo mapeo que usás en el front (COUNTRY_TO_SUBSIDIARY)
-  const map: Record<string, string> = {
-    Argentina: "ARGENTINA",
-    Bolivia: "COLOMBIA",
-    Brasil: "BRASIL",
-    Chile: "USA",
-    Colombia: "COLOMBIA",
-    "Costa Rica": "ESPAÑA",
-    Ecuador: "ESPAÑA",
-    "El Salvador": "ESPAÑA",
-    España: "ESPAÑA",
-    Guatemala: "USA",
-    Haití: "USA",
-    Honduras: "USA",
-    Jamaica: "ESPAÑA",
-    México: "USA",
-    Nicaragua: "USA",
-    Panamá: "ESPAÑA",
-    Paraguay: "ESPAÑA",
-    Perú: "COLOMBIA",
-    "Puerto Rico": "USA",
-    "República Dominicana": "ESPAÑA",
-    Uruguay: "ESPAÑA",
-    Venezuela: "ESPAÑA",
+  const catalog: Record<string, string> = {
+    argentina: "ARGENTINA",
+    bolivia: "COLOMBIA",
+    brasil: "BRASIL",
+    chile: "USA",
+    colombia: "COLOMBIA",
+    "costa rica": "ESPANA",
+    ecuador: "ESPANA",
+    "el salvador": "ESPANA",
+    espana: "ESPANA",
+    guatemala: "USA",
+    haiti: "USA",
+    honduras: "USA",
+    jamaica: "ESPANA",
+    mexico: "USA",
+    nicaragua: "USA",
+    panama: "ESPANA",
+    paraguay: "ESPANA",
+    peru: "COLOMBIA",
+    "puerto rico": "USA",
+    "republica dominicana": "ESPANA",
+    uruguay: "ESPANA",
+    venezuela: "ESPANA",
   };
-  return map[countryName] ?? "ARGENTINA";
+  const normalized = countryName
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim()
+    .toLowerCase();
+  return catalog[normalized] ?? "ARGENTINA";
 }
+
 
 /** Convierte la lista de items (puede venir con SKUs) a [{name, unitPrice, devHours, quantity}] usando la DB */
 async function expandItemsFromDB(items: AnyItemInput[]): Promise<NamedItemInput[]> {
-  const out: NamedItemInput[] = [];
+  if (items.length === 0) return [];
+
+  const normalizedSkuToOriginal = new Map<string, string>();
 
   for (const it of items) {
-    if ("sku" in it && it.sku) {
-      const sku = String(it.sku);
-      const db = await prisma.item.findFirst({
-        where: { sku: { equals: sku, mode: "insensitive" } },
-        select: { name: true, unitPrice: true, devHours: true },
+    if ("sku" in it && typeof it.sku === "string" && it.sku.trim()) {
+      const normalized = it.sku.trim();
+      const key = normalized.toLowerCase();
+      if (!normalizedSkuToOriginal.has(key)) normalizedSkuToOriginal.set(key, normalized);
+    }
+  }
+
+  const dbBySku = new Map<string, { name: string; unitPrice: number; devHours: number }>();
+  if (normalizedSkuToOriginal.size > 0) {
+    const orConditions = Array.from(normalizedSkuToOriginal.values()).map((sku) => ({
+      sku: { equals: sku, mode: "insensitive" as const },
+    }));
+    const rows = await prisma.item.findMany({
+      where: { OR: orConditions },
+      select: { sku: true, name: true, unitPrice: true, devHours: true },
+    });
+
+    rows.forEach((row) => {
+      const key = row.sku.trim().toLowerCase();
+      dbBySku.set(key, {
+        name: row.name,
+        unitPrice: Number(row.unitPrice),
+        devHours: row.devHours,
       });
+    });
+  }
+
+  const resolved: NamedItemInput[] = [];
+  for (const it of items) {
+    if ("sku" in it && typeof it.sku === "string") {
+      const normalized = it.sku.trim().toLowerCase();
+      const db = dbBySku.get(normalized);
       if (db) {
-        out.push({
+        resolved.push({
           name: db.name,
-          unitPrice: Number(db.unitPrice),
+          unitPrice: db.unitPrice,
           devHours: db.devHours,
           quantity: it.quantity,
         });
       } else {
-        // fallback minimal si no está en catálogo
-        out.push({ name: sku, unitPrice: 0, devHours: 0, quantity: it.quantity });
+        resolved.push({ name: it.sku, unitPrice: 0, devHours: 0, quantity: it.quantity });
       }
     } else {
-      // viene con name/unitPrice/devHours
-      const ni = it as NamedItemInput;
-      out.push({ name: ni.name, unitPrice: ni.unitPrice, devHours: ni.devHours, quantity: ni.quantity });
+      const named = it as NamedItemInput;
+      resolved.push({
+        name: named.name,
+        unitPrice: named.unitPrice,
+        devHours: named.devHours,
+        quantity: named.quantity,
+      });
     }
   }
-  return out;
+
+  return resolved;
 }
 
 /** ===================== API principal ===================== */
@@ -339,7 +376,13 @@ export async function createProposalDocSystem(input: CreateProposalInput) {
 
   const expanded = await expandItemsFromDB(input.items);
 
-  const HOURS_RATE = Number(process.env.PROPOSAL_ONESHOT_RATE_USD ?? 50);
+  const HOURS_RATE = Number(
+    process.env.PROPOSAL_ONESHOT_RATE_USD ??
+    process.env.PROPOSAL_ONESHOT_RATE ??
+    process.env.PROPOSALS_ONESHOT_RATE ??
+    process.env.ONESHOT_RATE ??
+    50
+  );
   const totals = {
     monthly: expanded.reduce((acc, it) => acc + it.unitPrice * it.quantity, 0),
     hours:   expanded.reduce((acc, it) => acc + it.devHours   * it.quantity, 0),
@@ -377,7 +420,7 @@ export async function createProposalDocSystem(input: CreateProposalInput) {
     { replaceAllText: { containsText: { text: "<-totalmensual->", matchCase: false }, replaceText: formatUSD(totals.monthly) } },
   ];
 
-  // Ítems (tabla de precios)
+  // Ãtems (tabla de precios)
   expanded.forEach((it, idx) => {
     const n = idx + 1;
     requests.push(

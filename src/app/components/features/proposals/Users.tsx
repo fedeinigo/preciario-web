@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
+﻿/* eslint-disable @typescript-eslint/no-unused-expressions */
 // src/app/components/features/proposals/Users.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "@/app/components/ui/toast";
 import { Copy, MoreHorizontal, UserRound, X } from "lucide-react";
 import { copyToClipboard } from "./lib/clipboard";
@@ -123,40 +123,43 @@ export default function Users() {
   const loading = adminUsersLoading || loadingTeams;
   const [saving, setSaving] = useState<string | null>(null);
 
-  // para KPIs: usuarios activos por propuestas en los últimos 30 días
+  // para KPIs: usuarios activos por propuestas en los Ãºltimos 30 dÃ­as
   const [activeLast30, setActiveLast30] = useState<number>(0);
 
-  const load = async ({ refreshUsers = false }: { refreshUsers?: boolean } = {}) => {
-    setLoadingTeams(true);
-    const reloadPromise = refreshUsers
-      ? reloadAdminUsers().catch(() => undefined)
-      : Promise.resolve();
-    try {
-      const tRes = await fetch("/api/teams", { cache: "no-store" });
-      setTeams(tRes.ok ? await tRes.json() : []);
-
+  const load = useCallback(
+    async ({ refreshUsers = false }: { refreshUsers?: boolean } = {}) => {
+      setLoadingTeams(true);
+      const reloadPromise = refreshUsers
+        ? reloadAdminUsers().catch(() => undefined)
+        : Promise.resolve();
       try {
-        const now = new Date();
-        const to = now.toISOString().slice(0, 10);
-        const fromDate = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
-        const from = fromDate.toISOString().slice(0, 10);
-        const activeUsers = await fetchActiveUsersCount({ from, to });
-        setActiveLast30(activeUsers);
+        const tRes = await fetch("/api/teams", { cache: "no-store" });
+        setTeams(tRes.ok ? await tRes.json() : []);
+
+        try {
+          const now = new Date();
+          const to = now.toISOString().slice(0, 10);
+          const fromDate = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+          const from = fromDate.toISOString().slice(0, 10);
+          const activeUsers = await fetchActiveUsersCount({ from, to });
+          setActiveLast30(activeUsers);
+        } catch {
+          setActiveLast30(0);
+        }
       } catch {
+        setTeams([]);
         setActiveLast30(0);
+      } finally {
+        setLoadingTeams(false);
       }
-    } catch {
-      setTeams([]);
-      setActiveLast30(0);
-    } finally {
-      setLoadingTeams(false);
-    }
-    await reloadPromise;
-  };
+      await reloadPromise;
+    },
+    [reloadAdminUsers]
+  );
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   useEffect(() => {
     const onRefresh = () => {
@@ -164,12 +167,12 @@ export default function Users() {
     };
     window.addEventListener("proposals:refresh", onRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", onRefresh as EventListener);
-  }, []);
+  }, [load]);
 
   // Listado completo de equipos
   const allTeamNames = useMemo(() => teams.map((t) => t.name), [teams]);
 
-  // Equipos NO vacíos (al menos 1 usuario) — para selects
+  // Equipos NO vacÃ­os (al menos 1 usuario) â€” para selects
   const nonEmptyTeamNames = useMemo(() => {
     const count: Record<string, number> = {};
     users.forEach((u) => {
@@ -266,7 +269,7 @@ export default function Users() {
     }
   };
 
-  // ====== métricas para tarjetas ======
+  // ====== mÃ©tricas para tarjetas ======
   const total = users.length;
   const countSuperadmin = users.filter((u) => u.role === "superadmin").length;
   const countLeaders = users.filter((u) => u.role === "lider").length;
@@ -285,7 +288,7 @@ export default function Users() {
 
   const openHistoryForEmail = (email: string | null) => {
     if (!email) return;
-    // Deep-link simple a la pestaña de histórico con query email
+    // Deep-link simple a la pestaÃ±a de histÃ³rico con query email
     window.location.href = `/#history?email=${encodeURIComponent(email)}`;
   };
 
@@ -508,7 +511,7 @@ export default function Users() {
                     ).map(([k, label], idx) => {
                       const clickable = k !== "";
                       const active = k === sortKey;
-                      const dir = sortDir === "asc" ? "▲" : "▼";
+                      const dir = sortDir === "asc" ? "â–²" : "â–¼";
                       return (
                         <th
                           key={idx}
@@ -534,7 +537,7 @@ export default function Users() {
                           : "bg-[rgb(var(--primary-soft))]/40 hover:bg-white"
                       }
                     >
-                      {/* Email + avatar + acciones rápidas */}
+                      {/* Email + avatar + acciones rÃ¡pidas */}
                       <td className="table-td">
                         <div className="flex items-center gap-3">
                           <button
@@ -546,7 +549,7 @@ export default function Users() {
                           </button>
                           <div className="flex flex-col">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium">{u.email ?? "—"}</span>
+                              <span className="font-medium">{u.email ?? "â€”"}</span>
                               {u.email ? (
                                 <>
                                   <button
@@ -573,7 +576,7 @@ export default function Users() {
                                 </>
                               ) : null}
                             </div>
-                            {/* Último login sutil si existe */}
+                            {/* Ãšltimo login sutil si existe */}
                             {u.lastLoginAt ? (
                               <span className="text-[11px] text-gray-500 -mt-0.5">
                                 {tableT("lastLogin", { value: formatLastLogin(u) ?? "" })}
@@ -584,7 +587,7 @@ export default function Users() {
                       </td>
 
                       {/* Nombre */}
-                      <td className="table-td">{u.name ?? "—"}</td>
+                      <td className="table-td">{u.name ?? "â€”"}</td>
 
                       {/* Rol */}
                       <td className="table-td">
@@ -683,7 +686,7 @@ export default function Users() {
             )}
           </div>
 
-          {/* datalist con SOLO equipos no vacíos (por defecto) o todos si “Incluir vacíos” */}
+          {/* datalist con SOLO equipos no vacÃ­os (por defecto) o todos si â€œIncluir vacÃ­osâ€ */}
           <datalist id="users-teams">
             {(includeEmptyTeams ? allTeamNames : nonEmptyTeamNames).map((t) => (
               <option key={t} value={t} />
@@ -692,7 +695,7 @@ export default function Users() {
         </div>
       </div>
 
-      {/* Modal de perfil / objetivo (viewer: esta vista suele ser de admins; pasamos superadmin para edición) */}
+      {/* Modal de perfil / objetivo (viewer: esta vista suele ser de admins; pasamos superadmin para ediciÃ³n) */}
       {profileUser && (
         <UserProfileModal
           open={profileOpen}
@@ -704,3 +707,5 @@ export default function Users() {
     </div>
   );
 }
+
+

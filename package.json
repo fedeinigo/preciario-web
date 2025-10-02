@@ -17,7 +17,7 @@
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
     "test": "npm run test:unit",
-    "test:unit": "node -e \"require('fs').rmSync('.tmp/test-dist', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .tmp/test-dist/tests/unit",
+    "test:unit": "node -e \"require('fs').rmSync('.tmp/test-dist', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test \".tmp/test-dist/tests/unit/**/*.js\"",
     "test:e2e": "node -e \"require('fs').rmSync('.tmp/test-dist', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .tmp/test-dist/tests/e2e"
   },
   "dependencies": {
