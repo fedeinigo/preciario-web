@@ -22,6 +22,10 @@ import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
 import { normalizeSearchText } from "@/lib/normalize-search-text";
+import {
+  fetchAllProposals,
+  type ProposalsListMeta,
+} from "./lib/proposals-response";
 
 type AppRole = "superadmin" | "lider" | "usuario";
 type AdminUserRow = { email: string | null; team: string | null; role?: AppRole };
@@ -94,12 +98,17 @@ export default function History({
 
   const [rows, setRows] = useState<ProposalRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [remoteMeta, setRemoteMeta] = useState<ProposalsListMeta | undefined>();
 
   const load = async () => {
     setLoading(true);
     try {
-      const r = await fetch("/api/proposals", { cache: "no-store" });
-      setRows(r.ok ? ((await r.json()) as ProposalRecord[]) : []);
+      const { proposals, meta } = await fetchAllProposals();
+      setRows(proposals);
+      setRemoteMeta(meta);
+    } catch {
+      setRows([]);
+      setRemoteMeta(undefined);
     } finally {
       setLoading(false);
     }
@@ -275,7 +284,11 @@ export default function History({
     sortDir,
   ]);
 
-  const totalPages = Math.max(1, Math.ceil(subset.length / pageSize));
+  const localTotalPages = Math.max(1, Math.ceil(subset.length / pageSize));
+  const totalPages =
+    remoteMeta?.totalPages && remoteMeta.totalPages > 0
+      ? Math.max(localTotalPages, Math.ceil(remoteMeta.totalPages))
+      : localTotalPages;
   const pageStart = (page - 1) * pageSize;
   const paged = subset.slice(pageStart, pageStart + pageSize);
 

@@ -21,6 +21,7 @@ import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import { formatUSD } from "@/app/components/features/proposals/lib/format";
 import { q1Range, q2Range, q3Range, q4Range } from "@/app/components/features/proposals/lib/dateRanges";
+import { fetchAllProposals } from "@/app/components/features/proposals/lib/proposals-response";
 import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { locales } from "@/lib/i18n/config";
@@ -188,25 +189,17 @@ export default function Navbar() {
 
   const loadMyProgress = React.useCallback(async () => {
     try {
-      const r = await fetch("/api/proposals", { cache: "no-store" });
-      if (!r.ok) return setProgress(0);
-      const all = (await r.json()) as Array<{
-        userEmail: string | null;
-        status?: "OPEN" | "LOST" | "WON" | null;
-        totalAmount: number;
-        createdAt: string;
-      }>;
+      const { proposals } = await fetchAllProposals();
       const from = new Date(range.from).getTime();
       const to = new Date(range.to).getTime();
-      const sum = all
-        .filter(
-          (p) =>
-            p.userEmail === currentEmail &&
-            p.status === "WON" &&
-            new Date(p.createdAt).getTime() >= from &&
-            new Date(p.createdAt).getTime() <= to
-        )
-        .reduce((acc, p) => acc + Number(p.totalAmount || 0), 0);
+      const sum = proposals
+        .filter((p) => {
+          if (p.userEmail !== currentEmail) return false;
+          if ((p.status ?? "").toUpperCase() !== "WON") return false;
+          const ts = new Date(p.createdAt as string).getTime();
+          return ts >= from && ts <= to;
+        })
+        .reduce((acc, p) => acc + Number(p.totalAmount ?? 0), 0);
       setProgress(sum);
     } catch {
       setProgress(0);
