@@ -189,6 +189,14 @@ export default function Stats({
     return () => window.removeEventListener("focus", onFocus);
   }, [load]);
 
+  useEffect(() => {
+    const onRefresh = () => {
+      load();
+    };
+    window.addEventListener("proposals:refresh", onRefresh as EventListener);
+    return () => window.removeEventListener("proposals:refresh", onRefresh as EventListener);
+  }, [load]);
+
   // emails -> team
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
   useEffect(() => {

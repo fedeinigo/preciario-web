@@ -146,6 +146,17 @@ export default function GoalsPage({
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
 
+  React.useEffect(() => {
+    const handleRefresh = () => {
+      loadMyProgress();
+      if (isSuperAdmin || role === "lider") {
+        loadTeam();
+      }
+    };
+    window.addEventListener("proposals:refresh", handleRefresh as EventListener);
+    return () => window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
+  }, [isSuperAdmin, role, loadMyProgress, loadTeam]);
+
   const saveUserGoal = async (userId: string, amount: number) => {
     const res = await fetch("/api/goals/user", {
       method: "PUT",
