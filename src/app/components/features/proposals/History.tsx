@@ -3,6 +3,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import type { ProposalRecord } from "@/lib/types";
+import type { AppRole } from "@/constants/teams";
 import { formatUSD, formatDateTime } from "./lib/format";
 import { buildCsv, downloadCsv } from "./lib/csv";
 import { copyToClipboard } from "./lib/clipboard";
@@ -26,9 +27,7 @@ import {
   fetchAllProposals,
   type ProposalsListMeta,
 } from "./lib/proposals-response";
-
-type AppRole = "superadmin" | "lider" | "usuario";
-type AdminUserRow = { email: string | null; team: string | null; role?: AppRole };
+import { useAdminUsers } from "./hooks/useAdminUsers";
 
 type SortKey = "id" | "company" | "country" | "email" | "monthly" | "created" | "status";
 type SortDir = "asc" | "desc";
@@ -130,17 +129,11 @@ export default function History({
   }, []);
 
   // Aux
-  const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
+  const { users: adminUsers } = useAdminUsers({
+    isSuperAdmin,
+    isLeader: role === "lider",
+  });
   const [teams, setTeams] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (isSuperAdmin || role === "lider") {
-      fetch("/api/admin/users", { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : []))
-        .then((u: AdminUserRow[]) => setAdminUsers(u))
-        .catch(() => setAdminUsers([]));
-    }
-  }, [isSuperAdmin, role]);
 
   // sólo equipos con integrantes (igual que en Objetivos/Stats)
   useEffect(() => {

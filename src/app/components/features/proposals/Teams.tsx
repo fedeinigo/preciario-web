@@ -6,15 +6,10 @@ import { Users, Crown, Pencil, Trash2, UserCheck } from "lucide-react";
 import ConfirmDialog from "@/app/components/ui/ConfirmDialog";
 import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
+import { useAdminUsers } from "./hooks/useAdminUsers";
+import type { AdminUser } from "./hooks/useAdminUsers";
 
 type TeamRow = { id: string; name: string; emoji?: string | null };
-
-type AdminUser = {
-  email: string | null;
-  name?: string | null;
-  role?: string | null;
-  team: string | null;
-};
 
 // Helper de tipado seguro para leer errores de APIs
 function extractApiError(data: unknown): string | undefined {
@@ -62,8 +57,12 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const dialogT = useTranslations("admin.teams.dialogs");
 
   const [teams, setTeams] = React.useState<TeamRow[]>([]);
-  const [users, setUsers] = React.useState<AdminUser[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const {
+    users,
+    loading: adminUsersLoading,
+    reload: reloadAdminUsers,
+  } = useAdminUsers({ isSuperAdmin });
+  const [loadingTeams, setLoadingTeams] = React.useState(true);
 
   // creación
   const [newTeam, setNewTeam] = React.useState("");
@@ -84,26 +83,28 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   // toggle admin: mostrar también equipos vacíos
   const [showAllTeams, setShowAllTeams] = React.useState(false);
 
-  async function load() {
-    setLoading(true);
+  const loading = loadingTeams || adminUsersLoading;
+
+  async function load({ refreshUsers = false }: { refreshUsers?: boolean } = {}) {
+    setLoadingTeams(true);
+    const reloadPromise =
+      refreshUsers && isSuperAdmin
+        ? reloadAdminUsers().catch(() => undefined)
+        : Promise.resolve();
     try {
-      const [t, u] = await Promise.all([
-        fetch("/api/teams", { cache: "no-store" }),
-        fetch("/api/admin/users", { cache: "no-store" }),
-      ]);
+      const t = await fetch("/api/teams", { cache: "no-store" });
       setTeams(t.ok ? (await t.json()) : []);
-      setUsers(u.ok ? (await u.json()) : []);
     } catch {
       setTeams([]);
-      setUsers([]);
     } finally {
-      setLoading(false);
+      setLoadingTeams(false);
     }
+    await reloadPromise;
   }
 
   React.useEffect(() => {
     load();
-    const onFocus = () => load();
+    const onFocus = () => load({ refreshUsers: true });
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
@@ -126,7 +127,7 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       }
       setNewTeam("");
       toast.success(toastT("createSuccess"));
-      await load();
+      await load({ refreshUsers: true });
     } catch {
       toast.error(toastT("createError"));
     } finally {
@@ -155,7 +156,7 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       }
       toast.success(toastT("renameSuccess"));
       setRenameOpen(false);
-      await load();
+      await load({ refreshUsers: true });
     } catch {
       toast.error(toastT("renameError"));
     } finally {
@@ -183,7 +184,7 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       }
       toast.success(toastT("deleteSuccess"));
       setDeleteOpen(false);
-      await load();
+      await load({ refreshUsers: true });
     } catch {
       toast.error(toastT("deleteError"));
     } finally {

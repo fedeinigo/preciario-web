@@ -7,6 +7,7 @@ import { toast } from "@/app/components/ui/toast";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
 import { useTranslations } from "@/app/LanguageProvider";
 import { q1Range, q2Range, q3Range, q4Range } from "../proposals/lib/dateRanges";
+import { useAdminUsers } from "../proposals/hooks/useAdminUsers";
 import QuarterPicker from "./components/QuarterPicker";
 import IndividualGoalCard from "./components/IndividualGoalCard";
 import TeamGoalCard from "./components/TeamGoalCard";
@@ -29,6 +30,11 @@ export default function GoalsPage({
   const pageT = useTranslations("goals.page");
   const toastT = useTranslations("goals.toast");
   const csvT = useTranslations("goals.csv");
+
+  const { users: adminUsers } = useAdminUsers({
+    isSuperAdmin,
+    isLeader: role === "lider",
+  });
 
   const now = new Date();
   const [year, setYear] = React.useState<number>(now.getFullYear());
@@ -92,29 +98,19 @@ export default function GoalsPage({
   };
 
   // ---- Equipo (visibles para TODOS). Para superadmin: ocultar equipos vacíos.
-  const [teams, setTeams] = React.useState<string[]>([]);
-  React.useEffect(() => {
-    if (!isSuperAdmin) return;
-    (async () => {
-      try {
-        const usersRes = await fetch("/api/admin/users", { cache: "no-store" });
-        const users: Array<{ team: string | null }> = usersRes.ok ? await usersRes.json() : [];
-        const counts = new Map<string, number>();
-        users.forEach((u) => {
-          const t = (u.team || "").trim();
-          if (!t) return;
-          counts.set(t, (counts.get(t) || 0) + 1);
-        });
-        const list = Array.from(counts.entries())
-          .filter(([, c]) => c > 0)
-          .map(([name]) => name)
-          .sort((a, b) => a.localeCompare(b));
-        setTeams(list);
-      } catch {
-        setTeams([]);
-      }
-    })();
-  }, [isSuperAdmin]);
+  const teams = React.useMemo(() => {
+    if (!isSuperAdmin) return [] as string[];
+    const counts = new Map<string, number>();
+    adminUsers.forEach((u) => {
+      const t = (u.team || "").trim();
+      if (!t) return;
+      counts.set(t, (counts.get(t) || 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .filter(([, count]) => count > 0)
+      .map(([name]) => name)
+      .sort((a, b) => a.localeCompare(b));
+  }, [adminUsers, isSuperAdmin]);
 
   const [teamFilter, setTeamFilter] = React.useState<string>("");
   const effectiveTeam = isSuperAdmin ? teamFilter : (leaderTeam ?? "");
