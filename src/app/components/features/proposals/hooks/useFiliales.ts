@@ -50,7 +50,9 @@ export function useFiliales() {
           setFiliales([]);
           return {
             ok: false,
-            error: await parseProposalErrorResponse(response, "filiales.loadFailed"),
+            error: await parseProposalErrorResponse(response, "filiales.loadFailed", {
+              unauthorizedCode: "filiales.unauthorized",
+            }),
           };
         }
         const data = (await response.json()) as FilialGroup[];
@@ -83,7 +85,9 @@ export function useFiliales() {
         if (!response.ok) {
           return {
             ok: false,
-            error: await parseProposalErrorResponse(response, "filiales.createGroupFailed"),
+            error: await parseProposalErrorResponse(response, "filiales.createGroupFailed", {
+              unauthorizedCode: "filiales.unauthorized",
+            }),
           };
         }
         return reload();
@@ -105,7 +109,9 @@ export function useFiliales() {
         if (!response.ok) {
           return {
             ok: false,
-            error: await parseProposalErrorResponse(response, "filiales.renameGroupFailed"),
+            error: await parseProposalErrorResponse(response, "filiales.renameGroupFailed", {
+              unauthorizedCode: "filiales.unauthorized",
+            }),
           };
         }
         return reload();
@@ -123,7 +129,9 @@ export function useFiliales() {
         if (!response.ok) {
           return {
             ok: false,
-            error: await parseProposalErrorResponse(response, "filiales.deleteGroupFailed"),
+            error: await parseProposalErrorResponse(response, "filiales.deleteGroupFailed", {
+              unauthorizedCode: "filiales.unauthorized",
+            }),
           };
         }
         return reload();
@@ -145,7 +153,9 @@ export function useFiliales() {
         if (!response.ok) {
           return {
             ok: false,
-            error: await parseProposalErrorResponse(response, "filiales.createCountryFailed"),
+            error: await parseProposalErrorResponse(response, "filiales.createCountryFailed", {
+              unauthorizedCode: "filiales.unauthorized",
+            }),
           };
         }
         return reload();
@@ -167,7 +177,9 @@ export function useFiliales() {
         if (!response.ok) {
           return {
             ok: false,
-            error: await parseProposalErrorResponse(response, "filiales.renameCountryFailed"),
+            error: await parseProposalErrorResponse(response, "filiales.renameCountryFailed", {
+              unauthorizedCode: "filiales.unauthorized",
+            }),
           };
         }
         return reload();
@@ -189,7 +201,9 @@ export function useFiliales() {
         if (!response.ok) {
           return {
             ok: false,
-            error: await parseProposalErrorResponse(response, "filiales.deleteCountryFailed"),
+            error: await parseProposalErrorResponse(response, "filiales.deleteCountryFailed", {
+              unauthorizedCode: "filiales.unauthorized",
+            }),
           };
         }
         return reload();

@@ -1,5 +1,7 @@
 // src/app/api/filiales/route.ts
 import { NextResponse } from "next/server";
+
+import { ensureSessionRole, requireApiSession } from "@/app/api/_utils/require-auth";
 import prisma from "@/lib/prisma";
 
 type GroupDTO = {
@@ -9,6 +11,9 @@ type GroupDTO = {
 };
 
 export async function GET() {
+  const { response } = await requireApiSession();
+  if (response) return response;
+
   const groups = await prisma.filialGroup.findMany({
     orderBy: { title: "asc" },
     include: {
@@ -26,6 +31,12 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const { session, response } = await requireApiSession();
+  if (response) return response;
+
+  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  if (forbidden) return forbidden;
+
   const body: { title: string } = await req.json();
   const created = await prisma.filialGroup.create({
     data: { title: body.title },
