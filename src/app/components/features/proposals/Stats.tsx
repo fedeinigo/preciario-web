@@ -24,6 +24,7 @@ import {
   fetchAllProposals,
   type ProposalsListMeta,
 } from "./lib/proposals-response";
+import { useAdminUsers } from "./hooks/useAdminUsers";
 
 /** Header full-bleed como en Objetivos */
 function PageHeader({ children }: { children: React.ReactNode }) {
@@ -118,7 +119,6 @@ function QuickRanges({
   );
 }
 
-type AdminUserRow = { email: string | null; role: AppRole; team: string | null };
 type ProposalForStats = ProposalRecord & {
   items?: Array<{ sku: string; name: string; quantity: number }>;
 };
@@ -198,15 +198,10 @@ export default function Stats({
   }, [load]);
 
   // emails -> team
-  const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
-  useEffect(() => {
-    if (isSuperAdmin || role === "lider") {
-      fetch("/api/admin/users", { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : []))
-        .then((rows: AdminUserRow[]) => setAdminUsers(rows))
-        .catch(() => setAdminUsers([]));
-    }
-  }, [isSuperAdmin, role]);
+  const { users: adminUsers } = useAdminUsers({
+    isSuperAdmin,
+    isLeader: role === "lider",
+  });
   const emailToTeam = useMemo(() => {
     const map = new Map<string, string | null>();
     adminUsers.forEach((u) => {

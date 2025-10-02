@@ -10,6 +10,7 @@ import UserProfileModal from "@/app/components/ui/UserProfileModal";
 import { useTranslations } from "@/app/LanguageProvider";
 import { normalizeSearchText } from "@/lib/normalize-search-text";
 import { fetchActiveUsersCount } from "./lib/proposals-response";
+import { useAdminUsers } from "./hooks/useAdminUsers";
 
 type Role = "superadmin" | "lider" | "usuario";
 
@@ -112,25 +113,28 @@ export default function Users() {
   const rolesT = useTranslations("common.roles");
 
   // ====== data ======
-  const [users, setUsers] = useState<UserRow[]>([]);
+  const {
+    users,
+    loading: adminUsersLoading,
+    reload: reloadAdminUsers,
+  } = useAdminUsers({ isSuperAdmin: true });
   const [teams, setTeams] = useState<TeamRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingTeams, setLoadingTeams] = useState(true);
+  const loading = adminUsersLoading || loadingTeams;
   const [saving, setSaving] = useState<string | null>(null);
 
   // para KPIs: usuarios activos por propuestas en los últimos 30 días
   const [activeLast30, setActiveLast30] = useState<number>(0);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async ({ refreshUsers = false }: { refreshUsers?: boolean } = {}) => {
+    setLoadingTeams(true);
+    const reloadPromise = refreshUsers
+      ? reloadAdminUsers().catch(() => undefined)
+      : Promise.resolve();
     try {
-      const [uRes, tRes] = await Promise.all([
-        fetch("/api/admin/users", { cache: "no-store" }),
-        fetch("/api/teams", { cache: "no-store" }),
-      ]);
-      setUsers(uRes.ok ? await uRes.json() : []);
+      const tRes = await fetch("/api/teams", { cache: "no-store" });
       setTeams(tRes.ok ? await tRes.json() : []);
 
-      // activos 30d (sin bloquear la UI si falla)
       try {
         const now = new Date();
         const to = now.toISOString().slice(0, 10);
@@ -141,9 +145,13 @@ export default function Users() {
       } catch {
         setActiveLast30(0);
       }
+    } catch {
+      setTeams([]);
+      setActiveLast30(0);
     } finally {
-      setLoading(false);
+      setLoadingTeams(false);
     }
+    await reloadPromise;
   };
 
   useEffect(() => {
@@ -152,7 +160,7 @@ export default function Users() {
 
   useEffect(() => {
     const onRefresh = () => {
-      load();
+      load({ refreshUsers: true });
     };
     window.addEventListener("proposals:refresh", onRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", onRefresh as EventListener);
@@ -251,7 +259,7 @@ export default function Users() {
         return;
       }
 
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, ...changes } : u)));
+      await reloadAdminUsers().catch(() => undefined);
       toast.success(toastT("saved"));
     } finally {
       setSaving(null);
@@ -371,7 +379,11 @@ export default function Users() {
             <button className="btn-bar" onClick={exportCsv} title={actionsT("exportCsv")}>
               {actionsT("exportCsv")}
             </button>
-            <button className="btn-bar" onClick={load} title={actionsT("refresh")}>
+            <button
+              className="btn-bar"
+              onClick={() => load({ refreshUsers: true })}
+              title={actionsT("refresh")}
+            >
               {actionsT("refresh")}
             </button>
           </div>
@@ -469,7 +481,7 @@ export default function Users() {
                   <button className="btn-ghost" onClick={clearFilters}>
                     {filtersT("clear")}
                   </button>
-                  <button className="btn-primary" onClick={load}>
+                  <button className="btn-primary" onClick={() => load({ refreshUsers: true })}>
                     {actionsT("refresh")}
                   </button>
                 </div>
