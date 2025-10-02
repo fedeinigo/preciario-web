@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { parseProposalsListResponse } from "../../src/app/components/features/proposals/lib/proposals-response";
+import {
+  fetchAllProposals,
+  parseProposalsListResponse,
+} from "../../src/app/components/features/proposals/lib/proposals-response";
 import type { ProposalRecord } from "../../src/lib/types";
 
 const sampleProposal: ProposalRecord = {
@@ -39,5 +42,98 @@ test("parseProposalsListResponse handles object payloads with meta", () => {
   assert.equal(meta?.page, 1);
   assert.equal(meta?.totalItems, 1);
   assert.equal(meta?.totalPages, 1);
+});
+
+type Deferred<T> = {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+};
+
+const createDeferred = <T>(): Deferred<T> => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+};
+
+const createResponse = (body: unknown): Response =>
+  ({
+    ok: true,
+    status: 200,
+    json: async () => body,
+  }) as Response;
+
+test("fetchAllProposals fetches remaining pages in parallel and preserves order", async () => {
+  const originalFetch = globalThis.fetch;
+  const fetchCalls: string[] = [];
+  const releases: Array<() => void> = [];
+
+  const proposalsByPage: ProposalRecord[][] = [
+    [
+      { ...sampleProposal, id: "p-1" },
+      { ...sampleProposal, id: "p-2", seq: 2 },
+    ],
+    [
+      { ...sampleProposal, id: "p-3", seq: 3 },
+      { ...sampleProposal, id: "p-4", seq: 4 },
+    ],
+    [
+      { ...sampleProposal, id: "p-5", seq: 5 },
+      { ...sampleProposal, id: "p-6", seq: 6 },
+    ],
+  ];
+
+  const responses = [
+    { data: proposalsByPage[0], meta: { page: 1, pageSize: 2, totalItems: 6, totalPages: 3 } },
+    { data: proposalsByPage[1], meta: { page: 2 } },
+    { data: proposalsByPage[2], meta: { page: 3, totalItems: 6, totalPages: 3 } },
+  ];
+
+  let callIndex = 0;
+  globalThis.fetch = ((input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input.toString();
+    const responseBody = responses[callIndex];
+    fetchCalls.push(url);
+    callIndex += 1;
+
+    if (!responseBody) {
+      throw new Error(`Unexpected fetch call to ${url}`);
+    }
+
+    if (fetchCalls.length === 1) {
+      return Promise.resolve(createResponse(responseBody));
+    }
+
+    const deferred = createDeferred<Response>();
+    releases.push(() => deferred.resolve(createResponse(responseBody)));
+    return deferred.promise;
+  }) as typeof fetch;
+
+  try {
+    const resultPromise = fetchAllProposals();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    assert.equal(fetchCalls.length, 3);
+    assert.equal(fetchCalls[0], "/api/proposals?page=1&pageSize=100");
+    assert.equal(fetchCalls[1], "/api/proposals?page=2&pageSize=2");
+    assert.equal(fetchCalls[2], "/api/proposals?page=3&pageSize=2");
+
+    releases.forEach((release) => release());
+
+    const { proposals, meta } = await resultPromise;
+    assert.deepEqual(
+      proposals.map((proposal) => proposal.id),
+      proposalsByPage.flat().map((proposal) => proposal.id),
+    );
+    assert.equal(meta?.page, 3);
+    assert.equal(meta?.pageSize, 2);
+    assert.equal(meta?.totalItems, 6);
+    assert.equal(meta?.totalPages, 3);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 

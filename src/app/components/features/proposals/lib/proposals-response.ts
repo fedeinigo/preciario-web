@@ -68,11 +68,26 @@ export function parseProposalsListResponse(input: unknown): ProposalsListResult 
   return { proposals: [] };
 }
 
-export async function fetchAllProposals(init?: RequestInit): Promise<ProposalsListResult> {
-  const baseInit: RequestInit = { ...init, cache: init?.cache ?? "no-store" };
+const hasTotals = (meta?: ProposalsListMeta): boolean =>
+  Boolean(meta && (meta.totalItems !== undefined || meta.totalPages !== undefined));
+
+const mergeMeta = (
+  base: ProposalsListMeta | undefined,
+  incoming: ProposalsListMeta,
+): ProposalsListMeta => (base ? { ...base, ...incoming } : { ...incoming });
+
+export async function fetchAllProposals(init?: RequestInit & { pageSize?: number }): Promise<ProposalsListResult> {
+  const { pageSize: requestedPageSize, ...restInit } = (init ?? {}) as RequestInit & { pageSize?: number };
+  const baseInit: RequestInit = { ...restInit, cache: restInit.cache ?? "no-store" };
   const buildInit = () => ({ ...baseInit });
 
-  const firstResponse = await fetch("/api/proposals", buildInit());
+  const normalizedRequested =
+    typeof requestedPageSize === "number" && requestedPageSize > 0
+      ? Math.floor(requestedPageSize)
+      : undefined;
+  const firstPageSize = normalizedRequested ?? 100;
+  const firstQuery = new URLSearchParams({ page: "1", pageSize: String(firstPageSize) });
+  const firstResponse = await fetch(`/api/proposals?${firstQuery.toString()}`, buildInit());
   if (!firstResponse.ok) {
     const error = new Error("Failed to fetch proposals") as FetchError;
     error.status = firstResponse.status;
@@ -82,22 +97,38 @@ export async function fetchAllProposals(init?: RequestInit): Promise<ProposalsLi
   const firstParsed = parseProposalsListResponse(await firstResponse.json());
   let proposals = [...firstParsed.proposals];
   let meta = firstParsed.meta;
+  let latestMetaWithTotals = hasTotals(meta) ? meta : undefined;
 
   const totalPages = meta?.totalPages && meta.totalPages > 1 ? Math.floor(meta.totalPages) : 1;
   if (totalPages > 1) {
     const pageSize = meta?.pageSize && meta.pageSize > 0 ? Math.floor(meta.pageSize) : proposals.length || 20;
-    for (let page = 2; page <= totalPages; page++) {
-      const response = await fetch(`/api/proposals?page=${page}&pageSize=${pageSize}`, buildInit());
-      if (!response.ok) {
-        const error = new Error("Failed to fetch proposals") as FetchError;
-        error.status = response.status;
-        throw error;
-      }
-      const parsed = parseProposalsListResponse(await response.json());
+    const pageNumbers = Array.from({ length: totalPages - 1 }, (_, index) => index + 2);
+    const pageResults = await Promise.all(
+      pageNumbers.map(async (page) => {
+        const response = await fetch(`/api/proposals?page=${page}&pageSize=${pageSize}`, buildInit());
+        if (!response.ok) {
+          const error = new Error("Failed to fetch proposals") as FetchError;
+          error.status = response.status;
+          throw error;
+        }
+        return parseProposalsListResponse(await response.json());
+      }),
+    );
+
+    for (const parsed of pageResults) {
       proposals = proposals.concat(parsed.proposals);
-      meta = parsed.meta ?? meta;
+      if (!parsed.meta) continue;
+
+      if (hasTotals(parsed.meta)) {
+        latestMetaWithTotals = mergeMeta(latestMetaWithTotals, parsed.meta);
+        meta = latestMetaWithTotals;
+      } else if (latestMetaWithTotals) {
+        meta = mergeMeta(latestMetaWithTotals, parsed.meta);
+      } else {
+        meta = mergeMeta(meta, parsed.meta);
+      }
     }
   }
 
-  return { proposals, meta };
+  return { proposals, meta: latestMetaWithTotals ?? meta };
 }
