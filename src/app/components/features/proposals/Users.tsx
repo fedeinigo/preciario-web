@@ -9,6 +9,7 @@ import { copyToClipboard } from "./lib/clipboard";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
 import { useTranslations } from "@/app/LanguageProvider";
 import { normalizeSearchText } from "@/lib/normalize-search-text";
+import { fetchAllProposals } from "./lib/proposals-response";
 
 type Role = "superadmin" | "lider" | "usuario";
 
@@ -131,19 +132,14 @@ export default function Users() {
 
       // activos 30d (sin bloquear la UI si falla)
       try {
-        const pRes = await fetch("/api/proposals", { cache: "no-store" });
-        if (pRes.ok) {
-          const rows = (await pRes.json()) as Array<{ userEmail: string | null; createdAt: string }>;
-          const since = Date.now() - 30 * 24 * 3600 * 1000;
-          const set = new Set(
-            rows
-              .filter((r) => r.userEmail && new Date(r.createdAt).getTime() >= since)
-              .map((r) => r.userEmail as string)
-          );
-          setActiveLast30(set.size);
-        } else {
-          setActiveLast30(0);
-        }
+        const { proposals } = await fetchAllProposals();
+        const since = Date.now() - 30 * 24 * 3600 * 1000;
+        const activeUsers = new Set(
+          proposals
+            .filter((r) => r.userEmail && new Date(r.createdAt as string).getTime() >= since)
+            .map((r) => r.userEmail as string)
+        );
+        setActiveLast30(activeUsers.size);
       } catch {
         setActiveLast30(0);
       }

@@ -20,6 +20,10 @@ import {
   prevWeekRange,
 } from "./lib/dateRanges";
 import { useTranslations } from "@/app/LanguageProvider";
+import {
+  fetchAllProposals,
+  type ProposalsListMeta,
+} from "./lib/proposals-response";
 
 /** Header full-bleed como en Objetivos */
 function PageHeader({ children }: { children: React.ReactNode }) {
@@ -157,28 +161,33 @@ export default function Stats({
   // datos
   const [loading, setLoading] = useState(true);
   const [all, setAll] = useState<ProposalForStats[]>([]);
+  const [_listMeta, setListMeta] = useState<ProposalsListMeta | undefined>();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const r = await fetch("/api/proposals", { cache: "no-store" });
-      if (!r.ok) {
-        toast.error(toastT("loadError"));
+  const load = useCallback(
+    async (_reason: "initial" | "focus" = "initial") => {
+      setLoading(true);
+      try {
+        const { proposals, meta } = await fetchAllProposals();
+        setAll(proposals);
+        setListMeta(meta);
+      } catch (error) {
         setAll([]);
-      } else {
-        setAll((await r.json()) as ProposalForStats[]);
+        setListMeta(undefined);
+        const status =
+          error instanceof Error && typeof (error as { status?: unknown }).status === "number"
+            ? (error as { status?: number }).status
+            : undefined;
+        toast.error(toastT(status ? "loadError" : "networkError"));
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      toast.error(toastT("networkError"));
-      setAll([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [toastT]);
+    },
+    [toastT]
+  );
 
   useEffect(() => {
     load();
-    const onFocus = () => load();
+    const onFocus = () => load("focus");
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [load]);
@@ -193,7 +202,6 @@ export default function Stats({
         .catch(() => setAdminUsers([]));
     }
   }, [isSuperAdmin, role]);
-
   const emailToTeam = useMemo(() => {
     const map = new Map<string, string | null>();
     adminUsers.forEach((u) => {
