@@ -1,5 +1,7 @@
 // src/app/api/filiales/[id]/route.ts
 import { NextResponse } from "next/server";
+
+import { ensureSessionRole, requireApiSession } from "@/app/api/_utils/require-auth";
 import prisma from "@/lib/prisma";
 
 // /api/filiales/[id]
@@ -16,6 +18,12 @@ function getGroupIdFromUrl(req: Request): string | null {
 }
 
 export async function PATCH(req: Request) {
+  const { session, response } = await requireApiSession();
+  if (response) return response;
+
+  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  if (forbidden) return forbidden;
+
   const id = getGroupIdFromUrl(req);
   if (!id) {
     return NextResponse.json({ error: "id no encontrado en la URL" }, { status: 400 });
@@ -33,6 +41,12 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const { session, response } = await requireApiSession();
+  if (response) return response;
+
+  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  if (forbidden) return forbidden;
+
   const id = getGroupIdFromUrl(req);
   if (!id) {
     return NextResponse.json({ error: "id no encontrado en la URL" }, { status: 400 });

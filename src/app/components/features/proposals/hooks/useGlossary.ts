@@ -44,7 +44,9 @@ export function useGlossary() {
           setGlossary([]);
           return {
             ok: false,
-            error: await parseProposalErrorResponse(response, "glossary.loadFailed"),
+            error: await parseProposalErrorResponse(response, "glossary.loadFailed", {
+              unauthorizedCode: "glossary.unauthorized",
+            }),
           };
         }
         const data = (await response.json()) as GlossaryLink[];
@@ -76,7 +78,9 @@ export function useGlossary() {
       if (!response.ok) {
         return {
           ok: false,
-          error: await parseProposalErrorResponse(response, "glossary.createFailed"),
+          error: await parseProposalErrorResponse(response, "glossary.createFailed", {
+            unauthorizedCode: "glossary.unauthorized",
+          }),
         };
       }
       return reload();
@@ -95,7 +99,9 @@ export function useGlossary() {
       if (!response.ok) {
         return {
           ok: false,
-          error: await parseProposalErrorResponse(response, "glossary.updateFailed"),
+          error: await parseProposalErrorResponse(response, "glossary.updateFailed", {
+            unauthorizedCode: "glossary.unauthorized",
+          }),
         };
       }
       return reload();
@@ -110,7 +116,9 @@ export function useGlossary() {
       if (!response.ok) {
         return {
           ok: false,
-          error: await parseProposalErrorResponse(response, "glossary.deleteFailed"),
+          error: await parseProposalErrorResponse(response, "glossary.deleteFailed", {
+            unauthorizedCode: "glossary.unauthorized",
+          }),
         };
       }
       return reload();

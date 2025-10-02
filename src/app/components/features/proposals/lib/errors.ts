@@ -15,10 +15,12 @@ export type ProposalErrorCode =
   | "filiales.createCountryFailed"
   | "filiales.renameCountryFailed"
   | "filiales.deleteCountryFailed"
+  | "filiales.unauthorized"
   | "glossary.loadFailed"
   | "glossary.createFailed"
   | "glossary.updateFailed"
   | "glossary.deleteFailed"
+  | "glossary.unauthorized"
   | "pricing.whatsAppFailed"
   | "pricing.minutesFailed"
   | "proposal.saveFailed";
@@ -35,8 +37,13 @@ export function createProposalCodeError(code: ProposalErrorCode): ProposalError 
 
 export async function parseProposalErrorResponse(
   res: Response,
-  fallbackCode: ProposalErrorCode
+  fallbackCode: ProposalErrorCode,
+  options?: { unauthorizedCode?: ProposalErrorCode }
 ): Promise<ProposalError> {
+  if (options?.unauthorizedCode && (res.status === 401 || res.status === 403)) {
+    return createProposalCodeError(options.unauthorizedCode);
+  }
+
   try {
     const data = (await res.clone().json()) as {
       error?: unknown;
