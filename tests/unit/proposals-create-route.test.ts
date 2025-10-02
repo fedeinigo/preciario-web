@@ -28,13 +28,22 @@ describe("create proposals route", () => {
       currentDate: new Date("2024-01-01T00:00:00Z"),
     });
 
-    const valorHoraRequest = requests.find(
-      (req) => (req as any).replaceAllText?.containsText?.text === "<-valor_hora->",
-    );
+    type ReplaceAllTextRequest = {
+      replaceAllText?: {
+        containsText?: { text?: string };
+        replaceText?: string;
+      };
+    };
+
+    const valorHoraRequest = requests.find((req): req is ReplaceAllTextRequest => {
+      const replaceAllText = (req as ReplaceAllTextRequest).replaceAllText;
+      const text = replaceAllText?.containsText?.text;
+      return typeof text === "string" && text === "<-valor_hora->";
+    });
 
     assert.ok(valorHoraRequest, "valor_hora replacement should be present");
     assert.strictEqual(
-      (valorHoraRequest as any)?.replaceAllText?.replaceText,
+      valorHoraRequest.replaceAllText?.replaceText,
       "US$ 75",
     );
   });
