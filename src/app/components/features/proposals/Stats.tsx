@@ -161,33 +161,30 @@ export default function Stats({
   // datos
   const [loading, setLoading] = useState(true);
   const [all, setAll] = useState<ProposalForStats[]>([]);
-  const [_listMeta, setListMeta] = useState<ProposalsListMeta | undefined>();
+  const [, setListMeta] = useState<ProposalsListMeta | undefined>();
 
-  const load = useCallback(
-    async (_reason: "initial" | "focus" = "initial") => {
-      setLoading(true);
-      try {
-        const { proposals, meta } = await fetchAllProposals();
-        setAll(proposals);
-        setListMeta(meta);
-      } catch (error) {
-        setAll([]);
-        setListMeta(undefined);
-        const status =
-          error instanceof Error && typeof (error as { status?: unknown }).status === "number"
-            ? (error as { status?: number }).status
-            : undefined;
-        toast.error(toastT(status ? "loadError" : "networkError"));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [toastT]
-  );
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { proposals, meta } = await fetchAllProposals();
+      setAll(proposals);
+      setListMeta(meta);
+    } catch (error) {
+      setAll([]);
+      setListMeta(undefined);
+      const status =
+        error instanceof Error && typeof (error as { status?: unknown }).status === "number"
+          ? (error as { status?: number }).status
+          : undefined;
+      toast.error(toastT(status ? "loadError" : "networkError"));
+    } finally {
+      setLoading(false);
+    }
+  }, [toastT]);
 
   useEffect(() => {
     load();
-    const onFocus = () => load("focus");
+    const onFocus = () => load();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [load]);
