@@ -1,5 +1,4 @@
-import "./setup";
-
+import "./setup-paths";
 import test from "node:test";
 import assert from "node:assert/strict";
 

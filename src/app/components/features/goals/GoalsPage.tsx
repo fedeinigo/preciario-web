@@ -12,6 +12,7 @@ import IndividualGoalCard from "./components/IndividualGoalCard";
 import TeamGoalCard from "./components/TeamGoalCard";
 import TeamMembersTable, { TeamGoalRow } from "./components/TeamMembersTable";
 import { Users2 } from "lucide-react";
+import { fetchAllProposals } from "../proposals/lib/proposals-response";
 
 type Props = {
   role: AppRole;
@@ -59,25 +60,17 @@ export default function GoalsPage({
 
   const loadMyProgress = React.useCallback(async () => {
     try {
-      const r = await fetch("/api/proposals", { cache: "no-store" });
-      if (!r.ok) return setMyProgress(0);
-      const all = (await r.json()) as Array<{
-        userEmail: string | null;
-        status?: "OPEN" | "LOST" | "WON" | null;
-        totalAmount: number;
-        createdAt: string;
-      }>;
+      const { proposals } = await fetchAllProposals();
       const from = new Date(rangeForQuarter.from).getTime();
       const to = new Date(rangeForQuarter.to).getTime();
-      const sum = all
-        .filter(
-          (p) =>
-            p.userEmail === currentEmail &&
-            p.status === "WON" &&
-            new Date(p.createdAt).getTime() >= from &&
-            new Date(p.createdAt).getTime() <= to
-        )
-        .reduce((acc, p) => acc + Number(p.totalAmount || 0), 0);
+      const sum = proposals
+        .filter((p) => {
+          if (p.userEmail !== currentEmail) return false;
+          if ((p.status ?? "").toUpperCase() !== "WON") return false;
+          const ts = new Date(p.createdAt as string).getTime();
+          return ts >= from && ts <= to;
+        })
+        .reduce((acc, p) => acc + Number(p.totalAmount ?? 0), 0);
       setMyProgress(sum);
     } catch {
       setMyProgress(0);
