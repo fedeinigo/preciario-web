@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { Prisma, ProposalStatus } from "@prisma/client";
 
 import { requireApiSession } from "@/app/api/_utils/require-auth";
 import { isFeatureEnabled } from "@/lib/feature-flags";
@@ -31,12 +31,78 @@ const proposalPayloadSchema = z.object({
   items: z.array(proposalItemSchema).min(1),
 });
 
+function parseDate(value: string): Date | undefined {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed;
+}
+
+function parseEndOfDay(value: string): Date | undefined {
+  const parsed = parseDate(value);
+  if (!parsed) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    parsed.setUTCHours(23, 59, 59, 999);
+  }
+  return parsed;
+}
+
 /** GET /api/proposals */
 export async function GET(request: Request) {
   const { response } = await requireApiSession();
   if (response) return response;
 
+  const url = new URL(request.url);
+  const aggregate = url.searchParams.get("aggregate");
+  const userEmail = url.searchParams.get("userEmail")?.trim();
+  const statusParam = url.searchParams.get("status")?.trim();
+  const fromParam = url.searchParams.get("from")?.trim();
+  const toParam = url.searchParams.get("to")?.trim();
+
   const where: Prisma.ProposalWhereInput = { deletedAt: null };
+  if (userEmail) {
+    where.userEmail = userEmail;
+  }
+
+  if (statusParam) {
+    const normalizedStatus = statusParam.toUpperCase();
+    const validStatuses = new Set<string>(Object.values(ProposalStatus));
+    if (validStatuses.has(normalizedStatus)) {
+      where.status = normalizedStatus as ProposalStatus;
+    }
+  }
+
+  const createdAtFilter: Prisma.DateTimeFilter = {};
+  if (fromParam) {
+    const fromDate = parseDate(fromParam);
+    if (fromDate) {
+      createdAtFilter.gte = fromDate;
+    }
+  }
+
+  if (toParam) {
+    const toDate = parseEndOfDay(toParam);
+    if (toDate) {
+      createdAtFilter.lte = toDate;
+    }
+  }
+
+  if (Object.keys(createdAtFilter).length > 0) {
+    where.createdAt = createdAtFilter;
+  }
+
+  if (aggregate === "sum") {
+    const aggregateResult = await prisma.proposal.aggregate({
+      where,
+      _sum: { totalAmount: true },
+      _count: { _all: true },
+    });
+
+    const totalAmount = Number(aggregateResult._sum?.totalAmount ?? 0);
+    const count = aggregateResult._count?._all ?? 0;
+
+    return NextResponse.json({ totalAmount, count });
+  }
+
   const orderBy: Prisma.ProposalOrderByWithRelationInput = { createdAt: "desc" };
 
   if (!isFeatureEnabled("proposalsPagination")) {
@@ -80,7 +146,6 @@ export async function GET(request: Request) {
     return NextResponse.json(data);
   }
 
-  const url = new URL(request.url);
   const page = Math.max(parseInt(url.searchParams.get("page") ?? "1", 10) || 1, 1);
   const pageSizeParam = parseInt(url.searchParams.get("pageSize") ?? "20", 10);
   const pageSize = Math.min(Math.max(pageSizeParam || 20, 1), 100);
