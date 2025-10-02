@@ -2,7 +2,7 @@ import "./setup-module-alias";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { buildReplaceRequests, resolveHourlyRate } from "@/app/api/proposals/create/route";
+import { buildReplaceRequests, resolveHourlyRate } from "@/app/api/proposals/create/helpers";
 
 describe("create proposals route", () => {
   it("uses PROPOSALS_ONESHOT_RATE when building valor_hora placeholder", () => {
