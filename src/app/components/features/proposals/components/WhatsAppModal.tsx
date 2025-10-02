@@ -1,67 +1,16 @@
 "use client";
 
+import { useCallback, useMemo } from "react";
+
 import Modal from "@/app/components/ui/Modal";
 import Combobox from "@/app/components/ui/Combobox";
+
+import { useLanguage, useTranslations } from "@/app/LanguageProvider";
+import { getLocalizedCountries } from "../lib/catalogs";
 
 /** === Tipos expuestos para que Generator.tsx los importe === */
 export type WppKind = "marketing" | "utility" | "auth";
 export type WppForm = { qty: number; destCountry: string };
-
-/** Lista PROPIA de países destino (no la del generador) */
-const DESTINATION_COUNTRIES: string[] = [
-  "Argentina",
-  "Alemania",
-  "Aruba",
-  "Belgica",
-  "Bolivia",
-  "Brasil",
-  "Canadá",
-  "Chile",
-  "Colombia",
-  "Costa Rica",
-  "Ecuador",
-  "Egipto",
-  "El Salvador",
-  "España",
-  "Estados Unidos",
-  "Francia",
-  "Guatemala",
-  "Haití",
-  "Honduras",
-  "India",
-  "Indonesia",
-  "Israel",
-  "Italia",
-  "Jamaica",
-  "Malasia",
-  "México",
-  "Nicaragua",
-  "Nigeria",
-  "Noruega",
-  "Países Bajos",
-  "Pakistán",
-  "Panamá",
-  "Paraguay",
-  "Perú",
-  "Polonia",
-  "Puerto Rico",
-  "Reino Unido",
-  "República Dominicana",
-  "Rumania",
-  "Rusia",
-  "Arabia Saudita",
-  "Suecia",
-  "Suiza",
-  "Turquía",
-  "Uruguay",
-  "Venezuela",
-  "Emiratos Árabes Unidos",
-  "Resto de Asia",
-  "Resto de Europa",
-  "Resto de Africa",
-  "Resto de America",
-  "Other",
-];
 
 export function WhatsAppModal({
   open,
@@ -85,21 +34,43 @@ export function WhatsAppModal({
   error?: string;
   applying?: boolean;
 }) {
-  const kindLabel =
-    kind === "marketing" ? "Marketing" : kind === "utility" ? "Utility" : "Authentication";
+  const { locale } = useLanguage();
+  const t = useTranslations("proposals.whatsAppModal");
+  const sharedT = useTranslations("proposals.generator");
+  const emptyValue = sharedT("emptyValue");
+  const kindLabel = t(`kinds.${kind}`);
+
+  const countries = useMemo(() => getLocalizedCountries(locale), [locale]);
+  const countryOptions = useMemo(() => countries.map((country) => country.label), [countries]);
+  const selectedCountryLabel = useMemo(() => {
+    if (!form.destCountry) return "";
+    return (
+      countries.find((country) => country.id === form.destCountry)?.label || form.destCountry
+    );
+  }, [countries, form.destCountry]);
+
+  const handleCountryChange = useCallback(
+    (label: string) => {
+      const match = countries.find((country) => country.label === label);
+      if (match) {
+        onChange({ destCountry: match.id });
+      }
+    },
+    [countries, onChange]
+  );
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Calcular crédito WhatsApp"
+      title={t("title")}
       footer={
         <div className="flex justify-end gap-2">
           <button className="btn-ghost" onClick={onClose} disabled={applying}>
-            Cancelar
+            {t("actions.cancel")}
           </button>
           <button className="btn-primary" onClick={onApply} disabled={applying}>
-            {applying ? "Calculando…" : "Aplicar"}
+            {applying ? t("actions.calculating") : t("actions.apply")}
           </button>
         </div>
       }
@@ -107,10 +78,8 @@ export function WhatsAppModal({
       <div className="relative space-y-4">
         {/* Encabezado con badge */}
         <div className="flex items-center justify-between">
-          <span className="chip">Tipo: {kindLabel}</span>
-          <span className="text-xs text-muted">
-            Define la cantidad de créditos y el destino para obtener el precio.
-          </span>
+          <span className="chip">{t("badge", { kind: kindLabel })}</span>
+          <span className="text-xs text-muted">{t("hint")}</span>
         </div>
 
         {/* Campos */}
@@ -128,29 +97,29 @@ export function WhatsAppModal({
                 disabled={applying}
               />
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
-                créditos
+                {t("fields.qtySuffix")}
               </span>
             </div>
-            <p className="mt-1 text-[12px] text-muted">Cantidad mensual estimada.</p>
+            <p className="mt-1 text-[12px] text-muted">{t("fields.qtyHelp")}</p>
           </div>
 
           {/* País destino (lista propia) */}
           <div>
-            <label className="block text-xs text-gray-600 mb-1">País destino</label>
+            <label className="block text-xs text-gray-600 mb-1">{t("fields.countryLabel")}</label>
             <Combobox
-              options={DESTINATION_COUNTRIES}
-              value={form.destCountry}
-              onChange={(v) => onChange({ destCountry: v })}
-              placeholder="Seleccione país"
+              options={countryOptions}
+              value={selectedCountryLabel}
+              onChange={handleCountryChange}
+              placeholder={t("fields.countryPlaceholder")}
             />
-            <p className="mt-1 text-[12px] text-muted">Usado para el lookup de precios.</p>
+            <p className="mt-1 text-[12px] text-muted">{t("fields.countryHelp")}</p>
           </div>
 
           {/* Filial de facturación (solo lectura) */}
           <div>
-            <label className="block text-xs text-gray-600 mb-1">Filial de facturación</label>
-            <input className="input" value={billingSubsidiary || "—"} readOnly />
-            <p className="mt-1 text-[12px] text-muted">Determinada por el país de la propuesta.</p>
+            <label className="block text-xs text-gray-600 mb-1">{t("fields.billingLabel")}</label>
+            <input className="input" value={billingSubsidiary || emptyValue} readOnly />
+            <p className="mt-1 text-[12px] text-muted">{t("fields.billingHelp")}</p>
           </div>
         </div>
 
@@ -166,7 +135,7 @@ export function WhatsAppModal({
           <div className="absolute inset-0 z-[60] rounded-sm bg-white/75 backdrop-blur-[1px] flex items-center justify-center">
             <div className="flex items-center gap-3 text-gray-700">
               <span className="h-5 w-5 rounded-full border-2 border-gray-300 border-t-gray-700 animate-spin" />
-              <span>Calculando precios…</span>
+              <span>{t("loading")}</span>
             </div>
           </div>
         )}

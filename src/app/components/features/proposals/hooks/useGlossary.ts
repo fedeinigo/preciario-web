@@ -1,7 +1,13 @@
 // src/app/components/features/proposals/hooks/useGlossary.ts
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+
+import {
+  createProposalCodeError,
+  parseProposalErrorResponse,
+  type ProposalActionResult,
+} from "../lib/errors";
 
 /** Tipo local que coincide con /api/glossary */
 export type GlossaryLink = {
@@ -10,55 +16,110 @@ export type GlossaryLink = {
   url: string;
 };
 
+const glossaryCache: { data: GlossaryLink[] | null } = { data: null };
+
+function cloneGlossary(data: GlossaryLink[]): GlossaryLink[] {
+  return structuredClone(data);
+}
+
+function invalidateGlossaryCache() {
+  glossaryCache.data = null;
+}
+
 export function useGlossary() {
   const [glossary, setGlossary] = useState<GlossaryLink[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const r = await fetch("/api/glossary", { cache: "no-store" });
-      if (!r.ok) throw new Error("No se pudo cargar glosario");
-      const data = (await r.json()) as GlossaryLink[];
-      setGlossary(data);
-    } catch {
-      setGlossary([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const load = useCallback(
+    async (options?: { force?: boolean }): Promise<ProposalActionResult> => {
+      if (!options?.force && glossaryCache.data) {
+        setGlossary(cloneGlossary(glossaryCache.data));
+        return { ok: true };
+      }
 
-  useEffect(() => {
-    load();
+      setLoading(true);
+      try {
+        const response = await fetch("/api/glossary", { cache: "no-store" });
+        if (!response.ok) {
+          setGlossary([]);
+          return {
+            ok: false,
+            error: await parseProposalErrorResponse(response, "glossary.loadFailed"),
+          };
+        }
+        const data = (await response.json()) as GlossaryLink[];
+        glossaryCache.data = cloneGlossary(data);
+        setGlossary(cloneGlossary(data));
+        return { ok: true };
+      } catch {
+        setGlossary([]);
+        return { ok: false, error: createProposalCodeError("glossary.loadFailed") };
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  const reload = useCallback(async () => {
+    invalidateGlossaryCache();
+    return load({ force: true });
   }, [load]);
 
-  async function addLink(label: string, url: string) {
-    const r = await fetch("/api/glossary", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label, url }),
-    });
-    if (!r.ok) throw new Error(await r.text());
-    await load();
+  async function addLink(label: string, url: string): Promise<ProposalActionResult> {
+    try {
+      const response = await fetch("/api/glossary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label, url }),
+      });
+      if (!response.ok) {
+        return {
+          ok: false,
+          error: await parseProposalErrorResponse(response, "glossary.createFailed"),
+        };
+      }
+      return reload();
+    } catch {
+      return { ok: false, error: createProposalCodeError("glossary.createFailed") };
+    }
   }
 
-  async function editLink(id: string, label: string, url: string) {
-    const r = await fetch(`/api/glossary/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label, url }),
-    });
-    if (!r.ok) throw new Error(await r.text());
-    await load();
+  async function editLink(id: string, label: string, url: string): Promise<ProposalActionResult> {
+    try {
+      const response = await fetch(`/api/glossary/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label, url }),
+      });
+      if (!response.ok) {
+        return {
+          ok: false,
+          error: await parseProposalErrorResponse(response, "glossary.updateFailed"),
+        };
+      }
+      return reload();
+    } catch {
+      return { ok: false, error: createProposalCodeError("glossary.updateFailed") };
+    }
   }
 
-  async function removeLink(id: string) {
-    const r = await fetch(`/api/glossary/${id}`, { method: "DELETE" });
-    if (!r.ok) throw new Error(await r.text());
-    await load();
+  async function removeLink(id: string): Promise<ProposalActionResult> {
+    try {
+      const response = await fetch(`/api/glossary/${id}`, { method: "DELETE" });
+      if (!response.ok) {
+        return {
+          ok: false,
+          error: await parseProposalErrorResponse(response, "glossary.deleteFailed"),
+        };
+      }
+      return reload();
+    } catch {
+      return { ok: false, error: createProposalCodeError("glossary.deleteFailed") };
+    }
   }
 
-  return { glossary, loading, reload: load, addLink, editLink, removeLink };
+  return { glossary, loading, load, addLink, editLink, removeLink };
 }
 
 export default useGlossary;

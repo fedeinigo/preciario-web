@@ -8,6 +8,7 @@ import { toast } from "@/app/components/ui/toast";
 import { formatUSD } from "@/app/components/features/proposals/lib/format";
 import { q1Range, q2Range, q3Range, q4Range } from "@/app/components/features/proposals/lib/dateRanges";
 import type { AppRole } from "@/constants/teams";
+import { useTranslations } from "@/app/LanguageProvider";
 
 type Viewer = {
   id?: string | null;
@@ -43,6 +44,10 @@ export default function UserProfileModal({
   viewer: Viewer;
   targetUser?: TargetUser;
 }) {
+  const profileT = useTranslations("common.profileModal");
+  const rolesT = useTranslations("common.roles");
+  const toastT = useTranslations("goals.toast");
+  const metricsT = useTranslations("goals.individual.metrics");
   // Objetivo base: si vino targetUser lo tomo, sino el viewer
   const baseTarget = useMemo<TargetUser>(() => {
     if (targetUser?.email || targetUser?.id) return targetUser;
@@ -214,41 +219,61 @@ export default function UserProfileModal({
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error();
-      toast.success("Objetivo guardado");
+      toast.success(toastT("myGoalSaved"));
       await loadGoal();
       await loadProgress();
     } catch {
-      toast.error("No se pudo guardar el objetivo");
+      toast.error(toastT("myGoalError"));
     }
   };
 
-  const name = resolvedTarget.name ?? "(sin nombre)";
-  const role = (resolvedTarget.role as AppRole | string | null) ?? "usuario";
-  const team = resolvedTarget.team ?? "—";
-  const email = resolvedTarget.email ?? "—";
+  const rolesMap = useMemo(
+    () => ({
+      superadmin: rolesT("superadmin"),
+      lider: rolesT("lider"),
+      usuario: rolesT("usuario"),
+    }),
+    [rolesT]
+  );
+
+  const resolveRole = useCallback(
+    (value: AppRole | string | null | undefined) => {
+      if (!value) return rolesT("unknown");
+      const key = value.toString();
+      return rolesMap[key as keyof typeof rolesMap] ?? key;
+    },
+    [rolesMap, rolesT]
+  );
+
+  const name = resolvedTarget.name ?? profileT("fallbacks.name");
+  const role = resolveRole(resolvedTarget.role as AppRole | string | null);
+  const team = resolvedTarget.team ?? profileT("fallbacks.team");
+  const email = resolvedTarget.email ?? profileT("fallbacks.email");
+  const viewerRoleLabel = resolveRole(viewer.role as AppRole | string | null);
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Mi perfil y objetivo"
+      title={profileT("title")}
       variant="inverted"
       panelClassName="max-w-2xl"
       footer={
         <div className="flex justify-between items-center w-full">
-          <div className="text-[12px] text-white/80">
-            Periodo: {year} - Q{quarter} ({range.from} — {range.to})
-          </div>
+          <div className="text-[12px] text-white/80">{profileT("periodSummary", { year, quarter, from: range.from, to: range.to })}</div>
           <div className="flex gap-2">
-            <button className="rounded-md bg-white text-[rgb(var(--primary))] px-3 py-2 text-sm font-medium hover:bg-white/90" onClick={onClose}>
-              Cerrar
+            <button
+              className="rounded-md bg-white text-[rgb(var(--primary))] px-3 py-2 text-sm font-medium hover:bg-white/90"
+              onClick={onClose}
+            >
+              {profileT("buttons.close")}
             </button>
             {canEdit && (
               <button
                 className="rounded-md bg-white/10 border border-white/30 text-white px-3 py-2 text-sm font-semibold hover:bg-white/15"
                 onClick={save}
               >
-                Guardar objetivo
+                {profileT("buttons.save")}
               </button>
             )}
           </div>
@@ -270,7 +295,7 @@ export default function UserProfileModal({
           </div>
           {!isSelf && (viewer.role === "superadmin" || viewer.role === "lider") && (
             <span className="ml-auto text-xs px-2 py-1 rounded bg-white/10 border border-white/20">
-              Edición por {viewer.role}
+              {profileT("viewerBadge", { role: viewerRoleLabel })}
             </span>
           )}
         </div>
@@ -280,14 +305,14 @@ export default function UserProfileModal({
           <div className="rounded-md border border-white/20 bg-white/10 px-3 py-2">
             <div className="text-[12px] text-white/80 flex items-center gap-1 mb-0.5">
               <Shield className="h-3.5 w-3.5" />
-              Rol
+              {profileT("labels.role")}
             </div>
-            <div className="font-medium">{(role ?? "usuario").toString()}</div>
+            <div className="font-medium">{role}</div>
           </div>
           <div className="rounded-md border border-white/20 bg-white/10 px-3 py-2">
             <div className="text-[12px] text-white/80 flex items-center gap-1 mb-0.5">
               <Users2 className="h-3.5 w-3.5" />
-              Equipo
+              {profileT("labels.team")}
             </div>
             <div className="font-medium">{team}</div>
           </div>
@@ -296,7 +321,7 @@ export default function UserProfileModal({
         {/* Selectores */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <label className="text-sm">
-            Año
+            {profileT("labels.year")}
             <select
               className="select mt-1"
               value={year}
@@ -313,7 +338,7 @@ export default function UserProfileModal({
             </select>
           </label>
           <label className="text-sm">
-            Trimestre
+            {profileT("labels.quarter")}
             <select
               className="select mt-1"
               value={quarter}
@@ -326,7 +351,7 @@ export default function UserProfileModal({
             </select>
           </label>
           <label className="text-sm">
-            Objetivo (USD)
+            {profileT("labels.goal")}
             <div className="flex items-center gap-2 mt-1">
               <input
                 className="input w-full"
@@ -343,21 +368,21 @@ export default function UserProfileModal({
         {/* KPI cards */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
-            <div className="text-xs text-white/80">Objetivo</div>
+            <div className="text-xs text-white/80">{metricsT("goal")}</div>
             <div className="text-xl font-semibold">{formatUSD(goalAmount)}</div>
           </div>
           <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
-            <div className="text-xs text-white/80">Avance (WON)</div>
+            <div className="text-xs text-white/80">{metricsT("progress")}</div>
             <div className="text-xl font-semibold">{formatUSD(wonAmount)}</div>
           </div>
           <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
-            <div className="text-xs text-white/80">Faltante</div>
+            <div className="text-xs text-white/80">{metricsT("remaining")}</div>
             <div className="text-xl font-semibold">
               {formatUSD(Math.max(0, goalAmount - wonAmount))}
             </div>
           </div>
           <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
-            <div className="text-xs text-white/80">% Cumplimiento</div>
+            <div className="text-xs text-white/80">{metricsT("pct")}</div>
             <div className="text-xl font-semibold">{pct.toFixed(1)}%</div>
           </div>
         </div>

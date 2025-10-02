@@ -1,10 +1,12 @@
 // src/app/api/pipedrive/sync/route.ts
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import {
   replaceDealProducts,
   updateOneShotAndUrl,
   type NormalizedLine,
 } from "@/lib/pipedrive";
+import logger from "@/lib/logger";
 
 type IncomingLine = {
   sku?: string;
@@ -40,11 +42,14 @@ function normalizeLines(items?: IncomingLine[]): NormalizedLine[] {
 }
 
 export async function POST(req: Request) {
+  const requestId = randomUUID();
+  const log = logger.child({ route: "api/pipedrive/sync", requestId });
   try {
     const body = (await req.json()) as SyncBody;
 
     const dealId = body.dealId;
     if (!dealId) {
+      log.error("missing_deal_id", {});
       return NextResponse.json(
         { ok: false, reason: "missing_deal_id" },
         { status: 400 }
@@ -52,7 +57,7 @@ export async function POST(req: Request) {
     }
 
     const lines = normalizeLines(body.items);
-    console.log("[Pipedrive] /sync payload:", {
+    log.info("sync_payload", {
       dealId,
       itemsLen: lines.length,
       sample: lines.slice(0, 3),
@@ -60,21 +65,23 @@ export async function POST(req: Request) {
       hasUrl: typeof body.proposalUrl !== "undefined",
     });
 
-    // 1) reemplazar productos (v2)
     const products = await replaceDealProducts(dealId, lines);
 
-    // 2) actualizar OneShot + URL (v1 PUT)
     await updateOneShotAndUrl(dealId, {
       oneShot: typeof body.oneShot === "number" ? body.oneShot : undefined,
       proposalUrl: body.proposalUrl ?? undefined,
     });
 
+    log.info("sync_completed", { dealId, itemsUpdated: products?.added });
+
     return NextResponse.json({ ok: true, products });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    log.error("sync_failed", { error: msg });
     return NextResponse.json(
       { ok: false, error: `Pipedrive error (${msg}).` },
       { status: 500 }
     );
   }
 }
+

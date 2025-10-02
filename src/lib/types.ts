@@ -1,28 +1,33 @@
-// src/lib/types.ts
+import type { Locale } from "@/lib/i18n/config";
 
-// Ítems para UI (catálogo + selección en generador)
+// UI items for catalog + generator selection
 export type UIItem = {
-  id: string;            // id local (para selección en UI)
-  dbId?: string;         // id real en DB del catálogo
+  id: string;
+  dbId?: string;
   sku: string;
   category: string;
   name: string;
   description: string;
-  devHours: number;      // se mantiene para cálculo de oneShot, pero NO se muestra en tabla
-  unitPrice: number;     // unitario base (sin descuento)
+  devHours: number;      // kept for oneshot calculations, hidden in table
+  unitPrice: number;     // base unit price (without discount)
   selected: boolean;
   quantity: number;
   discountPct?: number;  // 0..100
+  translations: Record<Locale, {
+    name: string;
+    description: string;
+    category: string;
+  }>;
 };
 
-// Payload para guardar propuestas (unitPrice NETO por ítem)
+// Payload for saving proposals (unitPrice NET per item)
 export type SaveProposalInput = {
   companyName: string;
   country: string;
   countryId: string;
   subsidiary: string;
   subsidiaryId: string;
-  totalAmount: number;   // mensual NETO
+  totalAmount: number;   // monthly NET
   totalHours: number;
   oneShot: number;
   docUrl: string;
@@ -31,19 +36,19 @@ export type SaveProposalInput = {
   userId: string;
   userEmail: string;
 
-  // NUEVO (opcionales para no romper backend actual)
+  // Optional fields for backward compatibility
   pipedriveLink?: string;
   pipedriveDealId?: string;
 
   items: Array<{
-    itemId: string;      // id del ítem de catálogo
+    itemId: string;      // catalog item id
     quantity: number;
-    unitPrice: number;   // NETO
+    unitPrice: number;   // NET
     devHours: number;
   }>;
 };
 
-// Registro que devuelve la API
+// Proposal record returned by the API
 export type ProposalRecord = {
   id: string;
   seq: number;
@@ -65,7 +70,7 @@ export type ProposalRecord = {
   status?: "OPEN" | "WON" | "LOST";
   wonAt?: string | Date | null;
 
-  // NUEVO (pueden venir null si todavía no sincronizaste)
+  // Optional if not yet synced
   pipedriveLink?: string | null;
   pipedriveDealId?: string | null;
   pipedriveSyncedAt?: string | Date | null;

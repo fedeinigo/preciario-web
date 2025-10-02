@@ -1,6 +1,19 @@
 // src/app/components/features/proposals/lib/items.ts
+import type { Locale } from "@/lib/i18n/config";
 import type { UIItem } from "./types";
 import type { ItemFormData } from "@/app/components/ui/ItemForm";
+import {
+  createProposalCodeError,
+  isProposalError,
+  parseProposalErrorResponse,
+} from "./errors";
+import { defaultLocale } from "@/lib/i18n/config";
+
+type ItemTranslations = Record<Locale, {
+  name: string;
+  description: string;
+  category: string;
+}>;
 
 type CatalogRow = {
   id: string;
@@ -10,72 +23,123 @@ type CatalogRow = {
   category: string;
   unitPrice: number;
   devHours: number;
+  active: boolean;
+  translations: ItemTranslations;
 };
 
 export function getInitialItems(): UIItem[] {
   return [];
 }
 
-export async function fetchCatalogItems(): Promise<UIItem[]> {
-  const res = await fetch("/api/items", { cache: "no-store" });
-  if (!res.ok) throw new Error("No se pudo cargar el catálogo");
-  const data = (await res.json()) as CatalogRow[];
-  return data.map(toUIItem);
-}
-
-// NEW: popularidad desde API (itemId -> totalQty)
-export async function fetchItemsPopularity(): Promise<Record<string, number>> {
-  const r = await fetch("/api/items/popularity", { cache: "no-store" });
-  if (!r.ok) return {};
-  return (await r.json()) as Record<string, number>;
-}
-
-export async function createCatalogItem(data: ItemFormData): Promise<UIItem> {
-  const res = await fetch("/api/items", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sku: data.sku,
-      name: data.name,
-      description: data.description ?? "",
-      category: data.category ?? "general",
-      unitPrice: data.unitPrice,
-      devHours: data.devHours,
-    }),
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(txt || "No se pudo crear el ítem");
+export async function fetchCatalogItems(
+  locale: Locale,
+  signal?: AbortSignal
+): Promise<UIItem[]> {
+  try {
+    const res = await fetch(`/api/items?locale=${locale}`, {
+      cache: "no-store",
+      signal,
+    });
+    if (!res.ok) {
+      throw await parseProposalErrorResponse(res, "catalog.loadFailed");
+    }
+    const data = (await res.json()) as CatalogRow[];
+    return data.map(toUIItem);
+  } catch (error) {
+    if (isProposalError(error)) throw error;
+    throw createProposalCodeError("catalog.loadFailed");
   }
-  const created = (await res.json()) as CatalogRow;
-  return toUIItem(created);
 }
 
-export async function updateCatalogItem(id: string, data: ItemFormData): Promise<void> {
-  const res = await fetch(`/api/items/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sku: data.sku,
-      name: data.name,
-      description: data.description ?? "",
-      category: data.category ?? "general",
-      unitPrice: data.unitPrice,
-      devHours: data.devHours,
-    }),
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(txt || "No se pudo actualizar el ítem");
+// Popularidad desde API (itemId -> totalQty)
+export async function fetchItemsPopularity(
+  signal?: AbortSignal
+): Promise<Record<string, number>> {
+  const res = await fetch("/api/items/popularity", { cache: "no-store", signal });
+  if (!res.ok) return {};
+  return (await res.json()) as Record<string, number>;
+}
+
+export async function createCatalogItem(
+  locale: Locale,
+  data: ItemFormData
+): Promise<UIItem> {
+  try {
+    const res = await fetch(`/api/items?locale=${locale}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(serializeItemPayload(data)),
+    });
+    if (!res.ok) {
+      throw await parseProposalErrorResponse(res, "catalog.createFailed");
+    }
+    const created = (await res.json()) as CatalogRow;
+    return toUIItem(created);
+  } catch (error) {
+    if (isProposalError(error)) throw error;
+    throw createProposalCodeError("catalog.createFailed");
+  }
+}
+
+export async function updateCatalogItem(
+  id: string,
+  data: ItemFormData
+): Promise<void> {
+  try {
+    const res = await fetch(`/api/items/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(serializeItemPayload(data)),
+    });
+    if (!res.ok) {
+      throw await parseProposalErrorResponse(res, "catalog.updateFailed");
+    }
+  } catch (error) {
+    if (isProposalError(error)) throw error;
+    throw createProposalCodeError("catalog.updateFailed");
   }
 }
 
 export async function deleteCatalogItem(id: string): Promise<void> {
-  const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(txt || "No se pudo eliminar el ítem");
+  try {
+    const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      throw await parseProposalErrorResponse(res, "catalog.deleteFailed");
+    }
+  } catch (error) {
+    if (isProposalError(error)) throw error;
+    throw createProposalCodeError("catalog.deleteFailed");
   }
+}
+
+function serializeItemPayload(data: ItemFormData) {
+  const entries = Object.entries(data.translations);
+  const base = data.translations[defaultLocale];
+
+  const translations = entries
+    .filter(([localeCode, value]) => {
+      if (localeCode === defaultLocale) return true;
+      const name = value.name?.trim() ?? "";
+      const category = value.category?.trim() ?? "";
+      const description = value.description?.trim() ?? "";
+      return Boolean(name || category || description);
+    })
+    .map(([locale, value]) => ({
+      locale,
+      name: value.name,
+      category: value.category,
+      description: value.description,
+    }));
+
+  return {
+    sku: data.sku,
+    unitPrice: data.unitPrice,
+    devHours: data.devHours,
+    name: base?.name,
+    category: base?.category,
+    description: base?.description ?? "",
+    translations,
+  };
 }
 
 function toUIItem(row: CatalogRow): UIItem {
@@ -91,5 +155,6 @@ function toUIItem(row: CatalogRow): UIItem {
     selected: false,
     quantity: 1,
     discountPct: 0,
+    translations: row.translations,
   };
 }

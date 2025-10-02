@@ -73,11 +73,27 @@ model Item {
   updatedAt    DateTime       @updatedAt
   active       Boolean        @default(true)
 
+  translations  ItemTranslation[]
   ProposalItem ProposalItem[]
 
   @@index([category, name])
 }
 
+model ItemTranslation {
+  id          String       @id @default(cuid())
+  itemId      String
+  locale      LanguageCode
+  name        String
+  description String       @default("")
+  category    String       @default("")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, locale])
+  @@index([locale])
+}
 model Proposal {
   id           String         @id
   seq          Int            @unique @default(autoincrement())
@@ -207,6 +223,12 @@ model TeamQuarterlyGoal {
   @@unique([team, year, quarter], name: "team_year_quarter")
 }
 
+enum LanguageCode {
+  es
+  en
+  pt
+}
+
 enum Role {
   superadmin
   lider
@@ -230,3 +252,6 @@ enum CreatedChannel {
   API
   WHATSAPP
 }
+
+
+

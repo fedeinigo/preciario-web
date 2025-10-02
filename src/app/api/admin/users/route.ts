@@ -1,8 +1,10 @@
 // src/app/api/admin/users/route.ts
 import { NextResponse } from "next/server";
+import { Role as DbRole } from "@prisma/client";
+
+import { ensureSessionRole, requireApiSession } from "@/app/api/_utils/require-auth";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { Role as DbRole } from "@prisma/client";
 
 /**
  * Normaliza strings de rol que puedan venir del front.
@@ -19,6 +21,12 @@ function normalizeRole(input: string | null | undefined): DbRole | undefined {
 }
 
 export async function GET() {
+  const { session, response } = await requireApiSession();
+  if (response) return response;
+
+  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  if (forbidden) return forbidden;
+
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
     select: {

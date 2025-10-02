@@ -2,6 +2,10 @@
 
 //* eslint-disable no-console */
 
+import logger from "@/lib/logger";
+
+const log = logger.child({ service: "pipedrive" });
+
 const BASE_URL = process.env.PIPEDRIVE_BASE_URL ?? "https://wcx.pipedrive.com";
 const API_TOKEN = process.env.PIPEDRIVE_API_TOKEN ?? "";
 
@@ -153,15 +157,15 @@ export async function updateOneShotAndUrl(dealId: number | string, opts: {
     payload[FIELD_PROPOSAL_URL] = String(opts.proposalUrl);
   }
   if (Object.keys(payload).length === 0) {
-    console.log("[Pipedrive] PATCH omitido (payload vacío). Revisa IDs de campos en .env.local");
+    log.info("pipedrive.skip_update", { reason: "empty_payload" });
     return { skipped: true };
   }
 
-  console.log("[Pipedrive] updateOneShotAndUrl env:", {
+  log.info("pipedrive.update_payload", {
     FIELD_ONESHOT: FIELD_ONESHOT ? "(ok)" : "(missing)",
     FIELD_PROPOSAL_URL: FIELD_PROPOSAL_URL ? "(ok)" : "(missing)",
+    payload,
   });
-  console.log("[Pipedrive] updateOneShotAndUrl payload:", payload);
 
   // v1: PUT /deals/{id}
   const url = `${BASE_URL}/api/v1/deals/${dealId}?${q({ api_token: API_TOKEN })}`;
@@ -208,6 +212,6 @@ export async function replaceDealProducts(
   }
 
   const result = { deleted: current.length, added, missingSkus, failedSkus };
-  console.log("[Pipedrive] replaceDealProducts:", result);
+  log.info("pipedrive.replace_deal_products", result);
   return result;
 }

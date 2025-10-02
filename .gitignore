@@ -19,6 +19,7 @@ build/
 
 # --- Tests / Cobertura ---
 coverage/
+.tmp/
 
 # --- Logs / Debug ---
 npm-debug.log*
