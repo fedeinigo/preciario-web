@@ -18,11 +18,34 @@ export async function GET(request: Request) {
   if (response) return response;
 
   const locale = getLocaleFromRequest(request);
+  const localesToFetch = Array.from(
+    new Set<LanguageCode>([defaultLocale as LanguageCode, locale as LanguageCode])
+  );
 
   const rows = await prisma.item.findMany({
     where: { active: true },
     orderBy: [{ category: "asc" }, { name: "asc" }],
-    select: ITEM_SELECT,
+    select: {
+      id: true,
+      sku: true,
+      category: true,
+      name: true,
+      description: true,
+      unitPrice: true,
+      devHours: true,
+      active: true,
+      createdAt: true,
+      updatedAt: true,
+      translations: {
+        where: { locale: { in: localesToFetch } },
+        select: {
+          locale: true,
+          name: true,
+          category: true,
+          description: true,
+        },
+      },
+    },
   });
 
   const payload = rows.map((item) => mapItemToResponse(item, locale));

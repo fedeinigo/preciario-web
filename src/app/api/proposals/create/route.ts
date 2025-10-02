@@ -1,7 +1,12 @@
 // src/app/api/proposals/create/route.ts
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
+import { Prisma } from "@prisma/client";
+
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { createProposalRequestSchema } from "@/lib/schemas/proposals";
+import logger from "@/lib/logger";
 
 /** ----------------- Tipos de dominio ----------------- */
 type LineItem = {
@@ -42,6 +47,8 @@ interface DocumentBody { content?: StructuralElement[]; }
 interface DocumentGetResponse { body?: DocumentBody; }
 
 /** ----------------- Utils ----------------- */
+
+
 function formatUSD(n: number) {
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
@@ -188,20 +195,91 @@ function cellText(cell?: TableCell): string {
 
 /** ----------------- Handler ----------------- */
 export async function POST(req: Request) {
+  const requestId = randomUUID();
+  const log = logger.child({ route: "api/proposals/create", requestId });
   try {
     const session = await auth();
     if (!session?.user?.id || !session.user.email) {
+      log.warn("unauthorized", {});
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const bodyText = await req.text();
-    let body: CreateDocPayload;
-    try { body = JSON.parse(bodyText) as CreateDocPayload; }
-    catch { return NextResponse.json({ error: "Body inválido (no es JSON)", bodyText }, { status: 400 }); }
-
-    if (!body.companyName || !body.items?.length) {
-      return NextResponse.json({ error: "Faltan campos requeridos en el payload" }, { status: 400 });
+    let rawPayload: unknown;
+    try {
+      rawPayload = await req.json();
+    } catch {
+      log.error("invalid_json", {});
+      return NextResponse.json({ error: "Body inválido (no es JSON)" }, { status: 400 });
     }
+
+    const parsed = createProposalRequestSchema.safeParse(rawPayload);
+    if (!parsed.success) {
+      log.error("invalid_payload", { issues: parsed.error.format() });
+      return NextResponse.json(
+        { error: "Payload inválido", details: parsed.error.format() },
+        { status: 400 }
+      );
+    }
+
+    const payload = parsed.data;
+    const cleanPipedriveLink = payload.pipedrive?.link?.trim() || null;
+    const cleanPipedriveDealId = payload.pipedrive?.dealId?.trim() || null;
+
+    const totalAmountFromItems = payload.items.reduce(
+      (sum, item) => sum + item.unitNet * item.quantity,
+      0
+    );
+    const requestedMonthly = Number.isFinite(payload.totals.monthly)
+      ? payload.totals.monthly
+      : totalAmountFromItems;
+    const monthlyCandidate = Number((requestedMonthly ?? totalAmountFromItems).toFixed(2));
+    const monthlyFromItems = Number(totalAmountFromItems.toFixed(2));
+    const totalAmount = Math.abs(monthlyCandidate - monthlyFromItems) > 1
+      ? monthlyFromItems
+      : monthlyCandidate;
+
+    const hoursFromItems = payload.items.reduce(
+      (sum, item) => sum + item.devHours * item.quantity,
+      0
+    );
+    const requestedHours = Number.isFinite(payload.totals.hours)
+      ? payload.totals.hours
+      : hoursFromItems;
+    const hoursCandidate = Math.round(requestedHours ?? hoursFromItems);
+    const hoursFromItemsRounded = Math.round(hoursFromItems);
+    const totalHours = Math.max(
+      0,
+      Math.abs(hoursCandidate - hoursFromItemsRounded) > 1
+        ? hoursFromItemsRounded
+        : hoursCandidate
+    );
+
+    const hourlyRateEnv = Number(
+      process.env.PROPOSALS_ONESHOT_RATE ?? process.env.ONESHOT_RATE ?? 50
+    );
+    const hourlyRate = Number.isFinite(hourlyRateEnv) && hourlyRateEnv > 0 ? hourlyRateEnv : 50;
+    const oneShot = Number((totalHours * hourlyRate).toFixed(2));
+
+    const resolvedUserId = payload.userId?.trim() || session.user.id;
+    const resolvedUserEmail = payload.userEmail?.trim() || session.user.email;
+
+    const body: CreateDocPayload = {
+      companyName: payload.companyName,
+      country: payload.country,
+      subsidiary: payload.subsidiary,
+      items: payload.items.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitNet,
+        devHours: item.devHours,
+      })),
+      totals: {
+        monthly: totalAmount,
+        oneShot,
+        hours: totalHours,
+      },
+    };
+
 
     // 1) refresh token de Google
     const account = await prisma.account.findFirst({
@@ -209,6 +287,7 @@ export async function POST(req: Request) {
       select: { refresh_token: true },
     });
     if (!account?.refresh_token) {
+      log.error("missing_refresh_token", { userId: session.user.id });
       return NextResponse.json({ error: "No hay refresh_token de Google. Cierra sesión y vuelve a entrar aceptando permisos." }, { status: 401 });
     }
 
@@ -229,6 +308,7 @@ export async function POST(req: Request) {
     }
     const accessToken = getStr(tokenJson, "access_token");
     if (!tokenRes.ok || !accessToken) {
+      log.error("google_token_refresh_failed", { status: tokenRes.status, body: tokenRaw });
       return NextResponse.json({ error: "Error al refrescar token", details: tokenRaw }, { status: tokenRes.status || 502 });
     }
 
@@ -411,8 +491,74 @@ export async function POST(req: Request) {
     }
 
     const url = `https://docs.google.com/document/d/${newFileId}/edit`;
-    return NextResponse.json({ id: newFileId, url });
+
+    const created = await prisma.proposal.create({
+      // Persist proposal and items
+      data: {
+        id: randomUUID(),
+        companyName: payload.companyName,
+        country: payload.country,
+        countryId: payload.countryId,
+        subsidiary: payload.subsidiary,
+        subsidiaryId: payload.subsidiaryId,
+        totalAmount: new Prisma.Decimal(totalAmount.toFixed(2)),
+        totalHours,
+        oneShot: new Prisma.Decimal(oneShot.toFixed(2)),
+        docUrl: url,
+        docId: newFileId,
+        userId: resolvedUserId,
+        userEmail: resolvedUserEmail,
+        pipedriveLink: cleanPipedriveLink,
+        pipedriveDealId: cleanPipedriveDealId,
+        items: {
+          create: payload.items.map((item) => ({
+            quantity: item.quantity,
+            unitPrice: new Prisma.Decimal(item.unitNet.toFixed(2)),
+            devHours: Math.round(item.devHours),
+            item: { connect: { id: item.itemId } },
+          })),
+        },
+      },
+      select: {
+        id: true,
+        seq: true,
+        companyName: true,
+        country: true,
+        countryId: true,
+        subsidiary: true,
+        subsidiaryId: true,
+        totalAmount: true,
+        totalHours: true,
+        oneShot: true,
+        docUrl: true,
+        docId: true,
+        userId: true,
+        userEmail: true,
+        createdAt: true,
+        updatedAt: true,
+        status: true,
+        wonAt: true,
+        pipedriveLink: true,
+        pipedriveDealId: true,
+      },
+    });
+
+    const proposal = {
+      ...created,
+      totalAmount: Number(created.totalAmount),
+      oneShot: Number(created.oneShot),
+    };
+
+    return NextResponse.json(
+      {
+        doc: { id: newFileId, url },
+        proposal,
+        meta: { hourlyRate },
+      },
+      { status: 201 }
+    );
   } catch (err) {
+    log.error("unexpected_error", { error: err instanceof Error ? err.message : String(err) });
     return NextResponse.json(
       { error: (err as Error).message ?? "Unknown error", stack: process.env.NODE_ENV === "development" ? (err as Error).stack : undefined },
       { status: 500 }

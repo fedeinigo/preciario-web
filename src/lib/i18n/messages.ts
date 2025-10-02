@@ -645,6 +645,32 @@ export const messages: Record<Locale, DeepRecord> = {
           wiserApplied: "Wiser PRO agregado",
           itemDeleted: "Ítem eliminado",
           itemDeleteError: "No se pudo eliminar el ítem: {message}",
+          proposalCreated: "Propuesta registrada",
+        },
+        whatsappCalculator: {
+          title: "Calculadora de WhatsApp",
+          description:
+            "Ingresa cuantas conversaciones necesitas por tipo para estimar el credito.",
+          fields: {
+            subsidiary: "Filial de facturacion",
+            destination: "Pais destino",
+            destinationPlaceholder: "Selecciona un pais",
+            marketing: "Conversaciones Marketing",
+            utility: "Conversaciones Utility",
+            auth: "Conversaciones Auth",
+          },
+          actions: {
+            calculate: "Calcular",
+            calculating: "Calculando...",
+            reset: "Reiniciar",
+          },
+          result: {
+            label: "Credito necesario",
+          },
+          errors: {
+            missingSubsidiary: "Selecciona una filial antes de calcular.",
+            missingCountry: "Selecciona un pais destino.",
+          },
         },
         errors: {
           generic: "Error",
@@ -672,6 +698,7 @@ export const messages: Record<Locale, DeepRecord> = {
         totals: {
           monthly: "Total mensual",
           hours: "Horas de desarrollo",
+          oneShot: "Pago unico",
         },
         actions: {
           cancel: "Cancelar",
@@ -1803,6 +1830,32 @@ export const messages: Record<Locale, DeepRecord> = {
           wiserApplied: "Wiser PRO added",
           itemDeleted: "Item deleted",
           itemDeleteError: "Could not delete the item: {message}",
+          proposalCreated: "Proposal saved",
+        },
+        whatsappCalculator: {
+          title: "WhatsApp Calculator",
+          description:
+            "Enter how many conversations you need per type to estimate the required credit.",
+          fields: {
+            subsidiary: "Billing subsidiary",
+            destination: "Destination country",
+            destinationPlaceholder: "Select a country",
+            marketing: "Marketing conversations",
+            utility: "Utility conversations",
+            auth: "Auth conversations",
+          },
+          actions: {
+            calculate: "Calculate",
+            calculating: "Calculating...",
+            reset: "Reset",
+          },
+          result: {
+            label: "Required credit",
+          },
+          errors: {
+            missingSubsidiary: "Choose a subsidiary before calculating.",
+            missingCountry: "Select a destination country.",
+          },
         },
         errors: {
           generic: "Error",
@@ -1830,6 +1883,7 @@ export const messages: Record<Locale, DeepRecord> = {
         totals: {
           monthly: "Monthly total",
           hours: "Development hours",
+          oneShot: "One-shot",
         },
         actions: {
           cancel: "Cancel",
@@ -2962,6 +3016,32 @@ export const messages: Record<Locale, DeepRecord> = {
           wiserApplied: "Wiser PRO adicionado",
           itemDeleted: "Item excluído",
           itemDeleteError: "Não foi possível excluir o item: {message}",
+          proposalCreated: "Proposta registrada",
+        },
+        whatsappCalculator: {
+          title: "Calculadora de WhatsApp",
+          description:
+            "Informe quantas conversas precisa por tipo para estimar o credito.",
+          fields: {
+            subsidiary: "Filial de faturamento",
+            destination: "Pais de destino",
+            destinationPlaceholder: "Selecione um pais",
+            marketing: "Conversas de Marketing",
+            utility: "Conversas de Utility",
+            auth: "Conversas de Auth",
+          },
+          actions: {
+            calculate: "Calcular",
+            calculating: "Calculando...",
+            reset: "Reiniciar",
+          },
+          result: {
+            label: "Credito necessario",
+          },
+          errors: {
+            missingSubsidiary: "Selecione uma filial antes de calcular.",
+            missingCountry: "Selecione um pais de destino.",
+          },
         },
         errors: {
           generic: "Erro",
@@ -2989,6 +3069,7 @@ export const messages: Record<Locale, DeepRecord> = {
         totals: {
           monthly: "Total mensal",
           hours: "Horas de desenvolvimento",
+          oneShot: "Pagamento unico",
         },
         actions: {
           cancel: "Cancelar",

@@ -31,9 +31,15 @@ export function getInitialItems(): UIItem[] {
   return [];
 }
 
-export async function fetchCatalogItems(locale: Locale): Promise<UIItem[]> {
+export async function fetchCatalogItems(
+  locale: Locale,
+  signal?: AbortSignal
+): Promise<UIItem[]> {
   try {
-    const res = await fetch(`/api/items?locale=${locale}`, { cache: "no-store" });
+    const res = await fetch(`/api/items?locale=${locale}`, {
+      cache: "no-store",
+      signal,
+    });
     if (!res.ok) {
       throw await parseProposalErrorResponse(res, "catalog.loadFailed");
     }
@@ -46,10 +52,12 @@ export async function fetchCatalogItems(locale: Locale): Promise<UIItem[]> {
 }
 
 // Popularidad desde API (itemId -> totalQty)
-export async function fetchItemsPopularity(): Promise<Record<string, number>> {
-  const r = await fetch("/api/items/popularity", { cache: "no-store" });
-  if (!r.ok) return {};
-  return (await r.json()) as Record<string, number>;
+export async function fetchItemsPopularity(
+  signal?: AbortSignal
+): Promise<Record<string, number>> {
+  const res = await fetch("/api/items/popularity", { cache: "no-store", signal });
+  if (!res.ok) return {};
+  return (await res.json()) as Record<string, number>;
 }
 
 export async function createCatalogItem(
@@ -105,14 +113,23 @@ export async function deleteCatalogItem(id: string): Promise<void> {
 }
 
 function serializeItemPayload(data: ItemFormData) {
-  const translations = Object.entries(data.translations).map(([locale, value]) => ({
-    locale,
-    name: value.name,
-    category: value.category,
-    description: value.description,
-  }));
-
+  const entries = Object.entries(data.translations);
   const base = data.translations[defaultLocale];
+
+  const translations = entries
+    .filter(([localeCode, value]) => {
+      if (localeCode === defaultLocale) return true;
+      const name = value.name?.trim() ?? "";
+      const category = value.category?.trim() ?? "";
+      const description = value.description?.trim() ?? "";
+      return Boolean(name || category || description);
+    })
+    .map(([locale, value]) => ({
+      locale,
+      name: value.name,
+      category: value.category,
+      description: value.description,
+    }));
 
   return {
     sku: data.sku,

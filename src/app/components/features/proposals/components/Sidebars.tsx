@@ -275,11 +275,12 @@ export function FilialesSidebar({
             <ul className="px-3 py-2 space-y-1">
               {g.countries.map((c) => {
                 const name = typeof c === "string" ? c : c.name;
+                const countryId = typeof c === "string" ? undefined : c.id;
                 const key = `${g.id}:${name}`;
                 return (
                   <li key={key} className="flex items-center justify-between">
                     <span>{name}</span>
-                    {isAdmin && (
+                    {isAdmin && countryId && (
                       <span className="flex gap-2">
                         <button
                           className="text-xs underline"
@@ -299,7 +300,7 @@ export function FilialesSidebar({
                                   setPromptCfg(null);
                                   return;
                                 }
-                                return editCountry(g.id, name, t).then((result) => {
+                                return editCountry(g.id, countryId ?? name, t).then((result) => {
                                   handleResult(result);
                                   setPromptCfg(null);
                                 });
@@ -319,7 +320,7 @@ export function FilialesSidebar({
                                 group: g.title,
                               }),
                               onConfirm: () => {
-                                void removeCountry(g.id, name).then(handleResult);
+                                void removeCountry(g.id, countryId ?? name).then(handleResult);
                                 setConfirmCfg(null);
                               },
                             })

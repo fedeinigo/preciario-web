@@ -22,172 +22,182 @@ export type FilialGroup = {
   countries: FilialCountry[];
 };
 
+const filialesCache: { data: FilialGroup[] | null } = { data: null };
+
+function cloneFiliales(data: FilialGroup[]): FilialGroup[] {
+  return structuredClone(data);
+}
+
+function invalidateFilialesCache() {
+  filialesCache.data = null;
+}
+
 export function useFiliales() {
   const [filiales, setFiliales] = useState<FilialGroup[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async (): Promise<ProposalActionResult> => {
-    setLoading(true);
-    try {
-      const r = await fetch("/api/filiales", { cache: "no-store" });
-      if (!r.ok) {
-        setFiliales([]);
-        return { ok: false, error: await parseProposalErrorResponse(r, "filiales.loadFailed") };
+  const load = useCallback(
+    async (options?: { force?: boolean }): Promise<ProposalActionResult> => {
+      if (!options?.force && filialesCache.data) {
+        setFiliales(cloneFiliales(filialesCache.data));
+        return { ok: true };
       }
-      setFiliales((await r.json()) as FilialGroup[]);
-      return { ok: true };
-    } catch {
-      setFiliales([]);
-      return { ok: false, error: createProposalCodeError("filiales.loadFailed") };
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
-  // ======= Grupos =======
+      setLoading(true);
+      try {
+        const response = await fetch("/api/filiales", { cache: "no-store" });
+        if (!response.ok) {
+          setFiliales([]);
+          return {
+            ok: false,
+            error: await parseProposalErrorResponse(response, "filiales.loadFailed"),
+          };
+        }
+        const data = (await response.json()) as FilialGroup[];
+        filialesCache.data = cloneFiliales(data);
+        setFiliales(cloneFiliales(data));
+        return { ok: true };
+      } catch {
+        setFiliales([]);
+        return { ok: false, error: createProposalCodeError("filiales.loadFailed") };
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  const reload = useCallback(async () => {
+    invalidateFilialesCache();
+    return load({ force: true });
+  }, [load]);
 
   const addFilial = useCallback(
     async (title: string): Promise<ProposalActionResult> => {
       try {
-        const r = await fetch(`/api/filiales`, {
+        const response = await fetch(`/api/filiales`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title }),
         });
-        if (!r.ok)
+        if (!response.ok) {
           return {
             ok: false,
-            error: await parseProposalErrorResponse(r, "filiales.createGroupFailed"),
+            error: await parseProposalErrorResponse(response, "filiales.createGroupFailed"),
           };
-        const reload = await load();
-        return reload.ok
-          ? { ok: true }
-          : { ok: false, error: reload.error };
+        }
+        return reload();
       } catch {
         return { ok: false, error: createProposalCodeError("filiales.createGroupFailed") };
       }
     },
-    [load]
+    [reload]
   );
 
   const editFilialTitle = useCallback(
     async (id: string, title: string): Promise<ProposalActionResult> => {
       try {
-        const r = await fetch(`/api/filiales/${id}`, {
+        const response = await fetch(`/api/filiales/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title }),
         });
-        if (!r.ok)
+        if (!response.ok) {
           return {
             ok: false,
-            error: await parseProposalErrorResponse(r, "filiales.renameGroupFailed"),
+            error: await parseProposalErrorResponse(response, "filiales.renameGroupFailed"),
           };
-        const reload = await load();
-        return reload.ok
-          ? { ok: true }
-          : { ok: false, error: reload.error };
+        }
+        return reload();
       } catch {
         return { ok: false, error: createProposalCodeError("filiales.renameGroupFailed") };
       }
     },
-    [load]
+    [reload]
   );
 
   const removeFilial = useCallback(
     async (id: string): Promise<ProposalActionResult> => {
       try {
-        const r = await fetch(`/api/filiales/${id}`, {
-          method: "DELETE",
-        });
-        if (!r.ok)
+        const response = await fetch(`/api/filiales/${id}`, { method: "DELETE" });
+        if (!response.ok) {
           return {
             ok: false,
-            error: await parseProposalErrorResponse(r, "filiales.deleteGroupFailed"),
+            error: await parseProposalErrorResponse(response, "filiales.deleteGroupFailed"),
           };
-        const reload = await load();
-        return reload.ok
-          ? { ok: true }
-          : { ok: false, error: reload.error };
+        }
+        return reload();
       } catch {
         return { ok: false, error: createProposalCodeError("filiales.deleteGroupFailed") };
       }
     },
-    [load]
+    [reload]
   );
-
-  // ======= Países por grupo =======
 
   const addCountry = useCallback(
     async (groupId: string, name: string): Promise<ProposalActionResult> => {
       try {
-        const r = await fetch(`/api/filiales/${groupId}/countries`, {
+        const response = await fetch(`/api/filiales/${groupId}/countries`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name }),
         });
-        if (!r.ok)
+        if (!response.ok) {
           return {
             ok: false,
-            error: await parseProposalErrorResponse(r, "filiales.createCountryFailed"),
+            error: await parseProposalErrorResponse(response, "filiales.createCountryFailed"),
           };
-        const reload = await load();
-        return reload.ok
-          ? { ok: true }
-          : { ok: false, error: reload.error };
+        }
+        return reload();
       } catch {
         return { ok: false, error: createProposalCodeError("filiales.createCountryFailed") };
       }
     },
-    [load]
+    [reload]
   );
 
   const editCountry = useCallback(
     async (groupId: string, id: string, name: string): Promise<ProposalActionResult> => {
       try {
-        const r = await fetch(`/api/filiales/${groupId}/countries`, {
+        const response = await fetch(`/api/filiales/${groupId}/countries`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id, name }),
         });
-        if (!r.ok)
+        if (!response.ok) {
           return {
             ok: false,
-            error: await parseProposalErrorResponse(r, "filiales.renameCountryFailed"),
+            error: await parseProposalErrorResponse(response, "filiales.renameCountryFailed"),
           };
-        const reload = await load();
-        return reload.ok
-          ? { ok: true }
-          : { ok: false, error: reload.error };
+        }
+        return reload();
       } catch {
         return { ok: false, error: createProposalCodeError("filiales.renameCountryFailed") };
       }
     },
-    [load]
+    [reload]
   );
 
   const removeCountry = useCallback(
     async (groupId: string, id: string): Promise<ProposalActionResult> => {
       try {
-        const r = await fetch(`/api/filiales/${groupId}/countries`, {
+        const response = await fetch(`/api/filiales/${groupId}/countries`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id }),
         });
-        if (!r.ok)
+        if (!response.ok) {
           return {
             ok: false,
-            error: await parseProposalErrorResponse(r, "filiales.deleteCountryFailed"),
+            error: await parseProposalErrorResponse(response, "filiales.deleteCountryFailed"),
           };
-        const reload = await load();
-        return reload.ok
-          ? { ok: true }
-          : { ok: false, error: reload.error };
+        }
+        return reload();
       } catch {
         return { ok: false, error: createProposalCodeError("filiales.deleteCountryFailed") };
       }
     },
-    [load]
+    [reload]
   );
 
   return {
