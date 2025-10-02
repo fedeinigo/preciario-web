@@ -9,6 +9,7 @@ import { formatUSD } from "@/app/components/features/proposals/lib/format";
 import { q1Range, q2Range, q3Range, q4Range } from "@/app/components/features/proposals/lib/dateRanges";
 import type { AppRole } from "@/constants/teams";
 import { useTranslations } from "@/app/LanguageProvider";
+import { fetchAllProposals } from "@/app/components/features/proposals/lib/proposals-response";
 
 type Viewer = {
   id?: string | null;
@@ -142,23 +143,16 @@ export default function UserProfileModal({
       return;
     }
     try {
-      const r = await fetch("/api/proposals", { cache: "no-store" });
-      const rows = (await r.json()) as Array<{
-        userEmail: string | null;
-        status?: string | null;
-        totalAmount?: number | null;
-        createdAt: string | Date;
-      }>;
-      const from = new Date(range.from);
-      const to = new Date(range.to);
-      const sum = rows
-        .filter(
-          (p) =>
-            p.userEmail === resolvedTarget.email &&
-            (p.status === "WON" || p.status === "won" || p.status === "Won") &&
-            new Date(p.createdAt) >= from &&
-            new Date(p.createdAt) <= to
-        )
+      const { proposals } = await fetchAllProposals();
+      const from = new Date(range.from).getTime();
+      const to = new Date(range.to).getTime();
+      const sum = proposals
+        .filter((p) => {
+          if (p.userEmail !== resolvedTarget.email) return false;
+          if ((p.status ?? "").toUpperCase() !== "WON") return false;
+          const ts = new Date(p.createdAt as string).getTime();
+          return ts >= from && ts <= to;
+        })
         .reduce((acc, p) => acc + Number(p.totalAmount ?? 0), 0);
       setWonAmount(sum);
     } catch {
