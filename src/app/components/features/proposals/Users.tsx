@@ -8,6 +8,7 @@ import { Copy, MoreHorizontal, UserRound, X } from "lucide-react";
 import { copyToClipboard } from "./lib/clipboard";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
 import { useTranslations } from "@/app/LanguageProvider";
+import { normalizeSearchText } from "@/lib/normalize-search-text";
 
 type Role = "superadmin" | "lider" | "usuario";
 
@@ -179,7 +180,7 @@ export default function Users() {
   const [includeEmptyTeams, setIncludeEmptyTeams] = useState(false);
 
   useEffect(() => {
-    const id = window.setTimeout(() => setQDebounced(q.trim().toLowerCase()), 250);
+    const id = window.setTimeout(() => setQDebounced(normalizeSearchText(q.trim())), 250);
     return () => window.clearTimeout(id);
   }, [q]);
 
@@ -198,8 +199,8 @@ export default function Users() {
     const filtered = users.filter((u) => {
       const byText =
         !qDebounced ||
-        (u.email ?? "").toLowerCase().includes(qDebounced) ||
-        (u.name ?? "").toLowerCase().includes(qDebounced);
+        normalizeSearchText(u.email).includes(qDebounced) ||
+        normalizeSearchText(u.name).includes(qDebounced);
       const byRole = !roleFilter || u.role === roleFilter;
       const byTeam = !teamFilter || (u.team ?? "") === teamFilter;
       const byOnlyNoTeam = !onlyNoTeam || !u.team;

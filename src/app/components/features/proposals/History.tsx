@@ -21,6 +21,7 @@ import {
 import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
+import { normalizeSearchText } from "@/lib/normalize-search-text";
 
 type AppRole = "superadmin" | "lider" | "usuario";
 type AdminUserRow = { email: string | null; team: string | null; role?: AppRole };
@@ -194,6 +195,10 @@ export default function History({
   };
 
   const subset = useMemo(() => {
+    const normalizedIdQuery = normalizeSearchText(idQuery);
+    const normalizedCompanyQuery = normalizeSearchText(companyQuery);
+    const normalizedEmailQuery = normalizeSearchText(emailQuery);
+
     const filtered = rows.filter((p) => {
       if (isSuperAdmin) {
         if (teamFilter) {
@@ -207,11 +212,14 @@ export default function History({
         if (p.userEmail !== currentEmail) return false;
       }
 
-      const idOk = !idQuery || p.id.toLowerCase().includes(idQuery.toLowerCase());
+      const idOk =
+        !normalizedIdQuery || normalizeSearchText(p.id).includes(normalizedIdQuery);
       const compOk =
-        !companyQuery || p.companyName.toLowerCase().includes(companyQuery.toLowerCase());
+        !normalizedCompanyQuery ||
+        normalizeSearchText(p.companyName).includes(normalizedCompanyQuery);
       const emailOk =
-        !emailQuery || (p.userEmail ?? "").toLowerCase().includes(emailQuery.toLowerCase());
+        !normalizedEmailQuery ||
+        normalizeSearchText(p.userEmail).includes(normalizedEmailQuery);
       const countryOk = !countryFilter || p.country === countryFilter;
 
       const ts = new Date(p.createdAt as unknown as string).getTime();
