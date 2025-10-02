@@ -9,7 +9,7 @@ import { copyToClipboard } from "./lib/clipboard";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
 import { useTranslations } from "@/app/LanguageProvider";
 import { normalizeSearchText } from "@/lib/normalize-search-text";
-import { fetchAllProposals } from "./lib/proposals-response";
+import { fetchActiveUsersCount } from "./lib/proposals-response";
 
 type Role = "superadmin" | "lider" | "usuario";
 
@@ -132,14 +132,12 @@ export default function Users() {
 
       // activos 30d (sin bloquear la UI si falla)
       try {
-        const { proposals } = await fetchAllProposals();
-        const since = Date.now() - 30 * 24 * 3600 * 1000;
-        const activeUsers = new Set(
-          proposals
-            .filter((r) => r.userEmail && new Date(r.createdAt as string).getTime() >= since)
-            .map((r) => r.userEmail as string)
-        );
-        setActiveLast30(activeUsers.size);
+        const now = new Date();
+        const to = now.toISOString().slice(0, 10);
+        const fromDate = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+        const from = fromDate.toISOString().slice(0, 10);
+        const activeUsers = await fetchActiveUsersCount({ from, to });
+        setActiveLast30(activeUsers);
       } catch {
         setActiveLast30(0);
       }

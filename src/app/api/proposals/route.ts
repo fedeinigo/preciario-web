@@ -103,6 +103,23 @@ export async function GET(request: Request) {
     return NextResponse.json({ totalAmount, count });
   }
 
+  if (aggregate === "activeUsers") {
+    const activeUsersWhere: Prisma.ProposalWhereInput = { ...where };
+
+    if (!userEmail) {
+      activeUsersWhere.userEmail = { not: null };
+    }
+
+    const groups = await prisma.proposal.groupBy({
+      where: activeUsersWhere,
+      by: ["userEmail"],
+    });
+
+    const activeUsers = groups.filter((group) => group.userEmail).length;
+
+    return NextResponse.json({ activeUsers });
+  }
+
   const orderBy: Prisma.ProposalOrderByWithRelationInput = { createdAt: "desc" };
 
   if (!isFeatureEnabled("proposalsPagination")) {

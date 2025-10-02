@@ -57,3 +57,46 @@ describe("GET /api/proposals aggregate=sum", () => {
     }
   });
 });
+
+describe("GET /api/proposals aggregate=activeUsers", () => {
+  it("counts distinct non-null userEmail values in the requested range", async () => {
+    mock.method(requireAuth, "requireApiSession", async () => ({ response: undefined }));
+
+    const groupByCalls: Prisma.ProposalGroupByArgs[] = [];
+    const delegate = prisma.proposal as unknown as {
+      groupBy: (
+        args: Prisma.ProposalGroupByArgs,
+      ) => Promise<Array<{ userEmail: string | null }>>;
+    };
+    const originalGroupBy = delegate.groupBy;
+    delegate.groupBy = (args: Prisma.ProposalGroupByArgs) => {
+      groupByCalls.push(args);
+      return Promise.resolve([
+        { userEmail: "one@example.com" },
+        { userEmail: "two@example.com" },
+        { userEmail: "three@example.com" },
+      ]);
+    };
+
+    try {
+      const response = await GET(
+        new Request("https://example.com/api/proposals?aggregate=activeUsers&from=2024-01-01&to=2024-01-31"),
+      );
+
+      assert.equal(response.status, 200);
+      const payload = (await response.json()) as { activeUsers: number };
+      assert.equal(payload.activeUsers, 3);
+
+      const [call] = groupByCalls;
+      assert.ok(call, "groupBy should be invoked");
+      assert.deepEqual(call.by, ["userEmail"]);
+      assert.deepEqual(call.where?.userEmail, { not: null });
+      const createdAtFilter = call.where?.createdAt as Prisma.DateTimeFilter | undefined;
+      assert.ok(createdAtFilter?.gte instanceof Date);
+      assert.ok(createdAtFilter?.lte instanceof Date);
+    } finally {
+      mock.restoreAll();
+      delegate.groupBy = originalGroupBy;
+    }
+  });
+});
