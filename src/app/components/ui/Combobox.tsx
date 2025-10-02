@@ -50,11 +50,18 @@ export default function Combobox({
   const listboxId = useId();
   const optionId = (idx: number) => `${listboxId}-opt-${idx}`;
 
+  const normalizedOptions = useMemo(
+    () => options.map((raw) => ({ raw, normalized: normalizeSearchText(raw) })),
+    [options]
+  );
+
   const filtered = useMemo(() => {
     const normalizedQuery = normalizeSearchText(query.trim());
-    if (!normalizedQuery) return options;
-    return options.filter((o) => normalizeSearchText(o).includes(normalizedQuery));
-  }, [options, query]);
+    if (!normalizedQuery) return normalizedOptions.map(({ raw }) => raw);
+    return normalizedOptions
+      .filter(({ normalized }) => normalized.includes(normalizedQuery))
+      .map(({ raw }) => raw);
+  }, [normalizedOptions, query]);
 
   // cerrar al click exterior
   useEffect(() => {
