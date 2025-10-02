@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { defaultLocale, locales, storageKey, type Locale } from "@/lib/i18n/config";
+import { formatMessage } from "@/lib/i18n/formatMessage";
 import { getMessage } from "@/lib/i18n/messages";
 
 type Replacements = Record<string, string | number>;
@@ -50,20 +51,11 @@ export function LanguageProvider({
   }, [locale]);
 
   const value = React.useMemo<LanguageContextValue>(() => {
-    const format = (template: string, replacements?: Replacements) => {
-      if (!replacements) return template;
-      return Object.entries(replacements).reduce(
-        (acc, [token, replacement]) =>
-          acc.replace(new RegExp(`\\{${token}\\}`, "g"), String(replacement)),
-        template
-      );
-    };
-
     return {
       locale,
       setLocale,
       t: (key, replacements) =>
-        format(getMessage(locale, key, defaultLocale), replacements),
+        formatMessage(getMessage(locale, key, defaultLocale), locale, replacements),
     };
   }, [locale, setLocale]);
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
