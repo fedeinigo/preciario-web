@@ -85,11 +85,14 @@ function AuthedTabs(props: {
     window.dispatchEvent(new CustomEvent("proposals:refresh"));
   }, []);
 
+  const canViewSku = isSuperAdmin || role === "lider";
+
   return (
     <div className="px-3 pt-6 w-full">
       {tab === "generator" && (
         <Generator
           isAdmin={isSuperAdmin}
+          canViewSku={canViewSku}
           userId={userId}
           userEmail={userEmail}
           onSaved={handleSaved}

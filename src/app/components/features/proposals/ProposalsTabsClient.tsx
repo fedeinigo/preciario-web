@@ -49,12 +49,14 @@ export default function ProposalsTabsClient({
   }, []);
 
   const isSuperAdmin = viewer.role === "superadmin";
+  const canViewSku = isSuperAdmin || viewer.role === "lider";
 
   return (
     <div className="px-3 pt-6 w-full">
       {tab === "generator" && (
         <Generator
           isAdmin={isSuperAdmin}
+          canViewSku={canViewSku}
           userId={viewer.id}
           userEmail={viewer.email}
           onSaved={handleSaved}

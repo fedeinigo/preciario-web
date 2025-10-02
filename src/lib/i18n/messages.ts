@@ -448,12 +448,14 @@ export const messages: Record<Locale, DeepRecord> = {
           createCountryFailed: "No se pudo agregar el país.",
           renameCountryFailed: "No se pudo renombrar el país.",
           deleteCountryFailed: "No se pudo eliminar el país.",
+          unauthorized: "No tenés permisos para realizar esta acción.",
         },
         glossary: {
           loadFailed: "No se pudo cargar el glosario.",
           createFailed: "No se pudo crear el enlace.",
           updateFailed: "No se pudo actualizar el enlace.",
           deleteFailed: "No se pudo eliminar el enlace.",
+          unauthorized: "No tenés permisos para realizar esta acción.",
         },
         pricing: {
           whatsAppFailed: "No se pudo calcular WhatsApp.",
@@ -1636,12 +1638,14 @@ export const messages: Record<Locale, DeepRecord> = {
           createCountryFailed: "Could not add the country.",
           renameCountryFailed: "Could not rename the country.",
           deleteCountryFailed: "Could not delete the country.",
+          unauthorized: "You are not allowed to perform this action.",
         },
         glossary: {
           loadFailed: "Could not load the glossary.",
           createFailed: "Could not create the link.",
           updateFailed: "Could not update the link.",
           deleteFailed: "Could not delete the link.",
+          unauthorized: "You are not allowed to perform this action.",
         },
         pricing: {
           whatsAppFailed: "Could not calculate WhatsApp.",
@@ -2822,12 +2826,14 @@ export const messages: Record<Locale, DeepRecord> = {
           createCountryFailed: "Não foi possível adicionar o país.",
           renameCountryFailed: "Não foi possível renomear o país.",
           deleteCountryFailed: "Não foi possível excluir o país.",
+          unauthorized: "Você não tem permissão para executar esta ação.",
         },
         glossary: {
           loadFailed: "Não foi possível carregar o glossário.",
           createFailed: "Não foi possível criar o link.",
           updateFailed: "Não foi possível atualizar o link.",
           deleteFailed: "Não foi possível excluir o link.",
+          unauthorized: "Você não tem permissão para executar esta ação.",
         },
         pricing: {
           whatsAppFailed: "Não foi possível calcular WhatsApp.",

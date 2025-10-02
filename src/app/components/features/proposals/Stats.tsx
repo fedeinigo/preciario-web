@@ -20,6 +20,11 @@ import {
   prevWeekRange,
 } from "./lib/dateRanges";
 import { useTranslations } from "@/app/LanguageProvider";
+import {
+  fetchAllProposals,
+  type ProposalsListMeta,
+} from "./lib/proposals-response";
+import { useAdminUsers } from "./hooks/useAdminUsers";
 
 /** Header full-bleed como en Objetivos */
 function PageHeader({ children }: { children: React.ReactNode }) {
@@ -114,7 +119,6 @@ function QuickRanges({
   );
 }
 
-type AdminUserRow = { email: string | null; role: AppRole; team: string | null };
 type ProposalForStats = ProposalRecord & {
   items?: Array<{ sku: string; name: string; quantity: number }>;
 };
@@ -157,20 +161,22 @@ export default function Stats({
   // datos
   const [loading, setLoading] = useState(true);
   const [all, setAll] = useState<ProposalForStats[]>([]);
+  const [, setListMeta] = useState<ProposalsListMeta | undefined>();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch("/api/proposals", { cache: "no-store" });
-      if (!r.ok) {
-        toast.error(toastT("loadError"));
-        setAll([]);
-      } else {
-        setAll((await r.json()) as ProposalForStats[]);
-      }
-    } catch {
-      toast.error(toastT("networkError"));
+      const { proposals, meta } = await fetchAllProposals();
+      setAll(proposals);
+      setListMeta(meta);
+    } catch (error) {
       setAll([]);
+      setListMeta(undefined);
+      const status =
+        error instanceof Error && typeof (error as { status?: unknown }).status === "number"
+          ? (error as { status?: number }).status
+          : undefined;
+      toast.error(toastT(status ? "loadError" : "networkError"));
     } finally {
       setLoading(false);
     }
@@ -183,17 +189,19 @@ export default function Stats({
     return () => window.removeEventListener("focus", onFocus);
   }, [load]);
 
-  // emails -> team
-  const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
   useEffect(() => {
-    if (isSuperAdmin || role === "lider") {
-      fetch("/api/admin/users", { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : []))
-        .then((rows: AdminUserRow[]) => setAdminUsers(rows))
-        .catch(() => setAdminUsers([]));
-    }
-  }, [isSuperAdmin, role]);
+    const onRefresh = () => {
+      load();
+    };
+    window.addEventListener("proposals:refresh", onRefresh as EventListener);
+    return () => window.removeEventListener("proposals:refresh", onRefresh as EventListener);
+  }, [load]);
 
+  // emails -> team
+  const { users: adminUsers } = useAdminUsers({
+    isSuperAdmin,
+    isLeader: role === "lider",
+  });
   const emailToTeam = useMemo(() => {
     const map = new Map<string, string | null>();
     adminUsers.forEach((u) => {

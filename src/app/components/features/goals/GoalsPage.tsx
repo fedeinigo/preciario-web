@@ -7,6 +7,7 @@ import { toast } from "@/app/components/ui/toast";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
 import { useTranslations } from "@/app/LanguageProvider";
 import { q1Range, q2Range, q3Range, q4Range } from "../proposals/lib/dateRanges";
+import { useAdminUsers } from "../proposals/hooks/useAdminUsers";
 import QuarterPicker from "./components/QuarterPicker";
 import IndividualGoalCard from "./components/IndividualGoalCard";
 import TeamGoalCard from "./components/TeamGoalCard";
@@ -29,6 +30,11 @@ export default function GoalsPage({
   const pageT = useTranslations("goals.page");
   const toastT = useTranslations("goals.toast");
   const csvT = useTranslations("goals.csv");
+
+  const { users: adminUsers } = useAdminUsers({
+    isSuperAdmin,
+    isLeader: role === "lider",
+  });
 
   const now = new Date();
   const [year, setYear] = React.useState<number>(now.getFullYear());
@@ -59,26 +65,17 @@ export default function GoalsPage({
 
   const loadMyProgress = React.useCallback(async () => {
     try {
-      const r = await fetch("/api/proposals", { cache: "no-store" });
-      if (!r.ok) return setMyProgress(0);
-      const all = (await r.json()) as Array<{
-        userEmail: string | null;
-        status?: "OPEN" | "LOST" | "WON" | null;
-        totalAmount: number;
-        createdAt: string;
-      }>;
-      const from = new Date(rangeForQuarter.from).getTime();
-      const to = new Date(rangeForQuarter.to).getTime();
-      const sum = all
-        .filter(
-          (p) =>
-            p.userEmail === currentEmail &&
-            p.status === "WON" &&
-            new Date(p.createdAt).getTime() >= from &&
-            new Date(p.createdAt).getTime() <= to
-        )
-        .reduce((acc, p) => acc + Number(p.totalAmount || 0), 0);
-      setMyProgress(sum);
+      const params = new URLSearchParams({
+        aggregate: "sum",
+        status: "WON",
+        userEmail: currentEmail,
+        from: rangeForQuarter.from,
+        to: rangeForQuarter.to,
+      });
+      const response = await fetch(`/api/proposals?${params.toString()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Failed to load progress");
+      const payload = (await response.json()) as { totalAmount?: number };
+      setMyProgress(Number(payload.totalAmount ?? 0));
     } catch {
       setMyProgress(0);
     }
@@ -101,29 +98,19 @@ export default function GoalsPage({
   };
 
   // ---- Equipo (visibles para TODOS). Para superadmin: ocultar equipos vacíos.
-  const [teams, setTeams] = React.useState<string[]>([]);
-  React.useEffect(() => {
-    if (!isSuperAdmin) return;
-    (async () => {
-      try {
-        const usersRes = await fetch("/api/admin/users", { cache: "no-store" });
-        const users: Array<{ team: string | null }> = usersRes.ok ? await usersRes.json() : [];
-        const counts = new Map<string, number>();
-        users.forEach((u) => {
-          const t = (u.team || "").trim();
-          if (!t) return;
-          counts.set(t, (counts.get(t) || 0) + 1);
-        });
-        const list = Array.from(counts.entries())
-          .filter(([, c]) => c > 0)
-          .map(([name]) => name)
-          .sort((a, b) => a.localeCompare(b));
-        setTeams(list);
-      } catch {
-        setTeams([]);
-      }
-    })();
-  }, [isSuperAdmin]);
+  const teams = React.useMemo(() => {
+    if (!isSuperAdmin) return [] as string[];
+    const counts = new Map<string, number>();
+    adminUsers.forEach((u) => {
+      const t = (u.team || "").trim();
+      if (!t) return;
+      counts.set(t, (counts.get(t) || 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .filter(([, count]) => count > 0)
+      .map(([name]) => name)
+      .sort((a, b) => a.localeCompare(b));
+  }, [adminUsers, isSuperAdmin]);
 
   const [teamFilter, setTeamFilter] = React.useState<string>("");
   const effectiveTeam = isSuperAdmin ? teamFilter : (leaderTeam ?? "");
@@ -154,6 +141,17 @@ export default function GoalsPage({
   }, [effectiveTeam, isSuperAdmin, year, quarter]);
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
+
+  React.useEffect(() => {
+    const handleRefresh = () => {
+      loadMyProgress();
+      if (isSuperAdmin || role === "lider") {
+        loadTeam();
+      }
+    };
+    window.addEventListener("proposals:refresh", handleRefresh as EventListener);
+    return () => window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
+  }, [isSuperAdmin, role, loadMyProgress, loadTeam]);
 
   const saveUserGoal = async (userId: string, amount: number) => {
     const res = await fetch("/api/goals/user", {

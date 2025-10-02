@@ -1,5 +1,7 @@
 // src/app/api/filiales/[id]/countries/route.ts
 import { NextResponse } from "next/server";
+
+import { ensureSessionRole, requireApiSession } from "@/app/api/_utils/require-auth";
 import prisma from "@/lib/prisma";
 
 // /api/filiales/[id]/countries
@@ -20,6 +22,12 @@ function getGroupIdFromUrl(req: Request): string | null {
  * Body: { name: string }
  */
 export async function POST(req: Request) {
+  const { session, response } = await requireApiSession();
+  if (response) return response;
+
+  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  if (forbidden) return forbidden;
+
   const groupId = getGroupIdFromUrl(req);
   if (!groupId) {
     return NextResponse.json({ error: "groupId no encontrado en la URL" }, { status: 400 });
@@ -40,6 +48,12 @@ export async function POST(req: Request) {
  * Body: { id: string; name: string }
  */
 export async function PATCH(req: Request) {
+  const { session, response } = await requireApiSession();
+  if (response) return response;
+
+  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  if (forbidden) return forbidden;
+
   const body: { id: string; name: string } = await req.json();
 
   const updated = await prisma.filialCountry.update({
@@ -56,6 +70,12 @@ export async function PATCH(req: Request) {
  * Body: { id: string }
  */
 export async function DELETE(req: Request) {
+  const { session, response } = await requireApiSession();
+  if (response) return response;
+
+  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  if (forbidden) return forbidden;
+
   const body: { id: string } = await req.json();
 
   await prisma.filialCountry.delete({ where: { id: body.id } });

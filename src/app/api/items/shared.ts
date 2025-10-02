@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
@@ -137,7 +137,7 @@ export function mapItemToResponse(item: ItemWithTranslations, locale: Locale) {
     id: item.id,
     sku: item.sku,
     name: activeTranslation.name,
-    category: item.category,
+    category: activeTranslation.category,
     description: activeTranslation.description,
     unitPrice: Number(item.unitPrice),
     devHours: item.devHours,
@@ -176,5 +176,6 @@ function buildTranslationRecord(
 
   return record;
 }
+
 
 

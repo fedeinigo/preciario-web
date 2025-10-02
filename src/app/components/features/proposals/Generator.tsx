@@ -86,6 +86,7 @@ const ONE_SHOT_RATE = Number.isFinite(RAW_ONE_SHOT_RATE) && RAW_ONE_SHOT_RATE > 
 
 type Props = {
   isAdmin: boolean;
+  canViewSku: boolean;
   userId: string;
   userEmail: string;
   onSaved: (id: string) => void;
@@ -94,7 +95,7 @@ type Props = {
 type SortKey = "popular" | "sku" | "unitPrice" | "name" | "category";
 type SortDir = "asc" | "desc";
 
-export default function Generator({ isAdmin, userId, userEmail, onSaved }: Props) {
+export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSaved }: Props) {
   const { locale } = useLanguage();
   const generatorT = useTranslations("proposals.generator");
   const toastT = useTranslations("proposals.generator.toast");
@@ -243,18 +244,41 @@ export default function Generator({ isAdmin, userId, userEmail, onSaved }: Props
     confirm: confirmWiserModal,
   } = useWiserModal();
 
-  const filtered = useMemo(() => {
-    const normalizedQuery = normalizeSearchText(searchTerm);
-    return items.filter((it) => {
-      const matchesText =
-        !normalizedQuery ||
-        normalizeSearchText(it.name).includes(normalizedQuery) ||
-        normalizeSearchText(it.description).includes(normalizedQuery) ||
-        normalizeSearchText(it.sku).includes(normalizedQuery);
-      const matchesCat = !categoryFilter || it.category === categoryFilter;
-      return matchesText && matchesCat;
-    });
-  }, [items, searchTerm, categoryFilter]);
+  const normalizedItems = useMemo(
+    () =>
+      items.map((it) => ({
+        original: it,
+        normalizedName: normalizeSearchText(it.name),
+        normalizedDescription: normalizeSearchText(it.description),
+        normalizedSku: normalizeSearchText(it.sku),
+      })),
+    [items]
+  );
+
+  const normalizedQuery = useMemo(
+    () => normalizeSearchText(searchTerm),
+    [searchTerm]
+  );
+
+  const filteredEntries = useMemo(
+    () =>
+      normalizedItems.filter((entry) => {
+        const matchesText =
+          !normalizedQuery ||
+          entry.normalizedName.includes(normalizedQuery) ||
+          entry.normalizedDescription.includes(normalizedQuery) ||
+          entry.normalizedSku.includes(normalizedQuery);
+        const matchesCat =
+          !categoryFilter || entry.original.category === categoryFilter;
+        return matchesText && matchesCat;
+      }),
+    [normalizedItems, normalizedQuery, categoryFilter]
+  );
+
+  const filtered = useMemo(
+    () => filteredEntries.map((entry) => entry.original),
+    [filteredEntries]
+  );
 
   const ordered = useMemo(() => {
     const arr = [...filtered];
@@ -806,6 +830,7 @@ export default function Generator({ isAdmin, userId, userEmail, onSaved }: Props
     () => ({
       items: ordered,
       isAdmin,
+      showSku: canViewSku,
       onToggle: handleToggleItem,
       onChangeQty: handleQuantityChange,
       onChangeDiscountPct: handleDiscountChange,
@@ -820,6 +845,7 @@ export default function Generator({ isAdmin, userId, userEmail, onSaved }: Props
     [
       ordered,
       isAdmin,
+      canViewSku,
       handleToggleItem,
       handleQuantityChange,
       handleDiscountChange,

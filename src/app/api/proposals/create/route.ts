@@ -8,25 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { createProposalRequestSchema } from "@/lib/schemas/proposals";
 import logger from "@/lib/logger";
 
-/** ----------------- Tipos de dominio ----------------- */
-type LineItem = {
-  name: string;
-  quantity: number;
-  unitPrice: number;
-  devHours: number;
-};
-
-type CreateDocPayload = {
-  companyName: string;
-  country: string;
-  subsidiary: string;
-  items: LineItem[];
-  totals: {
-    monthly: number;
-    oneShot: number;
-    hours: number;
-  };
-};
+import { buildReplaceRequests, resolveHourlyRate, type CreateDocPayload } from "./helpers";
 
 /** ----------------- Tipos (subset) Google APIs ----------------- */
 interface SheetsValuesResponse { values?: string[][]; }
@@ -45,26 +27,6 @@ interface StructuralElement {
 }
 interface DocumentBody { content?: StructuralElement[]; }
 interface DocumentGetResponse { body?: DocumentBody; }
-
-/** ----------------- Utils ----------------- */
-
-
-function formatUSD(n: number) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-
-function formatFechaDia(d = new Date()) {
-  const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"] as const;
-  const dia = String(d.getDate()).padStart(2, "0");
-  const mes = meses[d.getMonth()];
-  const anio = d.getFullYear();
-  return `${dia} de ${mes} de ${anio}`;
-}
 
 function isObject(x: unknown): x is Record<string, unknown> { return typeof x === "object" && x !== null; }
 function getStr(x: unknown, key: string): string | undefined {
@@ -254,10 +216,7 @@ export async function POST(req: Request) {
         : hoursCandidate
     );
 
-    const hourlyRateEnv = Number(
-      process.env.PROPOSALS_ONESHOT_RATE ?? process.env.ONESHOT_RATE ?? 50
-    );
-    const hourlyRate = Number.isFinite(hourlyRateEnv) && hourlyRateEnv > 0 ? hourlyRateEnv : 50;
+    const hourlyRate = resolveHourlyRate(process.env);
     const oneShot = Number((totalHours * hourlyRate).toFixed(2));
 
     const resolvedUserId = payload.userId?.trim() || session.user.id;
@@ -348,43 +307,11 @@ export async function POST(req: Request) {
     if (!newFileId) return NextResponse.json({ error: "Drive copy no devolvió id", details: copyJson }, { status: 502 });
 
     /** 5) Reemplazos de texto generales */
-    const VALOR_HORA = 50;
-    const fechaDia = formatFechaDia();
-
-    const requests: Array<Record<string, unknown>> = [
-      { replaceAllText: { containsText: { text: "<-cliente->", matchCase: false }, replaceText: body.companyName } },
-      { replaceAllText: { containsText: { text: "<-fecha_dia->", matchCase: false }, replaceText: fechaDia } },
-      { replaceAllText: { containsText: { text: "<-condiciones->", matchCase: false }, replaceText: conditionsText } },
-      { replaceAllText: { containsText: { text: "<-horas->", matchCase: false }, replaceText: String(body.totals.hours) } },
-      { replaceAllText: { containsText: { text: "<-valor_hora->", matchCase: false }, replaceText: `US$ ${VALOR_HORA}` } },
-      { replaceAllText: { containsText: { text: "<-total_horas->", matchCase: false }, replaceText: formatUSD(body.totals.oneShot) } },
-      { replaceAllText: { containsText: { text: "<-total-oneshot->", matchCase: false }, replaceText: formatUSD(body.totals.oneShot) } },
-      { replaceAllText: { containsText: { text: "<-totalmensual->", matchCase: false }, replaceText: formatUSD(body.totals.monthly) } },
-    ];
-
-    // Ítems
-    body.items.forEach((it, idx) => {
-      const n = idx + 1;
-      requests.push(
-        { replaceAllText: { containsText: { text: `<item${n}>`, matchCase: false }, replaceText: it.name } },
-        { replaceAllText: { containsText: { text: `<cantidad${n}>`, matchCase: false }, replaceText: String(it.quantity) } },
-        { replaceAllText: { containsText: { text: `<precio${n}>`, matchCase: false }, replaceText: formatUSD(it.unitPrice) } },
-        { replaceAllText: { containsText: { text: `<total${n}>`, matchCase: false }, replaceText: formatUSD(it.unitPrice * it.quantity) } },
-      );
-    });
-
-    // WhatsApp
-    whatsappRows.forEach((row, rIdx) => {
-      const rowNum = rIdx + 1;
-      for (let c = 0; c < 5; c++) {
-        const value = row[c] ?? "";
-        requests.push({
-          replaceAllText: {
-            containsText: { text: `<w${rowNum}c${c + 1}>`, matchCase: false },
-            replaceText: value,
-          },
-        });
-      }
+    const requests = buildReplaceRequests({
+      body,
+      conditionsText,
+      whatsappRows,
+      hourlyRate,
     });
 
     // Aplicar reemplazos
