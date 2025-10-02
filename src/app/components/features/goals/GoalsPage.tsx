@@ -12,7 +12,6 @@ import IndividualGoalCard from "./components/IndividualGoalCard";
 import TeamGoalCard from "./components/TeamGoalCard";
 import TeamMembersTable, { TeamGoalRow } from "./components/TeamMembersTable";
 import { Users2 } from "lucide-react";
-import { fetchAllProposals } from "../proposals/lib/proposals-response";
 
 type Props = {
   role: AppRole;
@@ -60,18 +59,17 @@ export default function GoalsPage({
 
   const loadMyProgress = React.useCallback(async () => {
     try {
-      const { proposals } = await fetchAllProposals();
-      const from = new Date(rangeForQuarter.from).getTime();
-      const to = new Date(rangeForQuarter.to).getTime();
-      const sum = proposals
-        .filter((p) => {
-          if (p.userEmail !== currentEmail) return false;
-          if ((p.status ?? "").toUpperCase() !== "WON") return false;
-          const ts = new Date(p.createdAt as string).getTime();
-          return ts >= from && ts <= to;
-        })
-        .reduce((acc, p) => acc + Number(p.totalAmount ?? 0), 0);
-      setMyProgress(sum);
+      const params = new URLSearchParams({
+        aggregate: "sum",
+        status: "WON",
+        userEmail: currentEmail,
+        from: rangeForQuarter.from,
+        to: rangeForQuarter.to,
+      });
+      const response = await fetch(`/api/proposals?${params.toString()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Failed to load progress");
+      const payload = (await response.json()) as { totalAmount?: number };
+      setMyProgress(Number(payload.totalAmount ?? 0));
     } catch {
       setMyProgress(0);
     }
