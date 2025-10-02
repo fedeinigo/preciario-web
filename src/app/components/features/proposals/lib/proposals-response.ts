@@ -14,6 +14,11 @@ export type ProposalsListResult = {
 
 type FetchError = Error & { status?: number };
 
+/**
+ * El endpoint `/api/proposals` acepta el parámetro `aggregate=activeUsers` junto con `from` y
+ * `to` para devolver la cantidad de correos distintos que generaron propuestas en el rango.
+ */
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -131,4 +136,28 @@ export async function fetchAllProposals(init?: RequestInit & { pageSize?: number
   }
 
   return { proposals, meta: latestMetaWithTotals ?? meta };
+}
+
+export async function fetchActiveUsersCount(
+  range: { from: string; to: string },
+  init?: RequestInit,
+): Promise<number> {
+  const baseInit: RequestInit = { ...(init ?? {}), cache: init?.cache ?? "no-store" };
+  const params = new URLSearchParams({ aggregate: "activeUsers", from: range.from, to: range.to });
+  const response = await fetch(`/api/proposals?${params.toString()}`, baseInit);
+
+  if (!response.ok) {
+    const error = new Error("Failed to fetch active proposal users") as FetchError;
+    error.status = response.status;
+    throw error;
+  }
+
+  const payload = (await response.json()) as unknown;
+  const count = isRecord(payload) ? toNumber(payload.activeUsers ?? payload.count) : undefined;
+
+  if (typeof count !== "number") {
+    throw new Error("Invalid response for active users aggregate");
+  }
+
+  return count;
 }
