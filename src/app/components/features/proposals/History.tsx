@@ -121,6 +121,14 @@ export default function History({
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
+  useEffect(() => {
+    const onRefresh = () => {
+      load();
+    };
+    window.addEventListener("proposals:refresh", onRefresh as EventListener);
+    return () => window.removeEventListener("proposals:refresh", onRefresh as EventListener);
+  }, []);
+
   // Aux
   const [adminUsers, setAdminUsers] = useState<AdminUserRow[]>([]);
   const [teams, setTeams] = useState<string[]>([]);

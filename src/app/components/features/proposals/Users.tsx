@@ -152,6 +152,14 @@ export default function Users() {
     load();
   }, []);
 
+  useEffect(() => {
+    const onRefresh = () => {
+      load();
+    };
+    window.addEventListener("proposals:refresh", onRefresh as EventListener);
+    return () => window.removeEventListener("proposals:refresh", onRefresh as EventListener);
+  }, []);
+
   // Listado completo de equipos
   const allTeamNames = useMemo(() => teams.map((t) => t.name), [teams]);
 
