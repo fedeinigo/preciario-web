@@ -266,6 +266,154 @@ function createDefaultFormState(): FormState {
   };
 }
 
+function useTaskFormHandlers({
+  setFormState,
+  setFormErrors,
+}: {
+  setFormState: React.Dispatch<React.SetStateAction<FormState>>;
+  setFormErrors: React.Dispatch<React.SetStateAction<FormErrors>>;
+}) {
+  const handleFormChange = React.useCallback(
+    <K extends keyof FormState>(key: K, value: FormState[K]) => {
+      setFormState((prev) => ({ ...prev, [key]: value }));
+      setFormErrors((prev) => {
+        if (!(key in prev)) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    },
+    [setFormErrors, setFormState],
+  );
+
+  const handleWebsiteUrlsChange = React.useCallback(
+    (value: string) => {
+      const urls = value.split("\n").map((url) => url.trim());
+      handleFormChange("clientWebsiteUrls", urls);
+    },
+    [handleFormChange],
+  );
+
+  const handleAddDeliverable = React.useCallback(() => {
+    setFormState((prev) => ({
+      ...prev,
+      deliverables: [
+        ...prev.deliverables,
+        { type: "SCOPE_AND_QUOTE", title: "", url: "" },
+      ],
+    }));
+    setFormErrors((prev) => {
+      if (!prev.deliverables) return prev;
+      return {
+        ...prev,
+        deliverables: [...prev.deliverables, {}],
+      };
+    });
+  }, [setFormErrors, setFormState]);
+
+  const handleRemoveDeliverable = React.useCallback(
+    (index: number) => {
+      setFormState((prev) => ({
+        ...prev,
+        deliverables: prev.deliverables.filter((_, idx) => idx !== index),
+      }));
+      setFormErrors((prev) => {
+        const { deliverables, ...rest } = prev;
+        if (!deliverables) return prev;
+        const nextDeliverables = deliverables.filter((_, idx) => idx !== index);
+        if (nextDeliverables.length === 0) {
+          return rest;
+        }
+        return {
+          ...prev,
+          deliverables: nextDeliverables,
+        };
+      });
+    },
+    [setFormErrors, setFormState],
+  );
+
+  const handleDeliverableChange = React.useCallback(
+    <K extends keyof DeliverableFormState>(
+      index: number,
+      key: K,
+      value: DeliverableFormState[K],
+    ) => {
+      setFormState((prev) => ({
+        ...prev,
+        deliverables: prev.deliverables.map((deliverable, idx) =>
+          idx === index ? { ...deliverable, [key]: value } : deliverable,
+        ),
+      }));
+      setFormErrors((prev) => {
+        if (!prev.deliverables || !prev.deliverables[index]) return prev;
+        const nextErrors = prev.deliverables.map((item, idx) =>
+          idx === index ? { ...item, [key]: undefined } : item,
+        );
+        return {
+          ...prev,
+          deliverables: nextErrors,
+        };
+      });
+    },
+    [setFormErrors, setFormState],
+  );
+
+  return {
+    handleFormChange,
+    handleWebsiteUrlsChange,
+    handleAddDeliverable,
+    handleRemoveDeliverable,
+    handleDeliverableChange,
+  };
+}
+
+function createFormStateFromTask(task: MapacheTask): FormState {
+  const base = createDefaultFormState();
+  return {
+    ...base,
+    title: task.title,
+    description: task.description ?? "",
+    status: task.status,
+    substatus: task.substatus,
+    origin: task.origin,
+    requesterEmail: task.requesterEmail ?? "",
+    clientName: task.clientName ?? "",
+    productKey: task.productKey ?? "",
+    needFromTeam: task.needFromTeam ?? base.needFromTeam,
+    directness: task.directness ?? base.directness,
+    assigneeId: task.assigneeId,
+    presentationDate: task.presentationDate ?? "",
+    interlocutorRole: task.interlocutorRole ?? "",
+    clientWebsiteUrls: Array.isArray(task.clientWebsiteUrls)
+      ? task.clientWebsiteUrls
+      : base.clientWebsiteUrls,
+    pipedriveDealUrl: task.pipedriveDealUrl ?? "",
+    clientPain: task.clientPain ?? "",
+    managementType: task.managementType ?? "",
+    docsCountApprox:
+      typeof task.docsCountApprox === "number"
+        ? String(task.docsCountApprox)
+        : "",
+    docsLengthApprox: task.docsLengthApprox ?? "",
+    integrationType: task.integrationType ?? "",
+    integrationOwner: task.integrationOwner ?? "",
+    integrationName: task.integrationName ?? "",
+    integrationDocsUrl: task.integrationDocsUrl ?? "",
+    avgMonthlyConversations:
+      typeof task.avgMonthlyConversations === "number"
+        ? String(task.avgMonthlyConversations)
+        : "",
+    deliverables: Array.isArray(task.deliverables)
+      ? task.deliverables.map((deliverable) => ({
+          type: deliverable.type,
+          title: deliverable.title,
+          url: deliverable.url,
+        }))
+      : base.deliverables,
+  };
+}
+
 function normalizeFormState(
   state: FormState,
   messages: ValidationMessages,
@@ -504,6 +652,14 @@ export default function MapachePortalClient({
   const [pendingDeletion, setPendingDeletion] = React.useState<string | null>(
     null,
   );
+  const [selectedTask, setSelectedTask] = React.useState<MapacheTask | null>(
+    null,
+  );
+  const [selectedTaskFormState, setSelectedTaskFormState] = React.useState<FormState>(
+    () => createDefaultFormState(),
+  );
+  const [selectedTaskFormErrors, setSelectedTaskFormErrors] = React.useState<FormErrors>({});
+  const [selectedTaskSubmitting, setSelectedTaskSubmitting] = React.useState(false);
 
   const assigneesErrorMessage = formT("assigneeLoadError");
 
@@ -648,91 +804,38 @@ export default function MapachePortalClient({
     });
   }, [resetForm]);
 
-  const handleFormChange = React.useCallback(<K extends keyof FormState>(
-    key: K,
-    value: FormState[K],
-  ) => {
-    setFormState((prev) => ({ ...prev, [key]: value }));
-    setFormErrors((prev) => {
-      if (!(key in prev)) return prev;
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
-  }, []);
+  const {
+    handleFormChange,
+    handleWebsiteUrlsChange,
+    handleAddDeliverable,
+    handleRemoveDeliverable,
+    handleDeliverableChange,
+  } = useTaskFormHandlers({
+    setFormState,
+    setFormErrors,
+  });
 
-  const handleWebsiteUrlsChange = React.useCallback(
-    (value: string) => {
-      const urls = value.split("\n");
-      handleFormChange(
-        "clientWebsiteUrls",
-        urls.map((url) => url.trim()),
-      );
-    },
-    [handleFormChange],
-  );
+  const {
+    handleFormChange: handleSelectedTaskFormChange,
+    handleWebsiteUrlsChange: handleSelectedTaskWebsiteUrlsChange,
+  } = useTaskFormHandlers({
+    setFormState: setSelectedTaskFormState,
+    setFormErrors: setSelectedTaskFormErrors,
+  });
 
-  const handleAddDeliverable = React.useCallback(() => {
-    setFormState((prev) => ({
-      ...prev,
-      deliverables: [
-        ...prev.deliverables,
-        { type: "SCOPE_AND_QUOTE", title: "", url: "" },
-      ],
-    }));
-    setFormErrors((prev) => {
-      if (!prev.deliverables) return prev;
-      return {
-        ...prev,
-        deliverables: [...prev.deliverables, {}],
-      };
-    });
-  }, []);
-
-  const handleRemoveDeliverable = React.useCallback((index: number) => {
-    setFormState((prev) => ({
-      ...prev,
-      deliverables: prev.deliverables.filter((_, idx) => idx !== index),
-    }));
-    setFormErrors((prev) => {
-      const { deliverables, ...rest } = prev;
-      if (!deliverables) return prev;
-      const nextDeliverables = deliverables.filter((_, idx) => idx !== index);
-      if (nextDeliverables.length === 0) {
-        return rest;
-      }
-      return {
-        ...prev,
-        deliverables: nextDeliverables,
-      };
-    });
-  }, []);
-
-  const handleDeliverableChange = React.useCallback(
-    <K extends keyof DeliverableFormState>(
-      index: number,
-      key: K,
-      value: DeliverableFormState[K],
-    ) => {
-      setFormState((prev) => ({
-        ...prev,
-        deliverables: prev.deliverables.map((deliverable, idx) =>
-          idx === index ? { ...deliverable, [key]: value } : deliverable,
-        ),
-      }));
-      setFormErrors((prev) => {
-        if (!prev.deliverables || !prev.deliverables[index]) return prev;
-        const nextErrors = prev.deliverables.map((item, idx) =>
-          idx === index ? { ...item, [key]: undefined } : item,
-        );
-        return {
-          ...prev,
-          deliverables: nextErrors,
-        };
-      });
-    },
-    [],
-  );
+  const selectedTaskAssigneeLabel = React.useMemo(() => {
+    if (!selectedTask) {
+      return unspecifiedOptionLabel;
+    }
+    if (selectedTask.assignee?.name) {
+      return selectedTask.assignee.name;
+    }
+    if (selectedTask.assignee?.email) {
+      return selectedTask.assignee.email;
+    }
+    const user = mapacheUsers.find((item) => item.id === selectedTask.assigneeId);
+    return user ? formatAssigneeOption(user) : unspecifiedOptionLabel;
+  }, [mapacheUsers, selectedTask, unspecifiedOptionLabel]);
 
   const handleCreateTask = React.useCallback(async () => {
     const { payload: requestPayload, deliverables, errors } = normalizeFormState(
@@ -892,6 +995,84 @@ export default function MapachePortalClient({
       setPendingDeletion(null);
     }
   }, [handleDeleteTask, pendingDeletion]);
+
+  const handleOpenTask = React.useCallback((task: MapacheTask) => {
+    setSelectedTask(task);
+    setSelectedTaskFormState(createFormStateFromTask(task));
+    setSelectedTaskFormErrors({});
+    setSelectedTaskSubmitting(false);
+  }, []);
+
+  const handleCloseTask = React.useCallback(() => {
+    setSelectedTask(null);
+    setSelectedTaskFormState(createDefaultFormState());
+    setSelectedTaskFormErrors({});
+    setSelectedTaskSubmitting(false);
+  }, []);
+
+  const handleSubmitSelectedTask = React.useCallback(async () => {
+    if (!selectedTask) return;
+
+    const { payload, errors } = normalizeFormState(
+      selectedTaskFormState,
+      validationMessages,
+    );
+    setSelectedTaskFormErrors(errors);
+
+    if (!payload) {
+      toast.error(toastT("validationError"));
+      return;
+    }
+
+    const requestPayload = {
+      ...payload,
+      id: selectedTask.id,
+      status: selectedTask.status,
+      substatus: selectedTask.substatus,
+      origin: selectedTask.origin,
+    };
+
+    setSelectedTaskSubmitting(true);
+    try {
+      const response = await fetch(`/api/mapache/tasks`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestPayload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      const payloadResponse = await response.json();
+      const updatedTask = normalizeMapacheTask(payloadResponse);
+
+      if (updatedTask) {
+        setTasks((prev) =>
+          prev.map((item) => (item.id === updatedTask.id ? updatedTask : item)),
+        );
+      } else {
+        await loadTasks({ silent: true });
+      }
+
+      toast.success(toastT("updateSuccess"));
+      handleCloseTask();
+    } catch (error) {
+      console.error(error);
+      toast.error(toastT("updateError"));
+    } finally {
+      setSelectedTaskSubmitting(false);
+    }
+  }, [
+    handleCloseTask,
+    loadTasks,
+    selectedTask,
+    selectedTaskFormState,
+    toastT,
+    validationMessages,
+  ]);
 
   return (
     <section className="flex flex-col gap-6">
@@ -1495,7 +1676,11 @@ export default function MapachePortalClient({
               className="flex h-full flex-col justify-between rounded-xl border border-white/10 bg-slate-950/80 p-4 text-white shadow-soft"
             >
               <div className="flex flex-1 flex-col gap-4">
-                <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleOpenTask(task)}
+                  className="flex flex-col gap-3 rounded-lg border border-transparent bg-transparent p-0 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 hover:border-white/10"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <h2 className="text-lg font-semibold text-white">{task.title}</h2>
                     <div className="flex flex-col items-end gap-1">
@@ -1520,7 +1705,7 @@ export default function MapachePortalClient({
                   ) : (
                     <p className="text-sm italic text-white/40">{t("noDescription")}</p>
                   )}
-                </div>
+                </button>
 
                 <section className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                   <header className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-white/60">
@@ -1593,6 +1778,345 @@ export default function MapachePortalClient({
           );
         })}
       </div>
+
+      <Modal
+        open={selectedTask !== null}
+        onClose={handleCloseTask}
+        variant="inverted"
+        disableCloseOnBackdrop={selectedTaskSubmitting}
+        title={
+          <div className="flex flex-col">
+            <span className="text-base font-semibold">
+              {selectedTask?.title ?? ""}
+            </span>
+            {selectedTask?.clientName ? (
+              <span className="text-xs text-white/60">
+                {selectedTask.clientName}
+              </span>
+            ) : null}
+          </div>
+        }
+        footer={
+          <div className="flex justify-end gap-2 rounded-lg bg-white/10 px-4 py-3">
+            <button
+              type="button"
+              onClick={handleCloseTask}
+              className="rounded-md border border-white/20 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+              disabled={selectedTaskSubmitting}
+            >
+              {formT("cancel")}
+            </button>
+            <button
+              type="submit"
+              form="selected-task-form"
+              className="rounded-md bg-[rgb(var(--primary))] px-4 py-2 text-sm font-medium text-white transition hover:bg-[rgb(var(--primary))]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={selectedTaskSubmitting}
+            >
+              {selectedTaskSubmitting ? formT("saving") : formT("confirm")}
+            </button>
+          </div>
+        }
+      >
+        {selectedTask ? (
+          <form
+            id="selected-task-form"
+            className="flex flex-col gap-6"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!selectedTaskSubmitting) {
+                void handleSubmitSelectedTask();
+              }
+            }}
+          >
+            <section className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                    STATUS_BADGE_CLASSNAMES[getStatusBadgeKey(selectedTask)]
+                  }`}
+                >
+                  {statusBadgeT(getStatusBadgeKey(selectedTask))}
+                </span>
+                {selectedTask.substatus ? (
+                  <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/70">
+                    {substatusT(getSubstatusKey(selectedTask.substatus))}
+                  </span>
+                ) : null}
+              </div>
+              <dl className="mt-3 grid gap-2 text-xs text-white/70 sm:grid-cols-2">
+                <div className="flex flex-col">
+                  <dt className="font-semibold text-white/80">
+                    {actionsT("statusLabel")}
+                  </dt>
+                  <dd>{statusT(getStatusLabelKey(selectedTask.status))}</dd>
+                </div>
+                <div className="flex flex-col">
+                  <dt className="font-semibold text-white/80">Origen</dt>
+                  <dd>{selectedTask.origin}</dd>
+                </div>
+                <div className="flex flex-col">
+                  <dt className="font-semibold text-white/80">Canal</dt>
+                  <dd>{selectedTask.directness ?? selectedTaskFormState.directness}</dd>
+                </div>
+                <div className="flex flex-col">
+                  <dt className="font-semibold text-white/80">Asignado a</dt>
+                  <dd>{selectedTaskAssigneeLabel}</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="grid gap-4">
+              <h3 className="text-base font-semibold text-white">Editar datos</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-white/80">{formT("titleLabel")}</span>
+                  <input
+                    type="text"
+                    value={selectedTaskFormState.title}
+                    onChange={(event) =>
+                      handleSelectedTaskFormChange("title", event.target.value)
+                    }
+                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                  />
+                  {selectedTaskFormErrors.title ? (
+                    <span className="text-xs text-rose-300">
+                      {selectedTaskFormErrors.title}
+                    </span>
+                  ) : null}
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-white/80">Cliente</span>
+                  <input
+                    type="text"
+                    value={selectedTaskFormState.clientName}
+                    onChange={(event) =>
+                      handleSelectedTaskFormChange("clientName", event.target.value)
+                    }
+                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                  />
+                  {selectedTaskFormErrors.clientName ? (
+                    <span className="text-xs text-rose-300">
+                      {selectedTaskFormErrors.clientName}
+                    </span>
+                  ) : null}
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-white/80">Producto</span>
+                  <input
+                    type="text"
+                    value={selectedTaskFormState.productKey}
+                    onChange={(event) =>
+                      handleSelectedTaskFormChange("productKey", event.target.value)
+                    }
+                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                  />
+                  {selectedTaskFormErrors.productKey ? (
+                    <span className="text-xs text-rose-300">
+                      {selectedTaskFormErrors.productKey}
+                    </span>
+                  ) : null}
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-white/80">Asignado a</span>
+                  <select
+                    value={selectedTaskFormState.assigneeId ?? ""}
+                    onChange={(event) =>
+                      handleSelectedTaskFormChange(
+                        "assigneeId",
+                        event.target.value ? event.target.value : null,
+                      )
+                    }
+                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                  >
+                    <option value="">Sin asignar</option>
+                    {mapacheUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {formatAssigneeOption(user)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-white/80">Email del solicitante</span>
+                  <input
+                    type="email"
+                    value={selectedTaskFormState.requesterEmail}
+                    onChange={(event) =>
+                      handleSelectedTaskFormChange(
+                        "requesterEmail",
+                        event.target.value,
+                      )
+                    }
+                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                  />
+                  {selectedTaskFormErrors.requesterEmail ? (
+                    <span className="text-xs text-rose-300">
+                      {selectedTaskFormErrors.requesterEmail}
+                    </span>
+                  ) : null}
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-white/80">Fecha de presentación</span>
+                  <input
+                    type="date"
+                    value={selectedTaskFormState.presentationDate}
+                    onChange={(event) =>
+                      handleSelectedTaskFormChange(
+                        "presentationDate",
+                        event.target.value,
+                      )
+                    }
+                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                  />
+                  {selectedTaskFormErrors.presentationDate ? (
+                    <span className="text-xs text-rose-300">
+                      {selectedTaskFormErrors.presentationDate}
+                    </span>
+                  ) : null}
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-white/80">Necesidad del equipo</span>
+                  <select
+                    value={selectedTaskFormState.needFromTeam}
+                    onChange={(event) =>
+                      handleSelectedTaskFormChange(
+                        "needFromTeam",
+                        event.target.value as MapacheNeedFromTeam,
+                      )
+                    }
+                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                  >
+                    {NEED_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-white/80">Canal</span>
+                  <select
+                    value={selectedTaskFormState.directness}
+                    onChange={(event) =>
+                      handleSelectedTaskFormChange(
+                        "directness",
+                        event.target.value as MapacheDirectness,
+                      )
+                    }
+                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                  >
+                    {DIRECTNESS_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-white/80">Pipedrive Deal URL</span>
+                <input
+                  type="url"
+                  value={selectedTaskFormState.pipedriveDealUrl}
+                  onChange={(event) =>
+                    handleSelectedTaskFormChange(
+                      "pipedriveDealUrl",
+                      event.target.value,
+                    )
+                  }
+                  className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                  placeholder="https://"
+                />
+                {selectedTaskFormErrors.pipedriveDealUrl ? (
+                  <span className="text-xs text-rose-300">
+                    {selectedTaskFormErrors.pipedriveDealUrl}
+                  </span>
+                ) : null}
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-white/80">Sitios web del cliente</span>
+                <textarea
+                  value={selectedTaskFormState.clientWebsiteUrls.join("\n")}
+                  onChange={(event) =>
+                    handleSelectedTaskWebsiteUrlsChange(event.target.value)
+                  }
+                  className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                  placeholder="Una URL por línea"
+                />
+                {selectedTaskFormErrors.clientWebsiteUrls ? (
+                  <span className="text-xs text-rose-300">
+                    {selectedTaskFormErrors.clientWebsiteUrls}
+                  </span>
+                ) : null}
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-white/80">Dolor del cliente</span>
+                <textarea
+                  value={selectedTaskFormState.clientPain}
+                  onChange={(event) =>
+                    handleSelectedTaskFormChange("clientPain", event.target.value)
+                  }
+                  className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                  placeholder="Contexto adicional"
+                />
+                {selectedTaskFormErrors.clientPain ? (
+                  <span className="text-xs text-rose-300">
+                    {selectedTaskFormErrors.clientPain}
+                  </span>
+                ) : null}
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-white/80">{formT("descriptionLabel")}</span>
+                <textarea
+                  value={selectedTaskFormState.description}
+                  onChange={(event) =>
+                    handleSelectedTaskFormChange("description", event.target.value)
+                  }
+                  className="min-h-[120px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                  placeholder={formT("descriptionPlaceholder")}
+                />
+              </label>
+            </section>
+
+            <section className="grid gap-3">
+              <h3 className="text-base font-semibold text-white">Entregables</h3>
+              {selectedTask.deliverables.length > 0 ? (
+                <ul className="grid gap-2 text-sm text-white/70">
+                  {selectedTask.deliverables.map((deliverable) => (
+                    <li
+                      key={deliverable.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-white/60">
+                          {deliverableTypesT(
+                            getDeliverableTypeKey(deliverable.type),
+                          )}
+                        </span>
+                        <span className="text-sm text-white/80">
+                          {deliverable.title}
+                        </span>
+                      </div>
+                      <a
+                        href={deliverable.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-[rgb(var(--primary))] hover:underline"
+                      >
+                        {deliverablesT("open")}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-white/60">
+                  {deliverablesT("empty")}
+                </p>
+              )}
+            </section>
+          </form>
+        ) : null}
+      </Modal>
 
       <Modal
         open={pendingDeletion !== null}
