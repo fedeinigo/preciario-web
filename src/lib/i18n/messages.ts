@@ -255,6 +255,7 @@ export const messages: Record<Locale, DeepRecord> = {
       actions: {
         add: "Agregar tarea",
         statusLabel: "Estado",
+        substatusLabel: "Subestado",
         delete: "Eliminar",
         deleting: "Eliminando…",
         deleteConfirm: "¿Seguro que deseas eliminar la tarea {id}?",
@@ -290,6 +291,7 @@ export const messages: Record<Locale, DeepRecord> = {
         descriptionLabel: "Descripción",
         descriptionPlaceholder: "Detalles adicionales o notas…",
         statusLabel: "Estado",
+        substatusLabel: "Subestado",
         cancel: "Cancelar",
         confirm: "Guardar tarea",
         saving: "Guardando…",
@@ -1646,6 +1648,7 @@ export const messages: Record<Locale, DeepRecord> = {
       actions: {
         add: "Add task",
         statusLabel: "Status",
+        substatusLabel: "Substatus",
         delete: "Delete",
         deleting: "Deleting…",
         deleteConfirm: "Are you sure you want to delete task {id}?",
@@ -1681,6 +1684,7 @@ export const messages: Record<Locale, DeepRecord> = {
         descriptionLabel: "Description",
         descriptionPlaceholder: "Additional details or notes…",
         statusLabel: "Status",
+        substatusLabel: "Substatus",
         cancel: "Cancel",
         confirm: "Save task",
         saving: "Saving…",
@@ -3033,6 +3037,7 @@ export const messages: Record<Locale, DeepRecord> = {
       actions: {
         add: "Adicionar tarefa",
         statusLabel: "Status",
+        substatusLabel: "Substatus",
         delete: "Excluir",
         deleting: "Excluindo…",
         deleteConfirm: "Tem certeza de que deseja excluir a tarefa {id}?",
@@ -3068,6 +3073,7 @@ export const messages: Record<Locale, DeepRecord> = {
         descriptionLabel: "Descrição",
         descriptionPlaceholder: "Detalhes adicionais ou anotações…",
         statusLabel: "Status",
+        substatusLabel: "Substatus",
         cancel: "Cancelar",
         confirm: "Salvar tarefa",
         saving: "Salvando…",

@@ -34,6 +34,7 @@ import {
   MAPACHE_NEEDS_FROM_TEAM,
   MAPACHE_SIGNAL_ORIGINS,
   MAPACHE_TASK_STATUSES,
+  MAPACHE_TASK_SUBSTATUSES,
   normalizeMapacheTask,
 } from "./types";
 import MapachePortalInsights, {
@@ -60,6 +61,7 @@ const INTEGRATION_OWNERS: (MapacheIntegrationOwner | "")[] = [
 const DELIVERABLE_TYPES: MapacheDeliverableType[] = [...MAPACHE_DELIVERABLE_TYPES];
 const ORIGIN_OPTIONS: MapacheSignalOrigin[] = [...MAPACHE_SIGNAL_ORIGINS];
 const NEED_METRIC_KEYS: NeedMetricKey[] = [...NEED_OPTIONS, "NONE"];
+const SUBSTATUS_OPTIONS: MapacheTaskSubstatus[] = [...MAPACHE_TASK_SUBSTATUSES];
 const MS_IN_DAY = 86_400_000;
 
 const EMAIL_REGEX = /.+@.+\..+/i;
@@ -421,6 +423,95 @@ function getSubstatusKey(
     default:
       return "backlog";
   }
+}
+
+type TaskMetaChipTone = "default" | "warning" | "danger" | "success" | "muted";
+
+const TASK_META_TONE_CLASSNAMES: Record<TaskMetaChipTone, string> = {
+  default: "border-white/10 bg-white/5 text-white/70",
+  warning: "border-amber-400/40 bg-amber-400/10 text-amber-100",
+  danger: "border-rose-500/40 bg-rose-500/10 text-rose-100",
+  success: "border-emerald-400/40 bg-emerald-400/10 text-emerald-100",
+  muted: "border-white/10 bg-white/5 text-white/50",
+};
+
+const TASK_META_INDICATOR_CLASSNAMES: Record<TaskMetaChipTone, string> = {
+  default: "bg-white/60",
+  warning: "bg-amber-300",
+  danger: "bg-rose-400",
+  success: "bg-emerald-300",
+  muted: "bg-white/30",
+};
+
+function getInitials(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "?";
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) {
+    return parts[0]!.charAt(0).toUpperCase();
+  }
+  const first = parts[0]!.charAt(0);
+  const last = parts[parts.length - 1]!.charAt(0);
+  return `${first}${last}`.toUpperCase();
+}
+
+type PresentationDateMeta = {
+  label: string | null;
+  tone: TaskMetaChipTone;
+  indicatorClassName: string;
+};
+
+function getPresentationDateMeta(
+  value: string | null | undefined,
+): PresentationDateMeta {
+  if (!value) {
+    return {
+      label: null,
+      tone: "muted",
+      indicatorClassName: TASK_META_INDICATOR_CLASSNAMES.muted,
+    };
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return {
+      label: value,
+      tone: "muted",
+      indicatorClassName: TASK_META_INDICATOR_CLASSNAMES.muted,
+    };
+  }
+
+  const today = new Date();
+  const startOfToday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+
+  const normalized = new Date(
+    parsed.getFullYear(),
+    parsed.getMonth(),
+    parsed.getDate(),
+  );
+  const diffDays = Math.round(
+    (normalized.getTime() - startOfToday.getTime()) / MS_IN_DAY,
+  );
+
+  let tone: TaskMetaChipTone = "success";
+  if (diffDays < 0) {
+    tone = "danger";
+  } else if (diffDays <= 3) {
+    tone = "warning";
+  } else {
+    tone = "success";
+  }
+
+  return {
+    label: normalized.toLocaleDateString(),
+    tone,
+    indicatorClassName: TASK_META_INDICATOR_CLASSNAMES[tone],
+  };
 }
 
 function createDefaultFormState(): FormState {
@@ -834,8 +925,8 @@ function normalizeFormState(
   const payload: CreateTaskPayload = {
     title: finalTitle,
     description: trimmedDescription ? trimmedDescription : null,
-    status: "PENDING",
-    substatus: "BACKLOG",
+    status: state.status,
+    substatus: state.substatus,
     origin: "MANUAL",
     requesterEmail: trimmedRequesterEmail,
     clientName: trimmedClientName,
@@ -2062,6 +2153,55 @@ export default function MapachePortalClient({
     return parsed.toLocaleDateString();
   }, [selectedTask?.presentationDate]);
 
+  const selectedTaskSummaryMeta = React.useMemo<SelectedTaskSummaryMeta | null>(
+    () => {
+      if (!selectedTask) {
+        return null;
+      }
+
+      const needValue: MapacheNeedFromTeam =
+        selectedTask.needFromTeam ?? selectedTaskFormState.needFromTeam;
+      const directnessValue: MapacheDirectness =
+        selectedTask.directness ?? selectedTaskFormState.directness;
+      const presentationSource = selectedTaskFormState.presentationDate
+        ? `${selectedTaskFormState.presentationDate}T00:00:00.000Z`
+        : selectedTask.presentationDate;
+      const presentationMeta = getPresentationDateMeta(presentationSource);
+      const presentationLabel =
+        presentationMeta.label ?? formT("unspecifiedOption");
+      const assigneeLabel =
+        selectedTaskAssigneeLabel || formT("unspecifiedOption");
+      const assigneeInitials = getInitials(assigneeLabel);
+      const clientNameCandidate =
+        (selectedTask.clientName ?? selectedTaskFormState.clientName)?.trim() ??
+        "";
+      const clientLabel =
+        clientNameCandidate.length > 0
+          ? clientNameCandidate
+          : formT("unspecifiedOption");
+
+      return {
+        task: selectedTask,
+        needValue,
+        directnessValue,
+        presentationMeta,
+        presentationLabel,
+        assigneeLabel,
+        assigneeInitials,
+        clientLabel,
+      } satisfies SelectedTaskSummaryMeta;
+    },
+    [
+      formT,
+      selectedTask,
+      selectedTaskAssigneeLabel,
+      selectedTaskFormState.clientName,
+      selectedTaskFormState.directness,
+      selectedTaskFormState.needFromTeam,
+      selectedTaskFormState.presentationDate,
+    ],
+  );
+
   const handleCreateTask = React.useCallback(async () => {
     const { payload: requestPayload, deliverables, errors } = normalizeFormState(
       formState,
@@ -2200,6 +2340,36 @@ export default function MapachePortalClient({
       }
     },
     [toastT],
+  );
+
+  const handleSubstatusChange = React.useCallback(
+    async (task: MapacheTask, nextSubstatus: MapacheTaskSubstatus) => {
+      if (task.substatus === nextSubstatus) return;
+
+      setUpdatingTaskId(task.id);
+      try {
+        const response = await fetch(`/api/mapache/tasks`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ id: task.id, substatus: nextSubstatus }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        await loadTasks({ silent: true });
+        toast.success(toastT("updateSuccess"));
+      } catch (error) {
+        console.error(error);
+        toast.error(toastT("updateError"));
+      } finally {
+        setUpdatingTaskId(null);
+      }
+    },
+    [loadTasks, toastT],
   );
 
   const handleDragEnd = React.useCallback(
@@ -2381,15 +2551,66 @@ export default function MapachePortalClient({
     validationMessages,
   ]);
 
-  type TaskCardProps = {
-    task: MapacheTask;
-    isDragging?: boolean;
-  };
+type TaskCardProps = {
+  task: MapacheTask;
+  isDragging?: boolean;
+};
+
+type TaskMetaChipProps = {
+  label: string;
+  tone?: TaskMetaChipTone;
+  children: React.ReactNode;
+  className?: string;
+};
+
+type SelectedTaskSummaryMeta = {
+  task: MapacheTask;
+  needValue: MapacheNeedFromTeam;
+  directnessValue: MapacheDirectness;
+  presentationMeta: PresentationDateMeta;
+  presentationLabel: string;
+  assigneeLabel: string;
+  assigneeInitials: string;
+  clientLabel: string;
+};
+
+function TaskMetaChip({
+  label,
+  tone = "default",
+  children,
+  className,
+}: TaskMetaChipProps) {
+  const toneClass = TASK_META_TONE_CLASSNAMES[tone] ?? "";
+  const containerClass = className
+    ? `${toneClass} ${className}`.trim()
+    : toneClass;
+
+  return (
+    <span
+      className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-1 text-xs ${containerClass}`}
+    >
+      <span className="shrink-0 text-[10px] uppercase tracking-wide opacity-80">
+        {label}
+      </span>
+      <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-white">
+        {children}
+      </span>
+    </span>
+  );
+}
 
   const TaskCard = ({ task, isDragging = false }: TaskCardProps) => {
     const isUpdating = updatingTaskId === task.id;
     const isDeleting = deletingTaskId === task.id;
     const statusBadgeKey = getStatusBadgeKey(task);
+    const needValue: MapacheNeedFromTeam = task.needFromTeam ?? "OTHER";
+    const directnessValue: MapacheDirectness = task.directness ?? "DIRECT";
+    const presentationMeta = getPresentationDateMeta(task.presentationDate);
+    const presentationLabel =
+      presentationMeta.label ?? formT("unspecifiedOption");
+    const assigneeLabel =
+      formatTaskAssigneeLabel(task) || formT("unspecifiedOption");
+    const assigneeInitials = getInitials(assigneeLabel);
 
     return (
       <article
@@ -2421,6 +2642,44 @@ export default function MapachePortalClient({
                   </span>
                 ) : null}
               </div>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <TaskMetaChip label="Cliente">
+                <span className="truncate text-xs font-semibold text-white">
+                  {task.clientName ?? formT("unspecifiedOption")}
+                </span>
+              </TaskMetaChip>
+              <TaskMetaChip label="Necesidad">
+                <span className="text-xs font-semibold text-white">
+                  {needFromTeamT(needValue)}
+                </span>
+              </TaskMetaChip>
+              <TaskMetaChip label="Canal">
+                <span className="text-xs font-semibold text-white">
+                  {directnessT(directnessValue)}
+                </span>
+              </TaskMetaChip>
+              <TaskMetaChip label="Presentación" tone={presentationMeta.tone}>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span
+                    className={`h-2 w-2 shrink-0 rounded-full ${presentationMeta.indicatorClassName}`}
+                    aria-hidden="true"
+                  />
+                  <span className="truncate text-xs font-semibold text-white">
+                    {presentationLabel}
+                  </span>
+                </span>
+              </TaskMetaChip>
+              <TaskMetaChip label="Asignado">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold uppercase text-white">
+                    {assigneeInitials}
+                  </span>
+                  <span className="truncate text-xs font-semibold text-white">
+                    {assigneeLabel}
+                  </span>
+                </span>
+              </TaskMetaChip>
             </div>
             {task.description ? (
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/70">
@@ -2484,6 +2743,26 @@ export default function MapachePortalClient({
               {STATUS_ORDER.map((status) => (
                 <option key={status} value={status}>
                   {statusT(getStatusLabelKey(status))}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-white/70">
+            <span>{actionsT("substatusLabel")}:</span>
+            <select
+              className="min-w-[160px] rounded-md border border-white/20 bg-slate-950/60 px-2 py-1 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+              value={task.substatus}
+              onChange={(event) =>
+                handleSubstatusChange(
+                  task,
+                  event.target.value as MapacheTaskSubstatus,
+                )
+              }
+              disabled={isUpdating || isDeleting}
+            >
+              {SUBSTATUS_OPTIONS.map((substatus) => (
+                <option key={substatus} value={substatus}>
+                  {substatusT(getSubstatusKey(substatus))}
                 </option>
               ))}
             </select>
@@ -2871,6 +3150,44 @@ export default function MapachePortalClient({
               <section className="grid gap-4">
                 <h2 className="text-lg font-semibold text-white">Datos generales</h2>
                 <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">{formT("statusLabel")}</span>
+                    <select
+                      value={formState.status}
+                      onChange={(event) =>
+                        handleFormChange(
+                          "status",
+                          event.target.value as MapacheTaskStatus,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    >
+                      {STATUS_ORDER.map((option) => (
+                        <option key={option} value={option}>
+                          {statusT(getStatusLabelKey(option))}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">{formT("substatusLabel")}</span>
+                    <select
+                      value={formState.substatus}
+                      onChange={(event) =>
+                        handleFormChange(
+                          "substatus",
+                          event.target.value as MapacheTaskSubstatus,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    >
+                      {SUBSTATUS_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {substatusT(getSubstatusKey(option))}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <label className="flex flex-col gap-1 text-sm">
                     <span className="text-white/80">{formT("titleLabel")}</span>
                     <input
@@ -3579,26 +3896,81 @@ export default function MapachePortalClient({
               title="Resumen de la señal"
               description="Información clave para entender rápidamente el estado actual."
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                    STATUS_BADGE_CLASSNAMES[getStatusBadgeKey(selectedTask)]
-                  }`}
-                >
-                  {statusBadgeT(getStatusBadgeKey(selectedTask))}
-                </span>
-                {selectedTask.substatus ? (
-                  <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/70">
-                    {substatusT(getSubstatusKey(selectedTask.substatus))}
-                  </span>
-                ) : null}
-              </div>
+              {selectedTaskSummaryMeta ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                        STATUS_BADGE_CLASSNAMES[
+                          getStatusBadgeKey(selectedTaskSummaryMeta.task)
+                        ]
+                      }`}
+                    >
+                      {statusBadgeT(
+                        getStatusBadgeKey(selectedTaskSummaryMeta.task),
+                      )}
+                    </span>
+                    {selectedTaskSummaryMeta.task.substatus ? (
+                      <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/70">
+                        {substatusT(
+                          getSubstatusKey(
+                            selectedTaskSummaryMeta.task.substatus,
+                          ),
+                        )}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <TaskMetaChip label="Cliente">
+                      <span className="truncate text-xs font-semibold text-white">
+                        {selectedTaskSummaryMeta.clientLabel}
+                      </span>
+                    </TaskMetaChip>
+                    <TaskMetaChip label="Necesidad">
+                      <span className="text-xs font-semibold text-white">
+                        {needFromTeamT(selectedTaskSummaryMeta.needValue)}
+                      </span>
+                    </TaskMetaChip>
+                    <TaskMetaChip label="Canal">
+                      <span className="text-xs font-semibold text-white">
+                        {directnessT(selectedTaskSummaryMeta.directnessValue)}
+                      </span>
+                    </TaskMetaChip>
+                    <TaskMetaChip
+                      label="Presentación"
+                      tone={selectedTaskSummaryMeta.presentationMeta.tone}
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span
+                          className={`h-2 w-2 shrink-0 rounded-full ${selectedTaskSummaryMeta.presentationMeta.indicatorClassName}`}
+                          aria-hidden="true"
+                        />
+                        <span className="truncate text-xs font-semibold text-white">
+                          {selectedTaskSummaryMeta.presentationLabel}
+                        </span>
+                      </span>
+                    </TaskMetaChip>
+                    <TaskMetaChip label="Asignado">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold uppercase text-white">
+                          {selectedTaskSummaryMeta.assigneeInitials}
+                        </span>
+                        <span className="truncate text-xs font-semibold text-white">
+                          {selectedTaskSummaryMeta.assigneeLabel}
+                        </span>
+                      </span>
+                    </TaskMetaChip>
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-4 grid gap-3 text-xs text-white/70 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="flex flex-col gap-1">
                   <span className="font-semibold text-white/80">
                     {actionsT("statusLabel")}
                   </span>
-                  <span>{statusT(getStatusLabelKey(selectedTask.status))}</span>
+                  <span>
+                    {statusT(getStatusLabelKey(selectedTaskFormState.status))}
+                  </span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="font-semibold text-white/80">Origen</span>
@@ -3656,6 +4028,44 @@ export default function MapachePortalClient({
                 description="Actualizá los campos principales de la señal."
               >
                 <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">{formT("statusLabel")}</span>
+                    <select
+                      value={selectedTaskFormState.status}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "status",
+                          event.target.value as MapacheTaskStatus,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    >
+                      {STATUS_ORDER.map((option) => (
+                        <option key={option} value={option}>
+                          {statusT(getStatusLabelKey(option))}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">{formT("substatusLabel")}</span>
+                    <select
+                      value={selectedTaskFormState.substatus}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "substatus",
+                          event.target.value as MapacheTaskSubstatus,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    >
+                      {SUBSTATUS_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {substatusT(getSubstatusKey(option))}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <label className="flex flex-col gap-1 text-sm">
                     <span className="text-white/80">{formT("titleLabel")}</span>
                     <input
