@@ -31,6 +31,13 @@ import { fetchAllProposals } from "@/app/components/features/proposals/lib/propo
 import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { locales } from "@/lib/i18n/config";
+import {
+  MAPACHE_PORTAL_DEFAULT_SECTION,
+  MAPACHE_PORTAL_NAVIGATE_EVENT,
+  MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
+  type MapachePortalSection,
+  isMapachePortalSection,
+} from "@/app/mapache-portal/section-events";
 
 export type NavbarClientProps = {
   session: Session | null;
@@ -83,6 +90,33 @@ function TabBtn({
   );
 }
 
+function MapacheSectionBtn({
+  id,
+  label,
+  active,
+  onClick,
+}: {
+  id: MapachePortalSection;
+  label: string;
+  active: boolean;
+  onClick: (value: MapachePortalSection) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(id)}
+      className={`rounded-full px-4 py-1.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+        active
+          ? "bg-white text-[#1f2937] shadow-soft"
+          : "bg-transparent text-white/80 hover:bg-white/15"
+      }`}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
+  );
+}
+
 function initials(fullName: string) {
   const parts = fullName.split(" ").filter(Boolean);
   const i1 = parts[0]?.[0] ?? "";
@@ -109,6 +143,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const modalLogT = useTranslations("navbar.modal.log");
   const toastT = useTranslations("navbar.toast");
   const fallbacksT = useTranslations("navbar.fallbacks");
+  const mapacheSectionsT = useTranslations("navbar.mapachePortalSections");
   const languageT = useTranslations("common.language");
 
   const handleLocaleChange = React.useCallback(
@@ -139,6 +174,8 @@ export default function NavbarClient({ session }: NavbarClientProps) {
 
   const [activeTab, setActiveTab] = React.useState<Tab>(readHash());
   const [userModal, setUserModal] = React.useState(false);
+  const [mapacheSection, setMapacheSection] =
+    React.useState<MapachePortalSection>(MAPACHE_PORTAL_DEFAULT_SECTION);
 
   React.useEffect(() => {
     const onHash = () => setActiveTab(readHash());
@@ -152,6 +189,35 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     };
   }, []);
 
+  React.useEffect(() => {
+    if (!isMapachePortal) return;
+
+    const handleSectionChanged = (event: Event) => {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (isMapachePortalSection(detail)) {
+        setMapacheSection(detail);
+      }
+    };
+
+    window.addEventListener(
+      MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
+      handleSectionChanged as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
+        handleSectionChanged as EventListener,
+      );
+    };
+  }, [isMapachePortal]);
+
+  React.useEffect(() => {
+    if (!isMapachePortal) {
+      setMapacheSection(MAPACHE_PORTAL_DEFAULT_SECTION);
+    }
+  }, [isMapachePortal]);
+
   function setTab(t: Tab) {
     setActiveTab(t);
     try {
@@ -159,6 +225,21 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     } catch {}
     window.dispatchEvent(new CustomEvent("app:setTab", { detail: t }));
   }
+
+  const handleMapacheSectionChange = React.useCallback(
+    (next: MapachePortalSection) => {
+      setMapacheSection(next);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent<MapachePortalSection>(
+            MAPACHE_PORTAL_NAVIGATE_EVENT,
+            { detail: next },
+          ),
+        );
+      }
+    },
+    [],
+  );
 
   const now = new Date();
   const initialQuarter: 1 | 2 | 3 | 4 = (() => {
@@ -266,56 +347,71 @@ export default function NavbarClient({ session }: NavbarClientProps) {
           )}
         </div>
 
-        {showTabs ? (
-          <div className="hidden md:flex items-center gap-2">
-            <TabBtn
-              id="generator"
-              label={tabsT("generator")}
-              Icon={LayoutGrid}
-              active={activeTab === "generator"}
-              onClick={setTab}
-            />
-            <TabBtn
-              id="history"
-              label={tabsT("history")}
-              Icon={Clock}
-              active={activeTab === "history"}
-              onClick={setTab}
-            />
-            <TabBtn
-              id="stats"
-              label={tabsT("stats")}
-              Icon={BarChart2}
-              active={activeTab === "stats"}
-              onClick={setTab}
-            />
-            <TabBtn
-              id="goals"
-              label={tabsT("goals")}
-              Icon={Target}
-              active={activeTab === "goals"}
-              onClick={setTab}
-            />
-            <TabBtn
-              id="teams"
-              label={tabsT("teams")}
-              Icon={Users2}
-              active={activeTab === "teams"}
-              onClick={setTab}
-            />
-            {canSeeUsers && (
+        <div className="flex flex-1 items-center justify-center">
+          {isMapachePortal ? (
+            <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-1 py-1">
+              <MapacheSectionBtn
+                id="tasks"
+                label={mapacheSectionsT("tasks")}
+                active={mapacheSection === "tasks"}
+                onClick={handleMapacheSectionChange}
+              />
+              <MapacheSectionBtn
+                id="metrics"
+                label={mapacheSectionsT("metrics")}
+                active={mapacheSection === "metrics"}
+                onClick={handleMapacheSectionChange}
+              />
+            </div>
+          ) : showTabs ? (
+            <div className="hidden w-full max-w-xl items-center justify-center gap-2 md:flex">
               <TabBtn
-                id="users"
-                label={tabsT("users")}
-                Icon={Users}
-                active={activeTab === "users"}
+                id="generator"
+                label={tabsT("generator")}
+                Icon={LayoutGrid}
+                active={activeTab === "generator"}
                 onClick={setTab}
               />
-            )}
-          </div>
-        ) : (
-          <div />
-        )}
+              <TabBtn
+                id="history"
+                label={tabsT("history")}
+                Icon={Clock}
+                active={activeTab === "history"}
+                onClick={setTab}
+              />
+              <TabBtn
+                id="stats"
+                label={tabsT("stats")}
+                Icon={BarChart2}
+                active={activeTab === "stats"}
+                onClick={setTab}
+              />
+              <TabBtn
+                id="goals"
+                label={tabsT("goals")}
+                Icon={Target}
+                active={activeTab === "goals"}
+                onClick={setTab}
+              />
+              <TabBtn
+                id="teams"
+                label={tabsT("teams")}
+                Icon={Users2}
+                active={activeTab === "teams"}
+                onClick={setTab}
+              />
+              {canSeeUsers && (
+                <TabBtn
+                  id="users"
+                  label={tabsT("users")}
+                  Icon={Users}
+                  active={activeTab === "users"}
+                  onClick={setTab}
+                />
+              )}
+            </div>
+          ) : null}
+        </div>
 
         <div className="flex items-center gap-2">
           {showAuthActions && (

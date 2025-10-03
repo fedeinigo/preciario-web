@@ -123,6 +123,10 @@ export const messages: Record<Locale, DeepRecord> = {
         team: "—",
         email: "—",
       },
+      mapachePortalSections: {
+        tasks: "Tareas",
+        metrics: "Métricas",
+      },
     },
     mapachePortal: {
       title: "Portal Mapache",
@@ -1516,6 +1520,10 @@ export const messages: Record<Locale, DeepRecord> = {
         team: "—",
         email: "—",
       },
+      mapachePortalSections: {
+        tasks: "Tasks",
+        metrics: "Metrics",
+      },
     },
     mapachePortal: {
       title: "Mapache Portal",
@@ -2904,6 +2912,10 @@ export const messages: Record<Locale, DeepRecord> = {
         name: "Usuário",
         team: "—",
         email: "—",
+      },
+      mapachePortalSections: {
+        tasks: "Tarefas",
+        metrics: "Métricas",
       },
     },
     mapachePortal: {

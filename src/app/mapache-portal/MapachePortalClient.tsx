@@ -41,6 +41,13 @@ import MapachePortalInsights, {
   type MapachePortalInsightsWorkloadEntry,
   type NeedMetricKey,
 } from "./MapachePortalInsights";
+import {
+  MAPACHE_PORTAL_DEFAULT_SECTION,
+  MAPACHE_PORTAL_NAVIGATE_EVENT,
+  MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
+  type MapachePortalSection,
+  isMapachePortalSection,
+} from "./section-events";
 
 const STATUS_ORDER: MapacheTaskStatus[] = [...MAPACHE_TASK_STATUSES];
 const NEED_OPTIONS: MapacheNeedFromTeam[] = [...MAPACHE_NEEDS_FROM_TEAM];
@@ -1131,6 +1138,8 @@ export default function MapachePortalClient({
   const [viewModeHydrated, setViewModeHydrated] = React.useState(false);
   const [insightsScope, setInsightsScope] =
     React.useState<MapachePortalInsightsScope>("filtered");
+  const [activeSection, setActiveSection] =
+    React.useState<MapachePortalSection>(MAPACHE_PORTAL_DEFAULT_SECTION);
 
   const [assignmentRatios, setAssignmentRatios] = React.useState<AssignmentRatios>({});
   const [ratiosLoaded, setRatiosLoaded] = React.useState(false);
@@ -1205,6 +1214,42 @@ export default function MapachePortalClient({
     if (typeof window === "undefined" || !viewModeHydrated) return;
     window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
   }, [viewMode, viewModeHydrated]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleSectionNavigation = (event: Event) => {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (isMapachePortalSection(detail)) {
+        setActiveSection(detail);
+      }
+    };
+
+    window.addEventListener(
+      MAPACHE_PORTAL_NAVIGATE_EVENT,
+      handleSectionNavigation as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        MAPACHE_PORTAL_NAVIGATE_EVENT,
+        handleSectionNavigation as EventListener,
+      );
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.dispatchEvent(
+      new CustomEvent<MapachePortalSection>(
+        MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
+        {
+          detail: activeSection,
+        },
+      ),
+    );
+  }, [activeSection]);
 
   const validationMessages = React.useMemo(
     () => ({
@@ -1785,6 +1830,74 @@ export default function MapachePortalClient({
   const handleCloseFiltersPanel = React.useCallback(() => {
     setShowFiltersPanel(false);
   }, []);
+
+  const renderFiltersTrigger = () => (
+    <button
+      type="button"
+      onClick={handleOpenFiltersPanel}
+      className={`inline-flex items-center gap-2 rounded-full border px-4 py-1 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+        hasActiveAdvancedFilters
+          ? "border-[rgb(var(--primary))] bg-[rgb(var(--primary))]/20 text-white"
+          : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
+      }`}
+    >
+      <Filter className="h-4 w-4" aria-hidden="true" />
+      <span>{filtersT("open")}</span>
+      {advancedFiltersCount > 0 ? (
+        <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[rgb(var(--primary))] px-2 text-xs font-semibold text-white">
+          {advancedFiltersCount}
+        </span>
+      ) : null}
+    </button>
+  );
+
+  const renderQuickFilterButtons = () =>
+    filterOptions.map((option) => {
+      const isActive = activeFilter === option.value;
+      return (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => setActiveFilter(option.value)}
+          className={`rounded-full border px-4 py-1 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+            isActive
+              ? "border-[rgb(var(--primary))] bg-[rgb(var(--primary))] text-white"
+              : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
+          }`}
+        >
+          {option.label}
+        </button>
+      );
+    });
+
+  const renderViewModeToggle = () => (
+    <div className="flex items-center gap-1 rounded-full border border-white/20 bg-white/5 p-1 text-xs font-medium text-white/70">
+      <button
+        type="button"
+        onClick={() => setViewMode("lista")}
+        className={`rounded-full px-3 py-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+          viewMode === "lista"
+            ? "bg-[rgb(var(--primary))] text-white shadow-soft"
+            : "text-white/70 hover:bg-white/10"
+        }`}
+        aria-pressed={viewMode === "lista"}
+      >
+        Lista
+      </button>
+      <button
+        type="button"
+        onClick={() => setViewMode("tablero")}
+        className={`rounded-full px-3 py-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+          viewMode === "tablero"
+            ? "bg-[rgb(var(--primary))] text-white shadow-soft"
+            : "text-white/70 hover:bg-white/10"
+        }`}
+        aria-pressed={viewMode === "tablero"}
+      >
+        Tablero
+      </button>
+    </div>
+  );
 
   const handleToggleNeedFromTeam = React.useCallback(
     (value: MapacheNeedFromTeam) => {
@@ -2887,6 +3000,23 @@ function TaskMetaChip({
     );
   };
 
+  const isTasksSection = activeSection === "tasks";
+  const isMetricsSection = activeSection === "metrics";
+
+  const renderLoadingMessage = () =>
+    !loading ? null : (
+      <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/70">
+        {t("loading")}
+      </div>
+    );
+
+  const renderFetchErrorMessage = () =>
+    !fetchError ? null : (
+      <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+        {t("loadFallback")}
+      </div>
+    );
+
   return (
     <section className="flex flex-col gap-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -3347,7 +3477,7 @@ function TaskMetaChip({
                     >
                       <option value="">Sin asignar</option>
                       {mapacheUsers.map((user) => (
-                        <option key={user.email} value={user.email}>
+                        <option key={user.id} value={user.id}>
                           {formatAssigneeOption(user)}
                         </option>
                       ))}
@@ -3767,115 +3897,61 @@ function TaskMetaChip({
         </form>
       </Modal>
 
-      <MapachePortalInsights
-        scope={insightsScope}
-        onScopeChange={setInsightsScope}
-        metricsByScope={insightsMetrics}
-      />
-
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleOpenFiltersPanel}
-            className={`inline-flex items-center gap-2 rounded-full border px-4 py-1 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
-              hasActiveAdvancedFilters
-                ? "border-[rgb(var(--primary))] bg-[rgb(var(--primary))]/20 text-white"
-                : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
-            }`}
-          >
-            <Filter className="h-4 w-4" aria-hidden="true" />
-            <span>{filtersT("open")}</span>
-            {advancedFiltersCount > 0 ? (
-              <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[rgb(var(--primary))] px-2 text-xs font-semibold text-white">
-                {advancedFiltersCount}
-              </span>
-            ) : null}
-          </button>
-          {filterOptions.map((option) => {
-            const isActive = activeFilter === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setActiveFilter(option.value)}
-                className={`rounded-full border px-4 py-1 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
-                  isActive
-                    ? "border-[rgb(var(--primary))] bg-[rgb(var(--primary))] text-white"
-                    : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
-                }`}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-
-          <div className="flex items-center gap-1 rounded-full border border-white/20 bg-white/5 p-1 text-xs font-medium text-white/70">
-            <button
-              type="button"
-              onClick={() => setViewMode("lista")}
-              className={`rounded-full px-3 py-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
-                viewMode === "lista"
-                  ? "bg-[rgb(var(--primary))] text-white shadow-soft"
-                  : "text-white/70 hover:bg-white/10"
-              }`}
-              aria-pressed={viewMode === "lista"}
-            >
-              Lista
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("tablero")}
-              className={`rounded-full px-3 py-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
-                viewMode === "tablero"
-                  ? "bg-[rgb(var(--primary))] text-white shadow-soft"
-                  : "text-white/70 hover:bg-white/10"
-              }`}
-              aria-pressed={viewMode === "tablero"}
-            >
-              Tablero
-            </button>
+      {isMetricsSection ? (
+        <>
+          <MapachePortalInsights
+            scope={insightsScope}
+            onScopeChange={setInsightsScope}
+            metricsByScope={insightsMetrics}
+          />
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {renderFiltersTrigger()}
+              {renderQuickFilterButtons()}
+            </div>
           </div>
-        </div>
-        {activeFilter === "unassigned" ? (
-          <button
-            type="button"
-            onClick={handleAutoAssign}
-            disabled={autoAssigning || mapacheUsers.length === 0}
-            className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--primary))] bg-[rgb(var(--primary))]/10 px-4 py-1 text-sm text-[rgb(var(--primary))] transition hover:bg-[rgb(var(--primary))]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Wand2 className="h-4 w-4" aria-hidden="true" />
-            {autoAssigning
-              ? assignmentT("autoAssigning")
-              : assignmentT("autoAssign")}
-          </button>
-        ) : null}
-      </div>
+          {renderLoadingMessage()}
+          {renderFetchErrorMessage()}
+        </>
+      ) : null}
 
-      {loading && (
-        <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/70">
-          {t("loading")}
-        </div>
-      )}
+      {isTasksSection ? (
+        <>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              {renderFiltersTrigger()}
+              {renderQuickFilterButtons()}
+              {renderViewModeToggle()}
+            </div>
+            {activeFilter === "unassigned" ? (
+              <button
+                type="button"
+                onClick={handleAutoAssign}
+                disabled={autoAssigning || mapacheUsers.length === 0}
+                className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--primary))] bg-[rgb(var(--primary))]/10 px-4 py-1 text-sm text-[rgb(var(--primary))] transition hover:bg-[rgb(var(--primary))]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Wand2 className="h-4 w-4" aria-hidden="true" />
+                {autoAssigning
+                  ? assignmentT("autoAssigning")
+                  : assignmentT("autoAssign")}
+              </button>
+            ) : null}
+          </div>
 
-      {!loading && filteredTasks.length === 0 && (
-        <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-6 text-center text-sm text-white/70">
-          <p className="font-medium text-white">
-            {showFilteredEmptyMessage ? emptyT("filteredTitle") : emptyT("title")}
-          </p>
-          <p className="mt-1 text-white/70">
-            {showFilteredEmptyMessage
-              ? emptyT("filteredDescription")
-              : emptyT("description")}
-          </p>
-        </div>
-      )}
+          {renderLoadingMessage()}
 
-      {fetchError && (
-        <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
-          {t("loadFallback")}
-        </div>
-      )}
+          {!loading && filteredTasks.length === 0 && (
+            <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-6 text-center text-sm text-white/70">
+              <p className="font-medium text-white">
+                {showFilteredEmptyMessage ? emptyT("filteredTitle") : emptyT("title")}
+              </p>
+              <p className="mt-1 text-white/70">
+                {showFilteredEmptyMessage
+                  ? emptyT("filteredDescription")
+                  : emptyT("description")}
+              </p>
+            </div>
+          )}
 
       {viewMode === "lista" ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -4171,23 +4247,23 @@ function TaskMetaChip({
                   </label>
                   <label className="flex flex-col gap-1 text-sm">
                     <span className="text-white/80">Asignado a</span>
-                    <select
-                      value={selectedTaskFormState.assigneeId ?? ""}
-                      onChange={(event) =>
-                        handleSelectedTaskFormChange(
-                          "assigneeId",
-                          event.target.value ? event.target.value : null,
-                        )
-                      }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                    >
-                      <option value="">Sin asignar</option>
-                      {mapacheUsers.map((user) => (
-                        <option key={user.email} value={user.email}>
-                          {formatAssigneeOption(user)}
-                        </option>
-                      ))}
-                    </select>
+                      <select
+                        value={selectedTaskFormState.assigneeId ?? ""}
+                        onChange={(event) =>
+                          handleSelectedTaskFormChange(
+                            "assigneeId",
+                            event.target.value ? event.target.value : null,
+                          )
+                        }
+                        className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      >
+                        <option value="">Sin asignar</option>
+                        {mapacheUsers.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {formatAssigneeOption(user)}
+                          </option>
+                        ))}
+                      </select>
                   </label>
                   <label className="flex flex-col gap-1 text-sm">
                     <span className="text-white/80">Necesidad del equipo</span>
