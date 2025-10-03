@@ -274,8 +274,15 @@ const STATUS_BADGE_CLASSNAMES: Record<
   completed: "border-emerald-500/40 bg-emerald-500/10 text-emerald-200",
 };
 
-const SUBSTATUS_BADGE_CLASSNAME =
-  "border-white/10 bg-white/5 text-white/60 backdrop-blur-sm";
+const STATUS_INDICATOR_ACCENT_CLASSNAMES: Record<
+  StatusBadgeKey,
+  string
+> = {
+  unassigned: "bg-slate-400",
+  assigned: "bg-cyan-400",
+  in_progress: "bg-amber-400",
+  completed: "bg-emerald-400",
+};
 
 type StatusBadgeKey = keyof typeof STATUS_BADGE_CLASSNAMES;
 function getStatusLabelKey(status: MapacheTaskStatus) {
@@ -1133,7 +1140,6 @@ export default function MapachePortalClient({
   const statusT = useTranslations("mapachePortal.statuses");
   const statusBadgeT = useTranslations("mapachePortal.statusBadges");
   const substatusT = useTranslations("mapachePortal.substatuses");
-  const deliverablesT = useTranslations("mapachePortal.deliverables");
   const formT = useTranslations("mapachePortal.form");
   const toastT = useTranslations("mapachePortal.toast");
   const validationT = useTranslations("mapachePortal.validation");
@@ -2644,9 +2650,15 @@ export default function MapachePortalClient({
     validationMessages,
   ]);
 
-type TaskCardProps = {
+type TaskBoardCardProps = {
   task: MapacheTask;
+  onOpen: (task: MapacheTask) => void;
   isDragging?: boolean;
+};
+
+type TaskDetailCardProps = {
+  task: MapacheTask;
+  onOpen: (task: MapacheTask) => void;
 };
 
 type TaskMetaChipProps = {
@@ -2692,141 +2704,154 @@ function TaskMetaChip({
   );
 }
 
-  const TaskCard = ({ task, isDragging = false }: TaskCardProps) => {
+  const TaskBoardCard = ({
+    task,
+    onOpen,
+    isDragging = false,
+  }: TaskBoardCardProps) => {
+    const statusBadgeKey = getStatusBadgeKey(task);
+    const presentationMeta = getPresentationDateMeta(task.presentationDate);
+    const presentationLabel =
+      presentationMeta.label ?? formT("unspecifiedOption");
+    const statusLabel = statusBadgeT(statusBadgeKey);
+    const assigneeLabel =
+      formatTaskAssigneeLabel(task) || formT("unspecifiedOption");
+    const assigneeInitials = getInitials(assigneeLabel);
+    const clientLabel = task.clientName ?? formT("unspecifiedOption");
+
+    return (
+      <article
+        className={`group relative overflow-hidden rounded-lg border border-white/10 bg-slate-950/80 p-3 text-white shadow-soft transition ${
+          isDragging
+            ? "ring-2 ring-[rgb(var(--primary))]/80 ring-offset-2 ring-offset-slate-950"
+            : "hover:border-white/20"
+        }`}
+      >
+        <span
+          className={`absolute left-0 top-0 h-full w-1 ${STATUS_INDICATOR_ACCENT_CLASSNAMES[statusBadgeKey]}`}
+          aria-hidden="true"
+        />
+        <button
+          type="button"
+          onClick={() => onOpen(task)}
+          aria-label={`Abrir detalles de ${task.title}`}
+          className="flex w-full flex-col gap-3 rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h2 className="line-clamp-2 text-sm font-semibold text-white">
+                {task.title}
+              </h2>
+              <p
+                className="mt-1 line-clamp-1 text-xs text-white/60"
+                title={clientLabel}
+              >
+                {clientLabel}
+              </p>
+            </div>
+            <span
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-[11px] font-semibold uppercase text-white"
+              title={assigneeLabel}
+            >
+              {assigneeInitials}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-xs text-white/70">
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-2 w-2 rounded-full ${STATUS_INDICATOR_ACCENT_CLASSNAMES[statusBadgeKey]}`}
+                aria-hidden="true"
+              />
+              <span className="font-semibold text-white/80">{statusLabel}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-2 w-2 rounded-full ${presentationMeta.indicatorClassName}`}
+                aria-hidden="true"
+              />
+              <span className="font-semibold text-white/80">
+                {presentationLabel}
+              </span>
+            </div>
+          </div>
+        </button>
+      </article>
+    );
+  };
+
+  const TaskDetailCard = ({ task, onOpen }: TaskDetailCardProps) => {
     const isUpdating = updatingTaskId === task.id;
     const isDeleting = deletingTaskId === task.id;
     const statusBadgeKey = getStatusBadgeKey(task);
-    const needValue: MapacheNeedFromTeam = task.needFromTeam ?? "OTHER";
-    const directnessValue: MapacheDirectness = task.directness ?? "DIRECT";
     const presentationMeta = getPresentationDateMeta(task.presentationDate);
     const presentationLabel =
       presentationMeta.label ?? formT("unspecifiedOption");
     const assigneeLabel =
       formatTaskAssigneeLabel(task) || formT("unspecifiedOption");
     const assigneeInitials = getInitials(assigneeLabel);
+    const clientLabel = task.clientName ?? formT("unspecifiedOption");
 
     return (
-      <article
-        className={`flex h-full flex-col justify-between rounded-xl border border-white/10 bg-slate-950/80 p-4 text-white shadow-soft transition ${
-          isDragging ? "ring-2 ring-[rgb(var(--primary))]/80" : ""
-        }`}
-      >
-        <div className="flex flex-1 flex-col gap-4">
+      <article className="flex h-full flex-col justify-between rounded-xl border border-white/10 bg-slate-950/80 p-4 text-white shadow-soft transition hover:border-white/20">
+        <div className="flex flex-1 flex-col gap-3">
           <button
             type="button"
             tabIndex={0}
-            onClick={() => openTask(task)}
+            onClick={() => onOpen(task)}
             aria-label={`Abrir detalles de ${task.title}`}
             className="flex flex-col gap-3 rounded-lg border border-transparent bg-transparent p-0 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 hover:border-white/10"
           >
             <div className="flex items-start justify-between gap-3">
-              <h2 className="text-lg font-semibold text-white">{task.title}</h2>
-              <div className="flex flex-col items-end gap-1">
-                <span
-                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${STATUS_BADGE_CLASSNAMES[statusBadgeKey]}`}
-                >
-                  {statusBadgeT(statusBadgeKey)}
-                </span>
-                {task.substatus ? (
-                  <span
-                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${SUBSTATUS_BADGE_CLASSNAME}`}
-                  >
-                    {substatusT(getSubstatusKey(task.substatus))}
-                  </span>
-                ) : null}
+              <div className="min-w-0 flex-1">
+                <h2 className="line-clamp-2 text-lg font-semibold text-white">
+                  {task.title}
+                </h2>
+                <p className="mt-1 text-sm text-white/60" title={clientLabel}>
+                  {clientLabel}
+                </p>
               </div>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <TaskMetaChip label="Cliente">
-                <span className="truncate text-xs font-semibold text-white">
-                  {task.clientName ?? formT("unspecifiedOption")}
+              <div className="flex flex-col items-end gap-2 text-xs text-white/60">
+                <span
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-[11px] font-semibold uppercase text-white"
+                  title={assigneeLabel}
+                >
+                  {assigneeInitials}
                 </span>
-              </TaskMetaChip>
-              <TaskMetaChip label="Necesidad">
-                <span className="text-xs font-semibold text-white">
-                  {needFromTeamT(needValue)}
-                </span>
-              </TaskMetaChip>
-              <TaskMetaChip label="Canal">
-                <span className="text-xs font-semibold text-white">
-                  {directnessT(directnessValue)}
-                </span>
-              </TaskMetaChip>
-              <TaskMetaChip label="Presentación" tone={presentationMeta.tone}>
-                <span className="flex min-w-0 items-center gap-2">
+                <div className="flex items-center gap-2">
                   <span
-                    className={`h-2 w-2 shrink-0 rounded-full ${presentationMeta.indicatorClassName}`}
+                    className={`h-2 w-2 rounded-full ${STATUS_INDICATOR_ACCENT_CLASSNAMES[statusBadgeKey]}`}
                     aria-hidden="true"
                   />
-                  <span className="truncate text-xs font-semibold text-white">
-                    {presentationLabel}
+                  <span className="font-semibold text-white/80">
+                    {statusBadgeT(statusBadgeKey)}
                   </span>
-                </span>
-              </TaskMetaChip>
-              <TaskMetaChip label="Asignado">
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-semibold uppercase text-white">
-                    {assigneeInitials}
-                  </span>
-                  <span className="truncate text-xs font-semibold text-white">
-                    {assigneeLabel}
-                  </span>
-                </span>
-              </TaskMetaChip>
+                </div>
+              </div>
             </div>
-            {task.description ? (
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/70">
-                {task.description}
-              </p>
-            ) : (
-              <p className="text-sm italic text-white/40">{t("noDescription")}</p>
-            )}
+            <div className="flex flex-wrap items-center gap-2 text-xs text-white/60">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`h-2 w-2 rounded-full ${presentationMeta.indicatorClassName}`}
+                  aria-hidden="true"
+                />
+                <span className="font-semibold text-white/80">
+                  {presentationLabel}
+                </span>
+              </div>
+              {task.substatus ? (
+                <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/60">
+                  {substatusT(getSubstatusKey(task.substatus))}
+                </span>
+              ) : null}
+            </div>
           </button>
-
-          <section className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-            <header className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-white/60">
-              <span>{deliverablesT("title")}</span>
-              <span className="text-[10px] font-medium text-white/40">
-                {task.deliverables.length}
-              </span>
-            </header>
-            {task.deliverables.length > 0 ? (
-              <ul className="flex flex-col gap-2 text-sm text-white/70">
-                {task.deliverables.map((deliverable) => (
-                  <li
-                    key={deliverable.id}
-                    className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-white/5 bg-slate-950/70 p-2"
-                  >
-                    <div className="flex min-w-0 flex-1 flex-col gap-1">
-                      <span className="inline-flex w-fit items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/60">
-                        {deliverableTypeT(deliverable.type)}
-                      </span>
-                      <p className="truncate text-sm text-white/80" title={deliverable.title}>
-                        {deliverable.title}
-                      </p>
-                    </div>
-                    <a
-                      href={deliverable.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center rounded-md border border-white/10 px-3 py-1 text-xs font-medium text-white/80 transition hover:border-[rgb(var(--primary))]/50 hover:text-[rgb(var(--primary))] focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--primary))]/50"
-                    >
-                      {deliverablesT("open")}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-white/50">{deliverablesT("empty")}</p>
-            )}
-          </section>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-          <label className="flex items-center gap-2 text-white/70">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/70">
+          <label className="flex items-center gap-2">
             <span>{actionsT("statusLabel")}:</span>
             <select
-              className="min-w-[140px] rounded-md border border-white/20 bg-slate-950/60 px-2 py-1 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+              className="min-w-[120px] rounded-md border border-white/20 bg-slate-950/60 px-2 py-1 text-xs text-white focus:border-[rgb(var(--primary))] focus:outline-none"
               value={task.status}
               onChange={(event) =>
                 handleStatusChange(task, event.target.value as MapacheTaskStatus)
@@ -2840,10 +2865,10 @@ function TaskMetaChip({
               ))}
             </select>
           </label>
-          <label className="flex items-center gap-2 text-white/70">
+          <label className="flex items-center gap-2">
             <span>{actionsT("substatusLabel")}:</span>
             <select
-              className="min-w-[160px] rounded-md border border-white/20 bg-slate-950/60 px-2 py-1 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+              className="min-w-[150px] rounded-md border border-white/20 bg-slate-950/60 px-2 py-1 text-xs text-white focus:border-[rgb(var(--primary))] focus:outline-none"
               value={task.substatus}
               onChange={(event) =>
                 handleSubstatusChange(
@@ -2865,7 +2890,7 @@ function TaskMetaChip({
             type="button"
             onClick={() => handleRequestDeleteTask(task.id)}
             disabled={isDeleting || isUpdating}
-            className="ml-auto inline-flex items-center rounded-md border border-white/20 px-3 py-1 text-sm text-white/80 transition hover:bg-rose-500/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="ml-auto inline-flex items-center rounded-md border border-white/20 px-3 py-1 text-xs text-white/80 transition hover:bg-rose-500/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isDeleting ? actionsT("deleting") : actionsT("delete")}
           </button>
@@ -2913,7 +2938,7 @@ function TaskMetaChip({
 
     return (
       <div ref={draggableRef} className="cursor-grab active:cursor-grabbing">
-        <TaskCard task={task} isDragging={isDragging} />
+        <TaskBoardCard task={task} onOpen={openTask} isDragging={isDragging} />
       </div>
     );
   };
@@ -2958,14 +2983,14 @@ function TaskMetaChip({
     }, [onTaskDrop, status]);
 
     return (
-      <section className="flex min-w-[320px] max-w-[360px] flex-1 flex-col rounded-xl border border-white/10 bg-slate-950/70 text-white shadow-soft">
+      <section className="flex min-w-[260px] max-w-[280px] flex-1 flex-col rounded-xl border border-white/10 bg-slate-950/70 text-white shadow-soft">
         <header className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3 text-sm font-semibold text-white/80">
           <span>{statusT(getStatusLabelKey(status))}</span>
           <span className="text-xs text-white/50">{tasks.length}</span>
         </header>
         <div
           ref={columnRef}
-          className={`flex min-h-[140px] flex-1 flex-col gap-3 p-4 transition ${
+          className={`flex min-h-[140px] flex-1 flex-col gap-2 p-3 transition ${
             isDraggingOver ? "bg-white/5" : ""
           }`}
         >
@@ -2973,7 +2998,7 @@ function TaskMetaChip({
             <PipelineDraggableTask key={task.id} task={task} />
           ))}
           {tasks.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-white/10 p-4 text-xs text-white/40">
+            <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-white/10 p-3 text-xs text-white/40">
               Soltá señales acá
             </div>
           ) : null}
@@ -3748,7 +3773,7 @@ function TaskMetaChip({
       {viewMode === "lista" ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredTasks.map((task) => (
-            <TaskCard key={task.id} task={task} />
+            <TaskDetailCard key={task.id} task={task} onOpen={openTask} />
           ))}
         </div>
       ) : (
