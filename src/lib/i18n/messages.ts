@@ -142,7 +142,8 @@ export const messages: Record<Locale, DeepRecord> = {
         statusLabel: "Estado",
         delete: "Eliminar",
         deleting: "Eliminando…",
-        deleteConfirm: "¿Seguro que deseas eliminar esta tarea?",
+        deleteConfirm: "¿Seguro que deseas eliminar la tarea {id}?",
+        cancel: "Cancelar",
       },
       empty: {
         title: "No hay tareas para mostrar",
@@ -1381,7 +1382,8 @@ export const messages: Record<Locale, DeepRecord> = {
         statusLabel: "Status",
         delete: "Delete",
         deleting: "Deleting…",
-        deleteConfirm: "Are you sure you want to delete this task?",
+        deleteConfirm: "Are you sure you want to delete task {id}?",
+        cancel: "Cancel",
       },
       empty: {
         title: "No tasks yet",
@@ -2616,7 +2618,8 @@ export const messages: Record<Locale, DeepRecord> = {
         statusLabel: "Status",
         delete: "Excluir",
         deleting: "Excluindo…",
-        deleteConfirm: "Tem certeza de que deseja excluir esta tarefa?",
+        deleteConfirm: "Tem certeza de que deseja excluir a tarefa {id}?",
+        cancel: "Cancelar",
       },
       empty: {
         title: "Nenhuma tarefa para exibir",

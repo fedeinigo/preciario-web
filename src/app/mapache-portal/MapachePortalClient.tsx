@@ -82,6 +82,7 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
 
   const [updatingTaskId, setUpdatingTaskId] = React.useState<string | null>(null);
   const [deletingTaskId, setDeletingTaskId] = React.useState<string | null>(null);
+  const [pendingDeletion, setPendingDeletion] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -236,25 +237,22 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
   );
 
   const handleDeleteTask = React.useCallback(
-    async (task: MapacheTask) => {
-      const confirmed = window.confirm(actionsT("deleteConfirm"));
-      if (!confirmed) return;
-
-      setDeletingTaskId(task.id);
+    async (taskId: string) => {
+      setDeletingTaskId(taskId);
       try {
         const response = await fetch(`/api/mapache/tasks`, {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ id: task.id }),
+          body: JSON.stringify({ id: taskId }),
         });
 
         if (!response.ok) {
           throw new Error(`Request failed with status ${response.status}`);
         }
 
-        setTasks((prev) => prev.filter((item) => item.id !== task.id));
+        setTasks((prev) => prev.filter((item) => item.id !== taskId));
         toast.success(toastT("deleteSuccess"));
       } catch (error) {
         console.error(error);
@@ -263,8 +261,25 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
         setDeletingTaskId(null);
       }
     },
-    [actionsT, toastT]
+    [toastT]
   );
+
+  const handleRequestDeleteTask = React.useCallback((taskId: string) => {
+    setPendingDeletion(taskId);
+  }, []);
+
+  const handleCancelDeleteTask = React.useCallback(() => {
+    setPendingDeletion(null);
+  }, []);
+
+  const handleConfirmDeleteTask = React.useCallback(async () => {
+    if (!pendingDeletion) return;
+    try {
+      await handleDeleteTask(pendingDeletion);
+    } finally {
+      setPendingDeletion(null);
+    }
+  }, [handleDeleteTask, pendingDeletion]);
 
   return (
     <section className="flex flex-col gap-6">
@@ -373,7 +388,7 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
 
                 <button
                   type="button"
-                  onClick={() => handleDeleteTask(task)}
+                  onClick={() => handleRequestDeleteTask(task.id)}
                   disabled={isDeleting || isUpdating}
                   className="ml-auto inline-flex items-center rounded-md border border-white/20 px-3 py-1 text-sm text-white/80 transition hover:bg-rose-500/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -453,6 +468,40 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
             </select>
           </label>
         </form>
+      </Modal>
+
+      <Modal
+        open={pendingDeletion !== null}
+        onClose={handleCancelDeleteTask}
+        title={<span className="text-base font-semibold">{actionsT("delete")}</span>}
+        variant="inverted"
+        disableCloseOnBackdrop={deletingTaskId === pendingDeletion}
+        footer={
+          <div className="flex justify-end gap-2 rounded-lg bg-white/10 px-4 py-3">
+            <button
+              type="button"
+              onClick={handleCancelDeleteTask}
+              className="rounded-md border border-white/20 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+              disabled={deletingTaskId === pendingDeletion}
+            >
+              {actionsT("cancel")}
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmDeleteTask}
+              className="rounded-md bg-rose-500 px-4 py-2 text-sm font-medium text-white shadow-soft transition hover:bg-rose-500/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={!pendingDeletion || deletingTaskId !== null}
+            >
+              {deletingTaskId === pendingDeletion ? actionsT("deleting") : actionsT("delete")}
+            </button>
+          </div>
+        }
+        panelClassName="!bg-slate-950/95 !text-white !border-white/10 !shadow-[0_25px_60px_rgba(2,6,23,0.7)]"
+        backdropClassName="!bg-slate-950/85"
+      >
+        <div className="flex flex-col gap-3 text-sm text-white/80">
+          <p>{pendingDeletion ? actionsT("deleteConfirm", { id: pendingDeletion }) : null}</p>
+        </div>
       </Modal>
     </section>
   );
