@@ -1,52 +1,11 @@
 // src/app/api/mapache/tasks/route.ts
 import { NextResponse } from "next/server";
 
-import { requireApiSession, type ApiSession } from "@/app/api/_utils/require-auth";
+import { requireApiSession } from "@/app/api/_utils/require-auth";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
-const MAPACHE_TEAM = "Mapaches" as const;
-const VALID_STATUSES = ["PENDING", "IN_PROGRESS", "DONE"] as const;
-type MapacheStatus = (typeof VALID_STATUSES)[number];
-
-function parseStatus(status: unknown): MapacheStatus | null {
-  if (typeof status !== "string") return null;
-  return VALID_STATUSES.includes(status as MapacheStatus)
-    ? (status as MapacheStatus)
-    : null;
-}
-
-type AccessResult = { response: NextResponse | null; userId?: string };
-
-function ensureMapacheAccess(session: ApiSession | null): AccessResult {
-  const user = session?.user;
-  if (!user?.id) {
-    return {
-      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-    };
-  }
-
-  const isAdmin = user.role === "superadmin";
-  const isMapache = user.team === MAPACHE_TEAM;
-
-  if (!isAdmin && !isMapache) {
-    return {
-      response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
-    };
-  }
-
-  return { response: null, userId: user.id };
-}
-
-const taskSelect = {
-  id: true,
-  title: true,
-  description: true,
-  status: true,
-  createdAt: true,
-  updatedAt: true,
-  createdById: true,
-} satisfies Prisma.MapacheTaskSelect;
+import { ensureMapacheAccess, parseStatus, taskSelect } from "./access";
 
 export async function GET() {
   const { session, response } = await requireApiSession();
@@ -190,4 +149,3 @@ export async function DELETE(req: Request) {
   return NextResponse.json({ ok: true });
 }
 
-export { ensureMapacheAccess };
