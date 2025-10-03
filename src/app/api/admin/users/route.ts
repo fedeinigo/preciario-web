@@ -10,12 +10,15 @@ import { auth } from "@/lib/auth";
  * Normaliza strings de rol que puedan venir del front.
  * Acepta "comercial" como sinónimo de "usuario" (compatibilidad vieja).
  */
-function normalizeRole(input: string | null | undefined): DbRole | undefined {
+export function normalizeRole(
+  input: string | null | undefined,
+): DbRole | undefined {
   if (!input) return undefined;
   const v = input.toLowerCase().trim();
   if (v === "comercial") return DbRole.usuario;
   if (v === "usuario") return DbRole.usuario;
   if (v === "lider") return DbRole.lider;
+  if (v === "admin") return DbRole.admin;
   if (v === "superadmin") return DbRole.superadmin;
   return undefined;
 }
@@ -48,7 +51,7 @@ export async function GET() {
  * Body:
  * {
  *   userId: string;
- *   role?: "superadmin" | "lider" | "usuario" | "comercial"; // "comercial" => "usuario"
+ *   role?: "superadmin" | "admin" | "lider" | "usuario" | "comercial"; // "comercial" => "usuario"
  *   team?: string | null;  // nombre del equipo o null
  * }
  */
