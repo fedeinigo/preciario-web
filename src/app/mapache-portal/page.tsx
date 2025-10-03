@@ -25,9 +25,10 @@ export default async function MapachePortalPage() {
   }
 
   const isMapache = session.user.team === "Mapaches";
-  const isAdmin = session.user.role === "superadmin";
+  const isAdmin = ["admin", "superadmin"].includes(session.user.role ?? "");
+  const hasAccess = isMapache || isAdmin;
 
-  if (!isMapache && !isAdmin) {
+  if (!hasAccess) {
     return notFound();
   }
 
