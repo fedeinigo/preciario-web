@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "@/app/LanguageProvider";
 import { toast } from "@/app/components/ui/toast";
 
-type Role = "superadmin" | "lider" | "usuario";
+type Role = "superadmin" | "admin" | "lider" | "usuario";
 
 type UserRow = {
   id: string;
@@ -20,7 +20,7 @@ type UserRow = {
 
 type TeamRow = { id: string; name: string };
 
-const ROLES: Role[] = ["usuario", "lider", "superadmin"];
+const ROLES: Role[] = ["usuario", "lider", "admin", "superadmin"];
 
 export default function AdminUsersPage() {
   const t = useTranslations("admin.usersLegacy");
