@@ -120,8 +120,9 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     [locale, router, setLocale]
   );
 
+  const isMapachePortal = pathname === "/mapache-portal";
   const status = session ? "authenticated" : "unauthenticated";
-  const showTabs = status === "authenticated";
+  const showTabs = status === "authenticated" && !isMapachePortal;
   const showAuthActions = status === "authenticated";
 
   const role = (session?.user?.role as AnyRole) ?? "usuario";
@@ -133,6 +134,8 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const canSeeUsers = role === "admin" || role === "superadmin";
   const canOpenMapachePortal =
     rawTeam === "Mapaches" || role === "superadmin" || role === "admin";
+  const showMapacheReturn = showAuthActions && canOpenMapachePortal && isMapachePortal;
+  const showMapacheLink = showAuthActions && canOpenMapachePortal && !isMapachePortal;
 
   const [activeTab, setActiveTab] = React.useState<Tab>(readHash());
   const [userModal, setUserModal] = React.useState(false);
@@ -236,8 +239,6 @@ export default function NavbarClient({ session }: NavbarClientProps) {
 
   const pct = goal > 0 ? (progress / goal) * 100 : 0;
 
-  const isMapachePortal = pathname === "/mapache-portal";
-
   return (
     <nav
       role="navigation"
@@ -246,7 +247,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
       style={{ height: "var(--nav-h)" }}
     >
       <div className="navbar-inner mx-auto max-w-[2000px] px-3">
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
           <Image
             src="/logo.png"
             alt="Wise CX"
@@ -255,6 +256,14 @@ export default function NavbarClient({ session }: NavbarClientProps) {
             className="h-9 w-auto object-contain"
             priority
           />
+          {showMapacheReturn && (
+            <Link
+              href="/"
+              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+            >
+              {profileT("mapachePortalReturn")}
+            </Link>
+          )}
         </div>
 
         {showTabs ? (
@@ -318,7 +327,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
               {name} — {team}
             </button>
           )}
-          {showAuthActions && canOpenMapachePortal && (
+          {showMapacheLink && (
             <Link
               href="/mapache-portal"
               className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
