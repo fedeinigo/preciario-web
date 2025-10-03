@@ -59,6 +59,18 @@ function isValidUrl(value: string) {
   }
 }
 
+function getDateInputValue(value: string | null | undefined): string {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const [datePart] = trimmed.split("T");
+  if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    return datePart;
+  }
+  const match = trimmed.match(/^\d{4}-\d{2}-\d{2}/);
+  return match ? match[0] : "";
+}
+
 type MapachePortalClientProps = {
   initialTasks: MapacheTask[];
 };
@@ -468,7 +480,7 @@ function createFormStateFromTask(task: MapacheTask): FormState {
     needFromTeam: task.needFromTeam ?? base.needFromTeam,
     directness: task.directness ?? base.directness,
     assigneeId: assigneeIdentifier,
-    presentationDate: task.presentationDate ?? "",
+    presentationDate: getDateInputValue(task.presentationDate),
     interlocutorRole: task.interlocutorRole ?? "",
     clientWebsiteUrls: Array.isArray(task.clientWebsiteUrls)
       ? task.clientWebsiteUrls
