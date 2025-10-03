@@ -26,6 +26,7 @@ import { fetchAllProposals } from "@/app/components/features/proposals/lib/propo
 import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { locales } from "@/lib/i18n/config";
+import { isMapachePath } from "@/lib/routing";
 import {
   MAPACHE_PORTAL_DEFAULT_SECTION,
   MAPACHE_PORTAL_NAVIGATE_EVENT,
@@ -34,19 +35,6 @@ import {
   isMapachePortalSection,
 } from "@/app/mapache-portal/section-events";
 
-function isMapachePath(pathname: string | null): boolean {
-  if (!pathname) return false;
-
-  const localePrefix = locales.find(
-    (code) => pathname === `/${code}` || pathname.startsWith(`/${code}/`)
-  );
-
-  const pathnameWithoutLocale = localePrefix
-    ? pathname.slice(localePrefix.length + 1) || "/"
-    : pathname;
-
-  return pathnameWithoutLocale.startsWith("/mapache-portal");
-}
 
 type Tab = "generator" | "history" | "stats" | "users" | "teams" | "goals";
 type AnyRole =
