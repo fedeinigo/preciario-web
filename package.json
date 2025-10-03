@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
+    "@hello-pangea/dnd": "^16.6.0",
     "@prisma/client": "^6.16.1",
     "googleapis": "^159.0.0",
     "lucide-react": "^0.542.0",

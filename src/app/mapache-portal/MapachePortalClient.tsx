@@ -2,6 +2,12 @@
 
 import * as React from "react";
 
+import {
+  DragDropContext,
+  Draggable,
+  Droppable,
+  type DropResult,
+} from "@hello-pangea/dnd";
 import { Filter, Settings, Wand2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
@@ -49,6 +55,7 @@ const DELIVERABLE_TYPES: MapacheDeliverableType[] = [...MAPACHE_DELIVERABLE_TYPE
 const ORIGIN_OPTIONS: MapacheSignalOrigin[] = [...MAPACHE_SIGNAL_ORIGINS];
 
 const EMAIL_REGEX = /.+@.+\..+/i;
+const VIEW_MODE_STORAGE_KEY = "mapache_portal_view_mode";
 
 function isValidEmail(value: string) {
   return EMAIL_REGEX.test(value);
@@ -1021,6 +1028,10 @@ export default function MapachePortalClient({
   const [filtersHydrated, setFiltersHydrated] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [fetchError, setFetchError] = React.useState<string | null>(null);
+  const [viewMode, setViewMode] = React.useState<"lista" | "tablero">(
+    "lista",
+  );
+  const [viewModeHydrated, setViewModeHydrated] = React.useState(false);
 
   const [assignmentRatios, setAssignmentRatios] = React.useState<AssignmentRatios>({});
   const [ratiosLoaded, setRatiosLoaded] = React.useState(false);
@@ -1063,6 +1074,22 @@ export default function MapachePortalClient({
   const selectedTaskInitialDeliverablesRef = React.useRef<DeliverableInput[]>([]);
 
   const assigneesErrorMessage = formT("assigneeLoadError");
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storedViewMode = window.localStorage.getItem(
+      VIEW_MODE_STORAGE_KEY,
+    );
+    if (storedViewMode === "lista" || storedViewMode === "tablero") {
+      setViewMode(storedViewMode);
+    }
+    setViewModeHydrated(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !viewModeHydrated) return;
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
+  }, [viewMode, viewModeHydrated]);
 
   const validationMessages = React.useMemo(
     () => ({
@@ -1421,6 +1448,25 @@ export default function MapachePortalClient({
       return true;
     });
   }, [baseFilteredTasks, normalizedAdvancedFilters]);
+
+  const pipelineTasksByStatus = React.useMemo(() => {
+    const groups = STATUS_ORDER.reduce(
+      (acc, status) => {
+        acc[status] = [];
+        return acc;
+      },
+      {} as Record<MapacheTaskStatus, MapacheTask[]>,
+    );
+
+    filteredTasks.forEach((task) => {
+      if (!groups[task.status]) {
+        groups[task.status] = [];
+      }
+      groups[task.status].push(task);
+    });
+
+    return groups;
+  }, [filteredTasks]);
 
   const hasActiveAdvancedFilters = normalizedAdvancedFilters.hasAny;
   const advancedFiltersCount = normalizedAdvancedFilters.activeCount;
@@ -1987,6 +2033,24 @@ export default function MapachePortalClient({
     [toastT],
   );
 
+  const handleDragEnd = React.useCallback(
+    (result: DropResult) => {
+      if (viewMode !== "tablero") return;
+      const { destination, source, draggableId } = result;
+      if (!destination) return;
+      if (destination.droppableId === source.droppableId) return;
+
+      const nextStatus = destination.droppableId as MapacheTaskStatus;
+      if (!STATUS_ORDER.includes(nextStatus)) return;
+
+      const task = tasks.find((item) => item.id === draggableId);
+      if (!task) return;
+
+      void handleStatusChange(task, nextStatus);
+    },
+    [handleStatusChange, tasks, viewMode],
+  );
+
   const handleDeleteTask = React.useCallback(
     async (taskId: string) => {
       setDeletingTaskId(taskId);
@@ -2147,6 +2211,177 @@ export default function MapachePortalClient({
     toastT,
     validationMessages,
   ]);
+
+  type TaskCardProps = {
+    task: MapacheTask;
+    isDragging?: boolean;
+  };
+
+  const TaskCard = ({ task, isDragging = false }: TaskCardProps) => {
+    const isUpdating = updatingTaskId === task.id;
+    const isDeleting = deletingTaskId === task.id;
+    const statusBadgeKey = getStatusBadgeKey(task);
+
+    return (
+      <article
+        className={`flex h-full flex-col justify-between rounded-xl border border-white/10 bg-slate-950/80 p-4 text-white shadow-soft transition ${
+          isDragging ? "ring-2 ring-[rgb(var(--primary))]/80" : ""
+        }`}
+      >
+        <div className="flex flex-1 flex-col gap-4">
+          <button
+            type="button"
+            tabIndex={0}
+            onClick={() => openTask(task)}
+            aria-label={`Abrir detalles de ${task.title}`}
+            className="flex flex-col gap-3 rounded-lg border border-transparent bg-transparent p-0 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 hover:border-white/10"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-lg font-semibold text-white">{task.title}</h2>
+              <div className="flex flex-col items-end gap-1">
+                <span
+                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${STATUS_BADGE_CLASSNAMES[statusBadgeKey]}`}
+                >
+                  {statusBadgeT(statusBadgeKey)}
+                </span>
+                {task.substatus ? (
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${SUBSTATUS_BADGE_CLASSNAME}`}
+                  >
+                    {substatusT(getSubstatusKey(task.substatus))}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+            {task.description ? (
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/70">
+                {task.description}
+              </p>
+            ) : (
+              <p className="text-sm italic text-white/40">{t("noDescription")}</p>
+            )}
+          </button>
+
+          <section className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+            <header className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-white/60">
+              <span>{deliverablesT("title")}</span>
+              <span className="text-[10px] font-medium text-white/40">
+                {task.deliverables.length}
+              </span>
+            </header>
+            {task.deliverables.length > 0 ? (
+              <ul className="flex flex-col gap-2 text-sm text-white/70">
+                {task.deliverables.map((deliverable) => (
+                  <li
+                    key={deliverable.id}
+                    className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-white/5 bg-slate-950/70 p-2"
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="inline-flex w-fit items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/60">
+                        {deliverableTypeT(deliverable.type)}
+                      </span>
+                      <p className="truncate text-sm text-white/80" title={deliverable.title}>
+                        {deliverable.title}
+                      </p>
+                    </div>
+                    <a
+                      href={deliverable.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center rounded-md border border-white/10 px-3 py-1 text-xs font-medium text-white/80 transition hover:border-[rgb(var(--primary))]/50 hover:text-[rgb(var(--primary))] focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--primary))]/50"
+                    >
+                      {deliverablesT("open")}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-white/50">{deliverablesT("empty")}</p>
+            )}
+          </section>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+          <label className="flex items-center gap-2 text-white/70">
+            <span>{actionsT("statusLabel")}:</span>
+            <select
+              className="min-w-[140px] rounded-md border border-white/20 bg-slate-950/60 px-2 py-1 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+              value={task.status}
+              onChange={(event) =>
+                handleStatusChange(task, event.target.value as MapacheTaskStatus)
+              }
+              disabled={isUpdating || isDeleting}
+            >
+              {STATUS_ORDER.map((status) => (
+                <option key={status} value={status}>
+                  {statusT(getStatusLabelKey(status))}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            type="button"
+            onClick={() => handleRequestDeleteTask(task.id)}
+            disabled={isDeleting || isUpdating}
+            className="ml-auto inline-flex items-center rounded-md border border-white/20 px-3 py-1 text-sm text-white/80 transition hover:bg-rose-500/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isDeleting ? actionsT("deleting") : actionsT("delete")}
+          </button>
+        </div>
+      </article>
+    );
+  };
+
+  type PipelineColumnProps = {
+    status: MapacheTaskStatus;
+    tasks: MapacheTask[];
+  };
+
+  const PipelineColumn = ({ status, tasks }: PipelineColumnProps) => (
+    <Droppable droppableId={status}>
+      {(provided, snapshot) => (
+        <section className="flex min-w-[320px] max-w-[360px] flex-1 flex-col rounded-xl border border-white/10 bg-slate-950/70 text-white shadow-soft">
+          <header className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3 text-sm font-semibold text-white/80">
+            <span>{statusT(getStatusLabelKey(status))}</span>
+            <span className="text-xs text-white/50">{tasks.length}</span>
+          </header>
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className={`flex min-h-[140px] flex-1 flex-col gap-3 p-4 transition ${
+              snapshot.isDraggingOver ? "bg-white/5" : ""
+            }`}
+          >
+            {tasks.map((task, index) => (
+              <Draggable key={task.id} draggableId={task.id} index={index}>
+                {(draggableProvided, draggableSnapshot) => (
+                  <div
+                    ref={draggableProvided.innerRef}
+                    {...draggableProvided.draggableProps}
+                    {...draggableProvided.dragHandleProps}
+                    style={draggableProvided.draggableProps.style}
+                    className="cursor-grab active:cursor-grabbing"
+                  >
+                    <TaskCard
+                      task={task}
+                      isDragging={draggableSnapshot.isDragging}
+                    />
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {tasks.length === 0 ? (
+              <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-white/10 p-4 text-xs text-white/40">
+                Soltá señales acá
+              </div>
+            ) : null}
+            {provided.placeholder}
+          </div>
+        </section>
+      )}
+    </Droppable>
+  );
 
   return (
     <section className="flex flex-col gap-6">
@@ -2991,7 +3226,7 @@ export default function MapachePortalClient({
       </Modal>
 
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleOpenFiltersPanel}
@@ -3026,6 +3261,33 @@ export default function MapachePortalClient({
               </button>
             );
           })}
+
+          <div className="flex items-center gap-1 rounded-full border border-white/20 bg-white/5 p-1 text-xs font-medium text-white/70">
+            <button
+              type="button"
+              onClick={() => setViewMode("lista")}
+              className={`rounded-full px-3 py-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+                viewMode === "lista"
+                  ? "bg-[rgb(var(--primary))] text-white shadow-soft"
+                  : "text-white/70 hover:bg-white/10"
+              }`}
+              aria-pressed={viewMode === "lista"}
+            >
+              Lista
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("tablero")}
+              className={`rounded-full px-3 py-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+                viewMode === "tablero"
+                  ? "bg-[rgb(var(--primary))] text-white shadow-soft"
+                  : "text-white/70 hover:bg-white/10"
+              }`}
+              aria-pressed={viewMode === "tablero"}
+            >
+              Tablero
+            </button>
+          </div>
         </div>
         {activeFilter === "unassigned" ? (
           <button
@@ -3067,121 +3329,27 @@ export default function MapachePortalClient({
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filteredTasks.map((task) => {
-          const isUpdating = updatingTaskId === task.id;
-          const isDeleting = deletingTaskId === task.id;
-          const statusBadgeKey = getStatusBadgeKey(task);
-          return (
-            <article
-              key={task.id}
-              className="flex h-full flex-col justify-between rounded-xl border border-white/10 bg-slate-950/80 p-4 text-white shadow-soft"
-            >
-              <div className="flex flex-1 flex-col gap-4">
-                <button
-                  type="button"
-                  tabIndex={0}
-                  onClick={() => openTask(task)}
-                  aria-label={`Abrir detalles de ${task.title}`}
-                  className="flex flex-col gap-3 rounded-lg border border-transparent bg-transparent p-0 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 hover:border-white/10"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="text-lg font-semibold text-white">{task.title}</h2>
-                    <div className="flex flex-col items-end gap-1">
-                      <span
-                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${STATUS_BADGE_CLASSNAMES[statusBadgeKey]}`}
-                      >
-                        {statusBadgeT(statusBadgeKey)}
-                      </span>
-                      {task.substatus ? (
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${SUBSTATUS_BADGE_CLASSNAME}`}
-                        >
-                          {substatusT(getSubstatusKey(task.substatus))}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                  {task.description ? (
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/70">
-                      {task.description}
-                    </p>
-                  ) : (
-                    <p className="text-sm italic text-white/40">{t("noDescription")}</p>
-                  )}
-                </button>
-
-                <section className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                  <header className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-white/60">
-                    <span>{deliverablesT("title")}</span>
-                    <span className="text-[10px] font-medium text-white/40">
-                      {task.deliverables.length}
-                    </span>
-                  </header>
-                  {task.deliverables.length > 0 ? (
-                    <ul className="flex flex-col gap-2 text-sm text-white/70">
-                      {task.deliverables.map((deliverable) => (
-                        <li
-                          key={deliverable.id}
-                          className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-white/5 bg-slate-950/70 p-2"
-                        >
-                          <div className="flex min-w-0 flex-1 flex-col gap-1">
-                            <span className="inline-flex w-fit items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/60">
-                              {deliverableTypeT(deliverable.type)}
-                            </span>
-                            <p className="truncate text-sm text-white/80" title={deliverable.title}>
-                              {deliverable.title}
-                            </p>
-                          </div>
-                          <a
-                            href={deliverable.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center rounded-md border border-white/10 px-3 py-1 text-xs font-medium text-white/80 transition hover:border-[rgb(var(--primary))]/50 hover:text-[rgb(var(--primary))] focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--primary))]/50"
-                          >
-                            {deliverablesT("open")}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-white/50">{deliverablesT("empty")}</p>
-                  )}
-                </section>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-                <label className="flex items-center gap-2 text-white/70">
-                  <span>{actionsT("statusLabel")}:</span>
-                  <select
-                    className="min-w-[140px] rounded-md border border-white/20 bg-slate-950/60 px-2 py-1 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                    value={task.status}
-                    onChange={(event) =>
-                      handleStatusChange(task, event.target.value as MapacheTaskStatus)
-                    }
-                    disabled={isUpdating || isDeleting}
-                  >
-                    {STATUS_ORDER.map((status) => (
-                      <option key={status} value={status}>
-                        {statusT(getStatusLabelKey(status))}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() => handleRequestDeleteTask(task.id)}
-                  disabled={isDeleting || isUpdating}
-                  className="ml-auto inline-flex items-center rounded-md border border-white/20 px-3 py-1 text-sm text-white/80 transition hover:bg-rose-500/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isDeleting ? actionsT("deleting") : actionsT("delete")}
-                </button>
-              </div>
-            </article>
-          );
-        })}
-      </div>
+      {viewMode === "lista" ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filteredTasks.map((task) => (
+            <TaskCard key={task.id} task={task} />
+          ))}
+        </div>
+      ) : (
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="-mx-1 overflow-x-auto pb-2">
+            <div className="flex min-w-max gap-4 px-1">
+              {STATUS_ORDER.map((status) => (
+                <PipelineColumn
+                  key={status}
+                  status={status}
+                  tasks={pipelineTasksByStatus[status] ?? []}
+                />
+              ))}
+            </div>
+          </div>
+        </DragDropContext>
+      )}
 
       <Modal
         open={selectedTask !== null}
