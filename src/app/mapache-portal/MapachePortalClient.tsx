@@ -1461,7 +1461,7 @@ export default function MapachePortalClient({
                 id: record.id,
                 email: record.email,
                 name: typeof record.name === "string" ? record.name : null,
-              } satisfies MapacheUser;
+              } as MapacheUser;
             })
             .filter((user): user is MapacheUser => user !== null);
           if (!cancelled) {
@@ -2300,7 +2300,7 @@ export default function MapachePortalClient({
         assigneeLabel,
         assigneeInitials,
         clientLabel,
-      } satisfies SelectedTaskSummaryMeta;
+      } as SelectedTaskSummaryMeta;
     },
     [
       formT,
