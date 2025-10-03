@@ -3,11 +3,9 @@
 import * as React from "react";
 
 import {
-  DragDropContext,
-  Draggable,
-  Droppable,
-  type DropResult,
-} from "@hello-pangea/dnd";
+  draggable,
+  dropTargetForElements,
+} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { Filter, Settings, Wand2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
@@ -2372,17 +2370,17 @@ export default function MapachePortalClient({
     [loadTasks, toastT],
   );
 
-  const handleDragEnd = React.useCallback(
-    (result: DropResult) => {
+  const handleTaskDroppedOnStatus = React.useCallback(
+    (
+      taskId: string,
+      fromStatus: MapacheTaskStatus,
+      nextStatus: MapacheTaskStatus,
+    ) => {
       if (viewMode !== "tablero") return;
-      const { destination, source, draggableId } = result;
-      if (!destination) return;
-      if (destination.droppableId === source.droppableId) return;
-
-      const nextStatus = destination.droppableId as MapacheTaskStatus;
+      if (fromStatus === nextStatus) return;
       if (!STATUS_ORDER.includes(nextStatus)) return;
 
-      const task = tasks.find((item) => item.id === draggableId);
+      const task = tasks.find((item) => item.id === taskId);
       if (!task) return;
 
       void handleStatusChange(task, nextStatus);
@@ -2781,55 +2779,113 @@ function TaskMetaChip({
     );
   };
 
+  type PipelineDragData = {
+    type: "mapache-task";
+    taskId: string;
+    status: MapacheTaskStatus;
+  };
+
   type PipelineColumnProps = {
     status: MapacheTaskStatus;
     tasks: MapacheTask[];
+    onTaskDrop: (
+      taskId: string,
+      fromStatus: MapacheTaskStatus,
+      nextStatus: MapacheTaskStatus,
+    ) => void;
   };
 
-  const PipelineColumn = ({ status, tasks }: PipelineColumnProps) => (
-    <Droppable droppableId={status}>
-      {(provided, snapshot) => (
-        <section className="flex min-w-[320px] max-w-[360px] flex-1 flex-col rounded-xl border border-white/10 bg-slate-950/70 text-white shadow-soft">
-          <header className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3 text-sm font-semibold text-white/80">
-            <span>{statusT(getStatusLabelKey(status))}</span>
-            <span className="text-xs text-white/50">{tasks.length}</span>
-          </header>
-          <div
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            className={`flex min-h-[140px] flex-1 flex-col gap-3 p-4 transition ${
-              snapshot.isDraggingOver ? "bg-white/5" : ""
-            }`}
-          >
-            {tasks.map((task, index) => (
-              <Draggable key={task.id} draggableId={task.id} index={index}>
-                {(draggableProvided, draggableSnapshot) => (
-                  <div
-                    ref={draggableProvided.innerRef}
-                    {...draggableProvided.draggableProps}
-                    {...draggableProvided.dragHandleProps}
-                    style={draggableProvided.draggableProps.style}
-                    className="cursor-grab active:cursor-grabbing"
-                  >
-                    <TaskCard
-                      task={task}
-                      isDragging={draggableSnapshot.isDragging}
-                    />
-                  </div>
-                )}
-              </Draggable>
-            ))}
-            {tasks.length === 0 ? (
-              <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-white/10 p-4 text-xs text-white/40">
-                Soltá señales acá
-              </div>
-            ) : null}
-            {provided.placeholder}
-          </div>
-        </section>
-      )}
-    </Droppable>
-  );
+  const PipelineDraggableTask = ({ task }: { task: MapacheTask }) => {
+    const draggableRef = React.useRef<HTMLDivElement | null>(null);
+    const [isDragging, setIsDragging] = React.useState(false);
+
+    React.useEffect(() => {
+      const element = draggableRef.current;
+      if (!element) return;
+
+      return draggable({
+        element,
+        getInitialData: () => ({
+          type: "mapache-task",
+          taskId: task.id,
+          status: task.status,
+        } satisfies PipelineDragData),
+        onDragStart: () => setIsDragging(true),
+        onDrop: () => setIsDragging(false),
+        onDragEnd: () => setIsDragging(false),
+      });
+    }, [task.id, task.status]);
+
+    return (
+      <div ref={draggableRef} className="cursor-grab active:cursor-grabbing">
+        <TaskCard task={task} isDragging={isDragging} />
+      </div>
+    );
+  };
+
+  const PipelineColumn = ({
+    status,
+    tasks,
+    onTaskDrop,
+  }: PipelineColumnProps) => {
+    const columnRef = React.useRef<HTMLDivElement | null>(null);
+    const [isDraggingOver, setIsDraggingOver] = React.useState(false);
+
+    React.useEffect(() => {
+      const element = columnRef.current;
+      if (!element) return;
+
+      return dropTargetForElements({
+        element,
+        getData: () => ({ type: "mapache-column", status }),
+        onDragEnter: ({ source }) => {
+          const data = source.data as PipelineDragData | undefined;
+          if (data?.type === "mapache-task") {
+            setIsDraggingOver(true);
+          }
+        },
+        onDragLeave: () => {
+          setIsDraggingOver(false);
+        },
+        onDrop: ({ source }) => {
+          setIsDraggingOver(false);
+          const data = source.data as PipelineDragData | undefined;
+          if (!data || data.type !== "mapache-task") {
+            return;
+          }
+
+          onTaskDrop(data.taskId, data.status, status);
+        },
+        onDragEnd: () => {
+          setIsDraggingOver(false);
+        },
+      });
+    }, [onTaskDrop, status]);
+
+    return (
+      <section className="flex min-w-[320px] max-w-[360px] flex-1 flex-col rounded-xl border border-white/10 bg-slate-950/70 text-white shadow-soft">
+        <header className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3 text-sm font-semibold text-white/80">
+          <span>{statusT(getStatusLabelKey(status))}</span>
+          <span className="text-xs text-white/50">{tasks.length}</span>
+        </header>
+        <div
+          ref={columnRef}
+          className={`flex min-h-[140px] flex-1 flex-col gap-3 p-4 transition ${
+            isDraggingOver ? "bg-white/5" : ""
+          }`}
+        >
+          {tasks.map((task) => (
+            <PipelineDraggableTask key={task.id} task={task} />
+          ))}
+          {tasks.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-white/10 p-4 text-xs text-white/40">
+              Soltá señales acá
+            </div>
+          ) : null}
+        </div>
+      </section>
+    );
+  };
 
   return (
     <section className="flex flex-col gap-6">
@@ -3828,19 +3884,18 @@ function TaskMetaChip({
           ))}
         </div>
       ) : (
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="-mx-1 overflow-x-auto pb-2">
-            <div className="flex min-w-max gap-4 px-1">
-              {STATUS_ORDER.map((status) => (
-                <PipelineColumn
-                  key={status}
-                  status={status}
-                  tasks={pipelineTasksByStatus[status] ?? []}
-                />
-              ))}
-            </div>
+        <div className="-mx-1 overflow-x-auto pb-2">
+          <div className="flex min-w-max gap-4 px-1">
+            {STATUS_ORDER.map((status) => (
+              <PipelineColumn
+                key={status}
+                status={status}
+                tasks={pipelineTasksByStatus[status] ?? []}
+                onTaskDrop={handleTaskDroppedOnStatus}
+              />
+            ))}
           </div>
-        </DragDropContext>
+        </div>
       )}
 
       <Modal
