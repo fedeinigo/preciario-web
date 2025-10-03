@@ -29,6 +29,7 @@ export const messages: Record<Locale, DeepRecord> = {
       },
       roles: {
         superadmin: "Superadmin",
+        admin: "Admin",
         lider: "Líder",
         usuario: "Usuario",
         unknown: "Rol sin definir",
@@ -1427,6 +1428,7 @@ export const messages: Record<Locale, DeepRecord> = {
       },
       roles: {
         superadmin: "Superadmin",
+        admin: "Admin",
         lider: "Leader",
         usuario: "User",
         unknown: "Role not set",
@@ -2821,6 +2823,7 @@ export const messages: Record<Locale, DeepRecord> = {
       },
       roles: {
         superadmin: "Superadmin",
+        admin: "Admin",
         lider: "Líder",
         usuario: "Usuário",
         unknown: "Função indefinida",

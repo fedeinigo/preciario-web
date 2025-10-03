@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 
 import type { ApiSession } from "@/app/api/_utils/require-auth";
+import type { AppRole } from "@/constants/teams";
 
 export const MAPACHE_TEAM = "Mapaches" as const;
 export const VALID_STATUSES = ["PENDING", "IN_PROGRESS", "DONE"] as const;
@@ -53,6 +54,9 @@ export type MapacheIntegrationType = (typeof VALID_INTEGRATION_TYPES)[number];
 
 export const VALID_INTEGRATION_OWNERS = ["OWN", "THIRD_PARTY"] as const;
 export type MapacheIntegrationOwner = (typeof VALID_INTEGRATION_OWNERS)[number];
+
+const MAPACHE_ADMIN_ROLES: ReadonlyArray<AppRole> = ["superadmin", "admin"];
+const MAPACHE_ADMIN_ROLE_SET = new Set<AppRole>(MAPACHE_ADMIN_ROLES);
 
 export function parseStatus(status: unknown): MapacheStatus | null {
   if (typeof status !== "string") return null;
@@ -128,7 +132,7 @@ export function ensureMapacheAccess(session: ApiSession | null): AccessResult {
     };
   }
 
-  const isAdmin = user.role === "superadmin";
+  const isAdmin = user.role ? MAPACHE_ADMIN_ROLE_SET.has(user.role) : false;
   const isMapache = user.team === MAPACHE_TEAM;
 
   if (!isAdmin && !isMapache) {

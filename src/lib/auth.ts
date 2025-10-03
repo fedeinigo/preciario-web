@@ -7,7 +7,7 @@ import type { JWT } from "next-auth/jwt";
 import prisma from "@/lib/prisma";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 // Mantén este alias si no lo traes de otro lado
-type AppRole = "superadmin" | "lider" | "usuario";
+type AppRole = "superadmin" | "admin" | "lider" | "usuario";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
