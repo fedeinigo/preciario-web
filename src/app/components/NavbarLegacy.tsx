@@ -5,7 +5,8 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
   LayoutGrid,
@@ -81,6 +82,7 @@ function initials(fullName: string) {
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const { locale, setLocale } = useLanguage();
   const t = useTranslations("navbar");
   const tabsT = useTranslations("navbar.tabs");
@@ -109,11 +111,14 @@ export default function Navbar() {
   const showAuthActions = status === "authenticated";
 
   const role = (session?.user?.role as AnyRole) ?? "usuario";
-  const team = (session?.user?.team as string | null) ?? fallbacksT("team");
+  const rawTeam = (session?.user?.team as string | null) ?? null;
+  const team = rawTeam ?? fallbacksT("team");
   const name = session?.user?.name ?? fallbacksT("userName");
   const email = session?.user?.email ?? fallbacksT("email");
   const currentEmail = session?.user?.email ?? "";
   const canSeeUsers = role === "admin" || role === "superadmin";
+  const canOpenMapachePortal =
+    rawTeam === "Mapaches" || role === "superadmin" || role === "admin";
 
   const readHash = (): Tab => {
     const h = (globalThis?.location?.hash || "").replace("#", "");
@@ -231,11 +236,13 @@ export default function Navbar() {
   // % cumplimiento (texto sin límite; barra visual max 100)
   const pct = goal > 0 ? (progress / goal) * 100 : 0;
 
+  const isMapachePortal = pathname === "/mapache-portal";
+
   return (
     <nav
       role="navigation"
       aria-label={t("ariaLabel")}
-      className="navbar fixed top-0 inset-x-0 z-50 border-b border-white/15 backdrop-blur supports-[backdrop-filter]:bg-opacity-80"
+      className={`navbar fixed top-0 inset-x-0 z-50 border-b border-white/15 backdrop-blur supports-[backdrop-filter]:bg-opacity-80 ${isMapachePortal ? "navbar--mapache-portal" : ""}`}
       style={{ height: "var(--nav-h)" }}
     >
       <div className="navbar-inner mx-auto max-w-[2000px] px-3">
@@ -306,31 +313,39 @@ export default function Navbar() {
         {/* DERECHA: perfil + cerrar sesión (autenticado) */}
         <div className="flex items-center gap-2">
           {showAuthActions && (
-              <button
-                onClick={() => setUserModal(true)}
-                className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
-                title={profileT("open")}
-              >
-                {name} - {team}
-              </button>
-            )}
-            {showAuthActions && (
-              <select
-                className="rounded-md border border-white/25 bg-white/10 px-2 py-1 text-sm text-white focus:border-white focus:outline-none focus:ring-2 focus:ring-white/40"
-                value={locale}
-                onChange={(event) => handleLocaleChange(event.target.value as Locale)}
-                aria-label={languageT("label")}
-                title={languageT("label")}
-              >
-                {locales.map((code) => (
-                  <option key={code} value={code} className="text-gray-900">
-                    {`${code.toUpperCase()} - ${languageT(LANGUAGE_LABEL_KEYS[code])}`}
-                  </option>
-                ))}
-              </select>
-            )}
-            {showAuthActions && (
-              <button
+            <button
+              onClick={() => setUserModal(true)}
+              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+              title={profileT("open")}
+            >
+              {name} — {team}
+            </button>
+          )}
+          {showAuthActions && canOpenMapachePortal && (
+            <Link
+              href="/mapache-portal"
+              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+            >
+              {profileT("mapachePortal")}
+            </Link>
+          )}
+          {showAuthActions && (
+            <select
+              className="rounded-md border border-white/25 bg-white/10 px-2 py-1 text-sm text-white focus:border-white focus:outline-none focus:ring-2 focus:ring-white/40"
+              value={locale}
+              onChange={(event) => handleLocaleChange(event.target.value as Locale)}
+              aria-label={languageT("label")}
+              title={languageT("label")}
+            >
+              {locales.map((code) => (
+                <option key={code} value={code} className="text-gray-900">
+                  {`${code.toUpperCase()} - ${languageT(LANGUAGE_LABEL_KEYS[code])}`}
+                </option>
+              ))}
+            </select>
+          )}
+          {showAuthActions && (
+            <button
               onClick={() => signOut()}
               className="inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-white text-[#3b0a69] hover:bg-white/90"
             >
