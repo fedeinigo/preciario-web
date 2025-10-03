@@ -4,38 +4,16 @@ export const MAPACHE_TASK_SUBSTATUSES = [
   "WAITING_CLIENT",
   "BLOCKED",
 ] as const;
-export const MAPACHE_DIRECTNESS = ["DIRECT", "PARTNER"] as const;
-export const MAPACHE_NEED_FROM_TEAM = [
+
+export const MAPACHE_NEEDS_FROM_TEAM = [
   "QUOTE_SCOPE",
   "QUOTE",
   "SCOPE",
   "PRESENTATION",
   "OTHER",
 ] as const;
-export const MAPACHE_TASK_ORIGINS = [
-  "GOOGLE_FORM",
-  "GENERATOR",
-  "API",
-  "MANUAL",
-  "OTHER",
-] as const;
-export const MAPACHE_DELIVERABLE_TYPES = [
-  "SCOPE",
-  "QUOTE",
-  "SCOPE_AND_QUOTE",
-  "OTHER",
-] as const;
-export const MAPACHE_INTEGRATION_TYPES = [
-  "REST",
-  "GRAPHQL",
-  "SDK",
-  "OTHER",
-] as const;
 
-export const MAPACHE_INTEGRATION_OWNERS = [
-  "OWN",
-  "THIRD_PARTY",
-] as const;
+export const MAPACHE_DIRECTNESS = ["DIRECT", "PARTNER"] as const;
 
 export const MAPACHE_SIGNAL_ORIGINS = [
   "GOOGLE_FORM",
@@ -43,13 +21,16 @@ export const MAPACHE_SIGNAL_ORIGINS = [
   "API",
   "MANUAL",
   "OTHER",
-export const MAPACHE_INTEGRATION_OWNERS = ["OWN", "THIRD_PARTY"] as const;
-
-export const MAPACHE_TASK_SUBSTATUSES = [
-  "BACKLOG",
-  "WAITING_CLIENT",
-  "BLOCKED",
 ] as const;
+
+export const MAPACHE_INTEGRATION_TYPES = [
+  "REST",
+  "GRAPHQL",
+  "SDK",
+  "OTHER",
+] as const;
+
+export const MAPACHE_INTEGRATION_OWNERS = ["OWN", "THIRD_PARTY"] as const;
 
 export const MAPACHE_DELIVERABLE_TYPES = [
   "SCOPE",
@@ -62,24 +43,15 @@ export type MapacheTaskStatus = (typeof MAPACHE_TASK_STATUSES)[number];
 export type MapacheTaskSubstatus = (typeof MAPACHE_TASK_SUBSTATUSES)[number];
 export type MapacheNeedFromTeam = (typeof MAPACHE_NEEDS_FROM_TEAM)[number];
 export type MapacheDirectness = (typeof MAPACHE_DIRECTNESS)[number];
-export type MapacheIntegrationType = (typeof MAPACHE_INTEGRATION_TYPES)[number];
-export type MapacheIntegrationOwner =
-  (typeof MAPACHE_INTEGRATION_OWNERS)[number];
 export type MapacheSignalOrigin = (typeof MAPACHE_SIGNAL_ORIGINS)[number];
-export type MapacheDeliverableType =
-  (typeof MAPACHE_DELIVERABLE_TYPES)[number];
-export type MapacheTaskDirectness = (typeof MAPACHE_DIRECTNESS)[number];
-export type MapacheTaskNeedFromTeam = (typeof MAPACHE_NEED_FROM_TEAM)[number];
-export type MapacheTaskOrigin = (typeof MAPACHE_TASK_ORIGINS)[number];
-export type MapacheDeliverableType = (typeof MAPACHE_DELIVERABLE_TYPES)[number];
 export type MapacheIntegrationType = (typeof MAPACHE_INTEGRATION_TYPES)[number];
-export type MapacheIntegrationOwner =
-  (typeof MAPACHE_INTEGRATION_OWNERS)[number];
+export type MapacheIntegrationOwner = (typeof MAPACHE_INTEGRATION_OWNERS)[number];
+export type MapacheDeliverableType = (typeof MAPACHE_DELIVERABLE_TYPES)[number];
 
 export type MapacheTaskUser = {
   id: string;
-  name?: string | null;
-  email?: string | null;
+  name: string | null;
+  email: string | null;
 };
 
 export type MapacheTaskDeliverable = {
@@ -87,61 +59,54 @@ export type MapacheTaskDeliverable = {
   type: MapacheDeliverableType;
   title: string;
   url: string;
-  addedById?: string | null;
+  addedById: string | null;
   addedBy?: MapacheTaskUser | null;
-  createdAt?: string;
-};
-
-export type MapacheTaskSubstatus = (typeof MAPACHE_TASK_SUBSTATUSES)[number];
-
-export type MapacheDeliverableType = (typeof MAPACHE_DELIVERABLE_TYPES)[number];
-
-export type MapacheTaskDeliverable = {
-  id: string;
-  type: MapacheDeliverableType;
-  title: string;
-  url: string;
-  addedById?: string | null;
   createdAt?: string;
 };
 
 export type MapacheTask = {
   id: string;
   title: string;
-  description?: string | null;
+  description: string | null;
   status: MapacheTaskStatus;
   substatus: MapacheTaskSubstatus;
-  assigneeId?: string | null;
-  deliverables: MapacheTaskDeliverable[];
   createdAt?: string;
   updatedAt?: string;
   createdById?: string;
-  assigneeId?: string | null;
+  assigneeId: string | null;
   assignee?: MapacheTaskUser | null;
   requesterEmail?: string;
   clientName?: string;
-  presentationDate?: string | null;
-  interlocutorRole?: string | null;
+  presentationDate: string | null;
+  interlocutorRole: string | null;
   clientWebsiteUrls: string[];
-  directness?: MapacheTaskDirectness;
-  pipedriveDealUrl?: string | null;
-  needFromTeam?: MapacheTaskNeedFromTeam;
-  clientPain?: string | null;
+  directness?: MapacheDirectness;
+  pipedriveDealUrl: string | null;
+  needFromTeam?: MapacheNeedFromTeam;
+  clientPain: string | null;
   productKey?: string;
-  managementType?: string | null;
-  docsCountApprox?: number | null;
-  docsLengthApprox?: string | null;
-  integrationType?: MapacheIntegrationType | null;
-  integrationOwner?: MapacheIntegrationOwner | null;
-  integrationName?: string | null;
-  integrationDocsUrl?: string | null;
-  avgMonthlyConversations?: number | null;
-  origin: MapacheTaskOrigin;
+  managementType: string | null;
+  docsCountApprox: number | null;
+  docsLengthApprox: string | null;
+  integrationType: MapacheIntegrationType | null;
+  integrationOwner: MapacheIntegrationOwner | null;
+  integrationName: string | null;
+  integrationDocsUrl: string | null;
+  avgMonthlyConversations: number | null;
+  origin: MapacheSignalOrigin;
   deliverables: MapacheTaskDeliverable[];
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === "object" && value !== null;
+}
+
+export function parseEnumValue<const T extends readonly string[]>(
+  value: unknown,
+  allowed: T,
+): T[number] | null {
+  if (typeof value !== "string") return null;
+  return allowed.includes(value as T[number]) ? (value as T[number]) : null;
 }
 
 function normalizeUser(value: unknown): MapacheTaskUser | null {
@@ -158,176 +123,155 @@ function normalizeUser(value: unknown): MapacheTaskUser | null {
 function normalizeDeliverable(value: unknown): MapacheTaskDeliverable | null {
   if (!isRecord(value)) return null;
   const id = value.id;
+  const type = parseEnumValue(value.type, MAPACHE_DELIVERABLE_TYPES);
   const title = value.title;
   const url = value.url;
-  const type = value.type;
 
   if (typeof id !== "string" && typeof id !== "number") return null;
-  if (typeof title !== "string") return null;
-  if (typeof url !== "string") return null;
-  if (!MAPACHE_DELIVERABLE_TYPES.includes(type as MapacheDeliverableType)) {
-    return null;
-  }
+  if (!type) return null;
+  if (typeof title !== "string" || typeof url !== "string") return null;
 
   return {
     id: String(id),
+    type,
     title,
     url,
-    type: type as MapacheDeliverableType,
     addedById:
-      typeof value.addedById === "string" ? value.addedById : value.addedById == null ? null : undefined,
+      typeof value.addedById === "string"
+        ? value.addedById
+        : null,
     addedBy: normalizeUser(value.addedBy),
     createdAt:
-      typeof value.createdAt === "string"
-        ? (value.createdAt as string)
-        : undefined,
+      typeof value.createdAt === "string" ? (value.createdAt as string) : undefined,
   };
 }
 
 export function normalizeMapacheTask(task: unknown): MapacheTask | null {
   if (!isRecord(task)) return null;
+
   const id = task.id;
   const title = task.title;
-  const status = task.status;
-  const substatus = task.substatus;
+  const status = parseEnumValue(task.status, MAPACHE_TASK_STATUSES);
+  const substatus = parseEnumValue(task.substatus, MAPACHE_TASK_SUBSTATUSES);
 
   if (typeof id !== "string" && typeof id !== "number") return null;
-  if (typeof title !== "string") return null;
-  if (!MAPACHE_TASK_STATUSES.includes(status as MapacheTaskStatus)) return null;
-  if (!MAPACHE_TASK_SUBSTATUSES.includes(substatus as MapacheTaskSubstatus)) {
-    return null;
-  }
+  if (typeof title !== "string" || !status || !substatus) return null;
 
-  const createdAt =
-    typeof task.createdAt === "string" ? (task.createdAt as string) : undefined;
-  const updatedAt =
-    typeof task.updatedAt === "string" ? (task.updatedAt as string) : undefined;
+  const description =
+    typeof task.description === "string" ? task.description : null;
+
+  const assigneeId =
+    typeof task.assigneeId === "string"
+      ? task.assigneeId
+      : null;
+
   const presentationDate =
     typeof task.presentationDate === "string"
-      ? (task.presentationDate as string)
-      : task.presentationDate == null
-        ? null
-        : undefined;
+      ? task.presentationDate
+      : null;
 
-  const origin = task.origin;
-  if (!MAPACHE_TASK_ORIGINS.includes(origin as MapacheTaskOrigin)) {
-    return null;
-  }
+  const interlocutorRole =
+    typeof task.interlocutorRole === "string"
+      ? task.interlocutorRole
+      : null;
 
-  const needFromTeam = task.needFromTeam;
-  const directness = task.directness;
-  const integrationType = task.integrationType;
-  const integrationOwner = task.integrationOwner;
+  const pipedriveDealUrl =
+    typeof task.pipedriveDealUrl === "string"
+      ? task.pipedriveDealUrl
+      : null;
+
+  const clientPain =
+    typeof task.clientPain === "string"
+      ? task.clientPain
+      : null;
+
+  const managementType =
+    typeof task.managementType === "string"
+      ? task.managementType
+      : null;
+
+  const docsCountApprox =
+    typeof task.docsCountApprox === "number" ? task.docsCountApprox : null;
+
+  const docsLengthApprox =
+    typeof task.docsLengthApprox === "string"
+      ? task.docsLengthApprox
+      : null;
+
+  const integrationType = parseEnumValue(
+    task.integrationType,
+    MAPACHE_INTEGRATION_TYPES,
+  );
+  const integrationOwner = parseEnumValue(
+    task.integrationOwner,
+    MAPACHE_INTEGRATION_OWNERS,
+  );
+
+  const integrationName =
+    typeof task.integrationName === "string"
+      ? task.integrationName
+      : null;
+
+  const integrationDocsUrl =
+    typeof task.integrationDocsUrl === "string"
+      ? task.integrationDocsUrl
+      : null;
+
+  const avgMonthlyConversations =
+    typeof task.avgMonthlyConversations === "number"
+      ? task.avgMonthlyConversations
+      : null;
+
+  const origin = parseEnumValue(task.origin, MAPACHE_SIGNAL_ORIGINS);
+  if (!origin) return null;
+
+  const needFromTeam = parseEnumValue(task.needFromTeam, MAPACHE_NEEDS_FROM_TEAM);
+  const directness = parseEnumValue(task.directness, MAPACHE_DIRECTNESS);
+
+  const clientWebsiteUrls = Array.isArray(task.clientWebsiteUrls)
+    ? task.clientWebsiteUrls.filter((item): item is string => typeof item === "string")
+    : [];
+
+  const deliverables = Array.isArray(task.deliverables)
+    ? task.deliverables
+        .map(normalizeDeliverable)
+        .filter((deliverable): deliverable is MapacheTaskDeliverable => deliverable !== null)
+    : [];
 
   return {
     id: String(id),
     title,
-    description:
-      typeof task.description === "string"
-        ? (task.description as string)
-        : task.description == null
-          ? null
-          : undefined,
-    status: status as MapacheTaskStatus,
-    substatus: substatus as MapacheTaskSubstatus,
-    createdAt,
-    updatedAt,
+    description,
+    status,
+    substatus,
+    createdAt:
+      typeof task.createdAt === "string" ? (task.createdAt as string) : undefined,
+    updatedAt:
+      typeof task.updatedAt === "string" ? (task.updatedAt as string) : undefined,
     createdById:
       typeof task.createdById === "string" ? (task.createdById as string) : undefined,
-    assigneeId:
-      typeof task.assigneeId === "string"
-        ? (task.assigneeId as string)
-        : task.assigneeId == null
-          ? null
-          : undefined,
+    assigneeId,
     assignee: normalizeUser(task.assignee),
     requesterEmail:
-      typeof task.requesterEmail === "string" ? task.requesterEmail : undefined,
-    clientName: typeof task.clientName === "string" ? task.clientName : undefined,
+      typeof task.requesterEmail === "string" ? (task.requesterEmail as string) : undefined,
+    clientName: typeof task.clientName === "string" ? (task.clientName as string) : undefined,
     presentationDate,
-    interlocutorRole:
-      typeof task.interlocutorRole === "string"
-        ? task.interlocutorRole
-        : task.interlocutorRole == null
-          ? null
-          : undefined,
-    clientWebsiteUrls: Array.isArray(task.clientWebsiteUrls)
-      ? task.clientWebsiteUrls.filter((item): item is string => typeof item === "string")
-      : [],
-    directness: MAPACHE_DIRECTNESS.includes(directness as MapacheTaskDirectness)
-      ? (directness as MapacheTaskDirectness)
-      : undefined,
-    pipedriveDealUrl:
-      typeof task.pipedriveDealUrl === "string"
-        ? task.pipedriveDealUrl
-        : task.pipedriveDealUrl == null
-          ? null
-          : undefined,
-    needFromTeam: MAPACHE_NEED_FROM_TEAM.includes(needFromTeam as MapacheTaskNeedFromTeam)
-      ? (needFromTeam as MapacheTaskNeedFromTeam)
-      : undefined,
-    clientPain:
-      typeof task.clientPain === "string"
-        ? task.clientPain
-        : task.clientPain == null
-          ? null
-          : undefined,
-    productKey: typeof task.productKey === "string" ? task.productKey : undefined,
-    managementType:
-      typeof task.managementType === "string"
-        ? task.managementType
-        : task.managementType == null
-          ? null
-          : undefined,
-    docsCountApprox:
-      typeof task.docsCountApprox === "number"
-        ? task.docsCountApprox
-        : task.docsCountApprox == null
-          ? null
-          : undefined,
-    docsLengthApprox:
-      typeof task.docsLengthApprox === "string"
-        ? task.docsLengthApprox
-        : task.docsLengthApprox == null
-          ? null
-          : undefined,
-    integrationType: MAPACHE_INTEGRATION_TYPES.includes(
-      integrationType as MapacheIntegrationType,
-    )
-      ? (integrationType as MapacheIntegrationType)
-      : integrationType == null
-        ? null
-        : undefined,
-    integrationOwner: MAPACHE_INTEGRATION_OWNERS.includes(
-      integrationOwner as MapacheIntegrationOwner,
-    )
-      ? (integrationOwner as MapacheIntegrationOwner)
-      : integrationOwner == null
-        ? null
-        : undefined,
-    integrationName:
-      typeof task.integrationName === "string"
-        ? task.integrationName
-        : task.integrationName == null
-          ? null
-          : undefined,
-    integrationDocsUrl:
-      typeof task.integrationDocsUrl === "string"
-        ? task.integrationDocsUrl
-        : task.integrationDocsUrl == null
-          ? null
-          : undefined,
-    avgMonthlyConversations:
-      typeof task.avgMonthlyConversations === "number"
-        ? task.avgMonthlyConversations
-        : task.avgMonthlyConversations == null
-          ? null
-          : undefined,
-    origin: origin as MapacheTaskOrigin,
-    deliverables: Array.isArray(task.deliverables)
-      ? task.deliverables
-          .map(normalizeDeliverable)
-          .filter((deliverable): deliverable is MapacheTaskDeliverable => deliverable !== null)
-      : [],
+    interlocutorRole,
+    clientWebsiteUrls,
+    directness: directness ?? undefined,
+    pipedriveDealUrl,
+    needFromTeam: needFromTeam ?? undefined,
+    clientPain,
+    productKey: typeof task.productKey === "string" ? (task.productKey as string) : undefined,
+    managementType,
+    docsCountApprox,
+    docsLengthApprox,
+    integrationType: integrationType ?? null,
+    integrationOwner: integrationOwner ?? null,
+    integrationName,
+    integrationDocsUrl,
+    avgMonthlyConversations,
+    origin,
+    deliverables,
   };
 }

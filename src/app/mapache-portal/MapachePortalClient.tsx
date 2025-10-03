@@ -23,9 +23,9 @@ import {
   MAPACHE_INTEGRATION_OWNERS,
   MAPACHE_INTEGRATION_TYPES,
   MAPACHE_NEEDS_FROM_TEAM,
-  MAPACHE_SIGNAL_ORIGINS,
   MAPACHE_TASK_STATUSES,
   MAPACHE_TASK_SUBSTATUSES,
+  normalizeMapacheTask,
 } from "./types";
 
 const STATUS_ORDER: MapacheTaskStatus[] = [...MAPACHE_TASK_STATUSES];
@@ -102,7 +102,8 @@ type DeliverableError = {
   url?: string;
 };
 
-type FormErrors = Partial<Record<keyof FormState, string>> & {
+type FieldErrorKey = Exclude<keyof FormState, "deliverables">;
+type FormErrors = Partial<Record<FieldErrorKey, string>> & {
   deliverables?: DeliverableError[];
 };
 
@@ -173,8 +174,6 @@ const STATUS_LABEL_KEYS: Record<
   DONE: "completed",
 };
 
-const SUBSTATUS_ORDER: MapacheTaskSubstatus[] = [...MAPACHE_TASK_SUBSTATUSES];
-const DELIVERABLE_TYPE_ORDER: MapacheDeliverableType[] = [...MAPACHE_DELIVERABLE_TYPES];
 
 const STATUS_BADGE_CLASSNAMES: Record<
   "unassigned" | "assigned" | "in_progress" | "completed",
@@ -238,196 +237,7 @@ function getDeliverableTypeKey(type: MapacheDeliverableType): DeliverableTypeKey
   }
 }
 
-function normalizeDeliverable(deliverable: unknown): MapacheTaskDeliverable | null {
-  if (typeof deliverable !== "object" || deliverable === null) return null;
-  const record = deliverable as Record<string, unknown>;
-  const id = record.id;
-  const type = record.type;
-  const title = record.title;
-  const url = record.url;
-
-  if (typeof id !== "string" && typeof id !== "number") return null;
-  if (!DELIVERABLE_TYPE_ORDER.includes(type as MapacheDeliverableType)) return null;
-  if (typeof title !== "string" || typeof url !== "string") return null;
-
-  return {
-    id: String(id),
-    type: type as MapacheDeliverableType,
-    title,
-    url,
-    addedById:
-      typeof record.addedById === "string"
-        ? record.addedById
-        : record.addedById == null
-          ? null
-          : undefined,
-    createdAt: typeof record.createdAt === "string" ? (record.createdAt as string) : undefined,
-  };
-}
-
-function normalizeTask(task: unknown): MapacheTask | null {
-  if (typeof task !== "object" || task === null) return null;
-  const record = task as Record<string, unknown>;
-  const id = record.id;
-  const title = record.title;
-  const description = record.description;
-  const status = record.status;
-  const substatus = record.substatus;
-  const assigneeId = record.assigneeId;
-  const deliverables = record.deliverables;
-
-  if (typeof id !== "string" && typeof id !== "number") return null;
-  if (typeof title !== "string") return null;
-  if (!STATUS_ORDER.includes(status as MapacheTaskStatus)) return null;
-
-  const substatus = parseEnumValue(record.substatus, MAPACHE_TASK_SUBSTATUSES);
-  const directness = parseEnumValue(record.directness, MAPACHE_DIRECTNESS);
-  const needFromTeam = parseEnumValue(
-    record.needFromTeam,
-    MAPACHE_NEEDS_FROM_TEAM,
-  );
-  const integrationType = parseEnumValue(
-    record.integrationType,
-    MAPACHE_INTEGRATION_TYPES,
-  );
-  const integrationOwner = parseEnumValue(
-    record.integrationOwner,
-    MAPACHE_INTEGRATION_OWNERS,
-  );
-  const origin = parseEnumValue(record.origin, MAPACHE_SIGNAL_ORIGINS);
-
-  const clientWebsiteUrls = Array.isArray(record.clientWebsiteUrls)
-    ? (record.clientWebsiteUrls as unknown[])
-        .filter((item): item is string => typeof item === "string")
-    : undefined;
-
-  const deliverables = Array.isArray(record.deliverables)
-    ? (record.deliverables as unknown[])
-        .map((item) => {
-          if (typeof item !== "object" || item === null) return null;
-          const deliverable = item as Record<string, unknown>;
-          const deliverableType = parseEnumValue(
-            deliverable.type,
-            MAPACHE_DELIVERABLE_TYPES,
-          );
-          const deliverableId = deliverable.id;
-          const deliverableTitle = deliverable.title;
-          const deliverableUrl = deliverable.url;
-          if (!deliverableType) return null;
-          if (typeof deliverableId !== "string") return null;
-          if (typeof deliverableTitle !== "string") return null;
-          if (typeof deliverableUrl !== "string") return null;
-          return {
-            id: deliverableId,
-            type: deliverableType,
-            title: deliverableTitle,
-            url: deliverableUrl,
-            addedById:
-              typeof deliverable.addedById === "string"
-                ? deliverable.addedById
-                : null,
-            createdAt:
-              typeof deliverable.createdAt === "string"
-                ? deliverable.createdAt
-                : undefined,
-          };
-        })
-        .filter((item): item is MapacheTask["deliverables"][number] => item !== null)
-    : undefined;
-
-  const docsCountApprox =
-    typeof record.docsCountApprox === "number"
-      ? record.docsCountApprox
-      : undefined;
-  const avgMonthlyConversations =
-    typeof record.avgMonthlyConversations === "number"
-      ? record.avgMonthlyConversations
-      : undefined;
-  const normalizedSubstatus = SUBSTATUS_ORDER.includes(substatus as MapacheTaskSubstatus)
-    ? (substatus as MapacheTaskSubstatus)
-    : "BACKLOG";
-  const normalizedAssigneeId =
-    typeof assigneeId === "string"
-      ? assigneeId
-      : assigneeId == null
-        ? null
-        : undefined;
-
-  const normalizedDeliverables = Array.isArray(deliverables)
-    ? deliverables
-        .map(normalizeDeliverable)
-        .filter((item): item is MapacheTaskDeliverable => item !== null)
-    : [];
-
-  return {
-    id: String(id),
-    title,
-    description: typeof description === "string" ? description : null,
-    status: status as MapacheTaskStatus,
-    substatus: substatus ?? undefined,
-    createdAt:
-      typeof record.createdAt === "string"
-        ? (record.createdAt as string)
-        : undefined,
-    updatedAt:
-      typeof record.updatedAt === "string"
-        ? (record.updatedAt as string)
-        : undefined,
-    createdById:
-      typeof record.createdById === "string"
-        ? (record.createdById as string)
-        : undefined,
-    assigneeId:
-      typeof record.assigneeId === "string" ? record.assigneeId : null,
-    requesterEmail:
-      typeof record.requesterEmail === "string"
-        ? record.requesterEmail
-        : undefined,
-    clientName:
-      typeof record.clientName === "string" ? record.clientName : undefined,
-    presentationDate:
-      typeof record.presentationDate === "string"
-        ? record.presentationDate
-        : null,
-    interlocutorRole:
-      typeof record.interlocutorRole === "string"
-        ? record.interlocutorRole
-        : null,
-    clientWebsiteUrls,
-    directness: directness ?? undefined,
-    pipedriveDealUrl:
-      typeof record.pipedriveDealUrl === "string"
-        ? record.pipedriveDealUrl
-        : null,
-    needFromTeam: needFromTeam ?? undefined,
-    clientPain:
-      typeof record.clientPain === "string" ? record.clientPain : null,
-    productKey:
-      typeof record.productKey === "string" ? record.productKey : undefined,
-    managementType:
-      typeof record.managementType === "string"
-        ? record.managementType
-        : null,
-    docsCountApprox: docsCountApprox ?? null,
-    docsLengthApprox:
-      typeof record.docsLengthApprox === "string"
-        ? record.docsLengthApprox
-        : null,
-    integrationType: integrationType ?? null,
-    integrationOwner: integrationOwner ?? null,
-    integrationName:
-      typeof record.integrationName === "string"
-        ? record.integrationName
-        : null,
-    integrationDocsUrl:
-      typeof record.integrationDocsUrl === "string"
-        ? record.integrationDocsUrl
-        : null,
-    avgMonthlyConversations: avgMonthlyConversations ?? null,
-    origin: origin ?? undefined,
-    deliverables,
-  };
-}
+const SUBSTATUS_ORDER: MapacheTaskSubstatus[] = [...MAPACHE_TASK_SUBSTATUSES];
 
 function createDefaultFormState(): FormState {
   return {
@@ -874,11 +684,11 @@ export default function MapachePortalClient({
       ],
     }));
     setFormErrors((prev) => {
-      const next = { ...prev };
-      if (next.deliverables) {
-        next.deliverables = [...next.deliverables, {}];
-      }
-      return next;
+      if (!prev.deliverables) return prev;
+      return {
+        ...prev,
+        deliverables: [...prev.deliverables, {}],
+      };
     });
   }, []);
 
@@ -889,12 +699,15 @@ export default function MapachePortalClient({
     }));
     setFormErrors((prev) => {
       if (!prev.deliverables) return prev;
-      const next = { ...prev };
-      next.deliverables = prev.deliverables.filter((_, idx) => idx !== index);
-      if (next.deliverables.length === 0) {
-        delete next.deliverables;
+      const nextDeliverables = prev.deliverables.filter((_, idx) => idx !== index);
+      if (nextDeliverables.length === 0) {
+        const { deliverables, ...rest } = prev;
+        return rest as FormErrors;
       }
-      return next;
+      return {
+        ...prev,
+        deliverables: nextDeliverables,
+      };
     });
   }, []);
 
@@ -911,31 +724,27 @@ export default function MapachePortalClient({
         ),
       }));
       setFormErrors((prev) => {
-        if (!prev.deliverables) return prev;
-        if (!prev.deliverables[index]) return prev;
-        const next = { ...prev };
-        next.deliverables = prev.deliverables.map((item, idx) =>
-          idx === index
-            ? {
-                ...item,
-                [key]: undefined,
-              }
-            : item,
+        if (!prev.deliverables || !prev.deliverables[index]) return prev;
+        const nextErrors = prev.deliverables.map((item, idx) =>
+          idx === index ? { ...item, [key]: undefined } : item,
         );
-        return next;
+        return {
+          ...prev,
+          deliverables: nextErrors,
+        };
       });
     },
     [],
   );
 
   const handleCreateTask = React.useCallback(async () => {
-    const { payload, deliverables, errors } = normalizeFormState(
+    const { payload: requestPayload, deliverables, errors } = normalizeFormState(
       formState,
       validationMessages,
     );
     setFormErrors(errors);
 
-    if (!payload) {
+    if (!requestPayload) {
       toast.error(toastT("validationError"));
       return;
     }
@@ -947,7 +756,7 @@ export default function MapachePortalClient({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(requestPayload),
       });
 
       if (!response.ok) {
@@ -955,9 +764,7 @@ export default function MapachePortalClient({
       }
 
       const payloadResponse = await response.json();
-      const task = normalizeTask(payloadResponse);
-      const payload = await response.json();
-      const task = normalizeMapacheTask(payload);
+      const task = normalizeMapacheTask(payloadResponse);
 
       if (!task) {
         throw new Error("Invalid response payload");
@@ -988,11 +795,11 @@ export default function MapachePortalClient({
       window.dispatchEvent(
         new CustomEvent("mapache_task_created", {
           detail: {
-            origin: payload.origin,
-            needFromTeam: payload.needFromTeam,
-            directness: payload.directness,
-            assigneeId: payload.assigneeId ?? null,
-            productKey: payload.productKey,
+            origin: requestPayload.origin,
+            needFromTeam: requestPayload.needFromTeam,
+            directness: requestPayload.directness,
+            assigneeId: requestPayload.assigneeId ?? null,
+            productKey: requestPayload.productKey,
           },
         }),
       );
@@ -1027,10 +834,6 @@ export default function MapachePortalClient({
         }
 
         const payload = await response.json();
-        const updatedTask = normalizeTask(payload) ?? {
-          ...task,
-          status: nextStatus,
-        };
         const updatedTask =
           normalizeMapacheTask(payload) ?? { ...task, status: nextStatus };
 

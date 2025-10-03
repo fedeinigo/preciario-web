@@ -154,7 +154,7 @@ export const deliverableSelect = {
       email: true,
     },
   },
-} satisfies Prisma.MapacheTaskDeliverableSelect;
+} as const;
 
 export const taskSelect = {
   id: true,
@@ -204,5 +204,5 @@ export const taskSelect = {
     },
 
   },
-} satisfies Prisma.MapacheTaskSelect;
+} as const;
 
