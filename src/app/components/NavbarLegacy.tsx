@@ -26,6 +26,7 @@ import { fetchAllProposals } from "@/app/components/features/proposals/lib/propo
 import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { locales } from "@/lib/i18n/config";
+import type { AppRole } from "@/constants/teams";
 import { isMapachePath } from "@/lib/routing";
 import {
   MAPACHE_PORTAL_DEFAULT_SECTION,
@@ -45,6 +46,21 @@ type AnyRole =
   | "usuario"
   | string
   | undefined;
+
+const APP_ROLES: readonly AppRole[] = [
+  "superadmin",
+  "admin",
+  "lider",
+  "usuario",
+];
+const APP_ROLE_SET: ReadonlySet<AppRole> = new Set<AppRole>(APP_ROLES);
+const ADMIN_ROLES: ReadonlySet<AppRole> = new Set<AppRole>(["superadmin", "admin"]);
+
+function toAppRole(role: AnyRole): AppRole {
+  return typeof role === "string" && APP_ROLE_SET.has(role as AppRole)
+    ? (role as AppRole)
+    : "usuario";
+}
 
 const LANGUAGE_LABEL_KEYS: Record<Locale, "spanish" | "english" | "portuguese"> = {
   es: "spanish",
@@ -150,14 +166,14 @@ export default function Navbar() {
   const showAuthActions = status === "authenticated";
 
   const role = (session?.user?.role as AnyRole) ?? "usuario";
+  const appRole = toAppRole(role);
   const rawTeam = (session?.user?.team as string | null) ?? null;
   const team = rawTeam ?? fallbacksT("team");
   const name = session?.user?.name ?? fallbacksT("userName");
   const email = session?.user?.email ?? fallbacksT("email");
   const currentEmail = session?.user?.email ?? "";
-  const canSeeUsers = role === "admin" || role === "superadmin";
-  const canOpenMapachePortal =
-    rawTeam === "Mapaches" || role === "superadmin" || role === "admin";
+  const canSeeUsers = ADMIN_ROLES.has(appRole);
+  const canOpenMapachePortal = rawTeam === "Mapaches" || ADMIN_ROLES.has(appRole);
   const showMapacheReturn =
     showAuthActions && canOpenMapachePortal && isMapachePortal;
   const showMapacheLink =
