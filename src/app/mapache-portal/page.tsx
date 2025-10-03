@@ -1,13 +1,39 @@
 import { notFound, redirect } from "next/navigation";
 
 import MapachePortalClient from "./MapachePortalClient";
-import type { MapacheTask } from "./types";
-import { normalizeMapacheTask } from "./types";
+import type {
+  MapacheTask,
+  MapacheTaskStatus,
+  MapacheTaskSubstatus,
+  MapacheDeliverableType,
+} from "./types";
 import { auth } from "@/lib/auth";
 import { taskSelect } from "@/app/api/mapache/tasks/access";
 import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
+
+type MapacheTaskRecord = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  substatus: string;
+  assigneeId: string | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+  createdById: string | null;
+  deliverables?: Array<{
+    id: string;
+    type: string;
+    title: string;
+    url: string;
+    addedById: string | null;
+    createdAt: Date | null;
+  }>;
+};
+
+const mapacheTaskClient = (prisma as unknown as { mapacheTask: { findMany: (args: unknown) => Promise<unknown> } }).mapacheTask;
 
 export default async function MapachePortalPage() {
   const session = await auth();
@@ -23,27 +49,31 @@ export default async function MapachePortalPage() {
     return notFound();
   }
 
-  const tasks = await prisma.mapacheTask.findMany({
+  const tasks = (await mapacheTaskClient.findMany({
     select: taskSelect,
     orderBy: { createdAt: "desc" },
-  });
+  })) as MapacheTaskRecord[];
 
-  const initialTasks: MapacheTask[] = tasks
-    .map((task) =>
-      normalizeMapacheTask({
-        ...task,
-        createdAt: task.createdAt?.toISOString(),
-        updatedAt: task.updatedAt?.toISOString(),
-        presentationDate: task.presentationDate
-          ? task.presentationDate.toISOString()
-          : task.presentationDate,
-        deliverables: task.deliverables.map((deliverable) => ({
-          ...deliverable,
-          createdAt: deliverable.createdAt?.toISOString(),
-        })),
-      })
-    )
-    .filter((task): task is MapacheTask => task !== null);
+
+  const initialTasks: MapacheTask[] = tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    description: task.description ?? null,
+    status: task.status as MapacheTaskStatus,
+    substatus: task.substatus as MapacheTaskSubstatus,
+    assigneeId: task.assigneeId,
+    deliverables: task.deliverables?.map((deliverable) => ({
+      id: deliverable.id,
+      type: deliverable.type as MapacheDeliverableType,
+      title: deliverable.title,
+      url: deliverable.url,
+      addedById: deliverable.addedById,
+      createdAt: deliverable.createdAt?.toISOString(),
+    })) ?? [],
+    createdAt: task.createdAt?.toISOString(),
+    updatedAt: task.updatedAt?.toISOString(),
+    createdById: task.createdById ?? undefined,
+  }));
 
   return (
     <div className="space-y-6 px-4 pb-10">

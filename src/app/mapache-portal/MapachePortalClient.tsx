@@ -6,8 +6,19 @@ import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
 
-import type { MapacheTask, MapacheTaskStatus } from "./types";
-import { MAPACHE_TASK_STATUSES, normalizeMapacheTask } from "./types";
+
+import type {
+  MapacheTask,
+  MapacheTaskStatus,
+  MapacheTaskSubstatus,
+  MapacheTaskDeliverable,
+  MapacheDeliverableType,
+} from "./types";
+import {
+  MAPACHE_TASK_STATUSES,
+  MAPACHE_TASK_SUBSTATUSES,
+  MAPACHE_DELIVERABLE_TYPES,
+} from "./types";
 
 type MapachePortalClientProps = {
   initialTasks: MapacheTask[];
@@ -35,13 +46,151 @@ const STATUS_LABEL_KEYS: Record<MapacheTaskStatus, "pending" | "in_progress" | "
   DONE: "completed",
 };
 
+const SUBSTATUS_ORDER: MapacheTaskSubstatus[] = [...MAPACHE_TASK_SUBSTATUSES];
+const DELIVERABLE_TYPE_ORDER: MapacheDeliverableType[] = [...MAPACHE_DELIVERABLE_TYPES];
+
+const STATUS_BADGE_CLASSNAMES: Record<
+  "unassigned" | "assigned" | "in_progress" | "completed",
+  string
+> = {
+  unassigned:
+    "border-slate-600/60 bg-slate-900/70 text-white/70 backdrop-blur-sm",
+  assigned: "border-cyan-500/40 bg-cyan-500/10 text-cyan-200",
+  in_progress: "border-amber-400/50 bg-amber-400/10 text-amber-200",
+  completed: "border-emerald-500/40 bg-emerald-500/10 text-emerald-200",
+};
+
+const SUBSTATUS_BADGE_CLASSNAME =
+  "border-white/10 bg-white/5 text-white/60 backdrop-blur-sm";
+
+type StatusBadgeKey = keyof typeof STATUS_BADGE_CLASSNAMES;
+type DeliverableTypeKey = "scope" | "quote" | "scope_and_quote" | "other";
+
 function getStatusLabelKey(status: MapacheTaskStatus) {
   return STATUS_LABEL_KEYS[status];
+}
+
+
+function getStatusBadgeKey(task: MapacheTask): StatusBadgeKey {
+  if (task.status === "PENDING") {
+    return task.assigneeId ? "assigned" : "unassigned";
+  }
+
+  if (task.status === "IN_PROGRESS") {
+    return "in_progress";
+  }
+
+  return "completed";
+}
+
+function getSubstatusKey(
+  substatus: MapacheTaskSubstatus
+): "backlog" | "waiting_client" | "blocked" {
+  switch (substatus) {
+    case "WAITING_CLIENT":
+      return "waiting_client";
+    case "BLOCKED":
+      return "blocked";
+    case "BACKLOG":
+    default:
+      return "backlog";
+  }
+}
+
+function getDeliverableTypeKey(type: MapacheDeliverableType): DeliverableTypeKey {
+  switch (type) {
+    case "SCOPE":
+      return "scope";
+    case "QUOTE":
+      return "quote";
+    case "SCOPE_AND_QUOTE":
+      return "scope_and_quote";
+    case "OTHER":
+    default:
+      return "other";
+  }
+}
+
+function normalizeDeliverable(deliverable: unknown): MapacheTaskDeliverable | null {
+  if (typeof deliverable !== "object" || deliverable === null) return null;
+  const record = deliverable as Record<string, unknown>;
+  const id = record.id;
+  const type = record.type;
+  const title = record.title;
+  const url = record.url;
+
+  if (typeof id !== "string" && typeof id !== "number") return null;
+  if (!DELIVERABLE_TYPE_ORDER.includes(type as MapacheDeliverableType)) return null;
+  if (typeof title !== "string" || typeof url !== "string") return null;
+
+  return {
+    id: String(id),
+    type: type as MapacheDeliverableType,
+    title,
+    url,
+    addedById:
+      typeof record.addedById === "string"
+        ? record.addedById
+        : record.addedById == null
+          ? null
+          : undefined,
+    createdAt: typeof record.createdAt === "string" ? (record.createdAt as string) : undefined,
+  };
+}
+
+function normalizeTask(task: unknown): MapacheTask | null {
+  if (typeof task !== "object" || task === null) return null;
+  const record = task as Record<string, unknown>;
+  const id = record.id;
+  const title = record.title;
+  const description = record.description;
+  const status = record.status;
+  const substatus = record.substatus;
+  const assigneeId = record.assigneeId;
+  const deliverables = record.deliverables;
+
+  if (typeof id !== "string" && typeof id !== "number") return null;
+  if (typeof title !== "string") return null;
+  if (!STATUS_ORDER.includes(status as MapacheTaskStatus)) return null;
+
+  const normalizedSubstatus = SUBSTATUS_ORDER.includes(substatus as MapacheTaskSubstatus)
+    ? (substatus as MapacheTaskSubstatus)
+    : "BACKLOG";
+  const normalizedAssigneeId =
+    typeof assigneeId === "string"
+      ? assigneeId
+      : assigneeId == null
+        ? null
+        : undefined;
+
+  const normalizedDeliverables = Array.isArray(deliverables)
+    ? deliverables
+        .map(normalizeDeliverable)
+        .filter((item): item is MapacheTaskDeliverable => item !== null)
+    : [];
+
+  return {
+    id: String(id),
+    title,
+    description: typeof description === "string" ? description : null,
+    status: status as MapacheTaskStatus,
+    substatus: normalizedSubstatus,
+    assigneeId: normalizedAssigneeId,
+    deliverables: normalizedDeliverables,
+    createdAt: typeof record.createdAt === "string" ? (record.createdAt as string) : undefined,
+    updatedAt: typeof record.updatedAt === "string" ? (record.updatedAt as string) : undefined,
+    createdById:
+      typeof record.createdById === "string" ? (record.createdById as string) : undefined,
+  };
 }
 
 export default function MapachePortalClient({ initialTasks }: MapachePortalClientProps) {
   const t = useTranslations("mapachePortal");
   const statusT = useTranslations("mapachePortal.statuses");
+  const statusBadgeT = useTranslations("mapachePortal.statusBadges");
+  const substatusT = useTranslations("mapachePortal.substatuses");
+  const deliverablesT = useTranslations("mapachePortal.deliverables");
+  const deliverableTypesT = useTranslations("mapachePortal.deliverables.types");
   const formT = useTranslations("mapachePortal.form");
   const toastT = useTranslations("mapachePortal.toast");
   const emptyT = useTranslations("mapachePortal.empty");
@@ -325,25 +474,77 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
         {filteredTasks.map((task) => {
           const isUpdating = updatingTaskId === task.id;
           const isDeleting = deletingTaskId === task.id;
+          const statusBadgeKey = getStatusBadgeKey(task);
           return (
             <article
               key={task.id}
-              className="flex h-full flex-col justify-between rounded-xl border border-white/10 bg-slate-900/80 p-4 text-white shadow-soft"
+              className="flex h-full flex-col justify-between rounded-xl border border-white/10 bg-slate-950/80 p-4 text-white shadow-soft"
             >
-              <div className="flex flex-col gap-3">
-                <div className="flex items-start justify-between gap-2">
-                  <h2 className="text-lg font-semibold">{task.title}</h2>
-                  <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white/80">
-                    {statusT(getStatusLabelKey(task.status))}
-                  </span>
+              <div className="flex flex-1 flex-col gap-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="text-lg font-semibold text-white">{task.title}</h2>
+                    <div className="flex flex-col items-end gap-1">
+                      <span
+                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${STATUS_BADGE_CLASSNAMES[statusBadgeKey]}`}
+                      >
+                        {statusBadgeT(statusBadgeKey)}
+                      </span>
+                      {task.substatus ? (
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${SUBSTATUS_BADGE_CLASSNAME}`}
+                        >
+                          {substatusT(getSubstatusKey(task.substatus))}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  {task.description ? (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/70">
+                      {task.description}
+                    </p>
+                  ) : (
+                    <p className="text-sm italic text-white/40">{t("noDescription")}</p>
+                  )}
                 </div>
-                {task.description ? (
-                  <p className="text-sm leading-relaxed text-white/70 whitespace-pre-wrap">
-                    {task.description}
-                  </p>
-                ) : (
-                  <p className="text-sm italic text-white/40">{t("noDescription")}</p>
-                )}
+
+                <section className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                  <header className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-white/60">
+                    <span>{deliverablesT("title")}</span>
+                    <span className="text-[10px] font-medium text-white/40">
+                      {task.deliverables.length}
+                    </span>
+                  </header>
+                  {task.deliverables.length > 0 ? (
+                    <ul className="flex flex-col gap-2 text-sm text-white/70">
+                      {task.deliverables.map((deliverable) => (
+                        <li
+                          key={deliverable.id}
+                          className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-white/5 bg-slate-950/70 p-2"
+                        >
+                          <div className="flex min-w-0 flex-1 flex-col gap-1">
+                            <span className="inline-flex w-fit items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/60">
+                              {deliverableTypesT(getDeliverableTypeKey(deliverable.type))}
+                            </span>
+                            <p className="truncate text-sm text-white/80" title={deliverable.title}>
+                              {deliverable.title}
+                            </p>
+                          </div>
+                          <a
+                            href={deliverable.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center rounded-md border border-white/10 px-3 py-1 text-xs font-medium text-white/80 transition hover:border-[rgb(var(--primary))]/50 hover:text-[rgb(var(--primary))] focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--primary))]/50"
+                          >
+                            {deliverablesT("open")}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-white/50">{deliverablesT("empty")}</p>
+                  )}
+                </section>
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
