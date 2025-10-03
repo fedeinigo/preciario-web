@@ -6,7 +6,7 @@ import {
   draggable,
   dropTargetForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { Filter, Settings, Wand2 } from "lucide-react";
+import { Settings, Wand2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 import Modal from "@/app/components/ui/Modal";
@@ -35,6 +35,7 @@ import {
   MAPACHE_TASK_SUBSTATUSES,
   normalizeMapacheTask,
 } from "./types";
+import MapachePortalFilters from "./components/MapachePortalFilters";
 import MapachePortalInsights, {
   type MapachePortalInsightsMetrics,
   type MapachePortalInsightsScope,
@@ -48,6 +49,16 @@ import {
   type MapachePortalSection,
   isMapachePortalSection,
 } from "./section-events";
+import {
+  DATE_INPUT_REGEX,
+  createDefaultFiltersState,
+  createDefaultTaskFilterState,
+  type AdvancedFiltersState,
+  type PresentationDateFilter,
+  type OwnershipFilterValue,
+  type StatusFilterValue,
+  type TaskFilterState,
+} from "./filters";
 
 const STATUS_ORDER: MapacheTaskStatus[] = [...MAPACHE_TASK_STATUSES];
 const NEED_OPTIONS: MapacheNeedFromTeam[] = [...MAPACHE_NEEDS_FROM_TEAM];
@@ -104,8 +115,6 @@ type MapachePortalClientProps = {
   subheading?: React.ReactNode;
 };
 
-type TaskFilter = "all" | "mine" | "unassigned" | MapacheTaskStatus;
-
 type DeliverableFormState = {
   type: MapacheDeliverableType;
   title: string;
@@ -151,20 +160,6 @@ type FormErrors = Partial<Record<FieldErrorKey, string>> & {
 };
 
 type StepFieldKey = FieldErrorKey | "deliverables";
-
-type PresentationDateFilter = {
-  from: string | null;
-  to: string | null;
-};
-
-type AdvancedFiltersState = {
-  needFromTeam: MapacheNeedFromTeam[];
-  directness: MapacheDirectness[];
-  integrationTypes: MapacheIntegrationType[];
-  origins: MapacheSignalOrigin[];
-  assignees: string[];
-  presentationDate: PresentationDateFilter;
-};
 
 const FORM_STEP_LABELS = [
   "Datos generales",
@@ -258,8 +253,6 @@ type AssignmentWeight = { userId: string; weight: number };
 const FILTERS_STORAGE_KEY = "mapache_portal_filters";
 const ASSIGNMENT_STORAGE_KEY = "mapache_assignment_ratios";
 
-const DATE_INPUT_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
 const STATUS_LABEL_KEYS: Record<
   MapacheTaskStatus,
   "pending" | "in_progress" | "completed"
@@ -300,26 +293,6 @@ function getStatusBadgeKey(task: MapacheTask): StatusBadgeKey {
   }
 
   return "completed";
-}
-
-function createDefaultFiltersState(): AdvancedFiltersState {
-  return {
-    needFromTeam: [],
-    directness: [],
-    integrationTypes: [],
-    origins: [],
-    assignees: [],
-    presentationDate: { from: null, to: null },
-  };
-}
-
-function toggleStringValue<T extends string>(
-  values: readonly T[],
-  value: T,
-): T[] {
-  return values.includes(value)
-    ? values.filter((item) => item !== value)
-    : [...values, value];
 }
 
 function parseEnumArray<const T extends readonly string[]>(
@@ -367,7 +340,7 @@ function parsePresentationDate(value: unknown): PresentationDateFilter {
   return { from, to };
 }
 
-function parseStoredFilters(value: unknown): AdvancedFiltersState {
+function parseStoredAdvancedFilters(value: unknown): AdvancedFiltersState {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return createDefaultFiltersState();
   }
@@ -385,6 +358,96 @@ function parseStoredFilters(value: unknown): AdvancedFiltersState {
     assignees: parseAssigneeArray(record.assignees),
     presentationDate: parsePresentationDate(record.presentationDate),
   };
+}
+
+function parseStatusFilterValue(value: unknown): StatusFilterValue {
+  if (value === "all") return "all";
+  if (typeof value === "string") {
+    const upper = value.trim().toUpperCase();
+    if (STATUS_ORDER.includes(upper as MapacheTaskStatus)) {
+      return upper as MapacheTaskStatus;
+    }
+  }
+  return "all";
+}
+
+function parseOwnershipFilterValue(value: unknown): OwnershipFilterValue {
+  if (value === "mine" || value === "unassigned") {
+    return value;
+  }
+  return "all";
+}
+
+function parseStoredTaskFilterState(value: unknown): TaskFilterState {
+  if (typeof value === "string") {
+    if (value === "mine" || value === "unassigned") {
+      return { status: "all", ownership: value };
+    }
+    if (value === "all") {
+      return createDefaultTaskFilterState();
+    }
+    const upper = value.trim().toUpperCase();
+    if (STATUS_ORDER.includes(upper as MapacheTaskStatus)) {
+      return { status: upper as MapacheTaskStatus, ownership: "all" };
+    }
+  }
+
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    const status = parseStatusFilterValue(record.status);
+    const ownership = parseOwnershipFilterValue(record.ownership);
+    return { status, ownership };
+  }
+
+  return createDefaultTaskFilterState();
+}
+
+function parseStoredFiltersSnapshot(value: unknown): {
+  activeFilter: TaskFilterState;
+  advancedFilters: AdvancedFiltersState;
+} {
+  const defaults = {
+    activeFilter: createDefaultTaskFilterState(),
+    advancedFilters: createDefaultFiltersState(),
+  } as const;
+
+  if (value === null || value === undefined) {
+    return { ...defaults };
+  }
+
+  if (typeof value === "string") {
+    return {
+      activeFilter: parseStoredTaskFilterState(value),
+      advancedFilters: defaults.advancedFilters,
+    };
+  }
+
+  if (typeof value !== "object" || Array.isArray(value)) {
+    return { ...defaults };
+  }
+
+  const record = value as Record<string, unknown>;
+
+  const rawAdvanced =
+    "advancedFilters" in record
+      ? record.advancedFilters
+      : (value as Record<string, unknown>);
+
+  const advancedFilters = parseStoredAdvancedFilters(rawAdvanced);
+
+  let activeFilter = defaults.activeFilter;
+  if ("activeFilter" in record) {
+    activeFilter = parseStoredTaskFilterState(record.activeFilter);
+  } else if ("filter" in record) {
+    activeFilter = parseStoredTaskFilterState(record.filter);
+  } else if ("status" in record || "ownership" in record) {
+    activeFilter = parseStoredTaskFilterState({
+      status: record.status,
+      ownership: record.ownership,
+    });
+  }
+
+  return { activeFilter, advancedFilters };
 }
 
 function getTaskAssigneeId(task: MapacheTask): string | null {
@@ -1128,8 +1191,9 @@ export default function MapachePortalClient({
   const [tasks, setTasks] = React.useState<MapacheTask[]>(() =>
     Array.isArray(initialTasks) ? initialTasks : [],
   );
-  const [activeFilter, setActiveFilter] = React.useState<TaskFilter>("all");
-  const [showFiltersPanel, setShowFiltersPanel] = React.useState(false);
+  const [activeFilter, setActiveFilter] = React.useState<TaskFilterState>(
+    () => createDefaultTaskFilterState(),
+  );
   const [advancedFilters, setAdvancedFilters] = React.useState<AdvancedFiltersState>(
     () => createDefaultFiltersState(),
   );
@@ -1336,8 +1400,10 @@ export default function MapachePortalClient({
       const stored = window.localStorage.getItem(FILTERS_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as unknown;
-        const next = parseStoredFilters(parsed);
-        setAdvancedFilters(next);
+        const { activeFilter: nextFilter, advancedFilters: nextAdvanced } =
+          parseStoredFiltersSnapshot(parsed);
+        setActiveFilter(nextFilter);
+        setAdvancedFilters(nextAdvanced);
       }
     } catch (error) {
       console.error(error);
@@ -1352,12 +1418,16 @@ export default function MapachePortalClient({
     try {
       window.localStorage.setItem(
         FILTERS_STORAGE_KEY,
-        JSON.stringify(advancedFilters),
+        JSON.stringify({
+          version: 2,
+          activeFilter,
+          advancedFilters,
+        }),
       );
     } catch (error) {
       console.error(error);
     }
-  }, [advancedFilters, filtersHydrated]);
+  }, [activeFilter, advancedFilters, filtersHydrated]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1492,27 +1562,39 @@ export default function MapachePortalClient({
   }, [assigneesErrorMessage]);
 
   const baseFilteredTasks = React.useMemo(() => {
-    if (activeFilter === "all") return tasks;
-    if (activeFilter === "unassigned") {
-      return tasks.filter((task) => !getTaskAssigneeId(task));
-    }
-    if (activeFilter === "mine") {
-      if (!currentUserId && !currentUserEmail) {
-        return [];
+    return tasks.filter((task) => {
+      if (
+        activeFilter.status !== "all" &&
+        task.status !== activeFilter.status
+      ) {
+        return false;
       }
-      return tasks.filter((task) => {
+
+      if (activeFilter.ownership === "unassigned") {
+        return !getTaskAssigneeId(task);
+      }
+
+      if (activeFilter.ownership === "mine") {
+        if (!currentUserId && !currentUserEmail) {
+          return false;
+        }
         const assigneeId = getTaskAssigneeId(task);
         if (assigneeId && currentUserId && assigneeId === currentUserId) {
           return true;
         }
         const assigneeEmail = getTaskAssigneeEmail(task);
-        if (assigneeEmail && currentUserEmail && assigneeEmail === currentUserEmail) {
+        if (
+          assigneeEmail &&
+          currentUserEmail &&
+          assigneeEmail === currentUserEmail
+        ) {
           return true;
         }
         return false;
-      });
-    }
-    return tasks.filter((task) => task.status === activeFilter);
+      }
+
+      return true;
+    });
   }, [activeFilter, currentUserEmail, currentUserId, tasks]);
 
   const normalizedAdvancedFilters = React.useMemo(() => {
@@ -1777,26 +1859,10 @@ export default function MapachePortalClient({
 
   const hasActiveAdvancedFilters = normalizedAdvancedFilters.hasAny;
   const advancedFiltersCount = normalizedAdvancedFilters.activeCount;
-  const hasActiveQuickFilter = activeFilter !== "all";
+  const hasActiveQuickFilter =
+    activeFilter.status !== "all" || activeFilter.ownership !== "all";
   const showFilteredEmptyMessage =
     hasActiveQuickFilter || hasActiveAdvancedFilters;
-
-  const filterOptions = React.useMemo(
-    () =>
-      [
-        { value: "all" as TaskFilter, label: statusT("all") },
-        { value: "mine" as TaskFilter, label: filtersT("mine") },
-        {
-          value: "unassigned" as TaskFilter,
-          label: filtersT("unassigned"),
-        },
-        ...STATUS_ORDER.map((status) => ({
-          value: status as TaskFilter,
-          label: statusT(getStatusLabelKey(status)),
-        })),
-      ],
-    [filtersT, statusT],
-  );
 
   const assigneeOptions = React.useMemo(() => {
     const entries = new Map<string, string>();
@@ -1818,6 +1884,35 @@ export default function MapachePortalClient({
       .sort((a, b) => a.label.localeCompare(b.label, "es", { sensitivity: "base" }));
   }, [mapacheUsers, tasks]);
 
+  const statusSegmentLabel = formT("statusLabel");
+  const ownershipSegmentLabel = filtersT("assignee");
+
+  const renderFilterBar = (className?: string) => (
+    <MapachePortalFilters
+      activeFilter={activeFilter}
+      setActiveFilter={setActiveFilter}
+      advancedFilters={advancedFilters}
+      setAdvancedFilters={setAdvancedFilters}
+      statusOptions={STATUS_ORDER}
+      statusLabel={statusSegmentLabel}
+      needOptions={NEED_OPTIONS}
+      directnessOptions={DIRECTNESS_OPTIONS}
+      integrationTypeOptions={INTEGRATION_TYPE_OPTIONS}
+      originOptions={ORIGIN_OPTIONS}
+      assigneeOptions={assigneeOptions}
+      filtersT={filtersT}
+      statusT={statusT}
+      needFromTeamT={needFromTeamT}
+      directnessT={directnessT}
+      integrationTypeT={integrationTypeT}
+      originT={originT}
+      hasActiveAdvancedFilters={hasActiveAdvancedFilters}
+      advancedFiltersCount={advancedFiltersCount}
+      ownershipLabel={ownershipSegmentLabel}
+      className={className}
+    />
+  );
+
   const assignmentDraftTotal = React.useMemo(() => {
     return mapacheUsers.reduce((sum, user) => {
       const raw = assignmentDraft[user.id];
@@ -1826,53 +1921,6 @@ export default function MapachePortalClient({
       return sum + parsed;
     }, 0);
   }, [assignmentDraft, mapacheUsers]);
-
-  const handleOpenFiltersPanel = React.useCallback(() => {
-    setShowFiltersPanel(true);
-  }, []);
-
-  const handleCloseFiltersPanel = React.useCallback(() => {
-    setShowFiltersPanel(false);
-  }, []);
-
-  const renderFiltersTrigger = () => (
-    <button
-      type="button"
-      onClick={handleOpenFiltersPanel}
-      className={`inline-flex items-center gap-2 rounded-full border px-4 py-1 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
-        hasActiveAdvancedFilters
-          ? "border-[rgb(var(--primary))] bg-[rgb(var(--primary))]/20 text-white"
-          : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
-      }`}
-    >
-      <Filter className="h-4 w-4" aria-hidden="true" />
-      <span>{filtersT("open")}</span>
-      {advancedFiltersCount > 0 ? (
-        <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[rgb(var(--primary))] px-2 text-xs font-semibold text-white">
-          {advancedFiltersCount}
-        </span>
-      ) : null}
-    </button>
-  );
-
-  const renderQuickFilterButtons = () =>
-    filterOptions.map((option) => {
-      const isActive = activeFilter === option.value;
-      return (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => setActiveFilter(option.value)}
-          className={`rounded-full border px-4 py-1 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
-            isActive
-              ? "border-[rgb(var(--primary))] bg-[rgb(var(--primary))] text-white"
-              : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
-          }`}
-        >
-          {option.label}
-        </button>
-      );
-    });
 
   const renderViewModeToggle = () => (
     <div className="flex items-center gap-1 rounded-full border border-white/20 bg-white/5 p-1 text-xs font-medium text-white/70">
@@ -1902,76 +1950,6 @@ export default function MapachePortalClient({
       </button>
     </div>
   );
-
-  const handleToggleNeedFromTeam = React.useCallback(
-    (value: MapacheNeedFromTeam) => {
-      setAdvancedFilters((prev) => ({
-        ...prev,
-        needFromTeam: toggleStringValue(prev.needFromTeam, value),
-      }));
-    },
-    [],
-  );
-
-  const handleToggleDirectness = React.useCallback(
-    (value: MapacheDirectness) => {
-      setAdvancedFilters((prev) => ({
-        ...prev,
-        directness: toggleStringValue(prev.directness, value),
-      }));
-    },
-    [],
-  );
-
-  const handleToggleIntegrationType = React.useCallback(
-    (value: MapacheIntegrationType) => {
-      setAdvancedFilters((prev) => ({
-        ...prev,
-        integrationTypes: toggleStringValue(prev.integrationTypes, value),
-      }));
-    },
-    [],
-  );
-
-  const handleToggleOrigin = React.useCallback(
-    (value: MapacheSignalOrigin) => {
-      setAdvancedFilters((prev) => ({
-        ...prev,
-        origins: toggleStringValue(prev.origins, value),
-      }));
-    },
-    [],
-  );
-
-  const handleToggleAssignee = React.useCallback((id: string) => {
-    const trimmed = id.trim();
-    if (!trimmed) return;
-    setAdvancedFilters((prev) => ({
-      ...prev,
-      assignees: toggleStringValue(prev.assignees, trimmed),
-    }));
-  }, []);
-
-  const handlePresentationDateChange = React.useCallback(
-    (key: keyof PresentationDateFilter, value: string) => {
-      const normalized =
-        typeof value === "string" && DATE_INPUT_REGEX.test(value)
-          ? value
-          : null;
-      setAdvancedFilters((prev) => ({
-        ...prev,
-        presentationDate: {
-          ...prev.presentationDate,
-          [key]: normalized,
-        },
-      }));
-    },
-    [],
-  );
-
-  const handleResetFilters = React.useCallback(() => {
-    setAdvancedFilters(createDefaultFiltersState());
-  }, []);
 
   const handleOpenAssignmentModal = React.useCallback(() => {
     const hasConfiguredRatios = Object.values(assignmentRatios).some(
@@ -3118,197 +3096,6 @@ function TaskMetaChip({
       </Modal>
 
       <Modal
-        open={showFiltersPanel}
-        onClose={handleCloseFiltersPanel}
-        variant="inverted"
-        title={filtersT("title")}
-        panelClassName="w-full max-w-3xl"
-        footer={
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="inline-flex items-center justify-center rounded-md border border-white/30 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-            >
-              {filtersT("reset")}
-            </button>
-            <button
-              type="button"
-              onClick={handleCloseFiltersPanel}
-              className="inline-flex items-center justify-center rounded-md bg-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-            >
-              {filtersT("close")}
-            </button>
-          </div>
-        }
-      >
-        <div className="space-y-6 text-white">
-          <section className="space-y-3">
-            <header className="text-sm font-semibold uppercase tracking-wide text-white/60">
-              {filtersT("needFromTeam")}
-            </header>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {NEED_OPTIONS.map((option) => {
-                const checked = advancedFilters.needFromTeam.includes(option);
-                return (
-                  <label
-                    key={option}
-                    className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => handleToggleNeedFromTeam(option)}
-                      className="h-4 w-4 rounded border-white/30 bg-black/30 text-[rgb(var(--primary))] focus:ring-[rgb(var(--primary))]"
-                    />
-                    <span>{needFromTeamT(option)}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <header className="text-sm font-semibold uppercase tracking-wide text-white/60">
-              {filtersT("directness")}
-            </header>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {DIRECTNESS_OPTIONS.map((option) => {
-                const checked = advancedFilters.directness.includes(option);
-                return (
-                  <label
-                    key={option}
-                    className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => handleToggleDirectness(option)}
-                      className="h-4 w-4 rounded border-white/30 bg-black/30 text-[rgb(var(--primary))] focus:ring-[rgb(var(--primary))]"
-                    />
-                    <span>{directnessT(option)}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <header className="text-sm font-semibold uppercase tracking-wide text-white/60">
-              {filtersT("integrationType")}
-            </header>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {INTEGRATION_TYPE_OPTIONS.map((option) => {
-                const checked = advancedFilters.integrationTypes.includes(option);
-                return (
-                  <label
-                    key={option}
-                    className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => handleToggleIntegrationType(option)}
-                      className="h-4 w-4 rounded border-white/30 bg-black/30 text-[rgb(var(--primary))] focus:ring-[rgb(var(--primary))]"
-                    />
-                    <span>{integrationTypeT(option)}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <header className="text-sm font-semibold uppercase tracking-wide text-white/60">
-              {filtersT("origin")}
-            </header>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {ORIGIN_OPTIONS.map((option) => {
-                const checked = advancedFilters.origins.includes(option);
-                return (
-                  <label
-                    key={option}
-                    className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => handleToggleOrigin(option)}
-                      className="h-4 w-4 rounded border-white/30 bg-black/30 text-[rgb(var(--primary))] focus:ring-[rgb(var(--primary))]"
-                    />
-                    <span>{originT(option)}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <header className="text-sm font-semibold uppercase tracking-wide text-white/60">
-              {filtersT("assignee")}
-            </header>
-            {assigneeOptions.length === 0 ? (
-              <p className="text-sm text-white/60">{filtersT("noAssignees")}</p>
-            ) : (
-              <div className="grid max-h-60 gap-2 overflow-y-auto rounded-md border border-white/10 bg-white/5 p-3">
-                {assigneeOptions.map((option) => {
-                  const checked = advancedFilters.assignees.includes(option.id);
-                  return (
-                    <label
-                      key={option.id}
-                      className="flex items-center gap-2 rounded-md border border-white/5 bg-black/20 px-3 py-2 text-sm text-white/80"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => handleToggleAssignee(option.id)}
-                        className="h-4 w-4 rounded border-white/30 bg-black/30 text-[rgb(var(--primary))] focus:ring-[rgb(var(--primary))]"
-                      />
-                      <span className="truncate">{option.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className="space-y-3">
-            <header className="text-sm font-semibold uppercase tracking-wide text-white/60">
-              {filtersT("presentationDate")}
-            </header>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-2 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/50">
-                  {filtersT("from")}
-                </span>
-                <input
-                  type="date"
-                  value={advancedFilters.presentationDate.from ?? ""}
-                  onChange={(event) =>
-                    handlePresentationDateChange("from", event.target.value)
-                  }
-                  className="rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/50">
-                  {filtersT("to")}
-                </span>
-                <input
-                  type="date"
-                  value={advancedFilters.presentationDate.to ?? ""}
-                  onChange={(event) =>
-                    handlePresentationDateChange("to", event.target.value)
-                  }
-                  className="rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                />
-              </label>
-            </div>
-          </section>
-        </div>
-      </Modal>
-
-      <Modal
         open={showForm}
         onClose={handleCloseForm}
         variant="inverted"
@@ -3913,11 +3700,8 @@ function TaskMetaChip({
             onScopeChange={setInsightsScope}
             metricsByScope={insightsMetrics}
           />
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {renderFiltersTrigger()}
-              {renderQuickFilterButtons()}
-            </div>
+          <div className="flex justify-center">
+            <div className="w-full max-w-5xl">{renderFilterBar()}</div>
           </div>
           {renderLoadingMessage()}
           {renderFetchErrorMessage()}
@@ -3926,25 +3710,24 @@ function TaskMetaChip({
 
       {isTasksSection ? (
         <>
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              {renderFiltersTrigger()}
-              {renderQuickFilterButtons()}
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex-1">{renderFilterBar()}</div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
               {renderViewModeToggle()}
+              {activeFilter.ownership === "unassigned" ? (
+                <button
+                  type="button"
+                  onClick={handleAutoAssign}
+                  disabled={autoAssigning || mapacheUsers.length === 0}
+                  className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--primary))] bg-[rgb(var(--primary))]/10 px-4 py-1 text-sm text-[rgb(var(--primary))] transition hover:bg-[rgb(var(--primary))]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Wand2 className="h-4 w-4" aria-hidden="true" />
+                  {autoAssigning
+                    ? assignmentT("autoAssigning")
+                    : assignmentT("autoAssign")}
+                </button>
+              ) : null}
             </div>
-            {activeFilter === "unassigned" ? (
-              <button
-                type="button"
-                onClick={handleAutoAssign}
-                disabled={autoAssigning || mapacheUsers.length === 0}
-                className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--primary))] bg-[rgb(var(--primary))]/10 px-4 py-1 text-sm text-[rgb(var(--primary))] transition hover:bg-[rgb(var(--primary))]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <Wand2 className="h-4 w-4" aria-hidden="true" />
-                {autoAssigning
-                  ? assignmentT("autoAssigning")
-                  : assignmentT("autoAssign")}
-              </button>
-            ) : null}
           </div>
 
           {renderLoadingMessage()}
