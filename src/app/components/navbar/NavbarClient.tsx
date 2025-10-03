@@ -3,7 +3,8 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
 import {
@@ -30,6 +31,13 @@ import { fetchAllProposals } from "@/app/components/features/proposals/lib/propo
 import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { locales } from "@/lib/i18n/config";
+import {
+  MAPACHE_PORTAL_DEFAULT_SECTION,
+  MAPACHE_PORTAL_NAVIGATE_EVENT,
+  MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
+  type MapachePortalSection,
+  isMapachePortalSection,
+} from "@/app/mapache-portal/section-events";
 
 export type NavbarClientProps = {
   session: Session | null;
@@ -82,6 +90,33 @@ function TabBtn({
   );
 }
 
+function MapacheSectionBtn({
+  id,
+  label,
+  active,
+  onClick,
+}: {
+  id: MapachePortalSection;
+  label: string;
+  active: boolean;
+  onClick: (value: MapachePortalSection) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(id)}
+      className={`rounded-full px-4 py-1.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+        active
+          ? "bg-white text-[#1f2937] shadow-soft"
+          : "bg-transparent text-white/80 hover:bg-white/15"
+      }`}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
+  );
+}
+
 function initials(fullName: string) {
   const parts = fullName.split(" ").filter(Boolean);
   const i1 = parts[0]?.[0] ?? "";
@@ -98,6 +133,7 @@ function readHash(): Tab {
 
 export default function NavbarClient({ session }: NavbarClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { locale, setLocale } = useLanguage();
   const t = useTranslations("navbar");
   const tabsT = useTranslations("navbar.tabs");
@@ -107,6 +143,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const modalLogT = useTranslations("navbar.modal.log");
   const toastT = useTranslations("navbar.toast");
   const fallbacksT = useTranslations("navbar.fallbacks");
+  const mapacheSectionsT = useTranslations("navbar.mapachePortalSections");
   const languageT = useTranslations("common.language");
 
   const handleLocaleChange = React.useCallback(
@@ -118,19 +155,27 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     [locale, router, setLocale]
   );
 
+  const isMapachePortal = pathname?.startsWith("/mapache-portal") ?? false;
   const status = session ? "authenticated" : "unauthenticated";
-  const showTabs = status === "authenticated";
+  const showTabs = status === "authenticated" && !isMapachePortal;
   const showAuthActions = status === "authenticated";
 
   const role = (session?.user?.role as AnyRole) ?? "usuario";
-  const team = (session?.user?.team as string | null) ?? fallbacksT("team");
+  const rawTeam = (session?.user?.team as string | null) ?? null;
+  const team = rawTeam ?? fallbacksT("team");
   const name = session?.user?.name ?? fallbacksT("userName");
   const email = session?.user?.email ?? fallbacksT("email");
   const currentEmail = session?.user?.email ?? "";
   const canSeeUsers = role === "admin" || role === "superadmin";
+  const canOpenMapachePortal =
+    rawTeam === "Mapaches" || role === "superadmin" || role === "admin";
+  const showMapacheReturn = showAuthActions && canOpenMapachePortal && isMapachePortal;
+  const showMapacheLink = showAuthActions && canOpenMapachePortal && !isMapachePortal;
 
   const [activeTab, setActiveTab] = React.useState<Tab>(readHash());
   const [userModal, setUserModal] = React.useState(false);
+  const [mapacheSection, setMapacheSection] =
+    React.useState<MapachePortalSection>(MAPACHE_PORTAL_DEFAULT_SECTION);
 
   React.useEffect(() => {
     const onHash = () => setActiveTab(readHash());
@@ -144,6 +189,35 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     };
   }, []);
 
+  React.useEffect(() => {
+    if (!isMapachePortal) return;
+
+    const handleSectionChanged = (event: Event) => {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (isMapachePortalSection(detail)) {
+        setMapacheSection(detail);
+      }
+    };
+
+    window.addEventListener(
+      MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
+      handleSectionChanged as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
+        handleSectionChanged as EventListener,
+      );
+    };
+  }, [isMapachePortal]);
+
+  React.useEffect(() => {
+    if (!isMapachePortal) {
+      setMapacheSection(MAPACHE_PORTAL_DEFAULT_SECTION);
+    }
+  }, [isMapachePortal]);
+
   function setTab(t: Tab) {
     setActiveTab(t);
     try {
@@ -151,6 +225,21 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     } catch {}
     window.dispatchEvent(new CustomEvent("app:setTab", { detail: t }));
   }
+
+  const handleMapacheSectionChange = React.useCallback(
+    (next: MapachePortalSection) => {
+      setMapacheSection(next);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent<MapachePortalSection>(
+            MAPACHE_PORTAL_NAVIGATE_EVENT,
+            { detail: next },
+          ),
+        );
+      }
+    },
+    [],
+  );
 
   const now = new Date();
   const initialQuarter: 1 | 2 | 3 | 4 = (() => {
@@ -235,11 +324,11 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     <nav
       role="navigation"
       aria-label={t("ariaLabel")}
-      className="navbar fixed top-0 inset-x-0 z-50 border-b border-white/15 backdrop-blur supports-[backdrop-filter]:bg-opacity-80"
+      className={`navbar fixed top-0 inset-x-0 z-50 border-b border-white/15 backdrop-blur supports-[backdrop-filter]:bg-opacity-80 ${isMapachePortal ? "navbar--mapache-portal" : ""}`}
       style={{ height: "var(--nav-h)" }}
     >
       <div className="navbar-inner mx-auto max-w-[2000px] px-3">
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
           <Image
             src="/logo.png"
             alt="Wise CX"
@@ -248,15 +337,34 @@ export default function NavbarClient({ session }: NavbarClientProps) {
             className="h-9 w-auto object-contain"
             priority
           />
+          {showMapacheReturn && (
+            <Link
+              href="/"
+              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+            >
+              {profileT("mapachePortalReturn")}
+            </Link>
+          )}
         </div>
 
-        <div className={showTabs ? "flex-1 min-w-0 px-2" : "flex-1 min-w-0"}>
-          {showTabs ? (
-            <div
-              className="flex items-center gap-2 overflow-x-auto md:justify-center"
-              role="tablist"
-              aria-label={t("tabsAriaLabel")}
-            >
+        <div className="flex flex-1 items-center justify-center">
+          {isMapachePortal ? (
+            <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-1 py-1">
+              <MapacheSectionBtn
+                id="tasks"
+                label={mapacheSectionsT("tasks")}
+                active={mapacheSection === "tasks"}
+                onClick={handleMapacheSectionChange}
+              />
+              <MapacheSectionBtn
+                id="metrics"
+                label={mapacheSectionsT("metrics")}
+                active={mapacheSection === "metrics"}
+                onClick={handleMapacheSectionChange}
+              />
+            </div>
+          ) : showTabs ? (
+            <div className="hidden w-full max-w-xl items-center justify-center gap-2 md:flex">
               <TabBtn
                 id="generator"
                 label={tabsT("generator")}
@@ -314,6 +422,14 @@ export default function NavbarClient({ session }: NavbarClientProps) {
             >
               {name} — {team}
             </button>
+          )}
+          {showMapacheLink && (
+            <Link
+              href="/mapache-portal"
+              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+            >
+              {profileT("mapachePortal")}
+            </Link>
           )}
           {showAuthActions && (
             <select

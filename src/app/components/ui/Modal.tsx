@@ -84,7 +84,7 @@ export default function Modal({
 
   const content = (
     <div
-      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4
+      className={`fixed inset-0 z-[9999] flex items-start md:items-center justify-center overflow-y-auto p-4
                   bg-black/50 backdrop-blur-md ${backdropClassName}`}
       onClick={!disableCloseOnBackdrop ? onClose : undefined}
       aria-hidden="true"
@@ -92,7 +92,7 @@ export default function Modal({
       <div
         ref={panelRef}
         className={[
-          "w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden border",
+          "w-full max-w-2xl max-h-[calc(100vh-2rem)] rounded-xl shadow-2xl overflow-hidden border flex flex-col min-h-0",
           isInverted
             ? "bg-[rgb(var(--primary))] text-white border-white/10"
             : "bg-white text-gray-900 border-gray-200",
@@ -118,7 +118,7 @@ export default function Modal({
           </div>
         )}
 
-        <div className="p-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>
 
         {footer && (
           <div
