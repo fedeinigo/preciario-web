@@ -143,6 +143,35 @@ export const messages: Record<Locale, DeepRecord> = {
         in_progress: "En progreso",
         completed: "Finalizado",
       },
+      enums: {
+        needFromTeam: {
+          QUOTE_SCOPE: "Cotización + Alcance",
+          QUOTE: "Cotización",
+          SCOPE: "Alcance",
+          PRESENTATION: "Presentación",
+          OTHER: "Otro",
+        },
+        directness: {
+          DIRECT: "Directo",
+          PARTNER: "Partner",
+        },
+        integrationType: {
+          REST: "REST",
+          GRAPHQL: "GraphQL",
+          SDK: "SDK",
+          OTHER: "Otro",
+        },
+        integrationOwner: {
+          OWN: "Propia",
+          THIRD_PARTY: "Tercero",
+        },
+        deliverableType: {
+          SCOPE: "Alcance",
+          QUOTE: "Cotización",
+          SCOPE_AND_QUOTE: "Alcance + Cotización",
+          OTHER: "Otro",
+        },
+      },
       substatuses: {
         backlog: "Backlog",
         waiting_client: "Esperando cliente",
@@ -1419,6 +1448,35 @@ export const messages: Record<Locale, DeepRecord> = {
         in_progress: "In progress",
         completed: "Completed",
       },
+      enums: {
+        needFromTeam: {
+          QUOTE_SCOPE: "Quote & scope",
+          QUOTE: "Quote",
+          SCOPE: "Scope",
+          PRESENTATION: "Presentation",
+          OTHER: "Other",
+        },
+        directness: {
+          DIRECT: "Direct",
+          PARTNER: "Partner",
+        },
+        integrationType: {
+          REST: "REST",
+          GRAPHQL: "GraphQL",
+          SDK: "SDK",
+          OTHER: "Other",
+        },
+        integrationOwner: {
+          OWN: "In-house",
+          THIRD_PARTY: "Third party",
+        },
+        deliverableType: {
+          SCOPE: "Scope",
+          QUOTE: "Quote",
+          SCOPE_AND_QUOTE: "Scope & quote",
+          OTHER: "Other",
+        },
+      },
       substatuses: {
         backlog: "Backlog",
         waiting_client: "Waiting for client",
@@ -2690,6 +2748,35 @@ export const messages: Record<Locale, DeepRecord> = {
         assigned: "Atribuída",
         in_progress: "Em andamento",
         completed: "Finalizada",
+      },
+      enums: {
+        needFromTeam: {
+          QUOTE_SCOPE: "Escopo + Proposta",
+          QUOTE: "Proposta",
+          SCOPE: "Escopo",
+          PRESENTATION: "Apresentação",
+          OTHER: "Outro",
+        },
+        directness: {
+          DIRECT: "Direto",
+          PARTNER: "Parceiro",
+        },
+        integrationType: {
+          REST: "REST",
+          GRAPHQL: "GraphQL",
+          SDK: "SDK",
+          OTHER: "Outro",
+        },
+        integrationOwner: {
+          OWN: "Próprio",
+          THIRD_PARTY: "Terceiro",
+        },
+        deliverableType: {
+          SCOPE: "Escopo",
+          QUOTE: "Proposta",
+          SCOPE_AND_QUOTE: "Escopo + Proposta",
+          OTHER: "Outro",
+        },
       },
       substatuses: {
         backlog: "Backlog",
