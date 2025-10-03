@@ -26,6 +26,13 @@ import { fetchAllProposals } from "@/app/components/features/proposals/lib/propo
 import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { locales } from "@/lib/i18n/config";
+import {
+  MAPACHE_PORTAL_DEFAULT_SECTION,
+  MAPACHE_PORTAL_NAVIGATE_EVENT,
+  MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
+  type MapachePortalSection,
+  isMapachePortalSection,
+} from "@/app/mapache-portal/section-events";
 
 function isMapachePath(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -87,6 +94,33 @@ function TabBtn({
   );
 }
 
+function MapacheSectionBtn({
+  id,
+  label,
+  active,
+  onClick,
+}: {
+  id: MapachePortalSection;
+  label: string;
+  active: boolean;
+  onClick: (value: MapachePortalSection) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(id)}
+      className={`rounded-full px-4 py-1.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+        active
+          ? "bg-white text-[#1f2937] shadow-soft"
+          : "bg-transparent text-white/80 hover:bg-white/15"
+      }`}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
+  );
+}
+
 function initials(fullName: string) {
   const parts = fullName.split(" ").filter(Boolean);
   const i1 = parts[0]?.[0] ?? "";
@@ -108,6 +142,7 @@ export default function Navbar() {
   const languageT = useTranslations("common.language");
   const profileModalT = useTranslations("common.profileModal");
   const goalsMetricsT = useTranslations("goals.individual.metrics");
+  const mapacheSectionsT = useTranslations("navbar.mapachePortalSections");
 
   const handleLocaleChange = React.useCallback(
     (next: Locale) => {
@@ -151,6 +186,8 @@ export default function Navbar() {
 
   const [activeTab, setActiveTab] = React.useState<Tab>(readHash());
   const [userModal, setUserModal] = React.useState(false);
+  const [mapacheSection, setMapacheSection] =
+    React.useState<MapachePortalSection>(MAPACHE_PORTAL_DEFAULT_SECTION);
 
   React.useEffect(() => {
     const onHash = () => setActiveTab(readHash());
@@ -164,6 +201,35 @@ export default function Navbar() {
     };
   }, []);
 
+  React.useEffect(() => {
+    if (!isMapachePortal) return;
+
+    const handleSectionChanged = (event: Event) => {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (isMapachePortalSection(detail)) {
+        setMapacheSection(detail);
+      }
+    };
+
+    window.addEventListener(
+      MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
+      handleSectionChanged as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
+        handleSectionChanged as EventListener,
+      );
+    };
+  }, [isMapachePortal]);
+
+  React.useEffect(() => {
+    if (!isMapachePortal) {
+      setMapacheSection(MAPACHE_PORTAL_DEFAULT_SECTION);
+    }
+  }, [isMapachePortal]);
+
   function setTab(t: Tab) {
     setActiveTab(t);
     try {
@@ -171,6 +237,21 @@ export default function Navbar() {
     } catch {}
     window.dispatchEvent(new CustomEvent("app:setTab", { detail: t }));
   }
+
+  const handleMapacheSectionChange = React.useCallback(
+    (next: MapachePortalSection) => {
+      setMapacheSection(next);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent<MapachePortalSection>(
+            MAPACHE_PORTAL_NAVIGATE_EVENT,
+            { detail: next },
+          ),
+        );
+      }
+    },
+    [],
+  );
 
   // ---------- Estado para el modal de perfil/objetivo (estilo "editar") ----------
   // Año / trimestre seleccionables
@@ -284,9 +365,30 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* CENTRO: tabs (solo autenticado) */}
-        <div className={showTabs ? "flex-1 min-w-0 px-2" : "flex-1 min-w-0"}>
-          {showTabs ? (
+        {/* CENTRO: tabs / secciones Mapache */}
+        <div
+          className={`flex-1 min-w-0 ${
+            isMapachePortal || showTabs ? "px-2" : ""
+          }`}
+        >
+          {isMapachePortal ? (
+            <div className="flex items-center justify-center">
+              <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-1 py-1">
+                <MapacheSectionBtn
+                  id="tasks"
+                  label={mapacheSectionsT("tasks")}
+                  active={mapacheSection === "tasks"}
+                  onClick={handleMapacheSectionChange}
+                />
+                <MapacheSectionBtn
+                  id="metrics"
+                  label={mapacheSectionsT("metrics")}
+                  active={mapacheSection === "metrics"}
+                  onClick={handleMapacheSectionChange}
+                />
+              </div>
+            </div>
+          ) : showTabs ? (
             <div
               className="flex items-center gap-2 overflow-x-auto md:justify-center"
               role="tablist"
