@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import "../unit/setup-paths";
+
 import type { ApiSession } from "../../src/app/api/_utils/require-auth";
 import { createAuthGuards } from "../../src/app/api/_utils/require-auth";
 

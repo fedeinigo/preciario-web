@@ -79,6 +79,7 @@ export const messages: Record<Locale, DeepRecord> = {
     navbar: {
       logoAlt: "Wise CX",
       ariaLabel: "Principal",
+      tabsAriaLabel: "Pestañas de navegación",
       tabs: {
         generator: "Generador",
         history: "Histórico",
@@ -1270,6 +1271,7 @@ export const messages: Record<Locale, DeepRecord> = {
     navbar: {
       logoAlt: "Wise CX",
       ariaLabel: "Primary",
+      tabsAriaLabel: "Navigation tabs",
       tabs: {
         generator: "Generator",
         history: "History",
@@ -2457,6 +2459,7 @@ export const messages: Record<Locale, DeepRecord> = {
     navbar: {
       logoAlt: "Wise CX",
       ariaLabel: "Principal",
+      tabsAriaLabel: "Abas de navegação",
       tabs: {
         generator: "Gerador",
         history: "Histórico",

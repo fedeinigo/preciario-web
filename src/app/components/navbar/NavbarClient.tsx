@@ -68,7 +68,7 @@ function TabBtn({
   return (
     <button
       onClick={() => onClick(id)}
-      className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition
+      className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition whitespace-nowrap shrink-0
         ${
           active
             ? "bg-white text-[#1f2937] border-transparent"
@@ -250,56 +250,60 @@ export default function NavbarClient({ session }: NavbarClientProps) {
           />
         </div>
 
-        {showTabs ? (
-          <div className="hidden md:flex items-center gap-2">
-            <TabBtn
-              id="generator"
-              label={tabsT("generator")}
-              Icon={LayoutGrid}
-              active={activeTab === "generator"}
-              onClick={setTab}
-            />
-            <TabBtn
-              id="history"
-              label={tabsT("history")}
-              Icon={Clock}
-              active={activeTab === "history"}
-              onClick={setTab}
-            />
-            <TabBtn
-              id="stats"
-              label={tabsT("stats")}
-              Icon={BarChart2}
-              active={activeTab === "stats"}
-              onClick={setTab}
-            />
-            <TabBtn
-              id="goals"
-              label={tabsT("goals")}
-              Icon={Target}
-              active={activeTab === "goals"}
-              onClick={setTab}
-            />
-            <TabBtn
-              id="teams"
-              label={tabsT("teams")}
-              Icon={Users2}
-              active={activeTab === "teams"}
-              onClick={setTab}
-            />
-            {canSeeUsers && (
+        <div className={showTabs ? "flex-1 min-w-0 px-2" : "flex-1 min-w-0"}>
+          {showTabs ? (
+            <div
+              className="flex items-center gap-2 overflow-x-auto md:justify-center"
+              role="tablist"
+              aria-label={t("tabsAriaLabel")}
+            >
               <TabBtn
-                id="users"
-                label={tabsT("users")}
-                Icon={Users}
-                active={activeTab === "users"}
+                id="generator"
+                label={tabsT("generator")}
+                Icon={LayoutGrid}
+                active={activeTab === "generator"}
                 onClick={setTab}
               />
-            )}
-          </div>
-        ) : (
-          <div />
-        )}
+              <TabBtn
+                id="history"
+                label={tabsT("history")}
+                Icon={Clock}
+                active={activeTab === "history"}
+                onClick={setTab}
+              />
+              <TabBtn
+                id="stats"
+                label={tabsT("stats")}
+                Icon={BarChart2}
+                active={activeTab === "stats"}
+                onClick={setTab}
+              />
+              <TabBtn
+                id="goals"
+                label={tabsT("goals")}
+                Icon={Target}
+                active={activeTab === "goals"}
+                onClick={setTab}
+              />
+              <TabBtn
+                id="teams"
+                label={tabsT("teams")}
+                Icon={Users2}
+                active={activeTab === "teams"}
+                onClick={setTab}
+              />
+              {canSeeUsers && (
+                <TabBtn
+                  id="users"
+                  label={tabsT("users")}
+                  Icon={Users}
+                  active={activeTab === "users"}
+                  onClick={setTab}
+                />
+              )}
+            </div>
+          ) : null}
+        </div>
 
         <div className="flex items-center gap-2">
           {showAuthActions && (
