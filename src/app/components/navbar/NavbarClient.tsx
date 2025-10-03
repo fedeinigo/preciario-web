@@ -120,7 +120,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     [locale, router, setLocale]
   );
 
-  const isMapachePortal = pathname === "/mapache-portal";
+  const isMapachePortal = pathname?.startsWith("/mapache-portal") ?? false;
   const status = session ? "authenticated" : "unauthenticated";
   const showTabs = status === "authenticated" && !isMapachePortal;
   const showAuthActions = status === "authenticated";
