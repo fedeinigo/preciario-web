@@ -31,6 +31,7 @@ import { fetchAllProposals } from "@/app/components/features/proposals/lib/propo
 import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { locales } from "@/lib/i18n/config";
+import { isMapachePath } from "@/lib/routing";
 import {
   MAPACHE_PORTAL_DEFAULT_SECTION,
   MAPACHE_PORTAL_NAVIGATE_EVENT,
@@ -155,7 +156,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     [locale, router, setLocale]
   );
 
-  const isMapachePortal = pathname?.startsWith("/mapache-portal") ?? false;
+  const isMapachePortal = isMapachePath(pathname);
   const status = session ? "authenticated" : "unauthenticated";
   const showTabs = status === "authenticated" && !isMapachePortal;
   const showAuthActions = status === "authenticated";
