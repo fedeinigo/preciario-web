@@ -140,6 +140,19 @@ export const messages: Record<Locale, DeepRecord> = {
       filters: {
         mine: "Mis tareas",
         unassigned: "Sin Mapache asignado",
+        open: "Filtros avanzados",
+        title: "Filtros avanzados",
+        reset: "Limpiar filtros",
+        close: "Cerrar",
+        needFromTeam: "Necesidad del equipo",
+        directness: "Tipo de contacto",
+        integrationType: "Tipo de integración",
+        origin: "Origen de la señal",
+        assignee: "Mapache asignado",
+        noAssignees: "Todavía no hay asignaciones registradas.",
+        presentationDate: "Fecha de presentación",
+        from: "Desde",
+        to: "Hasta",
       },
       statusBadges: {
         unassigned: "Sin asignar",
@@ -168,6 +181,13 @@ export const messages: Record<Locale, DeepRecord> = {
         integrationOwner: {
           OWN: "Propia",
           THIRD_PARTY: "Tercero",
+        },
+        origin: {
+          GOOGLE_FORM: "Formulario",
+          GENERATOR: "Generador",
+          API: "API",
+          MANUAL: "Manual",
+          OTHER: "Otro",
         },
         deliverableType: {
           SCOPE: "Alcance",
@@ -218,6 +238,9 @@ export const messages: Record<Locale, DeepRecord> = {
       empty: {
         title: "No hay tareas para mostrar",
         description: "Usa el botón “Agregar tarea” para crear la primera.",
+        filteredTitle: "Ninguna tarea coincide con los filtros",
+        filteredDescription:
+          "Ajustá los filtros o restablécelos para ver más resultados.",
       },
       form: {
         title: "Nueva tarea",
@@ -1468,6 +1491,19 @@ export const messages: Record<Locale, DeepRecord> = {
       filters: {
         mine: "My tasks",
         unassigned: "Unassigned",
+        open: "Advanced filters",
+        title: "Advanced filters",
+        reset: "Clear filters",
+        close: "Close",
+        needFromTeam: "Team need",
+        directness: "Lead type",
+        integrationType: "Integration type",
+        origin: "Signal origin",
+        assignee: "Assigned to",
+        noAssignees: "No assignments available yet.",
+        presentationDate: "Presentation date",
+        from: "From",
+        to: "To",
       },
       statusBadges: {
         unassigned: "Unassigned",
@@ -1496,6 +1532,13 @@ export const messages: Record<Locale, DeepRecord> = {
         integrationOwner: {
           OWN: "In-house",
           THIRD_PARTY: "Third party",
+        },
+        origin: {
+          GOOGLE_FORM: "Google Form",
+          GENERATOR: "Generator",
+          API: "API",
+          MANUAL: "Manual",
+          OTHER: "Other",
         },
         deliverableType: {
           SCOPE: "Scope",
@@ -1546,6 +1589,9 @@ export const messages: Record<Locale, DeepRecord> = {
       empty: {
         title: "No tasks yet",
         description: "Use the “Add task” button to create the first one.",
+        filteredTitle: "No tasks match your filters",
+        filteredDescription:
+          "Adjust or clear the filters to see additional tasks.",
       },
       form: {
         title: "New task",
@@ -2792,6 +2838,19 @@ export const messages: Record<Locale, DeepRecord> = {
       filters: {
         mine: "Minhas tarefas",
         unassigned: "Sem Mapache atribuído",
+        open: "Filtros avançados",
+        title: "Filtros avançados",
+        reset: "Limpar filtros",
+        close: "Fechar",
+        needFromTeam: "Necessidade da equipe",
+        directness: "Tipo de lead",
+        integrationType: "Tipo de integração",
+        origin: "Origem do sinal",
+        assignee: "Mapache responsável",
+        noAssignees: "Ainda não há responsáveis disponíveis.",
+        presentationDate: "Data da apresentação",
+        from: "De",
+        to: "Até",
       },
       statusBadges: {
         unassigned: "Sem responsável",
@@ -2820,6 +2879,13 @@ export const messages: Record<Locale, DeepRecord> = {
         integrationOwner: {
           OWN: "Próprio",
           THIRD_PARTY: "Terceiro",
+        },
+        origin: {
+          GOOGLE_FORM: "Formulário",
+          GENERATOR: "Gerador",
+          API: "API",
+          MANUAL: "Manual",
+          OTHER: "Outro",
         },
         deliverableType: {
           SCOPE: "Escopo",
@@ -2870,6 +2936,9 @@ export const messages: Record<Locale, DeepRecord> = {
       empty: {
         title: "Nenhuma tarefa para exibir",
         description: "Use o botão “Adicionar tarefa” para criar a primeira.",
+        filteredTitle: "Nenhuma tarefa corresponde aos filtros",
+        filteredDescription:
+          "Ajuste ou limpe os filtros para ver mais resultados.",
       },
       form: {
         title: "Nova tarefa",
