@@ -399,6 +399,13 @@ function useTaskFormHandlers({
 
 function createFormStateFromTask(task: MapacheTask): FormState {
   const base = createDefaultFormState();
+  const assigneeEmail =
+    typeof task.assignee?.email === "string"
+      ? task.assignee.email.trim()
+      : "";
+  const assigneeIdFromTask =
+    typeof task.assigneeId === "string" ? task.assigneeId.trim() : null;
+  const assigneeIdentifier = assigneeEmail || assigneeIdFromTask;
   return {
     ...base,
     title: task.title,
@@ -411,7 +418,7 @@ function createFormStateFromTask(task: MapacheTask): FormState {
     productKey: task.productKey ?? "",
     needFromTeam: task.needFromTeam ?? base.needFromTeam,
     directness: task.directness ?? base.directness,
-    assigneeId: task.assigneeId,
+    assigneeId: assigneeIdentifier,
     presentationDate: task.presentationDate ?? "",
     interlocutorRole: task.interlocutorRole ?? "",
     clientWebsiteUrls: Array.isArray(task.clientWebsiteUrls)
@@ -462,6 +469,8 @@ function normalizeFormState(
   const trimmedDocsLengthApprox = state.docsLengthApprox.trim();
   const trimmedIntegrationName = state.integrationName.trim();
   const trimmedIntegrationDocsUrl = state.integrationDocsUrl.trim();
+  const trimmedAssigneeId =
+    typeof state.assigneeId === "string" ? state.assigneeId.trim() : "";
 
   let finalTitle = trimmedTitle;
   const fallbackParts: string[] = [];
@@ -599,6 +608,11 @@ function normalizeFormState(
 
   const hasErrors = Object.keys(errors).length > 0;
 
+  const normalizedAssigneeId =
+    trimmedAssigneeId && trimmedAssigneeId.length > 0
+      ? trimmedAssigneeId
+      : null;
+
   if (hasErrors) {
     return { payload: null, deliverables: normalizedDeliverables, errors };
   }
@@ -614,7 +628,7 @@ function normalizeFormState(
     productKey: trimmedProductKey,
     needFromTeam: state.needFromTeam,
     directness: state.directness,
-    assigneeId: state.assigneeId ?? null,
+    assigneeId: normalizedAssigneeId,
     presentationDate,
     interlocutorRole: trimmedInterlocutorRole || null,
     clientWebsiteUrls: normalizedWebsiteUrls,
@@ -634,7 +648,8 @@ function normalizeFormState(
 }
 
 function formatAssigneeOption(user: MapacheUser) {
-  return user.name ? `${user.name} (${user.email})` : user.email;
+  const name = user.name?.trim();
+  return name && name.length > 0 ? name : user.email;
 }
 
 export default function MapachePortalClient({
@@ -902,7 +917,17 @@ export default function MapachePortalClient({
     if (selectedTask.assignee?.email) {
       return selectedTask.assignee.email;
     }
-    const user = mapacheUsers.find((item) => item.id === selectedTask.assigneeId);
+    const assigneeIdentifier =
+      typeof selectedTask.assigneeId === "string"
+        ? selectedTask.assigneeId.trim()
+        : null;
+    const user = mapacheUsers.find((item) => {
+      if (!assigneeIdentifier) return false;
+      if (item.email.toLowerCase() === assigneeIdentifier.toLowerCase()) {
+        return true;
+      }
+      return item.id === assigneeIdentifier;
+    });
     return user ? formatAssigneeOption(user) : unspecifiedOptionLabel;
   }, [mapacheUsers, selectedTask, unspecifiedOptionLabel]);
 
@@ -1327,7 +1352,7 @@ export default function MapachePortalClient({
                     >
                       <option value="">Sin asignar</option>
                       {mapacheUsers.map((user) => (
-                        <option key={user.id} value={user.id}>
+                        <option key={user.email} value={user.email}>
                           {formatAssigneeOption(user)}
                         </option>
                       ))}
@@ -2051,7 +2076,7 @@ export default function MapachePortalClient({
                   >
                     <option value="">Sin asignar</option>
                     {mapacheUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
+                      <option key={user.email} value={user.email}>
                         {formatAssigneeOption(user)}
                       </option>
                     ))}
