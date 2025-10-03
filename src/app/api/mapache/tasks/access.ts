@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 
 import type { ApiSession } from "@/app/api/_utils/require-auth";
-import type { Prisma } from "@prisma/client";
 
 export const MAPACHE_TEAM = "Mapaches" as const;
 export const VALID_STATUSES = ["PENDING", "IN_PROGRESS", "DONE"] as const;
@@ -42,7 +41,19 @@ export const taskSelect = {
   title: true,
   description: true,
   status: true,
+  substatus: true,
+  assigneeId: true,
   createdAt: true,
   updatedAt: true,
   createdById: true,
-} satisfies Prisma.MapacheTaskSelect;
+  deliverables: {
+    select: {
+      id: true,
+      type: true,
+      title: true,
+      url: true,
+      addedById: true,
+      createdAt: true,
+    },
+  },
+} as const;
