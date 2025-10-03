@@ -100,6 +100,8 @@ function getDateInputValue(value: string | null | undefined): string {
 
 type MapachePortalClientProps = {
   initialTasks: MapacheTask[];
+  heading?: React.ReactNode;
+  subheading?: React.ReactNode;
 };
 
 type TaskFilter = "all" | "mine" | "unassigned" | MapacheTaskStatus;
@@ -1060,6 +1062,8 @@ function createAssignmentSequence(
 
 export default function MapachePortalClient({
   initialTasks,
+  heading,
+  subheading,
 }: MapachePortalClientProps) {
   const { data: session } = useSession();
   const t = useTranslations("mapachePortal");
@@ -3017,12 +3021,17 @@ function TaskMetaChip({
       </div>
     );
 
+  const headerTitle = heading ?? t("title");
+  const headerSubtitle = subheading ?? t("subtitle");
+
   return (
     <section className="flex flex-col gap-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-white">{t("title")}</h1>
-          <p className="mt-1 text-sm text-white/70">{t("subtitle")}</p>
+          <h1 className="text-2xl font-semibold text-white">{headerTitle}</h1>
+          {headerSubtitle ? (
+            <p className="mt-1 text-sm text-white/70">{headerSubtitle}</p>
+          ) : null}
         </div>
         <div className="flex gap-2">
           <button
