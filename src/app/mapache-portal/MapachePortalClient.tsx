@@ -218,8 +218,6 @@ const SUBSTATUS_BADGE_CLASSNAME =
   "border-white/10 bg-white/5 text-white/60 backdrop-blur-sm";
 
 type StatusBadgeKey = keyof typeof STATUS_BADGE_CLASSNAMES;
-type DeliverableTypeKey = "scope" | "quote" | "scope_and_quote" | "other";
-
 function getStatusLabelKey(status: MapacheTaskStatus) {
   return STATUS_LABEL_KEYS[status];
 }
@@ -248,20 +246,6 @@ function getSubstatusKey(
     case "BACKLOG":
     default:
       return "backlog";
-  }
-}
-
-function getDeliverableTypeKey(type: MapacheDeliverableType): DeliverableTypeKey {
-  switch (type) {
-    case "SCOPE":
-      return "scope";
-    case "QUOTE":
-      return "quote";
-    case "SCOPE_AND_QUOTE":
-      return "scope_and_quote";
-    case "OTHER":
-    default:
-      return "other";
   }
 }
 
@@ -660,12 +644,51 @@ export default function MapachePortalClient({
   const statusBadgeT = useTranslations("mapachePortal.statusBadges");
   const substatusT = useTranslations("mapachePortal.substatuses");
   const deliverablesT = useTranslations("mapachePortal.deliverables");
-  const deliverableTypesT = useTranslations("mapachePortal.deliverables.types");
   const formT = useTranslations("mapachePortal.form");
   const toastT = useTranslations("mapachePortal.toast");
   const validationT = useTranslations("mapachePortal.validation");
   const emptyT = useTranslations("mapachePortal.empty");
   const actionsT = useTranslations("mapachePortal.actions");
+  const needFromTeamTranslations = useTranslations(
+    "mapachePortal.enums.needFromTeam",
+  );
+  const directnessTranslations = useTranslations(
+    "mapachePortal.enums.directness",
+  );
+  const integrationTypeTranslations = useTranslations(
+    "mapachePortal.enums.integrationType",
+  );
+  const integrationOwnerTranslations = useTranslations(
+    "mapachePortal.enums.integrationOwner",
+  );
+  const deliverableTypeTranslations = useTranslations(
+    "mapachePortal.enums.deliverableType",
+  );
+
+  const needFromTeamT = React.useCallback(
+    (value: MapacheNeedFromTeam) => needFromTeamTranslations(value),
+    [needFromTeamTranslations],
+  );
+
+  const directnessT = React.useCallback(
+    (value: MapacheDirectness) => directnessTranslations(value),
+    [directnessTranslations],
+  );
+
+  const integrationTypeT = React.useCallback(
+    (value: MapacheIntegrationType) => integrationTypeTranslations(value),
+    [integrationTypeTranslations],
+  );
+
+  const integrationOwnerT = React.useCallback(
+    (value: MapacheIntegrationOwner) => integrationOwnerTranslations(value),
+    [integrationOwnerTranslations],
+  );
+
+  const deliverableTypeT = React.useCallback(
+    (value: MapacheDeliverableType) => deliverableTypeTranslations(value),
+    [deliverableTypeTranslations],
+  );
 
   const [tasks, setTasks] = React.useState<MapacheTask[]>(() =>
     Array.isArray(initialTasks) ? initialTasks : [],
@@ -1314,7 +1337,7 @@ export default function MapachePortalClient({
                     >
                       {NEED_OPTIONS.map((option) => (
                         <option key={option} value={option}>
-                          {option}
+                          {needFromTeamT(option)}
                         </option>
                       ))}
                     </select>
@@ -1333,7 +1356,7 @@ export default function MapachePortalClient({
                     >
                       {DIRECTNESS_OPTIONS.map((option) => (
                         <option key={option} value={option}>
-                          {option}
+                          {directnessT(option)}
                         </option>
                       ))}
                     </select>
@@ -1581,7 +1604,9 @@ export default function MapachePortalClient({
                     >
                       {INTEGRATION_TYPES.map((option) => (
                         <option key={option || "none"} value={option}>
-                          {option || unspecifiedOptionLabel}
+                          {option
+                            ? integrationTypeT(option)
+                            : unspecifiedOptionLabel}
                         </option>
                       ))}
                     </select>
@@ -1600,7 +1625,9 @@ export default function MapachePortalClient({
                     >
                       {INTEGRATION_OWNERS.map((option) => (
                         <option key={option || "none"} value={option}>
-                          {option || unspecifiedOptionLabel}
+                          {option
+                            ? integrationOwnerT(option)
+                            : unspecifiedOptionLabel}
                         </option>
                       ))}
                     </select>
@@ -1669,7 +1696,7 @@ export default function MapachePortalClient({
                             >
                               {DELIVERABLE_TYPES.map((option) => (
                                 <option key={option} value={option}>
-                                  {option}
+                                  {deliverableTypeT(option)}
                                 </option>
                               ))}
                             </select>
@@ -1869,7 +1896,7 @@ export default function MapachePortalClient({
                         >
                           <div className="flex min-w-0 flex-1 flex-col gap-1">
                             <span className="inline-flex w-fit items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/60">
-                              {deliverableTypesT(getDeliverableTypeKey(deliverable.type))}
+                              {deliverableTypeT(deliverable.type)}
                             </span>
                             <p className="truncate text-sm text-white/80" title={deliverable.title}>
                               {deliverable.title}
@@ -2000,10 +2027,14 @@ export default function MapachePortalClient({
                   <dt className="font-semibold text-white/80">Origen</dt>
                   <dd>{selectedTask.origin}</dd>
                 </div>
-                <div className="flex flex-col">
-                  <dt className="font-semibold text-white/80">Canal</dt>
-                  <dd>{selectedTask.directness ?? selectedTaskFormState.directness}</dd>
-                </div>
+                  <div className="flex flex-col">
+                    <dt className="font-semibold text-white/80">Canal</dt>
+                    <dd>
+                      {selectedTask.directness
+                        ? directnessT(selectedTask.directness)
+                        : directnessT(selectedTaskFormState.directness)}
+                    </dd>
+                  </div>
                 <div className="flex flex-col">
                   <dt className="font-semibold text-white/80">Asignado a</dt>
                   <dd>{selectedTaskAssigneeLabel}</dd>
@@ -2132,14 +2163,14 @@ export default function MapachePortalClient({
                     }
                     className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
                   >
-                    {NEED_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
+                      {NEED_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {needFromTeamT(option)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
                   <span className="text-white/80">Canal</span>
                   <select
                     value={selectedTaskFormState.directness}
@@ -2151,13 +2182,13 @@ export default function MapachePortalClient({
                     }
                     className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
                   >
-                    {DIRECTNESS_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                      {DIRECTNESS_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {directnessT(option)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
               </div>
               <label className="flex flex-col gap-1 text-sm">
                 <span className="text-white/80">Pipedrive Deal URL</span>
@@ -2233,12 +2264,10 @@ export default function MapachePortalClient({
                       key={deliverable.id}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
                     >
-                      <div className="flex flex-col">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-white/60">
-                          {deliverableTypesT(
-                            getDeliverableTypeKey(deliverable.type),
-                          )}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-white/60">
+                            {deliverableTypeT(deliverable.type)}
+                          </span>
                         <span className="text-sm text-white/80">
                           {deliverable.title}
                         </span>
