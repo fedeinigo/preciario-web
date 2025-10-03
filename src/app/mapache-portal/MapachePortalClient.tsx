@@ -695,12 +695,11 @@ export default function MapachePortalClient({
       deliverables: prev.deliverables.filter((_, idx) => idx !== index),
     }));
     setFormErrors((prev) => {
-      if (!prev.deliverables) return prev;
-      const nextDeliverables = prev.deliverables.filter((_, idx) => idx !== index);
+      const { deliverables, ...rest } = prev;
+      if (!deliverables) return prev;
+      const nextDeliverables = deliverables.filter((_, idx) => idx !== index);
       if (nextDeliverables.length === 0) {
-        const nextErrors: FormErrors = { ...prev };
-        delete nextErrors.deliverables;
-        return nextErrors;
+        return rest;
       }
       return {
         ...prev,
