@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Settings, Wand2 } from "lucide-react";
+import { Filter, Settings, Wand2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 import Modal from "@/app/components/ui/Modal";
@@ -26,6 +26,7 @@ import {
   MAPACHE_INTEGRATION_OWNERS,
   MAPACHE_INTEGRATION_TYPES,
   MAPACHE_NEEDS_FROM_TEAM,
+  MAPACHE_SIGNAL_ORIGINS,
   MAPACHE_TASK_STATUSES,
   normalizeMapacheTask,
 } from "./types";
@@ -33,6 +34,9 @@ import {
 const STATUS_ORDER: MapacheTaskStatus[] = [...MAPACHE_TASK_STATUSES];
 const NEED_OPTIONS: MapacheNeedFromTeam[] = [...MAPACHE_NEEDS_FROM_TEAM];
 const DIRECTNESS_OPTIONS: MapacheDirectness[] = [...MAPACHE_DIRECTNESS];
+const INTEGRATION_TYPE_OPTIONS: MapacheIntegrationType[] = [
+  ...MAPACHE_INTEGRATION_TYPES,
+];
 const INTEGRATION_TYPES: (MapacheIntegrationType | "")[] = [
   "",
   ...MAPACHE_INTEGRATION_TYPES,
@@ -42,6 +46,7 @@ const INTEGRATION_OWNERS: (MapacheIntegrationOwner | "")[] = [
   ...MAPACHE_INTEGRATION_OWNERS,
 ];
 const DELIVERABLE_TYPES: MapacheDeliverableType[] = [...MAPACHE_DELIVERABLE_TYPES];
+const ORIGIN_OPTIONS: MapacheSignalOrigin[] = [...MAPACHE_SIGNAL_ORIGINS];
 
 const EMAIL_REGEX = /.+@.+\..+/i;
 
@@ -122,6 +127,20 @@ type FormErrors = Partial<Record<FieldErrorKey, string>> & {
 };
 
 type StepFieldKey = FieldErrorKey | "deliverables";
+
+type PresentationDateFilter = {
+  from: string | null;
+  to: string | null;
+};
+
+type AdvancedFiltersState = {
+  needFromTeam: MapacheNeedFromTeam[];
+  directness: MapacheDirectness[];
+  integrationTypes: MapacheIntegrationType[];
+  origins: MapacheSignalOrigin[];
+  assignees: string[];
+  presentationDate: PresentationDateFilter;
+};
 
 const FORM_STEP_LABELS = [
   "Datos generales",
@@ -212,7 +231,10 @@ type AssignmentRatios = Record<string, number>;
 
 type AssignmentWeight = { userId: string; weight: number };
 
+const FILTERS_STORAGE_KEY = "mapache_portal_filters";
 const ASSIGNMENT_STORAGE_KEY = "mapache_assignment_ratios";
+
+const DATE_INPUT_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 const STATUS_LABEL_KEYS: Record<
   MapacheTaskStatus,
@@ -254,6 +276,122 @@ function getStatusBadgeKey(task: MapacheTask): StatusBadgeKey {
   }
 
   return "completed";
+}
+
+function createDefaultFiltersState(): AdvancedFiltersState {
+  return {
+    needFromTeam: [],
+    directness: [],
+    integrationTypes: [],
+    origins: [],
+    assignees: [],
+    presentationDate: { from: null, to: null },
+  };
+}
+
+function toggleStringValue<T extends string>(
+  values: readonly T[],
+  value: T,
+): T[] {
+  return values.includes(value)
+    ? values.filter((item) => item !== value)
+    : [...values, value];
+}
+
+function parseEnumArray<const T extends readonly string[]>(
+  value: unknown,
+  allowed: T,
+): T[number][] {
+  if (!Array.isArray(value)) return [];
+  const allowedSet = new Set(allowed);
+  const selected = new Set<T[number]>();
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    if (allowedSet.has(item as T[number])) {
+      selected.add(item as T[number]);
+    }
+  }
+  if (selected.size === 0) return [];
+  return allowed.filter((option) => selected.has(option)) as T[number][];
+}
+
+function parseAssigneeArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const trimmed = item.trim();
+    if (!trimmed) continue;
+    seen.add(trimmed);
+  }
+  return Array.from(seen);
+}
+
+function parsePresentationDate(value: unknown): PresentationDateFilter {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return { from: null, to: null };
+  }
+  const record = value as Record<string, unknown>;
+  const from =
+    typeof record.from === "string" && DATE_INPUT_REGEX.test(record.from)
+      ? record.from
+      : null;
+  const to =
+    typeof record.to === "string" && DATE_INPUT_REGEX.test(record.to)
+      ? record.to
+      : null;
+  return { from, to };
+}
+
+function parseStoredFilters(value: unknown): AdvancedFiltersState {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return createDefaultFiltersState();
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return {
+    needFromTeam: parseEnumArray(record.needFromTeam, MAPACHE_NEEDS_FROM_TEAM),
+    directness: parseEnumArray(record.directness, MAPACHE_DIRECTNESS),
+    integrationTypes: parseEnumArray(
+      record.integrationTypes,
+      MAPACHE_INTEGRATION_TYPES,
+    ),
+    origins: parseEnumArray(record.origins, MAPACHE_SIGNAL_ORIGINS),
+    assignees: parseAssigneeArray(record.assignees),
+    presentationDate: parsePresentationDate(record.presentationDate),
+  };
+}
+
+function getTaskAssigneeId(task: MapacheTask): string | null {
+  if (typeof task.assigneeId === "string") {
+    const trimmed = task.assigneeId.trim();
+    return trimmed ? trimmed : null;
+  }
+  return null;
+}
+
+function getTaskAssigneeEmail(task: MapacheTask): string | null {
+  const email = task.assignee?.email;
+  if (typeof email === "string") {
+    const trimmed = email.trim().toLowerCase();
+    return trimmed ? trimmed : null;
+  }
+  return null;
+}
+
+function formatTaskAssigneeLabel(task: MapacheTask): string {
+  const name = task.assignee?.name;
+  if (typeof name === "string") {
+    const trimmed = name.trim();
+    if (trimmed) return trimmed;
+  }
+  const email = task.assignee?.email;
+  if (typeof email === "string") {
+    const trimmed = email.trim();
+    if (trimmed) return trimmed;
+  }
+  return getTaskAssigneeId(task) ?? "";
 }
 
 function getSubstatusKey(
@@ -837,6 +975,7 @@ export default function MapachePortalClient({
   const integrationOwnerTranslations = useTranslations(
     "mapachePortal.enums.integrationOwner",
   );
+  const originTranslations = useTranslations("mapachePortal.enums.origin");
   const deliverableTypeTranslations = useTranslations(
     "mapachePortal.enums.deliverableType",
   );
@@ -861,6 +1000,11 @@ export default function MapachePortalClient({
     [integrationOwnerTranslations],
   );
 
+  const originT = React.useCallback(
+    (value: MapacheSignalOrigin) => originTranslations(value),
+    [originTranslations],
+  );
+
   const deliverableTypeT = React.useCallback(
     (value: MapacheDeliverableType) => deliverableTypeTranslations(value),
     [deliverableTypeTranslations],
@@ -870,6 +1014,11 @@ export default function MapachePortalClient({
     Array.isArray(initialTasks) ? initialTasks : [],
   );
   const [activeFilter, setActiveFilter] = React.useState<TaskFilter>("all");
+  const [showFiltersPanel, setShowFiltersPanel] = React.useState(false);
+  const [advancedFilters, setAdvancedFilters] = React.useState<AdvancedFiltersState>(
+    () => createDefaultFiltersState(),
+  );
+  const [filtersHydrated, setFiltersHydrated] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [fetchError, setFetchError] = React.useState<string | null>(null);
 
@@ -989,6 +1138,35 @@ export default function MapachePortalClient({
     },
     [toastT],
   );
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(FILTERS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as unknown;
+        const next = parseStoredFilters(parsed);
+        setAdvancedFilters(next);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setFiltersHydrated(true);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!filtersHydrated) return;
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        FILTERS_STORAGE_KEY,
+        JSON.stringify(advancedFilters),
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  }, [advancedFilters, filtersHydrated]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1122,27 +1300,21 @@ export default function MapachePortalClient({
     };
   }, [assigneesErrorMessage]);
 
-  const filteredTasks = React.useMemo(() => {
+  const baseFilteredTasks = React.useMemo(() => {
     if (activeFilter === "all") return tasks;
     if (activeFilter === "unassigned") {
-      return tasks.filter((task) => !task.assigneeId);
+      return tasks.filter((task) => !getTaskAssigneeId(task));
     }
     if (activeFilter === "mine") {
       if (!currentUserId && !currentUserEmail) {
         return [];
       }
       return tasks.filter((task) => {
-        const assigneeId =
-          typeof task.assigneeId === "string" && task.assigneeId.trim()
-            ? task.assigneeId.trim()
-            : null;
+        const assigneeId = getTaskAssigneeId(task);
         if (assigneeId && currentUserId && assigneeId === currentUserId) {
           return true;
         }
-        const assigneeEmail =
-          typeof task.assignee?.email === "string"
-            ? task.assignee.email.trim().toLowerCase()
-            : null;
+        const assigneeEmail = getTaskAssigneeEmail(task);
         if (assigneeEmail && currentUserEmail && assigneeEmail === currentUserEmail) {
           return true;
         }
@@ -1150,12 +1322,111 @@ export default function MapachePortalClient({
       });
     }
     return tasks.filter((task) => task.status === activeFilter);
-  }, [
-    activeFilter,
-    currentUserEmail,
-    currentUserId,
-    tasks,
-  ]);
+  }, [activeFilter, currentUserEmail, currentUserId, tasks]);
+
+  const normalizedAdvancedFilters = React.useMemo(() => {
+    const needSet = new Set<MapacheNeedFromTeam>(advancedFilters.needFromTeam);
+    const directnessSet = new Set<MapacheDirectness>(advancedFilters.directness);
+    const integrationTypeSet = new Set<MapacheIntegrationType>(
+      advancedFilters.integrationTypes,
+    );
+    const originSet = new Set<MapacheSignalOrigin>(advancedFilters.origins);
+    const assigneeIds = advancedFilters.assignees
+      .map((id) => id.trim())
+      .filter((id) => id);
+    const assigneeSet = new Set<string>(assigneeIds);
+    const fromDate =
+      typeof advancedFilters.presentationDate.from === "string" &&
+      DATE_INPUT_REGEX.test(advancedFilters.presentationDate.from)
+        ? advancedFilters.presentationDate.from
+        : null;
+    const toDate =
+      typeof advancedFilters.presentationDate.to === "string" &&
+      DATE_INPUT_REGEX.test(advancedFilters.presentationDate.to)
+        ? advancedFilters.presentationDate.to
+        : null;
+    const hasAny =
+      needSet.size > 0 ||
+      directnessSet.size > 0 ||
+      integrationTypeSet.size > 0 ||
+      originSet.size > 0 ||
+      assigneeSet.size > 0 ||
+      Boolean(fromDate) ||
+      Boolean(toDate);
+    const activeCount =
+      needSet.size +
+      directnessSet.size +
+      integrationTypeSet.size +
+      originSet.size +
+      assigneeSet.size +
+      (fromDate ? 1 : 0) +
+      (toDate ? 1 : 0);
+
+    return {
+      needSet,
+      directnessSet,
+      integrationTypeSet,
+      originSet,
+      assigneeSet,
+      fromDate,
+      toDate,
+      hasAny,
+      activeCount,
+    } as const;
+  }, [advancedFilters]);
+
+  const filteredTasks = React.useMemo(() => {
+    if (!normalizedAdvancedFilters.hasAny) return baseFilteredTasks;
+
+    const {
+      needSet,
+      directnessSet,
+      integrationTypeSet,
+      originSet,
+      assigneeSet,
+      fromDate,
+      toDate,
+    } = normalizedAdvancedFilters;
+
+    return baseFilteredTasks.filter((task) => {
+      if (needSet.size > 0) {
+        if (!task.needFromTeam || !needSet.has(task.needFromTeam)) return false;
+      }
+
+      if (directnessSet.size > 0) {
+        if (!task.directness || !directnessSet.has(task.directness)) return false;
+      }
+
+      if (integrationTypeSet.size > 0) {
+        if (!task.integrationType || !integrationTypeSet.has(task.integrationType)) {
+          return false;
+        }
+      }
+
+      if (originSet.size > 0 && !originSet.has(task.origin)) {
+        return false;
+      }
+
+      if (assigneeSet.size > 0) {
+        const assigneeId = getTaskAssigneeId(task);
+        if (!assigneeId || !assigneeSet.has(assigneeId)) return false;
+      }
+
+      if (fromDate || toDate) {
+        const taskDate = getDateInputValue(task.presentationDate);
+        if (fromDate && (!taskDate || taskDate < fromDate)) return false;
+        if (toDate && (!taskDate || taskDate > toDate)) return false;
+      }
+
+      return true;
+    });
+  }, [baseFilteredTasks, normalizedAdvancedFilters]);
+
+  const hasActiveAdvancedFilters = normalizedAdvancedFilters.hasAny;
+  const advancedFiltersCount = normalizedAdvancedFilters.activeCount;
+  const hasActiveQuickFilter = activeFilter !== "all";
+  const showFilteredEmptyMessage =
+    hasActiveQuickFilter || hasActiveAdvancedFilters;
 
   const filterOptions = React.useMemo(
     () =>
@@ -1174,6 +1445,26 @@ export default function MapachePortalClient({
     [filtersT, statusT],
   );
 
+  const assigneeOptions = React.useMemo(() => {
+    const entries = new Map<string, string>();
+
+    mapacheUsers.forEach((user) => {
+      entries.set(user.id, formatAssigneeOption(user));
+    });
+
+    tasks.forEach((task) => {
+      const assigneeId = getTaskAssigneeId(task);
+      if (!assigneeId) return;
+      if (entries.has(assigneeId)) return;
+      const label = formatTaskAssigneeLabel(task) || assigneeId;
+      entries.set(assigneeId, label);
+    });
+
+    return Array.from(entries.entries())
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "es", { sensitivity: "base" }));
+  }, [mapacheUsers, tasks]);
+
   const assignmentDraftTotal = React.useMemo(() => {
     return mapacheUsers.reduce((sum, user) => {
       const raw = assignmentDraft[user.id];
@@ -1182,6 +1473,84 @@ export default function MapachePortalClient({
       return sum + parsed;
     }, 0);
   }, [assignmentDraft, mapacheUsers]);
+
+  const handleOpenFiltersPanel = React.useCallback(() => {
+    setShowFiltersPanel(true);
+  }, []);
+
+  const handleCloseFiltersPanel = React.useCallback(() => {
+    setShowFiltersPanel(false);
+  }, []);
+
+  const handleToggleNeedFromTeam = React.useCallback(
+    (value: MapacheNeedFromTeam) => {
+      setAdvancedFilters((prev) => ({
+        ...prev,
+        needFromTeam: toggleStringValue(prev.needFromTeam, value),
+      }));
+    },
+    [],
+  );
+
+  const handleToggleDirectness = React.useCallback(
+    (value: MapacheDirectness) => {
+      setAdvancedFilters((prev) => ({
+        ...prev,
+        directness: toggleStringValue(prev.directness, value),
+      }));
+    },
+    [],
+  );
+
+  const handleToggleIntegrationType = React.useCallback(
+    (value: MapacheIntegrationType) => {
+      setAdvancedFilters((prev) => ({
+        ...prev,
+        integrationTypes: toggleStringValue(prev.integrationTypes, value),
+      }));
+    },
+    [],
+  );
+
+  const handleToggleOrigin = React.useCallback(
+    (value: MapacheSignalOrigin) => {
+      setAdvancedFilters((prev) => ({
+        ...prev,
+        origins: toggleStringValue(prev.origins, value),
+      }));
+    },
+    [],
+  );
+
+  const handleToggleAssignee = React.useCallback((id: string) => {
+    const trimmed = id.trim();
+    if (!trimmed) return;
+    setAdvancedFilters((prev) => ({
+      ...prev,
+      assignees: toggleStringValue(prev.assignees, trimmed),
+    }));
+  }, []);
+
+  const handlePresentationDateChange = React.useCallback(
+    (key: keyof PresentationDateFilter, value: string) => {
+      const normalized =
+        typeof value === "string" && DATE_INPUT_REGEX.test(value)
+          ? value
+          : null;
+      setAdvancedFilters((prev) => ({
+        ...prev,
+        presentationDate: {
+          ...prev.presentationDate,
+          [key]: normalized,
+        },
+      }));
+    },
+    [],
+  );
+
+  const handleResetFilters = React.useCallback(() => {
+    setAdvancedFilters(createDefaultFiltersState());
+  }, []);
 
   const handleOpenAssignmentModal = React.useCallback(() => {
     const hasConfiguredRatios = Object.values(assignmentRatios).some(
@@ -1871,6 +2240,197 @@ export default function MapachePortalClient({
       </Modal>
 
       <Modal
+        open={showFiltersPanel}
+        onClose={handleCloseFiltersPanel}
+        variant="inverted"
+        title={filtersT("title")}
+        panelClassName="w-full max-w-3xl"
+        footer={
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="inline-flex items-center justify-center rounded-md border border-white/30 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            >
+              {filtersT("reset")}
+            </button>
+            <button
+              type="button"
+              onClick={handleCloseFiltersPanel}
+              className="inline-flex items-center justify-center rounded-md bg-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            >
+              {filtersT("close")}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-6 text-white">
+          <section className="space-y-3">
+            <header className="text-sm font-semibold uppercase tracking-wide text-white/60">
+              {filtersT("needFromTeam")}
+            </header>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {NEED_OPTIONS.map((option) => {
+                const checked = advancedFilters.needFromTeam.includes(option);
+                return (
+                  <label
+                    key={option}
+                    className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => handleToggleNeedFromTeam(option)}
+                      className="h-4 w-4 rounded border-white/30 bg-black/30 text-[rgb(var(--primary))] focus:ring-[rgb(var(--primary))]"
+                    />
+                    <span>{needFromTeamT(option)}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <header className="text-sm font-semibold uppercase tracking-wide text-white/60">
+              {filtersT("directness")}
+            </header>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {DIRECTNESS_OPTIONS.map((option) => {
+                const checked = advancedFilters.directness.includes(option);
+                return (
+                  <label
+                    key={option}
+                    className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => handleToggleDirectness(option)}
+                      className="h-4 w-4 rounded border-white/30 bg-black/30 text-[rgb(var(--primary))] focus:ring-[rgb(var(--primary))]"
+                    />
+                    <span>{directnessT(option)}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <header className="text-sm font-semibold uppercase tracking-wide text-white/60">
+              {filtersT("integrationType")}
+            </header>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {INTEGRATION_TYPE_OPTIONS.map((option) => {
+                const checked = advancedFilters.integrationTypes.includes(option);
+                return (
+                  <label
+                    key={option}
+                    className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => handleToggleIntegrationType(option)}
+                      className="h-4 w-4 rounded border-white/30 bg-black/30 text-[rgb(var(--primary))] focus:ring-[rgb(var(--primary))]"
+                    />
+                    <span>{integrationTypeT(option)}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <header className="text-sm font-semibold uppercase tracking-wide text-white/60">
+              {filtersT("origin")}
+            </header>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {ORIGIN_OPTIONS.map((option) => {
+                const checked = advancedFilters.origins.includes(option);
+                return (
+                  <label
+                    key={option}
+                    className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => handleToggleOrigin(option)}
+                      className="h-4 w-4 rounded border-white/30 bg-black/30 text-[rgb(var(--primary))] focus:ring-[rgb(var(--primary))]"
+                    />
+                    <span>{originT(option)}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <header className="text-sm font-semibold uppercase tracking-wide text-white/60">
+              {filtersT("assignee")}
+            </header>
+            {assigneeOptions.length === 0 ? (
+              <p className="text-sm text-white/60">{filtersT("noAssignees")}</p>
+            ) : (
+              <div className="grid max-h-60 gap-2 overflow-y-auto rounded-md border border-white/10 bg-white/5 p-3">
+                {assigneeOptions.map((option) => {
+                  const checked = advancedFilters.assignees.includes(option.id);
+                  return (
+                    <label
+                      key={option.id}
+                      className="flex items-center gap-2 rounded-md border border-white/5 bg-black/20 px-3 py-2 text-sm text-white/80"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => handleToggleAssignee(option.id)}
+                        className="h-4 w-4 rounded border-white/30 bg-black/30 text-[rgb(var(--primary))] focus:ring-[rgb(var(--primary))]"
+                      />
+                      <span className="truncate">{option.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-3">
+            <header className="text-sm font-semibold uppercase tracking-wide text-white/60">
+              {filtersT("presentationDate")}
+            </header>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-2 text-sm text-white/80">
+                <span className="text-xs uppercase tracking-wide text-white/50">
+                  {filtersT("from")}
+                </span>
+                <input
+                  type="date"
+                  value={advancedFilters.presentationDate.from ?? ""}
+                  onChange={(event) =>
+                    handlePresentationDateChange("from", event.target.value)
+                  }
+                  className="rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm text-white/80">
+                <span className="text-xs uppercase tracking-wide text-white/50">
+                  {filtersT("to")}
+                </span>
+                <input
+                  type="date"
+                  value={advancedFilters.presentationDate.to ?? ""}
+                  onChange={(event) =>
+                    handlePresentationDateChange("to", event.target.value)
+                  }
+                  className="rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                />
+              </label>
+            </div>
+          </section>
+        </div>
+      </Modal>
+
+      <Modal
         open={showForm}
         onClose={handleCloseForm}
         variant="inverted"
@@ -2432,6 +2992,23 @@ export default function MapachePortalClient({
 
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleOpenFiltersPanel}
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-1 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+              hasActiveAdvancedFilters
+                ? "border-[rgb(var(--primary))] bg-[rgb(var(--primary))]/20 text-white"
+                : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
+            }`}
+          >
+            <Filter className="h-4 w-4" aria-hidden="true" />
+            <span>{filtersT("open")}</span>
+            {advancedFiltersCount > 0 ? (
+              <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[rgb(var(--primary))] px-2 text-xs font-semibold text-white">
+                {advancedFiltersCount}
+              </span>
+            ) : null}
+          </button>
           {filterOptions.map((option) => {
             const isActive = activeFilter === option.value;
             return (
@@ -2473,8 +3050,14 @@ export default function MapachePortalClient({
 
       {!loading && filteredTasks.length === 0 && (
         <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-6 text-center text-sm text-white/70">
-          <p className="font-medium text-white">{emptyT("title")}</p>
-          <p className="mt-1 text-white/70">{emptyT("description")}</p>
+          <p className="font-medium text-white">
+            {showFilteredEmptyMessage ? emptyT("filteredTitle") : emptyT("title")}
+          </p>
+          <p className="mt-1 text-white/70">
+            {showFilteredEmptyMessage
+              ? emptyT("filteredDescription")
+              : emptyT("description")}
+          </p>
         </div>
       )}
 
