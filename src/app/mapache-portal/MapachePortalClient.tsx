@@ -36,6 +36,12 @@ import {
   MAPACHE_TASK_STATUSES,
   normalizeMapacheTask,
 } from "./types";
+import MapachePortalInsights, {
+  type MapachePortalInsightsMetrics,
+  type MapachePortalInsightsScope,
+  type MapachePortalInsightsWorkloadEntry,
+  type NeedMetricKey,
+} from "./MapachePortalInsights";
 
 const STATUS_ORDER: MapacheTaskStatus[] = [...MAPACHE_TASK_STATUSES];
 const NEED_OPTIONS: MapacheNeedFromTeam[] = [...MAPACHE_NEEDS_FROM_TEAM];
@@ -53,6 +59,8 @@ const INTEGRATION_OWNERS: (MapacheIntegrationOwner | "")[] = [
 ];
 const DELIVERABLE_TYPES: MapacheDeliverableType[] = [...MAPACHE_DELIVERABLE_TYPES];
 const ORIGIN_OPTIONS: MapacheSignalOrigin[] = [...MAPACHE_SIGNAL_ORIGINS];
+const NEED_METRIC_KEYS: NeedMetricKey[] = [...NEED_OPTIONS, "NONE"];
+const MS_IN_DAY = 86_400_000;
 
 const EMAIL_REGEX = /.+@.+\..+/i;
 const VIEW_MODE_STORAGE_KEY = "mapache_portal_view_mode";
@@ -1032,6 +1040,8 @@ export default function MapachePortalClient({
     "lista",
   );
   const [viewModeHydrated, setViewModeHydrated] = React.useState(false);
+  const [insightsScope, setInsightsScope] =
+    React.useState<MapachePortalInsightsScope>("filtered");
 
   const [assignmentRatios, setAssignmentRatios] = React.useState<AssignmentRatios>({});
   const [ratiosLoaded, setRatiosLoaded] = React.useState(false);
@@ -1074,6 +1084,22 @@ export default function MapachePortalClient({
   const selectedTaskInitialDeliverablesRef = React.useRef<DeliverableInput[]>([]);
 
   const assigneesErrorMessage = formT("assigneeLoadError");
+
+  const assigneeLabelMap = React.useMemo(() => {
+    const entries = new Map<string, string>();
+
+    mapacheUsers.forEach((user) => {
+      const name = typeof user.name === "string" ? user.name.trim() : "";
+      if (name) {
+        entries.set(user.id, name);
+        return;
+      }
+      const email = typeof user.email === "string" ? user.email.trim() : "";
+      entries.set(user.id, email || user.id);
+    });
+
+    return entries;
+  }, [mapacheUsers]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1448,6 +1474,149 @@ export default function MapachePortalClient({
       return true;
     });
   }, [baseFilteredTasks, normalizedAdvancedFilters]);
+
+  const computeInsights = React.useCallback(
+    (source: MapacheTask[]): MapachePortalInsightsMetrics => {
+      const statusTotals: Record<MapacheTaskStatus, number> = {
+        PENDING: 0,
+        IN_PROGRESS: 0,
+        DONE: 0,
+      };
+      const substatusTotals: Record<MapacheTaskSubstatus, number> = {
+        BACKLOG: 0,
+        WAITING_CLIENT: 0,
+        BLOCKED: 0,
+      };
+      const needTotals = NEED_METRIC_KEYS.reduce(
+        (acc, key) => {
+          acc[key] = 0;
+          return acc;
+        },
+        {} as Record<NeedMetricKey, number>,
+      );
+
+      const workloadMap = new Map<string, MapachePortalInsightsWorkloadEntry>();
+      const upcomingMap = new Map<string, { date: Date; value: number }>();
+      let dueSoonCount = 0;
+      let overdueCount = 0;
+
+      const today = new Date();
+      const startOfToday = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+      );
+
+      source.forEach((task) => {
+        statusTotals[task.status] = (statusTotals[task.status] ?? 0) + 1;
+        substatusTotals[task.substatus] =
+          (substatusTotals[task.substatus] ?? 0) + 1;
+
+        const needKey: NeedMetricKey = task.needFromTeam
+          ? (NEED_OPTIONS.includes(task.needFromTeam)
+              ? task.needFromTeam
+              : "NONE")
+          : "NONE";
+        needTotals[needKey] = (needTotals[needKey] ?? 0) + 1;
+
+        const assigneeId = getTaskAssigneeId(task);
+        const workloadKey = assigneeId ?? "__unassigned__";
+        const existingWorkload = workloadMap.get(workloadKey);
+        if (existingWorkload) {
+          existingWorkload.value += 1;
+        } else {
+          const label =
+            assigneeId === null
+              ? null
+              : assigneeLabelMap.get(assigneeId) ||
+                formatTaskAssigneeLabel(task) ||
+                assigneeId;
+
+          workloadMap.set(workloadKey, {
+            key: workloadKey,
+            label,
+            value: 1,
+            isUnassigned: assigneeId === null,
+          });
+        }
+
+        if (task.presentationDate) {
+          const parsed = new Date(task.presentationDate);
+          if (!Number.isNaN(parsed.getTime())) {
+            const normalized = new Date(
+              parsed.getFullYear(),
+              parsed.getMonth(),
+              parsed.getDate(),
+            );
+            const diffDays = Math.round(
+              (normalized.getTime() - startOfToday.getTime()) / MS_IN_DAY,
+            );
+            if (diffDays < 0) {
+              overdueCount += 1;
+            } else if (diffDays <= 7) {
+              dueSoonCount += 1;
+            }
+
+            const bucketKey = normalized.toISOString();
+            const bucket = upcomingMap.get(bucketKey);
+            if (bucket) {
+              bucket.value += 1;
+            } else {
+              upcomingMap.set(bucketKey, { date: normalized, value: 1 });
+            }
+          }
+        }
+      });
+
+      const workload = Array.from(workloadMap.values())
+        .sort((a, b) => {
+          if (b.value !== a.value) return b.value - a.value;
+          const labelA = a.label ?? "";
+          const labelB = b.label ?? "";
+          return labelA.localeCompare(labelB, "es", { sensitivity: "base" });
+        })
+        .slice(0, 12);
+
+      const upcomingDue = Array.from(upcomingMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([key, { date, value }]) => ({
+          key,
+          date: date.toISOString(),
+          value,
+        }))
+        .slice(0, 12);
+
+      return {
+        total: source.length,
+        dueSoonCount,
+        overdueCount,
+        statusTotals,
+        substatusTotals,
+        needTotals,
+        workload,
+        upcomingDue,
+      };
+    },
+    [assigneeLabelMap],
+  );
+
+  const filteredInsightsMetrics = React.useMemo(
+    () => computeInsights(filteredTasks),
+    [computeInsights, filteredTasks],
+  );
+
+  const allInsightsMetrics = React.useMemo(
+    () => computeInsights(tasks),
+    [computeInsights, tasks],
+  );
+
+  const insightsMetrics = React.useMemo(
+    () => ({
+      filtered: filteredInsightsMetrics,
+      all: allInsightsMetrics,
+    }),
+    [allInsightsMetrics, filteredInsightsMetrics],
+  );
 
   const pipelineTasksByStatus = React.useMemo(() => {
     const groups = STATUS_ORDER.reduce(
@@ -3224,6 +3393,12 @@ export default function MapachePortalClient({
           </div>
         </form>
       </Modal>
+
+      <MapachePortalInsights
+        scope={insightsScope}
+        onScopeChange={setInsightsScope}
+        metricsByScope={insightsMetrics}
+      />
 
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
