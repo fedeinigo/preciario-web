@@ -23,6 +23,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   goals         QuarterlyGoal[]
+  mapacheTasks  MapacheTask[]
 }
 
 model Account {
@@ -223,6 +224,20 @@ model TeamQuarterlyGoal {
   @@unique([team, year, quarter], name: "team_year_quarter")
 }
 
+model MapacheTask {
+  id          String            @id @default(cuid())
+  title       String
+  description String?
+  status      MapacheTaskStatus @default(PENDING)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  createdById String
+
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([createdById])
+}
+
 enum LanguageCode {
   es
   en
@@ -251,6 +266,12 @@ enum CreatedChannel {
   WEB
   API
   WHATSAPP
+}
+
+enum MapacheTaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
 }
 
 
