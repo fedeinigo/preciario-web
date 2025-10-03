@@ -3953,30 +3953,26 @@ function TaskMetaChip({
             </div>
           )}
 
-          {renderFetchErrorMessage()}
-
-          {viewMode === "lista" ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {filteredTasks.map((task) => (
-                <TaskCard key={task.id} task={task} />
-              ))}
-            </div>
-          ) : (
-            <div className="-mx-1 overflow-x-auto pb-2">
-              <div className="flex min-w-max gap-4 px-1">
-                {STATUS_ORDER.map((status) => (
-                  <PipelineColumn
-                    key={status}
-                    status={status}
-                    tasks={pipelineTasksByStatus[status] ?? []}
-                    onTaskDrop={handleTaskDroppedOnStatus}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      ) : null}
+      {viewMode === "lista" ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filteredTasks.map((task) => (
+            <TaskCard key={task.id} task={task} />
+          ))}
+        </div>
+      ) : (
+        <div className="-mx-1 overflow-x-auto pb-2">
+          <div className="flex min-w-max gap-4 px-1">
+            {STATUS_ORDER.map((status) => (
+              <PipelineColumn
+                key={status}
+                status={status}
+                tasks={pipelineTasksByStatus[status] ?? []}
+                onTaskDrop={handleTaskDroppedOnStatus}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <Modal
         open={selectedTask !== null}
