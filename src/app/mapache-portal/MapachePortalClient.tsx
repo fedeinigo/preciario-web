@@ -2,6 +2,9 @@
 
 import * as React from "react";
 
+import { Settings, Wand2 } from "lucide-react";
+import { useSession } from "next-auth/react";
+
 import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
@@ -60,7 +63,7 @@ type MapachePortalClientProps = {
   initialTasks: MapacheTask[];
 };
 
-type TaskFilter = "all" | MapacheTaskStatus;
+type TaskFilter = "all" | "mine" | "unassigned" | MapacheTaskStatus;
 
 type DeliverableFormState = {
   type: MapacheDeliverableType;
@@ -192,6 +195,12 @@ type MapacheUser = {
   name: string | null;
   email: string;
 };
+
+type AssignmentRatios = Record<string, number>;
+
+type AssignmentWeight = { userId: string; weight: number };
+
+const ASSIGNMENT_STORAGE_KEY = "mapache_assignment_ratios";
 
 const STATUS_LABEL_KEYS: Record<
   MapacheTaskStatus,
@@ -636,9 +645,106 @@ function formatAssigneeOption(user: MapacheUser) {
   return name && name.length > 0 ? name : user.email;
 }
 
+function roundToTwoDecimals(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function formatPercentage(value: number): string {
+  if (!Number.isFinite(value)) return "";
+  const rounded = roundToTwoDecimals(value);
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+}
+
+function ratioToPercentageInput(ratio: number): string {
+  return formatPercentage(ratio * 100);
+}
+
+function parsePercentageInput(value: string): number | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.replace(",", ".").trim();
+  if (!normalized) return null;
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
+function normalizeAssignmentWeights(
+  ratios: AssignmentRatios,
+  users: MapacheUser[],
+): AssignmentWeight[] {
+  if (users.length === 0) return [];
+  const entries = users.map((user) => ({
+    userId: user.id,
+    weight:
+      typeof ratios[user.id] === "number" && Number.isFinite(ratios[user.id])
+        ? ratios[user.id]
+        : 0,
+  }));
+
+  const positive = entries.filter((entry) => entry.weight > 0);
+  if (positive.length === 0) {
+    const equalWeight = 1 / users.length;
+    return users.map((user) => ({ userId: user.id, weight: equalWeight }));
+  }
+
+  const total = positive.reduce((sum, entry) => sum + entry.weight, 0);
+  if (total <= 0) {
+    const equalWeight = 1 / positive.length;
+    return positive.map((entry) => ({
+      userId: entry.userId,
+      weight: equalWeight,
+    }));
+  }
+
+  return positive.map((entry) => ({
+    userId: entry.userId,
+    weight: entry.weight / total,
+  }));
+}
+
+function createAssignmentSequence(
+  count: number,
+  weights: AssignmentWeight[],
+): string[] {
+  if (count <= 0 || weights.length === 0) return [];
+  const total = weights.reduce((sum, entry) => sum + entry.weight, 0);
+  const normalized =
+    total > 0
+      ? weights.map((entry) => ({
+          userId: entry.userId,
+          weight: entry.weight / total,
+        }))
+      : weights.map((entry) => ({
+          userId: entry.userId,
+          weight: 1 / weights.length,
+        }));
+
+  const assignedCounts = new Array(normalized.length).fill(0);
+  const result: string[] = [];
+
+  for (let index = 0; index < count; index += 1) {
+    let chosenIndex = 0;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (let candidate = 0; candidate < normalized.length; candidate += 1) {
+      const weight = normalized[candidate]!.weight;
+      if (weight <= 0) continue;
+      const score = (assignedCounts[candidate]! + 1) / weight;
+      if (score < bestScore) {
+        bestScore = score;
+        chosenIndex = candidate;
+      }
+    }
+    assignedCounts[chosenIndex] += 1;
+    result.push(normalized[chosenIndex]!.userId);
+  }
+
+  return result;
+}
+
 export default function MapachePortalClient({
   initialTasks,
 }: MapachePortalClientProps) {
+  const { data: session } = useSession();
   const t = useTranslations("mapachePortal");
   const statusT = useTranslations("mapachePortal.statuses");
   const statusBadgeT = useTranslations("mapachePortal.statusBadges");
@@ -649,6 +755,8 @@ export default function MapachePortalClient({
   const validationT = useTranslations("mapachePortal.validation");
   const emptyT = useTranslations("mapachePortal.empty");
   const actionsT = useTranslations("mapachePortal.actions");
+  const filtersT = useTranslations("mapachePortal.filters");
+  const assignmentT = useTranslations("mapachePortal.assignment");
   const needFromTeamTranslations = useTranslations(
     "mapachePortal.enums.needFromTeam",
   );
@@ -696,6 +804,12 @@ export default function MapachePortalClient({
   const [activeFilter, setActiveFilter] = React.useState<TaskFilter>("all");
   const [loading, setLoading] = React.useState(false);
   const [fetchError, setFetchError] = React.useState<string | null>(null);
+
+  const [assignmentRatios, setAssignmentRatios] = React.useState<AssignmentRatios>({});
+  const [ratiosLoaded, setRatiosLoaded] = React.useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = React.useState(false);
+  const [assignmentDraft, setAssignmentDraft] = React.useState<Record<string, string>>({});
+  const [autoAssigning, setAutoAssigning] = React.useState(false);
 
   const [showForm, setShowForm] = React.useState(false);
   const [currentStep, setCurrentStep] = React.useState(0);
@@ -753,6 +867,21 @@ export default function MapachePortalClient({
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === totalSteps - 1;
 
+  const currentUserId = React.useMemo(() => {
+    const id = session?.user?.id;
+    if (typeof id === "string" && id.trim()) return id;
+    if (typeof id === "number") return String(id);
+    return null;
+  }, [session?.user?.id]);
+
+  const currentUserEmail = React.useMemo(() => {
+    const email = session?.user?.email;
+    if (typeof email === "string" && email.trim()) {
+      return email.trim().toLowerCase();
+    }
+    return null;
+  }, [session?.user?.email]);
+
   const loadTasks = React.useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
       if (!silent) {
@@ -792,12 +921,82 @@ export default function MapachePortalClient({
   );
 
   React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(ASSIGNMENT_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as unknown;
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          const entries = Object.entries(parsed).filter(
+            (entry): entry is [string, number] => {
+              const value = entry[1];
+              return typeof value === "number" && Number.isFinite(value) && value > 0;
+            },
+          );
+          if (entries.length > 0) {
+            const total = entries.reduce((sum, [, value]) => sum + value, 0);
+            if (total > 0) {
+              setAssignmentRatios(
+                Object.fromEntries(
+                  entries.map(([id, value]) => [id, value / total] as const),
+                ),
+              );
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setRatiosLoaded(true);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!ratiosLoaded) return;
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        ASSIGNMENT_STORAGE_KEY,
+        JSON.stringify(assignmentRatios),
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  }, [assignmentRatios, ratiosLoaded]);
+
+  React.useEffect(() => {
     loadTasks();
   }, [loadTasks]);
 
   React.useEffect(() => {
     setTasks(Array.isArray(initialTasks) ? initialTasks : []);
   }, [initialTasks]);
+
+  React.useEffect(() => {
+    setAssignmentRatios((prev) => {
+      if (mapacheUsers.length === 0) return prev;
+      const allowed = new Set(mapacheUsers.map((user) => user.id));
+      const entries = Object.entries(prev).filter(([id, value]) => {
+        return (
+          allowed.has(id) && typeof value === "number" && Number.isFinite(value)
+        );
+      });
+      if (entries.length === Object.keys(prev).length) {
+        return prev;
+      }
+      if (entries.length === 0) {
+        return {};
+      }
+      const total = entries.reduce((sum, [, value]) => sum + value, 0);
+      if (total <= 0) {
+        return {};
+      }
+      return Object.fromEntries(
+        entries.map(([id, value]) => [id, value / total] as const),
+      );
+    });
+  }, [mapacheUsers]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -855,8 +1054,225 @@ export default function MapachePortalClient({
 
   const filteredTasks = React.useMemo(() => {
     if (activeFilter === "all") return tasks;
+    if (activeFilter === "unassigned") {
+      return tasks.filter((task) => !task.assigneeId);
+    }
+    if (activeFilter === "mine") {
+      if (!currentUserId && !currentUserEmail) {
+        return [];
+      }
+      return tasks.filter((task) => {
+        const assigneeId =
+          typeof task.assigneeId === "string" && task.assigneeId.trim()
+            ? task.assigneeId.trim()
+            : null;
+        if (assigneeId && currentUserId && assigneeId === currentUserId) {
+          return true;
+        }
+        const assigneeEmail =
+          typeof task.assignee?.email === "string"
+            ? task.assignee.email.trim().toLowerCase()
+            : null;
+        if (assigneeEmail && currentUserEmail && assigneeEmail === currentUserEmail) {
+          return true;
+        }
+        return false;
+      });
+    }
     return tasks.filter((task) => task.status === activeFilter);
-  }, [tasks, activeFilter]);
+  }, [
+    activeFilter,
+    currentUserEmail,
+    currentUserId,
+    tasks,
+  ]);
+
+  const filterOptions = React.useMemo(
+    () =>
+      [
+        { value: "all" as TaskFilter, label: statusT("all") },
+        { value: "mine" as TaskFilter, label: filtersT("mine") },
+        {
+          value: "unassigned" as TaskFilter,
+          label: filtersT("unassigned"),
+        },
+        ...STATUS_ORDER.map((status) => ({
+          value: status as TaskFilter,
+          label: statusT(getStatusLabelKey(status)),
+        })),
+      ],
+    [filtersT, statusT],
+  );
+
+  const assignmentDraftTotal = React.useMemo(() => {
+    return mapacheUsers.reduce((sum, user) => {
+      const raw = assignmentDraft[user.id];
+      const parsed = raw ? parsePercentageInput(raw) : null;
+      if (parsed === null) return sum;
+      return sum + parsed;
+    }, 0);
+  }, [assignmentDraft, mapacheUsers]);
+
+  const handleOpenAssignmentModal = React.useCallback(() => {
+    const hasConfiguredRatios = Object.values(assignmentRatios).some(
+      (value) => typeof value === "number" && value > 0,
+    );
+    setAssignmentDraft(() => {
+      const next: Record<string, string> = {};
+      const defaultValue =
+        !hasConfiguredRatios && mapacheUsers.length > 0
+          ? 100 / mapacheUsers.length
+          : null;
+      mapacheUsers.forEach((user) => {
+        const ratio = assignmentRatios[user.id];
+        if (typeof ratio === "number" && ratio > 0) {
+          next[user.id] = ratioToPercentageInput(ratio);
+        } else if (defaultValue !== null) {
+          next[user.id] = formatPercentage(defaultValue);
+        } else {
+          next[user.id] = "";
+        }
+      });
+      return next;
+    });
+    setShowAssignmentModal(true);
+  }, [assignmentRatios, mapacheUsers]);
+
+  const handleCloseAssignmentModal = React.useCallback(() => {
+    setShowAssignmentModal(false);
+  }, []);
+
+  const handleAssignmentDraftChange = React.useCallback((userId: string, value: string) => {
+    setAssignmentDraft((prev) => ({ ...prev, [userId]: value }));
+  }, []);
+
+  const handleResetAssignmentDraft = React.useCallback(() => {
+    if (mapacheUsers.length === 0) {
+      setAssignmentDraft({});
+      return;
+    }
+    const equal = 100 / mapacheUsers.length;
+    setAssignmentDraft(() => {
+      const next: Record<string, string> = {};
+      mapacheUsers.forEach((user) => {
+        next[user.id] = formatPercentage(equal);
+      });
+      return next;
+    });
+  }, [mapacheUsers]);
+
+  const handleSaveAssignmentRatios = React.useCallback(() => {
+    if (mapacheUsers.length === 0) {
+      setAssignmentRatios({});
+      setShowAssignmentModal(false);
+      return;
+    }
+
+    const entries: [string, number][] = [];
+    mapacheUsers.forEach((user) => {
+      const raw = assignmentDraft[user.id];
+      const parsed = raw ? parsePercentageInput(raw) : null;
+      if (parsed && parsed > 0) {
+        entries.push([user.id, parsed / 100]);
+      }
+    });
+
+    if (entries.length === 0) {
+      setAssignmentRatios({});
+      setShowAssignmentModal(false);
+      return;
+    }
+
+    const total = entries.reduce((sum, [, value]) => sum + value, 0);
+    if (total <= 0) {
+      setAssignmentRatios({});
+      setShowAssignmentModal(false);
+      return;
+    }
+
+    setAssignmentRatios(
+      Object.fromEntries(
+        entries.map(([id, value]) => [id, value / total] as const),
+      ),
+    );
+    setShowAssignmentModal(false);
+  }, [assignmentDraft, mapacheUsers]);
+
+  const handleAutoAssign = React.useCallback(async () => {
+    if (autoAssigning) return;
+    const unassignedTasks = tasks.filter((task) => !task.assigneeId);
+    if (unassignedTasks.length === 0) {
+      toast.info(toastT("autoAssignNone"));
+      return;
+    }
+
+    const weights = normalizeAssignmentWeights(assignmentRatios, mapacheUsers);
+    if (weights.length === 0) {
+      toast.error(toastT("autoAssignNoUsers"));
+      return;
+    }
+
+    const plan = createAssignmentSequence(unassignedTasks.length, weights);
+    if (plan.length === 0) {
+      toast.error(toastT("autoAssignNoUsers"));
+      return;
+    }
+
+    setAutoAssigning(true);
+    try {
+      for (let index = 0; index < unassignedTasks.length; index += 1) {
+        const task = unassignedTasks[index]!;
+        const assigneeId = plan[index % plan.length]!;
+        const response = await fetch(`/api/mapache/tasks`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ id: task.id, assigneeId }),
+        });
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+      }
+
+      await loadTasks({ silent: true });
+      toast.success(toastT("autoAssignSuccess"));
+    } catch (error) {
+      console.error(error);
+      toast.error(toastT("autoAssignError"));
+    } finally {
+      setAutoAssigning(false);
+    }
+  }, [
+    assignmentRatios,
+    autoAssigning,
+    loadTasks,
+    mapacheUsers,
+    tasks,
+    toastT,
+  ]);
+
+  const assignmentModalFooter = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={handleCloseAssignmentModal}
+          className="rounded-md border border-white/30 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+        >
+          {assignmentT("cancel")}
+        </button>
+        <button
+          type="button"
+          onClick={handleSaveAssignmentRatios}
+          className="rounded-md bg-white px-4 py-2 text-sm font-medium text-[rgb(var(--primary))] shadow-soft transition hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={mapacheUsers.length === 0}
+        >
+          {assignmentT("save")}
+        </button>
+      </div>
+    </div>
+  );
 
   const resetForm = React.useCallback(() => {
     setFormState(createDefaultFormState());
@@ -1227,6 +1643,14 @@ export default function MapachePortalClient({
         <div className="flex gap-2">
           <button
             type="button"
+            onClick={handleOpenAssignmentModal}
+            className="inline-flex items-center gap-2 rounded-md border border-white/25 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          >
+            <Settings className="h-4 w-4" aria-hidden="true" />
+            <span>{assignmentT("configure")}</span>
+          </button>
+          <button
+            type="button"
             onClick={handleOpenForm}
             className="inline-flex items-center rounded-md bg-[rgb(var(--primary))] px-4 py-2 text-sm font-medium text-white shadow-soft transition hover:bg-[rgb(var(--primary))]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
           >
@@ -1234,6 +1658,71 @@ export default function MapachePortalClient({
           </button>
         </div>
       </header>
+
+      <Modal
+        open={showAssignmentModal}
+        onClose={handleCloseAssignmentModal}
+        variant="inverted"
+        title={assignmentT("title")}
+        panelClassName="w-full max-w-xl"
+        footer={assignmentModalFooter}
+      >
+        <div className="space-y-4 text-white">
+          <p className="text-sm text-white/70">{assignmentT("description")}</p>
+          {mapacheUsers.length === 0 ? (
+            <div className="rounded-md border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/70">
+              {assignmentT("empty")}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleResetAssignmentDraft}
+                  className="inline-flex items-center rounded-md border border-white/20 px-3 py-1.5 text-xs uppercase tracking-wide text-white/70 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+                >
+                  {assignmentT("reset")}
+                </button>
+              </div>
+              <div className="grid gap-3">
+                {mapacheUsers.map((user) => {
+                  const value = assignmentDraft[user.id] ?? "";
+                  return (
+                    <label
+                      key={user.id}
+                      className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white/80"
+                    >
+                      <span className="font-medium text-white">{formatAssigneeOption(user)}</span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={value}
+                          onChange={(event) =>
+                            handleAssignmentDraftChange(user.id, event.target.value)
+                          }
+                          className="flex-1 rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                          placeholder="0"
+                        />
+                        <span className="text-sm text-white/60">%</span>
+                      </div>
+                      <span className="text-[11px] uppercase tracking-[0.2em] text-white/40">
+                        {assignmentT("percentageLabel")}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              <div className="flex items-center justify-between rounded-md border border-white/10 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.2em] text-white/60">
+                <span>{assignmentT("totalLabel")}</span>
+                <span className="text-white">{`${formatPercentage(assignmentDraftTotal)}%`}</span>
+              </div>
+              <p className="text-xs text-white/40">{assignmentT("normalizedHint")}</p>
+            </div>
+          )}
+        </div>
+      </Modal>
 
       <Modal
         open={showForm}
@@ -1795,28 +2284,39 @@ export default function MapachePortalClient({
         </form>
       </Modal>
 
-      <div className="flex flex-wrap gap-2">
-        {["all", ...STATUS_ORDER].map((status) => {
-          const isActive = activeFilter === status;
-          const label =
-            status === "all"
-              ? statusT("all")
-              : statusT(getStatusLabelKey(status as MapacheTaskStatus));
-          return (
-            <button
-              key={status}
-              type="button"
-              onClick={() => setActiveFilter(status as TaskFilter)}
-              className={`rounded-full border px-4 py-1 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
-                isActive
-                  ? "border-[rgb(var(--primary))] bg-[rgb(var(--primary))] text-white"
-                  : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {filterOptions.map((option) => {
+            const isActive = activeFilter === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setActiveFilter(option.value)}
+                className={`rounded-full border px-4 py-1 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+                  isActive
+                    ? "border-[rgb(var(--primary))] bg-[rgb(var(--primary))] text-white"
+                    : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        {activeFilter === "unassigned" ? (
+          <button
+            type="button"
+            onClick={handleAutoAssign}
+            disabled={autoAssigning || mapacheUsers.length === 0}
+            className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--primary))] bg-[rgb(var(--primary))]/10 px-4 py-1 text-sm text-[rgb(var(--primary))] transition hover:bg-[rgb(var(--primary))]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Wand2 className="h-4 w-4" aria-hidden="true" />
+            {autoAssigning
+              ? assignmentT("autoAssigning")
+              : assignmentT("autoAssign")}
+          </button>
+        ) : null}
       </div>
 
       {loading && (
