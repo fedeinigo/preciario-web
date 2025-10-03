@@ -137,6 +137,28 @@ export const messages: Record<Locale, DeepRecord> = {
         in_progress: "En progreso",
         completed: "Completada",
       },
+      statusBadges: {
+        unassigned: "Sin asignar",
+        assigned: "Asignado",
+        in_progress: "En progreso",
+        completed: "Finalizado",
+      },
+      substatuses: {
+        backlog: "Backlog",
+        waiting_client: "Esperando cliente",
+        blocked: "Bloqueada",
+      },
+      deliverables: {
+        title: "Entregables",
+        empty: "Sin entregables registrados.",
+        open: "Abrir",
+        types: {
+          scope: "Alcance",
+          quote: "Cotización",
+          scope_and_quote: "Alcance + Cotización",
+          other: "Otro",
+        },
+      },
       actions: {
         add: "Agregar tarea",
         statusLabel: "Estado",
@@ -1391,6 +1413,28 @@ export const messages: Record<Locale, DeepRecord> = {
         in_progress: "In progress",
         completed: "Completed",
       },
+      statusBadges: {
+        unassigned: "Unassigned",
+        assigned: "Assigned",
+        in_progress: "In progress",
+        completed: "Completed",
+      },
+      substatuses: {
+        backlog: "Backlog",
+        waiting_client: "Waiting for client",
+        blocked: "Blocked",
+      },
+      deliverables: {
+        title: "Deliverables",
+        empty: "No deliverables yet.",
+        open: "Open",
+        types: {
+          scope: "Scope",
+          quote: "Quote",
+          scope_and_quote: "Scope & quote",
+          other: "Other",
+        },
+      },
       actions: {
         add: "Add task",
         statusLabel: "Status",
@@ -2640,6 +2684,28 @@ export const messages: Record<Locale, DeepRecord> = {
         pending: "Pendente",
         in_progress: "Em andamento",
         completed: "Concluída",
+      },
+      statusBadges: {
+        unassigned: "Sem responsável",
+        assigned: "Atribuída",
+        in_progress: "Em andamento",
+        completed: "Finalizada",
+      },
+      substatuses: {
+        backlog: "Backlog",
+        waiting_client: "Aguardando cliente",
+        blocked: "Bloqueada",
+      },
+      deliverables: {
+        title: "Entregáveis",
+        empty: "Sem entregáveis registrados.",
+        open: "Abrir",
+        types: {
+          scope: "Escopo",
+          quote: "Proposta",
+          scope_and_quote: "Escopo + Proposta",
+          other: "Outro",
+        },
       },
       actions: {
         add: "Adicionar tarefa",
