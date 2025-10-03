@@ -7,7 +7,7 @@ import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
 
 import type { MapacheTask, MapacheTaskStatus } from "./types";
-import { MAPACHE_TASK_STATUSES } from "./types";
+import { MAPACHE_TASK_STATUSES, normalizeMapacheTask } from "./types";
 
 type MapachePortalClientProps = {
   initialTasks: MapacheTask[];
@@ -37,28 +37,6 @@ const STATUS_LABEL_KEYS: Record<MapacheTaskStatus, "pending" | "in_progress" | "
 
 function getStatusLabelKey(status: MapacheTaskStatus) {
   return STATUS_LABEL_KEYS[status];
-}
-
-function normalizeTask(task: unknown): MapacheTask | null {
-  if (typeof task !== "object" || task === null) return null;
-  const record = task as Record<string, unknown>;
-  const id = record.id;
-  const title = record.title;
-  const description = record.description;
-  const status = record.status;
-
-  if (typeof id !== "string" && typeof id !== "number") return null;
-  if (typeof title !== "string") return null;
-  if (!STATUS_ORDER.includes(status as MapacheTaskStatus)) return null;
-
-  return {
-    id: String(id),
-    title,
-    description: typeof description === "string" ? description : null,
-    status: status as MapacheTaskStatus,
-    createdAt: typeof record.createdAt === "string" ? (record.createdAt as string) : undefined,
-    updatedAt: typeof record.updatedAt === "string" ? (record.updatedAt as string) : undefined,
-  };
 }
 
 export default function MapachePortalClient({ initialTasks }: MapachePortalClientProps) {
@@ -105,7 +83,7 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
         const payload = await response.json();
         const nextTasks = Array.isArray(payload)
           ? payload
-              .map(normalizeTask)
+              .map(normalizeMapacheTask)
               .filter((task): task is MapacheTask => task !== null)
           : [];
 
@@ -183,7 +161,7 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
       }
 
       const payload = await response.json();
-      const task = normalizeTask(payload);
+      const task = normalizeMapacheTask(payload);
 
       if (!task) {
         throw new Error("Invalid response payload");
@@ -220,7 +198,8 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
         }
 
         const payload = await response.json();
-        const updatedTask = normalizeTask(payload) ?? { ...task, status: nextStatus };
+        const updatedTask =
+          normalizeMapacheTask(payload) ?? { ...task, status: nextStatus };
 
         setTasks((prev) =>
           prev.map((item) => (item.id === task.id ? { ...item, ...updatedTask } : item))

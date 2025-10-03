@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import MapachePortalClient from "./MapachePortalClient";
 import type { MapacheTask } from "./types";
+import { normalizeMapacheTask } from "./types";
 import { auth } from "@/lib/auth";
 import { taskSelect } from "@/app/api/mapache/tasks/access";
 import prisma from "@/lib/prisma";
@@ -27,15 +28,22 @@ export default async function MapachePortalPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  const initialTasks: MapacheTask[] = tasks.map((task) => ({
-    id: task.id,
-    title: task.title,
-    description: task.description ?? null,
-    status: task.status,
-    createdAt: task.createdAt?.toISOString(),
-    updatedAt: task.updatedAt?.toISOString(),
-    createdById: task.createdById,
-  }));
+  const initialTasks: MapacheTask[] = tasks
+    .map((task) =>
+      normalizeMapacheTask({
+        ...task,
+        createdAt: task.createdAt?.toISOString(),
+        updatedAt: task.updatedAt?.toISOString(),
+        presentationDate: task.presentationDate
+          ? task.presentationDate.toISOString()
+          : task.presentationDate,
+        deliverables: task.deliverables.map((deliverable) => ({
+          ...deliverable,
+          createdAt: deliverable.createdAt?.toISOString(),
+        })),
+      })
+    )
+    .filter((task): task is MapacheTask => task !== null);
 
   return (
     <div className="space-y-6 px-4 pb-10">
