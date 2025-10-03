@@ -106,6 +106,35 @@ type FormErrors = Partial<Record<FieldErrorKey, string>> & {
   deliverables?: DeliverableError[];
 };
 
+type StepFieldKey = FieldErrorKey | "deliverables";
+
+const FORM_STEP_LABELS = [
+  "Datos generales",
+  "Contacto y contexto",
+  "Documentación",
+  "Integración/Entregables",
+] as const;
+
+const FORM_STEP_FIELDS: StepFieldKey[][] = [
+  ["title", "clientName", "productKey", "description"],
+  [
+    "requesterEmail",
+    "interlocutorRole",
+    "presentationDate",
+    "pipedriveDealUrl",
+    "clientWebsiteUrls",
+    "clientPain",
+  ],
+  ["managementType", "docsCountApprox", "docsLengthApprox", "avgMonthlyConversations"],
+  [
+    "integrationType",
+    "integrationOwner",
+    "integrationName",
+    "integrationDocsUrl",
+    "deliverables",
+  ],
+];
+
 type CreateTaskPayload = {
   title: string;
   description: string | null;
@@ -631,6 +660,7 @@ export default function MapachePortalClient({
   const [fetchError, setFetchError] = React.useState<string | null>(null);
 
   const [showForm, setShowForm] = React.useState(false);
+  const [currentStep, setCurrentStep] = React.useState(0);
   const [formState, setFormState] = React.useState<FormState>(
     () => createDefaultFormState(),
   );
@@ -680,6 +710,10 @@ export default function MapachePortalClient({
   );
 
   const unspecifiedOptionLabel = formT("unspecifiedOption");
+  const createTaskFormId = React.useId();
+  const totalSteps = FORM_STEP_FIELDS.length;
+  const isFirstStep = currentStep === 0;
+  const isLastStep = currentStep === totalSteps - 1;
 
   const loadTasks = React.useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -789,20 +823,55 @@ export default function MapachePortalClient({
   const resetForm = React.useCallback(() => {
     setFormState(createDefaultFormState());
     setFormErrors({});
+    setCurrentStep(0);
   }, []);
 
-  const handleToggleForm = React.useCallback(() => {
-    setShowForm((prev) => {
-      const next = !prev;
-      if (!next) {
-        resetForm();
-      } else {
-        setFormState(createDefaultFormState());
-        setFormErrors({});
-      }
-      return next;
-    });
+  const handleOpenForm = React.useCallback(() => {
+    resetForm();
+    setShowForm(true);
   }, [resetForm]);
+
+  const handleCloseForm = React.useCallback(() => {
+    setShowForm(false);
+    resetForm();
+  }, [resetForm]);
+
+  const handleNextStep = React.useCallback(() => {
+    if (currentStep >= FORM_STEP_FIELDS.length - 1) {
+      return true;
+    }
+
+    const { errors } = normalizeFormState(formState, validationMessages);
+    setFormErrors(errors);
+
+    const stepKeys = FORM_STEP_FIELDS[currentStep] ?? [];
+    const hasStepErrors = stepKeys.some((field) => {
+      if (field === "deliverables") {
+        return Boolean(
+          errors.deliverables?.some(
+            (deliverableError) =>
+              deliverableError &&
+              Object.values(deliverableError).some((value) => Boolean(value)),
+          ),
+        );
+      }
+      return Boolean(errors[field]);
+    });
+
+    if (hasStepErrors) {
+      toast.error(toastT("validationError"));
+      return false;
+    }
+
+    setCurrentStep((prev) =>
+      prev >= FORM_STEP_FIELDS.length - 1 ? prev : prev + 1,
+    );
+    return true;
+  }, [currentStep, formState, toastT, validationMessages]);
+
+  const handlePreviousStep = React.useCallback(() => {
+    setCurrentStep((prev) => (prev <= 0 ? 0 : prev - 1));
+  }, []);
 
   const {
     handleFormChange,
@@ -905,15 +974,41 @@ export default function MapachePortalClient({
       );
 
       toast.success(toastT("createSuccess"));
-      resetForm();
-      setShowForm(false);
+      handleCloseForm();
     } catch (error) {
       console.error(error);
       toast.error(toastT("createError"));
     } finally {
       setSubmitting(false);
     }
-  }, [formState, loadTasks, resetForm, toastT, validationMessages]);
+  }, [formState, handleCloseForm, loadTasks, toastT, validationMessages]);
+
+  const modalFooter = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="text-xs uppercase tracking-[0.2em] text-white/70">
+        Estado inicial: {formState.status} / {formState.substatus} · Origen: {" "}
+        {formState.origin}
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={handleCloseForm}
+          className="rounded-md border border-white/30 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          disabled={submitting}
+        >
+          {formT("cancel")}
+        </button>
+        <button
+          type="submit"
+          form={createTaskFormId}
+          className="rounded-md bg-white px-4 py-2 text-sm font-medium text-[rgb(var(--primary))] shadow-soft transition hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={submitting || !isLastStep}
+        >
+          {submitting ? formT("saving") : formT("confirm")}
+        </button>
+      </div>
+    </div>
+  );
 
   const handleStatusChange = React.useCallback(
     async (task: MapacheTask, nextStatus: MapacheTaskStatus) => {
@@ -1084,543 +1179,569 @@ export default function MapachePortalClient({
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={handleToggleForm}
+            onClick={handleOpenForm}
             className="inline-flex items-center rounded-md bg-[rgb(var(--primary))] px-4 py-2 text-sm font-medium text-white shadow-soft transition hover:bg-[rgb(var(--primary))]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
           >
-            {showForm ? formT("cancel") : actionsT("add")}
+            {actionsT("add")}
           </button>
         </div>
       </header>
 
-      {showForm ? (
+      <Modal
+        open={showForm}
+        onClose={handleCloseForm}
+        variant="inverted"
+        title={actionsT("add")}
+        footer={modalFooter}
+        panelClassName="w-full max-w-3xl"
+      >
         <form
-          className="rounded-xl border border-white/10 bg-slate-950/70 p-6 text-white shadow-soft"
+          id={createTaskFormId}
+          className="grid gap-6 text-white"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!submitting) {
-              void handleCreateTask();
+            if (submitting) {
+              return;
             }
+            if (!isLastStep) {
+              handleNextStep();
+              return;
+            }
+            void handleCreateTask();
           }}
         >
-          <div className="grid gap-6">
-            <section className="grid gap-4">
-              <h2 className="text-lg font-semibold text-white">Datos generales</h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">{formT("titleLabel")}</span>
-                  <input
-                    type="text"
-                    value={formState.title}
-                    onChange={(event) =>
-                      handleFormChange("title", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                    placeholder={formT("titlePlaceholder")}
-                  />
-                  {formErrors.title ? (
-                    <span className="text-xs text-rose-300">
-                      {formErrors.title}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Cliente</span>
-                  <input
-                    type="text"
-                    value={formState.clientName}
-                    onChange={(event) =>
-                      handleFormChange("clientName", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                    placeholder="Ej. ACME Corp"
-                  />
-                  {formErrors.clientName ? (
-                    <span className="text-xs text-rose-300">
-                      {formErrors.clientName}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Producto</span>
-                  <input
-                    type="text"
-                    value={formState.productKey}
-                    onChange={(event) =>
-                      handleFormChange("productKey", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                    placeholder="Ej. Wiser PRO"
-                  />
-                  {formErrors.productKey ? (
-                    <span className="text-xs text-rose-300">
-                      {formErrors.productKey}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Necesidad del equipo</span>
-                  <select
-                    value={formState.needFromTeam}
-                    onChange={(event) =>
-                      handleFormChange(
-                        "needFromTeam",
-                        event.target.value as MapacheNeedFromTeam,
-                      )
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  >
-                    {NEED_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Canal</span>
-                  <select
-                    value={formState.directness}
-                    onChange={(event) =>
-                      handleFormChange(
-                        "directness",
-                        event.target.value as MapacheDirectness,
-                      )
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  >
-                    {DIRECTNESS_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Asignado a</span>
-                  <select
-                    value={formState.assigneeId ?? ""}
-                    onChange={(event) =>
-                      handleFormChange(
-                        "assigneeId",
-                        event.target.value ? event.target.value : null,
-                      )
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  >
-                    <option value="">Sin asignar</option>
-                    {mapacheUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {formatAssigneeOption(user)}
-                      </option>
-                    ))}
-                  </select>
-                  {assigneesLoading ? (
-                    <span className="text-xs text-white/60">Cargando…</span>
-                  ) : null}
-                  {assigneesError ? (
-                    <span className="text-xs text-rose-300">
-                      {assigneesError}
-                    </span>
-                  ) : null}
-                </label>
-              </div>
-            </section>
-
-            <section className="grid gap-4">
-              <h2 className="text-lg font-semibold text-white">Contacto y contexto</h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-1 text-sm md:col-span-1">
-                  <span className="text-white/80">Email del solicitante</span>
-                  <input
-                    type="email"
-                    value={formState.requesterEmail}
-                    onChange={(event) =>
-                      handleFormChange("requesterEmail", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                    placeholder="persona@compania.com"
-                  />
-                  {formErrors.requesterEmail ? (
-                    <span className="text-xs text-rose-300">
-                      {formErrors.requesterEmail}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm md:col-span-1">
-                  <span className="text-white/80">Rol del interlocutor</span>
-                  <input
-                    type="text"
-                    value={formState.interlocutorRole}
-                    onChange={(event) =>
-                      handleFormChange("interlocutorRole", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                    placeholder="Ej. CTO"
-                  />
-                  {formErrors.interlocutorRole ? (
-                    <span className="text-xs text-rose-300">
-                      {formErrors.interlocutorRole}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm md:col-span-1">
-                  <span className="text-white/80">Fecha de presentación</span>
-                  <input
-                    type="date"
-                    value={formState.presentationDate}
-                    onChange={(event) =>
-                      handleFormChange("presentationDate", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  />
-                  {formErrors.presentationDate ? (
-                    <span className="text-xs text-rose-300">
-                      {formErrors.presentationDate}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm md:col-span-1">
-                  <span className="text-white/80">Pipedrive Deal URL</span>
-                  <input
-                    type="url"
-                    value={formState.pipedriveDealUrl}
-                    onChange={(event) =>
-                      handleFormChange("pipedriveDealUrl", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                    placeholder="https://"
-                  />
-                  {formErrors.pipedriveDealUrl ? (
-                    <span className="text-xs text-rose-300">
-                      {formErrors.pipedriveDealUrl}
-                    </span>
-                  ) : null}
-                </label>
-              </div>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-white/80">Sitios web del cliente</span>
-                <textarea
-                  value={formState.clientWebsiteUrls.join("\n")}
-                  onChange={(event) => handleWebsiteUrlsChange(event.target.value)}
-                  className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  placeholder="Una URL por línea"
-                />
-                {formErrors.clientWebsiteUrls ? (
-                  <span className="text-xs text-rose-300">
-                    {formErrors.clientWebsiteUrls}
-                  </span>
-                ) : null}
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-white/80">Dolor del cliente</span>
-                <textarea
-                  value={formState.clientPain}
-                  onChange={(event) =>
-                    handleFormChange("clientPain", event.target.value)
-                  }
-                  className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  placeholder="Contexto adicional"
-                />
-                {formErrors.clientPain ? (
-                  <span className="text-xs text-rose-300">
-                    {formErrors.clientPain}
-                  </span>
-                ) : null}
-              </label>
-            </section>
-
-            <section className="grid gap-4">
-              <h2 className="text-lg font-semibold text-white">Documentación</h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Tipo de gestión</span>
-                  <input
-                    type="text"
-                    value={formState.managementType}
-                    onChange={(event) =>
-                      handleFormChange("managementType", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  />
-                  {formErrors.managementType ? (
-                    <span className="text-xs text-rose-300">
-                      {formErrors.managementType}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Cantidad de docs (aprox)</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={formState.docsCountApprox}
-                    onChange={(event) =>
-                      handleFormChange("docsCountApprox", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  />
-                  {formErrors.docsCountApprox ? (
-                    <span className="text-xs text-rose-300">
-                      {formErrors.docsCountApprox}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Extensión de docs</span>
-                  <input
-                    type="text"
-                    value={formState.docsLengthApprox}
-                    onChange={(event) =>
-                      handleFormChange("docsLengthApprox", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  />
-                  {formErrors.docsLengthApprox ? (
-                    <span className="text-xs text-rose-300">
-                      {formErrors.docsLengthApprox}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Conversaciones mensuales</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={formState.avgMonthlyConversations}
-                    onChange={(event) =>
-                      handleFormChange(
-                        "avgMonthlyConversations",
-                        event.target.value,
-                      )
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  />
-                  {formErrors.avgMonthlyConversations ? (
-                    <span className="text-xs text-rose-300">
-                      {formErrors.avgMonthlyConversations}
-                    </span>
-                  ) : null}
-                </label>
-              </div>
-            </section>
-
-            <section className="grid gap-4">
-              <h2 className="text-lg font-semibold text-white">Integración</h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Tipo</span>
-                  <select
-                    value={formState.integrationType}
-                    onChange={(event) =>
-                      handleFormChange(
-                        "integrationType",
-                        event.target.value as FormState["integrationType"],
-                      )
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  >
-                    {INTEGRATION_TYPES.map((option) => (
-                      <option key={option || "none"} value={option}>
-                        {option || unspecifiedOptionLabel}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Responsable</span>
-                  <select
-                    value={formState.integrationOwner}
-                    onChange={(event) =>
-                      handleFormChange(
-                        "integrationOwner",
-                        event.target.value as FormState["integrationOwner"],
-                      )
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  >
-                    {INTEGRATION_OWNERS.map((option) => (
-                      <option key={option || "none"} value={option}>
-                        {option || unspecifiedOptionLabel}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1 text-sm md:col-span-2">
-                  <span className="text-white/80">Nombre de la integración</span>
-                  <input
-                    type="text"
-                    value={formState.integrationName}
-                    onChange={(event) =>
-                      handleFormChange("integrationName", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  />
-                  {formErrors.integrationName ? (
-                    <span className="text-xs text-rose-300">
-                      {formErrors.integrationName}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm md:col-span-2">
-                  <span className="text-white/80">Documentación</span>
-                  <input
-                    type="url"
-                    value={formState.integrationDocsUrl}
-                    onChange={(event) =>
-                      handleFormChange("integrationDocsUrl", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                    placeholder="https://"
-                  />
-                  {formErrors.integrationDocsUrl ? (
-                    <span className="text-xs text-rose-300">
-                      {formErrors.integrationDocsUrl}
-                    </span>
-                  ) : null}
-                </label>
-              </div>
-            </section>
-
-            <section className="grid gap-4">
-              <h2 className="text-lg font-semibold text-white">Descripción</h2>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-white/80">{formT("descriptionLabel")}</span>
-                <textarea
-                  value={formState.description}
-                  onChange={(event) =>
-                    handleFormChange("description", event.target.value)
-                  }
-                  className="min-h-[120px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  placeholder={formT("descriptionPlaceholder")}
-                />
-              </label>
-            </section>
-
-            <section className="grid gap-4">
-              <h2 className="text-lg font-semibold text-white">Entregables</h2>
-              <div className="grid gap-4">
-                {formState.deliverables.length === 0 ? (
-                  <p className="text-sm text-white/60">
-                    Podés agregar entregables después desde la tarea.
-                  </p>
-                ) : null}
-                {formState.deliverables.map((deliverable, index) => {
-                  const deliverableError = formErrors.deliverables?.[index];
-                  return (
-                    <div
-                      key={`deliverable-${index}`}
-                      className="grid gap-3 rounded-lg border border-white/10 bg-slate-900/70 p-4 md:grid-cols-[1fr_1fr_1fr_auto]"
-                    >
-                      <label className="flex flex-col gap-1 text-sm">
-                        <span className="text-white/80">Tipo</span>
-                        <select
-                          value={deliverable.type}
-                          onChange={(event) =>
-                            handleDeliverableChange(
-                              index,
-                              "type",
-                              event.target.value as MapacheDeliverableType,
-                            )
-                          }
-                          className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                        >
-                          {DELIVERABLE_TYPES.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="flex flex-col gap-1 text-sm">
-                        <span className="text-white/80">Título</span>
-                        <input
-                          type="text"
-                          value={deliverable.title}
-                          onChange={(event) =>
-                            handleDeliverableChange(
-                              index,
-                              "title",
-                              event.target.value,
-                            )
-                          }
-                          className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                        />
-                        {deliverableError?.title ? (
-                          <span className="text-xs text-rose-300">
-                            {deliverableError.title}
-                          </span>
-                        ) : null}
-                      </label>
-                      <label className="flex flex-col gap-1 text-sm">
-                        <span className="text-white/80">URL</span>
-                        <input
-                          type="url"
-                          value={deliverable.url}
-                          onChange={(event) =>
-                            handleDeliverableChange(
-                              index,
-                              "url",
-                              event.target.value,
-                            )
-                          }
-                          className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                        />
-                        {deliverableError?.url ? (
-                          <span className="text-xs text-rose-300">
-                            {deliverableError.url}
-                          </span>
-                        ) : null}
-                      </label>
-                      <div className="flex items-end justify-end">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveDeliverable(index)}
-                          className="rounded-md border border-white/20 px-3 py-2 text-xs uppercase tracking-wide text-white/70 transition hover:bg-white/10"
-                        >
-                          Quitar
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div>
-                <button
-                  type="button"
-                  onClick={handleAddDeliverable}
-                  className="inline-flex items-center rounded-md border border-dashed border-white/30 px-3 py-2 text-sm text-white/80 transition hover:border-white/60 hover:text-white"
-                >
-                  Agregar entregable
-                </button>
-              </div>
-            </section>
+          <div className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-white/70 sm:flex-row sm:items-center sm:justify-between">
+            <span className="font-semibold text-white">
+              {FORM_STEP_LABELS[currentStep]}
+            </span>
+            <span>
+              Paso {currentStep + 1} de {totalSteps}
+            </span>
           </div>
 
-          <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs uppercase tracking-[0.2em] text-white/50">
-              Estado inicial: {formState.status} / {formState.substatus} · Origen: {" "}
-              {formState.origin}
+          <div className="grid gap-6">
+            {currentStep === 0 ? (
+              <section className="grid gap-4">
+                <h2 className="text-lg font-semibold text-white">Datos generales</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">{formT("titleLabel")}</span>
+                    <input
+                      type="text"
+                      value={formState.title}
+                      onChange={(event) =>
+                        handleFormChange("title", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      placeholder={formT("titlePlaceholder")}
+                    />
+                    {formErrors.title ? (
+                      <span className="text-xs text-rose-300">
+                        {formErrors.title}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Cliente</span>
+                    <input
+                      type="text"
+                      value={formState.clientName}
+                      onChange={(event) =>
+                        handleFormChange("clientName", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      placeholder="Ej. ACME Corp"
+                    />
+                    {formErrors.clientName ? (
+                      <span className="text-xs text-rose-300">
+                        {formErrors.clientName}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Producto</span>
+                    <input
+                      type="text"
+                      value={formState.productKey}
+                      onChange={(event) =>
+                        handleFormChange("productKey", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      placeholder="Ej. Wiser PRO"
+                    />
+                    {formErrors.productKey ? (
+                      <span className="text-xs text-rose-300">
+                        {formErrors.productKey}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Necesidad del equipo</span>
+                    <select
+                      value={formState.needFromTeam}
+                      onChange={(event) =>
+                        handleFormChange(
+                          "needFromTeam",
+                          event.target.value as MapacheNeedFromTeam,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    >
+                      {NEED_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Canal</span>
+                    <select
+                      value={formState.directness}
+                      onChange={(event) =>
+                        handleFormChange(
+                          "directness",
+                          event.target.value as MapacheDirectness,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    >
+                      {DIRECTNESS_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Asignado a</span>
+                    <select
+                      value={formState.assigneeId ?? ""}
+                      onChange={(event) =>
+                        handleFormChange(
+                          "assigneeId",
+                          event.target.value ? event.target.value : null,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    >
+                      <option value="">Sin asignar</option>
+                      {mapacheUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {formatAssigneeOption(user)}
+                        </option>
+                      ))}
+                    </select>
+                    {assigneesLoading ? (
+                      <span className="text-xs text-white/60">Cargando…</span>
+                    ) : null}
+                    {assigneesError ? (
+                      <span className="text-xs text-rose-300">
+                        {assigneesError}
+                      </span>
+                    ) : null}
+                  </label>
+                </div>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-white/80">{formT("descriptionLabel")}</span>
+                  <textarea
+                    value={formState.description}
+                    onChange={(event) =>
+                      handleFormChange("description", event.target.value)
+                    }
+                    className="min-h-[120px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    placeholder={formT("descriptionPlaceholder")}
+                  />
+                </label>
+              </section>
+            ) : null}
+
+            {currentStep === 1 ? (
+              <section className="grid gap-4">
+                <h2 className="text-lg font-semibold text-white">Contacto y contexto</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm md:col-span-1">
+                    <span className="text-white/80">Email del solicitante</span>
+                    <input
+                      type="email"
+                      value={formState.requesterEmail}
+                      onChange={(event) =>
+                        handleFormChange("requesterEmail", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      placeholder="persona@compania.com"
+                    />
+                    {formErrors.requesterEmail ? (
+                      <span className="text-xs text-rose-300">
+                        {formErrors.requesterEmail}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm md:col-span-1">
+                    <span className="text-white/80">Rol del interlocutor</span>
+                    <input
+                      type="text"
+                      value={formState.interlocutorRole}
+                      onChange={(event) =>
+                        handleFormChange("interlocutorRole", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      placeholder="Ej. CTO"
+                    />
+                    {formErrors.interlocutorRole ? (
+                      <span className="text-xs text-rose-300">
+                        {formErrors.interlocutorRole}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm md:col-span-1">
+                    <span className="text-white/80">Fecha de presentación</span>
+                    <input
+                      type="date"
+                      value={formState.presentationDate}
+                      onChange={(event) =>
+                        handleFormChange("presentationDate", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {formErrors.presentationDate ? (
+                      <span className="text-xs text-rose-300">
+                        {formErrors.presentationDate}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm md:col-span-1">
+                    <span className="text-white/80">Pipedrive Deal URL</span>
+                    <input
+                      type="url"
+                      value={formState.pipedriveDealUrl}
+                      onChange={(event) =>
+                        handleFormChange("pipedriveDealUrl", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      placeholder="https://"
+                    />
+                    {formErrors.pipedriveDealUrl ? (
+                      <span className="text-xs text-rose-300">
+                        {formErrors.pipedriveDealUrl}
+                      </span>
+                    ) : null}
+                  </label>
+                </div>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-white/80">Sitios web del cliente</span>
+                  <textarea
+                    value={formState.clientWebsiteUrls.join("\n")}
+                    onChange={(event) => handleWebsiteUrlsChange(event.target.value)}
+                    className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    placeholder="Una URL por línea"
+                  />
+                  {formErrors.clientWebsiteUrls ? (
+                    <span className="text-xs text-rose-300">
+                      {formErrors.clientWebsiteUrls}
+                    </span>
+                  ) : null}
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-white/80">Dolor del cliente</span>
+                  <textarea
+                    value={formState.clientPain}
+                    onChange={(event) =>
+                      handleFormChange("clientPain", event.target.value)
+                    }
+                    className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    placeholder="Contexto adicional"
+                  />
+                  {formErrors.clientPain ? (
+                    <span className="text-xs text-rose-300">
+                      {formErrors.clientPain}
+                    </span>
+                  ) : null}
+                </label>
+              </section>
+            ) : null}
+
+            {currentStep === 2 ? (
+              <section className="grid gap-4">
+                <h2 className="text-lg font-semibold text-white">Documentación</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Tipo de gestión</span>
+                    <input
+                      type="text"
+                      value={formState.managementType}
+                      onChange={(event) =>
+                        handleFormChange("managementType", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {formErrors.managementType ? (
+                      <span className="text-xs text-rose-300">
+                        {formErrors.managementType}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Cantidad de docs (aprox)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formState.docsCountApprox}
+                      onChange={(event) =>
+                        handleFormChange("docsCountApprox", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {formErrors.docsCountApprox ? (
+                      <span className="text-xs text-rose-300">
+                        {formErrors.docsCountApprox}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Extensión de docs</span>
+                    <input
+                      type="text"
+                      value={formState.docsLengthApprox}
+                      onChange={(event) =>
+                        handleFormChange("docsLengthApprox", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {formErrors.docsLengthApprox ? (
+                      <span className="text-xs text-rose-300">
+                        {formErrors.docsLengthApprox}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Conversaciones mensuales</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formState.avgMonthlyConversations}
+                      onChange={(event) =>
+                        handleFormChange(
+                          "avgMonthlyConversations",
+                          event.target.value,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {formErrors.avgMonthlyConversations ? (
+                      <span className="text-xs text-rose-300">
+                        {formErrors.avgMonthlyConversations}
+                      </span>
+                    ) : null}
+                  </label>
+                </div>
+              </section>
+            ) : null}
+
+            {currentStep === 3 ? (
+              <section className="grid gap-4">
+                <h2 className="text-lg font-semibold text-white">Integración/Entregables</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Tipo</span>
+                    <select
+                      value={formState.integrationType}
+                      onChange={(event) =>
+                        handleFormChange(
+                          "integrationType",
+                          event.target.value as FormState["integrationType"],
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    >
+                      {INTEGRATION_TYPES.map((option) => (
+                        <option key={option || "none"} value={option}>
+                          {option || unspecifiedOptionLabel}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Responsable</span>
+                    <select
+                      value={formState.integrationOwner}
+                      onChange={(event) =>
+                        handleFormChange(
+                          "integrationOwner",
+                          event.target.value as FormState["integrationOwner"],
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    >
+                      {INTEGRATION_OWNERS.map((option) => (
+                        <option key={option || "none"} value={option}>
+                          {option || unspecifiedOptionLabel}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm md:col-span-2">
+                    <span className="text-white/80">Nombre de la integración</span>
+                    <input
+                      type="text"
+                      value={formState.integrationName}
+                      onChange={(event) =>
+                        handleFormChange("integrationName", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {formErrors.integrationName ? (
+                      <span className="text-xs text-rose-300">
+                        {formErrors.integrationName}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm md:col-span-2">
+                    <span className="text-white/80">Documentación</span>
+                    <input
+                      type="url"
+                      value={formState.integrationDocsUrl}
+                      onChange={(event) =>
+                        handleFormChange("integrationDocsUrl", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      placeholder="https://"
+                    />
+                    {formErrors.integrationDocsUrl ? (
+                      <span className="text-xs text-rose-300">
+                        {formErrors.integrationDocsUrl}
+                      </span>
+                    ) : null}
+                  </label>
+                </div>
+                <div className="grid gap-4">
+                  <h3 className="text-base font-semibold text-white">Entregables</h3>
+                  <div className="grid gap-4">
+                    {formState.deliverables.length === 0 ? (
+                      <p className="text-sm text-white/60">
+                        Podés agregar entregables después desde la tarea.
+                      </p>
+                    ) : null}
+                    {formState.deliverables.map((deliverable, index) => {
+                      const deliverableError = formErrors.deliverables?.[index];
+                      return (
+                        <div
+                          key={`deliverable-${index}`}
+                          className="grid gap-3 rounded-lg border border-white/10 bg-slate-900/70 p-4 md:grid-cols-[1fr_1fr_1fr_auto]"
+                        >
+                          <label className="flex flex-col gap-1 text-sm">
+                            <span className="text-white/80">Tipo</span>
+                            <select
+                              value={deliverable.type}
+                              onChange={(event) =>
+                                handleDeliverableChange(
+                                  index,
+                                  "type",
+                                  event.target.value as MapacheDeliverableType,
+                                )
+                              }
+                              className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                            >
+                              {DELIVERABLE_TYPES.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="flex flex-col gap-1 text-sm">
+                            <span className="text-white/80">Título</span>
+                            <input
+                              type="text"
+                              value={deliverable.title}
+                              onChange={(event) =>
+                                handleDeliverableChange(
+                                  index,
+                                  "title",
+                                  event.target.value,
+                                )
+                              }
+                              className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                            />
+                            {deliverableError?.title ? (
+                              <span className="text-xs text-rose-300">
+                                {deliverableError.title}
+                              </span>
+                            ) : null}
+                          </label>
+                          <label className="flex flex-col gap-1 text-sm">
+                            <span className="text-white/80">URL</span>
+                            <input
+                              type="url"
+                              value={deliverable.url}
+                              onChange={(event) =>
+                                handleDeliverableChange(
+                                  index,
+                                  "url",
+                                  event.target.value,
+                                )
+                              }
+                              className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                            />
+                            {deliverableError?.url ? (
+                              <span className="text-xs text-rose-300">
+                                {deliverableError.url}
+                              </span>
+                            ) : null}
+                          </label>
+                          <div className="flex items-end justify-end">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDeliverable(index)}
+                              className="rounded-md border border-white/20 px-3 py-2 text-xs uppercase tracking-wide text-white/70 transition hover:bg-white/10"
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleAddDeliverable}
+                      className="inline-flex items-center rounded-md border border-dashed border-white/30 px-3 py-2 text-sm text-white/80 transition hover:border-white/60 hover:text-white"
+                    >
+                      Agregar entregable
+                    </button>
+                  </div>
+                </div>
+              </section>
+            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-white/70">
+              {FORM_STEP_LABELS[currentStep]}
             </div>
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={resetForm}
-                className="rounded-md border border-white/20 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-                disabled={submitting}
+                onClick={handlePreviousStep}
+                className="rounded-md border border-white/30 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isFirstStep}
               >
-                {formT("cancel")}
+                Anterior
               </button>
-              <button
-                type="submit"
-                className="rounded-md bg-[rgb(var(--primary))] px-4 py-2 text-sm font-medium text-white shadow-soft transition hover:bg-[rgb(var(--primary))]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={submitting}
-              >
-                {submitting ? formT("saving") : formT("confirm")}
-              </button>
+              {!isLastStep ? (
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="rounded-md bg-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                >
+                  Siguiente
+                </button>
+              ) : null}
             </div>
           </div>
         </form>
-      ) : null}
+      </Modal>
 
       <div className="flex flex-wrap gap-2">
         {["all", ...STATUS_ORDER].map((status) => {
