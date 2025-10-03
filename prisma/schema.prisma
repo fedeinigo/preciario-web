@@ -320,6 +320,7 @@ enum LanguageCode {
 
 enum Role {
   superadmin
+  admin
   lider
   usuario
 }
