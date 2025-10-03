@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import type { ApiSession } from "../../src/app/api/_utils/require-auth";
-import { ensureMapacheAccess } from "../../src/app/api/mapache/tasks/route";
+import { ensureMapacheAccess } from "../../src/app/api/mapache/tasks/access";
 
 const baseSession: ApiSession = {
   user: { id: "user-1", role: "usuario", team: "Mapaches" },
