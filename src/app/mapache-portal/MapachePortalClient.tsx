@@ -288,6 +288,62 @@ function createDefaultFormState(): FormState {
   };
 }
 
+function isEqualFieldValue<T>(a: T, b: T): boolean {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    return a.every((value, index) => isEqualFieldValue(value, b[index]!));
+  }
+
+  return a === b;
+}
+
+function areDeliverablesEqual(
+  next: DeliverableInput[],
+  prev: DeliverableInput[],
+): boolean {
+  if (next.length !== prev.length) return false;
+  return next.every((deliverable, index) => {
+    const previous = prev[index];
+    if (!previous) return false;
+    return (
+      deliverable.type === previous.type &&
+      deliverable.title === previous.title &&
+      deliverable.url === previous.url
+    );
+  });
+}
+
+type CollapsibleSectionProps = {
+  title: string;
+  description?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+};
+
+function CollapsibleSection({
+  title,
+  description,
+  defaultOpen = true,
+  children,
+}: CollapsibleSectionProps) {
+  return (
+    <details
+      className="rounded-lg border border-white/10 bg-white/5 text-sm text-white/80"
+      open={defaultOpen}
+    >
+      <summary className="cursor-pointer select-none rounded-lg px-4 py-3 text-sm font-semibold text-white outline-none transition focus-visible:ring-2 focus-visible:ring-white/40">
+        <span>{title}</span>
+        {description ? (
+          <span className="mt-1 block text-xs font-normal text-white/60">
+            {description}
+          </span>
+        ) : null}
+      </summary>
+      <div className="border-t border-white/10 p-4 pt-3">{children}</div>
+    </details>
+  );
+}
+
 function useTaskFormHandlers({
   setFormState,
   setFormErrors,
@@ -842,6 +898,8 @@ export default function MapachePortalClient({
   );
   const [selectedTaskFormErrors, setSelectedTaskFormErrors] = React.useState<FormErrors>({});
   const [selectedTaskSubmitting, setSelectedTaskSubmitting] = React.useState(false);
+  const selectedTaskInitialPayloadRef = React.useRef<CreateTaskPayload | null>(null);
+  const selectedTaskInitialDeliverablesRef = React.useRef<DeliverableInput[]>([]);
 
   const assigneesErrorMessage = formT("assigneeLoadError");
 
@@ -1341,6 +1399,9 @@ export default function MapachePortalClient({
   const {
     handleFormChange: handleSelectedTaskFormChange,
     handleWebsiteUrlsChange: handleSelectedTaskWebsiteUrlsChange,
+    handleAddDeliverable: handleSelectedTaskAddDeliverable,
+    handleRemoveDeliverable: handleSelectedTaskRemoveDeliverable,
+    handleDeliverableChange: handleSelectedTaskDeliverableChange,
   } = useTaskFormHandlers({
     setFormState: setSelectedTaskFormState,
     setFormErrors: setSelectedTaskFormErrors,
@@ -1350,12 +1411,31 @@ export default function MapachePortalClient({
     if (!selectedTask) {
       return unspecifiedOptionLabel;
     }
+
+    const stateAssigneeIdentifier =
+      typeof selectedTaskFormState.assigneeId === "string"
+        ? selectedTaskFormState.assigneeId.trim()
+        : null;
+
+    if (stateAssigneeIdentifier) {
+      const stateAssignee = mapacheUsers.find((user) => {
+        if (user.email.toLowerCase() === stateAssigneeIdentifier.toLowerCase()) {
+          return true;
+        }
+        return user.id === stateAssigneeIdentifier;
+      });
+      if (stateAssignee) {
+        return formatAssigneeOption(stateAssignee);
+      }
+    }
+
     if (selectedTask.assignee?.name) {
       return selectedTask.assignee.name;
     }
     if (selectedTask.assignee?.email) {
       return selectedTask.assignee.email;
     }
+
     const assigneeIdentifier =
       typeof selectedTask.assigneeId === "string"
         ? selectedTask.assigneeId.trim()
@@ -1368,7 +1448,23 @@ export default function MapachePortalClient({
       return item.id === assigneeIdentifier;
     });
     return user ? formatAssigneeOption(user) : unspecifiedOptionLabel;
-  }, [mapacheUsers, selectedTask, unspecifiedOptionLabel]);
+  }, [
+    mapacheUsers,
+    selectedTask,
+    selectedTaskFormState.assigneeId,
+    unspecifiedOptionLabel,
+  ]);
+
+  const selectedTaskPresentationDateLabel = React.useMemo(() => {
+    if (!selectedTask?.presentationDate) {
+      return "—";
+    }
+    const parsed = new Date(selectedTask.presentationDate);
+    if (Number.isNaN(parsed.getTime())) {
+      return selectedTask.presentationDate;
+    }
+    return parsed.toLocaleDateString();
+  }, [selectedTask?.presentationDate]);
 
   const handleCreateTask = React.useCallback(async () => {
     const { payload: requestPayload, deliverables, errors } = normalizeFormState(
@@ -1555,24 +1651,36 @@ export default function MapachePortalClient({
     }
   }, [handleDeleteTask, pendingDeletion]);
 
-  const handleOpenTask = React.useCallback((task: MapacheTask) => {
-    setSelectedTask(task);
-    setSelectedTaskFormState(createFormStateFromTask(task));
-    setSelectedTaskFormErrors({});
-    setSelectedTaskSubmitting(false);
-  }, []);
+  const openTask = React.useCallback(
+    (task: MapacheTask) => {
+      setSelectedTask(task);
+      const nextFormState = createFormStateFromTask(task);
+      setSelectedTaskFormState(nextFormState);
+      setSelectedTaskFormErrors({});
+      setSelectedTaskSubmitting(false);
+      const { payload, deliverables } = normalizeFormState(
+        nextFormState,
+        validationMessages,
+      );
+      selectedTaskInitialPayloadRef.current = payload;
+      selectedTaskInitialDeliverablesRef.current = deliverables;
+    },
+    [validationMessages],
+  );
 
-  const handleCloseTask = React.useCallback(() => {
+  const closeTask = React.useCallback(() => {
     setSelectedTask(null);
     setSelectedTaskFormState(createDefaultFormState());
     setSelectedTaskFormErrors({});
     setSelectedTaskSubmitting(false);
+    selectedTaskInitialPayloadRef.current = null;
+    selectedTaskInitialDeliverablesRef.current = [];
   }, []);
 
-  const handleSubmitSelectedTask = React.useCallback(async () => {
+  const submitSelectedTask = React.useCallback(async () => {
     if (!selectedTask) return;
 
-    const { payload, errors } = normalizeFormState(
+    const { payload, errors, deliverables } = normalizeFormState(
       selectedTaskFormState,
       validationMessages,
     );
@@ -1583,13 +1691,39 @@ export default function MapachePortalClient({
       return;
     }
 
-    const requestPayload = {
-      ...payload,
+    const initialPayload = selectedTaskInitialPayloadRef.current;
+    const changedEntries = (
+      Object.keys(payload) as (keyof CreateTaskPayload)[]
+    ).filter((key) => {
+      if (!initialPayload) return true;
+      return !isEqualFieldValue(payload[key], initialPayload[key]);
+    });
+
+    const changedPayload = Object.fromEntries(
+      changedEntries.map((key) => [key, payload[key]] as const),
+    ) as Partial<CreateTaskPayload>;
+
+    const deliverablesChanged = !areDeliverablesEqual(
+      deliverables,
+      selectedTaskInitialDeliverablesRef.current,
+    );
+
+    if (Object.keys(changedPayload).length === 0 && !deliverablesChanged) {
+      toast.info("No hay cambios para guardar.");
+      return;
+    }
+
+    const requestPayload: Record<string, unknown> = {
       id: selectedTask.id,
       status: selectedTask.status,
       substatus: selectedTask.substatus,
       origin: selectedTask.origin,
+      ...changedPayload,
     };
+
+    if (deliverablesChanged) {
+      requestPayload.deliverables = deliverables;
+    }
 
     setSelectedTaskSubmitting(true);
     try {
@@ -1617,7 +1751,7 @@ export default function MapachePortalClient({
       }
 
       toast.success(toastT("updateSuccess"));
-      handleCloseTask();
+      closeTask();
     } catch (error) {
       console.error(error);
       toast.error(toastT("updateError"));
@@ -1625,7 +1759,7 @@ export default function MapachePortalClient({
       setSelectedTaskSubmitting(false);
     }
   }, [
-    handleCloseTask,
+    closeTask,
     loadTasks,
     selectedTask,
     selectedTaskFormState,
@@ -2351,7 +2485,9 @@ export default function MapachePortalClient({
               <div className="flex flex-1 flex-col gap-4">
                 <button
                   type="button"
-                  onClick={() => handleOpenTask(task)}
+                  tabIndex={0}
+                  onClick={() => openTask(task)}
+                  aria-label={`Abrir detalles de ${task.title}`}
                   className="flex flex-col gap-3 rounded-lg border border-transparent bg-transparent p-0 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 hover:border-white/10"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -2454,7 +2590,7 @@ export default function MapachePortalClient({
 
       <Modal
         open={selectedTask !== null}
-        onClose={handleCloseTask}
+        onClose={closeTask}
         variant="inverted"
         disableCloseOnBackdrop={selectedTaskSubmitting}
         title={
@@ -2473,7 +2609,7 @@ export default function MapachePortalClient({
           <div className="flex justify-end gap-2 rounded-lg bg-white/10 px-4 py-3">
             <button
               type="button"
-              onClick={handleCloseTask}
+              onClick={closeTask}
               className="rounded-md border border-white/20 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
               disabled={selectedTaskSubmitting}
             >
@@ -2497,11 +2633,14 @@ export default function MapachePortalClient({
             onSubmit={(event) => {
               event.preventDefault();
               if (!selectedTaskSubmitting) {
-                void handleSubmitSelectedTask();
+                void submitSelectedTask();
               }
             }}
           >
-            <section className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+            <CollapsibleSection
+              title="Resumen de la señal"
+              description="Información clave para entender rápidamente el estado actual."
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
@@ -2516,153 +2655,149 @@ export default function MapachePortalClient({
                   </span>
                 ) : null}
               </div>
-              <dl className="mt-3 grid gap-2 text-xs text-white/70 sm:grid-cols-2">
-                <div className="flex flex-col">
-                  <dt className="font-semibold text-white/80">
+              <div className="mt-4 grid gap-3 text-xs text-white/70 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="flex flex-col gap-1">
+                  <span className="font-semibold text-white/80">
                     {actionsT("statusLabel")}
-                  </dt>
-                  <dd>{statusT(getStatusLabelKey(selectedTask.status))}</dd>
+                  </span>
+                  <span>{statusT(getStatusLabelKey(selectedTask.status))}</span>
                 </div>
-                <div className="flex flex-col">
-                  <dt className="font-semibold text-white/80">Origen</dt>
-                  <dd>{selectedTask.origin}</dd>
+                <div className="flex flex-col gap-1">
+                  <span className="font-semibold text-white/80">Origen</span>
+                  <span>{selectedTask.origin}</span>
                 </div>
-                  <div className="flex flex-col">
-                    <dt className="font-semibold text-white/80">Canal</dt>
-                    <dd>
-                      {selectedTask.directness
-                        ? directnessT(selectedTask.directness)
-                        : directnessT(selectedTaskFormState.directness)}
-                    </dd>
-                  </div>
-                <div className="flex flex-col">
-                  <dt className="font-semibold text-white/80">Asignado a</dt>
-                  <dd>{selectedTaskAssigneeLabel}</dd>
+                <div className="flex flex-col gap-1">
+                  <span className="font-semibold text-white/80">Asignado a</span>
+                  <span>{selectedTaskAssigneeLabel}</span>
                 </div>
-              </dl>
-            </section>
+                <div className="flex flex-col gap-1">
+                  <span className="font-semibold text-white/80">Necesidad del equipo</span>
+                  <span>
+                    {selectedTask.needFromTeam
+                      ? needFromTeamT(selectedTask.needFromTeam)
+                      : needFromTeamT(selectedTaskFormState.needFromTeam)}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="font-semibold text-white/80">Canal</span>
+                  <span>
+                    {selectedTask.directness
+                      ? directnessT(selectedTask.directness)
+                      : directnessT(selectedTaskFormState.directness)}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="font-semibold text-white/80">Email solicitante</span>
+                  <span>{selectedTask.requesterEmail ?? "—"}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="font-semibold text-white/80">Fecha de presentación</span>
+                  <span>{selectedTaskPresentationDateLabel}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="font-semibold text-white/80">Pipedrive</span>
+                  {selectedTask.pipedriveDealUrl ? (
+                    <a
+                      href={selectedTask.pipedriveDealUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="truncate text-[rgb(var(--primary))] hover:underline"
+                    >
+                      {selectedTask.pipedriveDealUrl}
+                    </a>
+                  ) : (
+                    <span>—</span>
+                  )}
+                </div>
+              </div>
+            </CollapsibleSection>
 
-            <section className="grid gap-4">
-              <h3 className="text-base font-semibold text-white">Editar datos</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">{formT("titleLabel")}</span>
-                  <input
-                    type="text"
-                    value={selectedTaskFormState.title}
-                    onChange={(event) =>
-                      handleSelectedTaskFormChange("title", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  />
-                  {selectedTaskFormErrors.title ? (
-                    <span className="text-xs text-rose-300">
-                      {selectedTaskFormErrors.title}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Cliente</span>
-                  <input
-                    type="text"
-                    value={selectedTaskFormState.clientName}
-                    onChange={(event) =>
-                      handleSelectedTaskFormChange("clientName", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  />
-                  {selectedTaskFormErrors.clientName ? (
-                    <span className="text-xs text-rose-300">
-                      {selectedTaskFormErrors.clientName}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Producto</span>
-                  <input
-                    type="text"
-                    value={selectedTaskFormState.productKey}
-                    onChange={(event) =>
-                      handleSelectedTaskFormChange("productKey", event.target.value)
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  />
-                  {selectedTaskFormErrors.productKey ? (
-                    <span className="text-xs text-rose-300">
-                      {selectedTaskFormErrors.productKey}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Asignado a</span>
-                  <select
-                    value={selectedTaskFormState.assigneeId ?? ""}
-                    onChange={(event) =>
-                      handleSelectedTaskFormChange(
-                        "assigneeId",
-                        event.target.value ? event.target.value : null,
-                      )
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  >
-                    <option value="">Sin asignar</option>
-                    {mapacheUsers.map((user) => (
-                      <option key={user.email} value={user.email}>
-                        {formatAssigneeOption(user)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Email del solicitante</span>
-                  <input
-                    type="email"
-                    value={selectedTaskFormState.requesterEmail}
-                    onChange={(event) =>
-                      handleSelectedTaskFormChange(
-                        "requesterEmail",
-                        event.target.value,
-                      )
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  />
-                  {selectedTaskFormErrors.requesterEmail ? (
-                    <span className="text-xs text-rose-300">
-                      {selectedTaskFormErrors.requesterEmail}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Fecha de presentación</span>
-                  <input
-                    type="date"
-                    value={selectedTaskFormState.presentationDate}
-                    onChange={(event) =>
-                      handleSelectedTaskFormChange(
-                        "presentationDate",
-                        event.target.value,
-                      )
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  />
-                  {selectedTaskFormErrors.presentationDate ? (
-                    <span className="text-xs text-rose-300">
-                      {selectedTaskFormErrors.presentationDate}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Necesidad del equipo</span>
-                  <select
-                    value={selectedTaskFormState.needFromTeam}
-                    onChange={(event) =>
-                      handleSelectedTaskFormChange(
-                        "needFromTeam",
-                        event.target.value as MapacheNeedFromTeam,
-                      )
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  >
+            <div className="grid gap-4">
+              <CollapsibleSection
+                title="Datos generales"
+                description="Actualizá los campos principales de la señal."
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">{formT("titleLabel")}</span>
+                    <input
+                      type="text"
+                      value={selectedTaskFormState.title}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange("title", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {selectedTaskFormErrors.title ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.title}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Cliente</span>
+                    <input
+                      type="text"
+                      value={selectedTaskFormState.clientName}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange("clientName", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {selectedTaskFormErrors.clientName ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.clientName}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Producto</span>
+                    <input
+                      type="text"
+                      value={selectedTaskFormState.productKey}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange("productKey", event.target.value)
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {selectedTaskFormErrors.productKey ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.productKey}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Asignado a</span>
+                    <select
+                      value={selectedTaskFormState.assigneeId ?? ""}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "assigneeId",
+                          event.target.value ? event.target.value : null,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    >
+                      <option value="">Sin asignar</option>
+                      {mapacheUsers.map((user) => (
+                        <option key={user.email} value={user.email}>
+                          {formatAssigneeOption(user)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Necesidad del equipo</span>
+                    <select
+                      value={selectedTaskFormState.needFromTeam}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "needFromTeam",
+                          event.target.value as MapacheNeedFromTeam,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    >
                       {NEED_OPTIONS.map((option) => (
                         <option key={option} value={option}>
                           {needFromTeamT(option)}
@@ -2671,17 +2806,17 @@ export default function MapachePortalClient({
                     </select>
                   </label>
                   <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-white/80">Canal</span>
-                  <select
-                    value={selectedTaskFormState.directness}
-                    onChange={(event) =>
-                      handleSelectedTaskFormChange(
-                        "directness",
-                        event.target.value as MapacheDirectness,
-                      )
-                    }
-                    className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  >
+                    <span className="text-white/80">Canal</span>
+                    <select
+                      value={selectedTaskFormState.directness}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "directness",
+                          event.target.value as MapacheDirectness,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    >
                       {DIRECTNESS_OPTIONS.map((option) => (
                         <option key={option} value={option}>
                           {directnessT(option)}
@@ -2689,106 +2824,410 @@ export default function MapachePortalClient({
                       ))}
                     </select>
                   </label>
-              </div>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-white/80">Pipedrive Deal URL</span>
-                <input
-                  type="url"
-                  value={selectedTaskFormState.pipedriveDealUrl}
-                  onChange={(event) =>
-                    handleSelectedTaskFormChange(
-                      "pipedriveDealUrl",
-                      event.target.value,
-                    )
-                  }
-                  className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  placeholder="https://"
-                />
-                {selectedTaskFormErrors.pipedriveDealUrl ? (
-                  <span className="text-xs text-rose-300">
-                    {selectedTaskFormErrors.pipedriveDealUrl}
-                  </span>
-                ) : null}
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-white/80">Sitios web del cliente</span>
-                <textarea
-                  value={selectedTaskFormState.clientWebsiteUrls.join("\n")}
-                  onChange={(event) =>
-                    handleSelectedTaskWebsiteUrlsChange(event.target.value)
-                  }
-                  className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  placeholder="Una URL por línea"
-                />
-                {selectedTaskFormErrors.clientWebsiteUrls ? (
-                  <span className="text-xs text-rose-300">
-                    {selectedTaskFormErrors.clientWebsiteUrls}
-                  </span>
-                ) : null}
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-white/80">Dolor del cliente</span>
-                <textarea
-                  value={selectedTaskFormState.clientPain}
-                  onChange={(event) =>
-                    handleSelectedTaskFormChange("clientPain", event.target.value)
-                  }
-                  className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  placeholder="Contexto adicional"
-                />
-                {selectedTaskFormErrors.clientPain ? (
-                  <span className="text-xs text-rose-300">
-                    {selectedTaskFormErrors.clientPain}
-                  </span>
-                ) : null}
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-white/80">{formT("descriptionLabel")}</span>
-                <textarea
-                  value={selectedTaskFormState.description}
-                  onChange={(event) =>
-                    handleSelectedTaskFormChange("description", event.target.value)
-                  }
-                  className="min-h-[120px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                  placeholder={formT("descriptionPlaceholder")}
-                />
-              </label>
-            </section>
+                </div>
+                <label className="mt-4 flex flex-col gap-1 text-sm">
+                  <span className="text-white/80">{formT("descriptionLabel")}</span>
+                  <textarea
+                    value={selectedTaskFormState.description}
+                    onChange={(event) =>
+                      handleSelectedTaskFormChange("description", event.target.value)
+                    }
+                    className="min-h-[120px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    placeholder={formT("descriptionPlaceholder")}
+                  />
+                </label>
+              </CollapsibleSection>
 
-            <section className="grid gap-3">
-              <h3 className="text-base font-semibold text-white">Entregables</h3>
-              {selectedTask.deliverables.length > 0 ? (
-                <ul className="grid gap-2 text-sm text-white/70">
-                  {selectedTask.deliverables.map((deliverable) => (
-                    <li
-                      key={deliverable.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+              <CollapsibleSection
+                title="Contacto y contexto"
+                description="Información de seguimiento y contexto comercial."
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Email del solicitante</span>
+                    <input
+                      type="email"
+                      value={selectedTaskFormState.requesterEmail}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "requesterEmail",
+                          event.target.value,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {selectedTaskFormErrors.requesterEmail ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.requesterEmail}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Rol del interlocutor</span>
+                    <input
+                      type="text"
+                      value={selectedTaskFormState.interlocutorRole}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "interlocutorRole",
+                          event.target.value,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {selectedTaskFormErrors.interlocutorRole ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.interlocutorRole}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Fecha de presentación</span>
+                    <input
+                      type="date"
+                      value={selectedTaskFormState.presentationDate}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "presentationDate",
+                          event.target.value,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {selectedTaskFormErrors.presentationDate ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.presentationDate}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Pipedrive Deal URL</span>
+                    <input
+                      type="url"
+                      value={selectedTaskFormState.pipedriveDealUrl}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "pipedriveDealUrl",
+                          event.target.value,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      placeholder="https://"
+                    />
+                    {selectedTaskFormErrors.pipedriveDealUrl ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.pipedriveDealUrl}
+                      </span>
+                    ) : null}
+                  </label>
+                </div>
+                <div className="mt-4 grid gap-4">
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Sitios web del cliente</span>
+                    <textarea
+                      value={selectedTaskFormState.clientWebsiteUrls.join("\n")}
+                      onChange={(event) =>
+                        handleSelectedTaskWebsiteUrlsChange(event.target.value)
+                      }
+                      className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      placeholder="Una URL por línea"
+                    />
+                    {selectedTaskFormErrors.clientWebsiteUrls ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.clientWebsiteUrls}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Dolor del cliente</span>
+                    <textarea
+                      value={selectedTaskFormState.clientPain}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange("clientPain", event.target.value)
+                      }
+                      className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      placeholder="Contexto adicional"
+                    />
+                    {selectedTaskFormErrors.clientPain ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.clientPain}
+                      </span>
+                    ) : null}
+                  </label>
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                title="Documentación"
+                description="Datos para dimensionar el esfuerzo del equipo."
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Tipo de gestión</span>
+                    <input
+                      type="text"
+                      value={selectedTaskFormState.managementType}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "managementType",
+                          event.target.value,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {selectedTaskFormErrors.managementType ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.managementType}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Cantidad de docs (aprox)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={selectedTaskFormState.docsCountApprox}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "docsCountApprox",
+                          event.target.value,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {selectedTaskFormErrors.docsCountApprox ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.docsCountApprox}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Extensión de docs</span>
+                    <input
+                      type="text"
+                      value={selectedTaskFormState.docsLengthApprox}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "docsLengthApprox",
+                          event.target.value,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {selectedTaskFormErrors.docsLengthApprox ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.docsLengthApprox}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Conversaciones mensuales</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={selectedTaskFormState.avgMonthlyConversations}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "avgMonthlyConversations",
+                          event.target.value,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {selectedTaskFormErrors.avgMonthlyConversations ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.avgMonthlyConversations}
+                      </span>
+                    ) : null}
+                  </label>
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                title="Integración y entregables"
+                description="Configurá la integración y administrá los entregables."
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Tipo</span>
+                    <select
+                      value={selectedTaskFormState.integrationType}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "integrationType",
+                          event.target.value as FormState["integrationType"],
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
                     >
-                        <div className="flex flex-col">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-white/60">
-                            {deliverableTypeT(deliverable.type)}
-                          </span>
-                        <span className="text-sm text-white/80">
-                          {deliverable.title}
-                        </span>
-                      </div>
-                      <a
-                        href={deliverable.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-medium text-[rgb(var(--primary))] hover:underline"
+                      {INTEGRATION_TYPES.map((option) => (
+                        <option key={option || "none"} value={option}>
+                          {option
+                            ? integrationTypeT(option)
+                            : unspecifiedOptionLabel}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="text-white/80">Responsable</span>
+                    <select
+                      value={selectedTaskFormState.integrationOwner}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "integrationOwner",
+                          event.target.value as FormState["integrationOwner"],
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    >
+                      {INTEGRATION_OWNERS.map((option) => (
+                        <option key={option || "none"} value={option}>
+                          {option
+                            ? integrationOwnerT(option)
+                            : unspecifiedOptionLabel}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm md:col-span-2">
+                    <span className="text-white/80">Nombre de la integración</span>
+                    <input
+                      type="text"
+                      value={selectedTaskFormState.integrationName}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "integrationName",
+                          event.target.value,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    />
+                    {selectedTaskFormErrors.integrationName ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.integrationName}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm md:col-span-2">
+                    <span className="text-white/80">Documentación</span>
+                    <input
+                      type="url"
+                      value={selectedTaskFormState.integrationDocsUrl}
+                      onChange={(event) =>
+                        handleSelectedTaskFormChange(
+                          "integrationDocsUrl",
+                          event.target.value,
+                        )
+                      }
+                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      placeholder="https://"
+                    />
+                    {selectedTaskFormErrors.integrationDocsUrl ? (
+                      <span className="text-xs text-rose-300">
+                        {selectedTaskFormErrors.integrationDocsUrl}
+                      </span>
+                    ) : null}
+                  </label>
+                </div>
+                <div className="mt-4 grid gap-4">
+                  {selectedTaskFormState.deliverables.length === 0 ? (
+                    <p className="text-sm text-white/60">
+                      Podés agregar entregables para compartir el material actualizado.
+                    </p>
+                  ) : null}
+                  {selectedTaskFormState.deliverables.map((deliverable, index) => {
+                    const deliverableError =
+                      selectedTaskFormErrors.deliverables?.[index];
+                    return (
+                      <div
+                        key={`selected-deliverable-${index}`}
+                        className="grid gap-3 rounded-lg border border-white/10 bg-slate-900/70 p-4 md:grid-cols-[1fr_1fr_1fr_auto]"
                       >
-                        {deliverablesT("open")}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-white/60">
-                  {deliverablesT("empty")}
-                </p>
-              )}
-            </section>
+                        <label className="flex flex-col gap-1 text-sm">
+                          <span className="text-white/80">Tipo</span>
+                          <select
+                            value={deliverable.type}
+                            onChange={(event) =>
+                              handleSelectedTaskDeliverableChange(
+                                index,
+                                "type",
+                                event.target.value as MapacheDeliverableType,
+                              )
+                            }
+                            className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                          >
+                            {DELIVERABLE_TYPES.map((option) => (
+                              <option key={option} value={option}>
+                                {deliverableTypeT(option)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="flex flex-col gap-1 text-sm">
+                          <span className="text-white/80">Título</span>
+                          <input
+                            type="text"
+                            value={deliverable.title}
+                            onChange={(event) =>
+                              handleSelectedTaskDeliverableChange(
+                                index,
+                                "title",
+                                event.target.value,
+                              )
+                            }
+                            className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                          />
+                          {deliverableError?.title ? (
+                            <span className="text-xs text-rose-300">
+                              {deliverableError.title}
+                            </span>
+                          ) : null}
+                        </label>
+                        <label className="flex flex-col gap-1 text-sm">
+                          <span className="text-white/80">URL</span>
+                          <input
+                            type="url"
+                            value={deliverable.url}
+                            onChange={(event) =>
+                              handleSelectedTaskDeliverableChange(
+                                index,
+                                "url",
+                                event.target.value,
+                              )
+                            }
+                            className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                          />
+                          {deliverableError?.url ? (
+                            <span className="text-xs text-rose-300">
+                              {deliverableError.url}
+                            </span>
+                          ) : null}
+                        </label>
+                        <div className="flex items-end justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectedTaskRemoveDeliverable(index)}
+                            className="rounded-md border border-white/20 px-3 py-2 text-xs uppercase tracking-wide text-white/70 transition hover:bg-white/10"
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={handleSelectedTaskAddDeliverable}
+                    className="inline-flex items-center rounded-md border border-dashed border-white/30 px-3 py-2 text-sm text-white/80 transition hover:border-white/60 hover:text-white"
+                  >
+                    Agregar entregable
+                  </button>
+                </div>
+              </CollapsibleSection>
+            </div>
           </form>
         ) : null}
       </Modal>
