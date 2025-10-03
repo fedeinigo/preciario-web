@@ -27,6 +27,20 @@ import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { locales } from "@/lib/i18n/config";
 
+function isMapachePath(pathname: string | null): boolean {
+  if (!pathname) return false;
+
+  const localePrefix = locales.find(
+    (code) => pathname === `/${code}` || pathname.startsWith(`/${code}/`)
+  );
+
+  const pathnameWithoutLocale = localePrefix
+    ? pathname.slice(localePrefix.length + 1) || "/"
+    : pathname;
+
+  return pathnameWithoutLocale.startsWith("/mapache-portal");
+}
+
 type Tab = "generator" | "history" | "stats" | "users" | "teams" | "goals";
 type AnyRole =
   | "superadmin"
@@ -106,8 +120,10 @@ export default function Navbar() {
 
   const { data: session, status } = useSession();
 
+  const isMapachePortal = isMapachePath(pathname);
+
   // Tabs/acciones solo cuando estoy autenticado
-  const showTabs = status === "authenticated";
+  const showTabs = status === "authenticated" && !isMapachePortal;
   const showAuthActions = status === "authenticated";
 
   const role = (session?.user?.role as AnyRole) ?? "usuario";
@@ -119,6 +135,10 @@ export default function Navbar() {
   const canSeeUsers = role === "admin" || role === "superadmin";
   const canOpenMapachePortal =
     rawTeam === "Mapaches" || role === "superadmin" || role === "admin";
+  const showMapacheReturn =
+    showAuthActions && canOpenMapachePortal && isMapachePortal;
+  const showMapacheLink =
+    showAuthActions && canOpenMapachePortal && !isMapachePortal;
 
   const readHash = (): Tab => {
     const h = (globalThis?.location?.hash || "").replace("#", "");
@@ -236,8 +256,6 @@ export default function Navbar() {
   // % cumplimiento (texto sin límite; barra visual max 100)
   const pct = goal > 0 ? (progress / goal) * 100 : 0;
 
-  const isMapachePortal = pathname === "/mapache-portal";
-
   return (
     <nav
       role="navigation"
@@ -247,7 +265,7 @@ export default function Navbar() {
     >
       <div className="navbar-inner mx-auto max-w-[2000px] px-3">
         {/* IZQUIERDA: logo */}
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
           <Image
             src="/logo.png"
             alt={t("logoAlt")}
@@ -256,6 +274,14 @@ export default function Navbar() {
             className="h-9 w-auto object-contain"
             priority
           />
+          {showMapacheReturn && (
+            <Link
+              href="/"
+              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+            >
+              {profileT("mapachePortalReturn")}
+            </Link>
+          )}
         </div>
 
         {/* CENTRO: tabs (solo autenticado) */}
@@ -321,7 +347,7 @@ export default function Navbar() {
               {name} — {team}
             </button>
           )}
-          {showAuthActions && canOpenMapachePortal && (
+          {showMapacheLink && (
             <Link
               href="/mapache-portal"
               className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
