@@ -28,18 +28,18 @@ function isValidUrl(value: string) {
 
 export async function POST(
   req: Request,
-  context: { params: { taskId: string } },
+  { params }: { params: Promise<{ taskId: string }> },
 ) {
+  const { taskId } = await params;
+  if (!taskId) {
+    return NextResponse.json({ error: "Task id is required" }, { status: 400 });
+  }
+
   const { session, response } = await requireApiSession();
   if (response) return response;
 
   const { response: accessResponse, userId } = ensureMapacheAccess(session);
   if (accessResponse) return accessResponse;
-
-  const taskId = context.params?.taskId;
-  if (!taskId) {
-    return NextResponse.json({ error: "Task id is required" }, { status: 400 });
-  }
 
   const body = (await req.json().catch(() => ({}))) as {
     type?: unknown;
