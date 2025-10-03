@@ -54,6 +54,7 @@ export default async function MapachePortalPage() {
     orderBy: { createdAt: "desc" },
   })) as MapacheTaskRecord[];
 
+
   const initialTasks: MapacheTask[] = tasks.map((task) => ({
     id: task.id,
     title: task.title,
