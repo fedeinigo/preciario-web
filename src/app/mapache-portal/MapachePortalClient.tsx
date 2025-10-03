@@ -4743,7 +4743,11 @@ function TaskMetaChip({
         <div className="flex flex-col gap-3 text-sm text-white/80">
           <p>{pendingDeletion ? actionsT("deleteConfirm", { id: pendingDeletion }) : null}</p>
         </div>
-      </Modal>
+       </Modal>
+
+      </>
+    ) : null}
+
     </section>
   );
 }
