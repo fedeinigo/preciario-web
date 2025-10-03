@@ -2,15 +2,20 @@
 import { NextResponse } from "next/server";
 
 import { requireApiSession } from "@/app/api/_utils/require-auth";
-import { ensureMapacheAccess } from "../../access";
+import {
+  ensureMapacheAccess,
+  parseDeliverableType,
+} from "../../access";
+import type { MapacheDeliverableType } from "../../access";
 import prisma from "@/lib/prisma";
-import { MapacheDeliverableType } from "@prisma/client";
 
-function parseDeliverableType(value: unknown): MapacheDeliverableType | null {
-  if (typeof value !== "string") return null;
-  const allowed = new Set<string>(Object.values(MapacheDeliverableType));
-  return allowed.has(value) ? (value as MapacheDeliverableType) : null;
-}
+type MapacheTaskDeliverableDelegate = {
+  create: (args: unknown) => Promise<unknown>;
+};
+
+const mapacheTaskDeliverable = (
+  prisma as unknown as { mapacheTaskDeliverable: MapacheTaskDeliverableDelegate }
+).mapacheTaskDeliverable;
 
 function isValidUrl(value: string) {
   try {
@@ -57,7 +62,7 @@ export async function POST(
     return NextResponse.json({ error: "URL is invalid" }, { status: 400 });
   }
 
-  const created = await prisma.mapacheTaskDeliverable.create({
+  const created = (await mapacheTaskDeliverable.create({
     data: {
       taskId,
       type,
@@ -73,7 +78,14 @@ export async function POST(
       addedById: true,
       createdAt: true,
     },
-  });
+  })) as {
+    id: string;
+    type: MapacheDeliverableType;
+    title: string;
+    url: string;
+    addedById: string | null;
+    createdAt: Date;
+  };
 
   return NextResponse.json(created, { status: 201 });
 }

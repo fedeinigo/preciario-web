@@ -3,15 +3,6 @@ import { NextResponse } from "next/server";
 
 import { requireApiSession } from "@/app/api/_utils/require-auth";
 import prisma from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
-import {
-  Directness,
-  IntegrationOwner,
-  IntegrationType,
-  MapacheNeedFromTeam,
-  MapacheSignalOrigin,
-  MapacheTaskSubstatus,
-} from "@prisma/client";
 
 import {
   ensureMapacheAccess,
@@ -25,7 +16,11 @@ import {
   parseSubstatus,
   taskSelect,
 } from "./access";
-import type { MapacheDeliverableType } from "./access";
+import type {
+  MapacheDeliverableType,
+  MapacheIntegrationOwner,
+  MapacheIntegrationType,
+} from "./access";
 
 type DeliverableInput = {
   title: string;
@@ -291,7 +286,6 @@ function parseDeliverables(
   return parsed;
 }
 
-
 type MapacheTaskDelegate = {
   findMany: (args: unknown) => Promise<unknown>;
   create: (args: unknown) => Promise<unknown>;
@@ -299,18 +293,9 @@ type MapacheTaskDelegate = {
   delete: (args: unknown) => Promise<unknown>;
 };
 
-const mapacheTask = (prisma as unknown as { mapacheTask: MapacheTaskDelegate }).mapacheTask;
-
-const EMAIL_REGEX = /.+@.+\..+/i;
-
-function parseEnumValue<T extends Record<string, string>>(
-  value: unknown,
-  enumObject: T,
-): T[keyof T] | null {
-  if (typeof value !== "string") return null;
-  const allowed = new Set<string>(Object.values(enumObject));
-  return allowed.has(value) ? (value as T[keyof T]) : null;
-}
+const mapacheTask = (
+  prisma as unknown as { mapacheTask: MapacheTaskDelegate }
+).mapacheTask;
 
 export async function GET() {
   const { session, response } = await requireApiSession();
@@ -337,350 +322,149 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await req.json().catch(() => ({}))) as {
-    title?: unknown;
-    description?: unknown;
-    status?: unknown;
-    substatus?: unknown;
-    origin?: unknown;
-    requesterEmail?: unknown;
-    clientName?: unknown;
-    productKey?: unknown;
-    needFromTeam?: unknown;
-    directness?: unknown;
-    assigneeId?: unknown;
-    presentationDate?: unknown;
-    interlocutorRole?: unknown;
-    clientWebsiteUrls?: unknown;
-    pipedriveDealUrl?: unknown;
-    clientPain?: unknown;
-    managementType?: unknown;
-    docsCountApprox?: unknown;
-    docsLengthApprox?: unknown;
-    integrationType?: unknown;
-    integrationOwner?: unknown;
-    integrationName?: unknown;
-    integrationDocsUrl?: unknown;
-    avgMonthlyConversations?: unknown;
-  };
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
-  const title = typeof rawBody.title === "string" ? rawBody.title.trim() : "";
+  const titleResult = parseStringWithDefault(body.title, "title");
+  if (titleResult instanceof NextResponse) return titleResult;
+  const title = titleResult;
   if (!title) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
 
-  const status =
-    rawBody.status === undefined || rawBody.status === null
-      ? "PENDING"
-      : parseStatus(rawBody.status);
-  if (!status) {
-    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  const status = parseStatus(body.status) ?? "PENDING";
+  const substatus = parseSubstatus(body.substatus) ?? "BACKLOG";
+  const origin = parseOrigin(body.origin) ?? "MANUAL";
+
+  const descriptionResult = parseOptionalString(body.description, "description");
+  if (descriptionResult instanceof NextResponse) return descriptionResult;
+  const description = descriptionResult;
+
+  const requesterEmailResult = parseEmail(body.requesterEmail, "requesterEmail");
+  if (requesterEmailResult instanceof NextResponse) return requesterEmailResult;
+  const requesterEmail = requesterEmailResult;
+  if (!requesterEmail) {
+    return NextResponse.json(
+      { error: "requesterEmail is required" },
+      { status: 400 },
+    );
   }
 
-  const substatus =
-    parseEnumValue(body.substatus, MapacheTaskSubstatus) ??
-    MapacheTaskSubstatus.BACKLOG;
-
-  const origin =
-    parseEnumValue(body.origin, MapacheSignalOrigin) ??
-    MapacheSignalOrigin.MANUAL;
-
-  const description =
-    typeof body.description === "string"
-      ? body.description.trim() || null
-      : body.description == null
-        ? null
-        : undefined;
-
-  const requesterEmail =
-    typeof body.requesterEmail === "string"
-      ? body.requesterEmail.trim()
-      : "";
-  if (!requesterEmail || !EMAIL_REGEX.test(requesterEmail)) {
-    return NextResponse.json({ error: "Requester email is invalid" }, { status: 400 });
-  }
-
-  const clientName =
-    typeof body.clientName === "string" ? body.clientName.trim() : "";
+  const clientNameResult = parseStringWithDefault(body.clientName, "clientName");
+  if (clientNameResult instanceof NextResponse) return clientNameResult;
+  const clientName = clientNameResult;
   if (!clientName) {
-    return NextResponse.json({ error: "Client name is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "clientName is required" },
+      { status: 400 },
+    );
   }
 
-  const productKey =
-    typeof body.productKey === "string" ? body.productKey.trim() : "";
+  const productKeyResult = parseStringWithDefault(body.productKey, "productKey");
+  if (productKeyResult instanceof NextResponse) return productKeyResult;
+  const productKey = productKeyResult;
   if (!productKey) {
-    return NextResponse.json({ error: "Product key is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "productKey is required" },
+      { status: 400 },
+    );
   }
 
-  const needFromTeam = parseEnumValue(body.needFromTeam, MapacheNeedFromTeam);
+  const needFromTeam = parseNeedFromTeam(body.needFromTeam);
   if (!needFromTeam) {
     return NextResponse.json({ error: "Invalid needFromTeam" }, { status: 400 });
   }
 
-  const directness = parseEnumValue(body.directness, Directness);
+  const directness = parseDirectness(body.directness);
   if (!directness) {
     return NextResponse.json({ error: "Invalid directness" }, { status: 400 });
   }
 
-  const assigneeId =
-    typeof body.assigneeId === "string" && body.assigneeId.trim()
-      ? body.assigneeId.trim()
-      : null;
+  const assigneeIdResult = parseOptionalId(body.assigneeId, "assigneeId");
+  if (assigneeIdResult instanceof NextResponse) return assigneeIdResult;
+  const assigneeId = assigneeIdResult;
 
-  let presentationDate: Date | null | undefined;
-  if (typeof body.presentationDate === "string" && body.presentationDate.trim()) {
-    const parsed = new Date(body.presentationDate);
-    if (Number.isNaN(parsed.getTime())) {
-      return NextResponse.json({ error: "Invalid presentation date" }, { status: 400 });
-    }
-    presentationDate = parsed;
-  } else if (body.presentationDate == null) {
-    presentationDate = null;
-  }
+  const presentationDateResult = parsePresentationDate(body.presentationDate);
+  if (presentationDateResult instanceof NextResponse) return presentationDateResult;
+  const presentationDate = presentationDateResult;
 
-  const interlocutorRole =
-    typeof body.interlocutorRole === "string"
-      ? body.interlocutorRole.trim() || null
-      : body.interlocutorRole == null
-        ? null
-        : undefined;
+  const interlocutorRoleResult = parseOptionalString(
+    body.interlocutorRole,
+    "interlocutorRole",
+  );
+  if (interlocutorRoleResult instanceof NextResponse) return interlocutorRoleResult;
+  const interlocutorRole = interlocutorRoleResult;
 
-  const clientWebsiteUrls = Array.isArray(body.clientWebsiteUrls)
-    ? body.clientWebsiteUrls
-        .filter((item): item is string => typeof item === "string" && item.trim())
-        .map((item) => item.trim())
-    : [];
+  const clientWebsiteUrlsResult = parseUrlArray(
+    body.clientWebsiteUrls,
+    "clientWebsiteUrls",
+  );
+  if (clientWebsiteUrlsResult instanceof NextResponse) return clientWebsiteUrlsResult;
+  const clientWebsiteUrls = clientWebsiteUrlsResult;
 
-  const pipedriveDealUrl =
-    typeof body.pipedriveDealUrl === "string"
-      ? body.pipedriveDealUrl.trim() || null
-      : body.pipedriveDealUrl == null
-        ? null
-        : undefined;
+  const pipedriveDealUrlResult = parseUrl(body.pipedriveDealUrl, "pipedriveDealUrl");
+  if (pipedriveDealUrlResult instanceof NextResponse) return pipedriveDealUrlResult;
+  const pipedriveDealUrl = pipedriveDealUrlResult;
 
-  const clientPain =
-    typeof body.clientPain === "string"
-      ? body.clientPain.trim() || null
-      : body.clientPain == null
-        ? null
-        : undefined;
+  const clientPainResult = parseOptionalString(body.clientPain, "clientPain");
+  if (clientPainResult instanceof NextResponse) return clientPainResult;
+  const clientPain = clientPainResult;
 
-  const managementType =
-    typeof body.managementType === "string"
-      ? body.managementType.trim() || null
-      : body.managementType == null
-        ? null
-        : undefined;
+  const managementTypeResult = parseOptionalString(
+    body.managementType,
+    "managementType",
+  );
+  if (managementTypeResult instanceof NextResponse) return managementTypeResult;
+  const managementType = managementTypeResult;
 
-  const docsCountApprox =
-    typeof body.docsCountApprox === "number" && Number.isFinite(body.docsCountApprox)
-      ? Math.floor(body.docsCountApprox)
-      : body.docsCountApprox == null
-        ? null
-        : undefined;
+  const docsCountApproxResult = parseInteger(body.docsCountApprox, "docsCountApprox");
+  if (docsCountApproxResult instanceof NextResponse) return docsCountApproxResult;
+  const docsCountApprox = docsCountApproxResult;
 
-  const docsLengthApprox =
-    typeof body.docsLengthApprox === "string"
-      ? body.docsLengthApprox.trim() || null
-      : body.docsLengthApprox == null
-        ? null
-        : undefined;
+  const docsLengthApproxResult = parseOptionalString(
+    body.docsLengthApprox,
+    "docsLengthApprox",
+  );
+  if (docsLengthApproxResult instanceof NextResponse) return docsLengthApproxResult;
+  const docsLengthApprox = docsLengthApproxResult;
 
-  let integrationType: IntegrationType | null | undefined = undefined;
+  let integrationType: MapacheIntegrationType | null | undefined = undefined;
   if (body.integrationType === null) {
     integrationType = null;
   } else if (body.integrationType !== undefined) {
-    const parsed = parseEnumValue(body.integrationType, IntegrationType);
+    const parsed = parseIntegrationType(body.integrationType);
     if (!parsed) {
       return NextResponse.json({ error: "Invalid integrationType" }, { status: 400 });
     }
     integrationType = parsed;
   }
 
-  let integrationOwner: IntegrationOwner | null | undefined = undefined;
+  let integrationOwner: MapacheIntegrationOwner | null | undefined = undefined;
   if (body.integrationOwner === null) {
     integrationOwner = null;
   } else if (body.integrationOwner !== undefined) {
-    const parsed = parseEnumValue(body.integrationOwner, IntegrationOwner);
+    const parsed = parseIntegrationOwner(body.integrationOwner);
     if (!parsed) {
       return NextResponse.json({ error: "Invalid integrationOwner" }, { status: 400 });
     }
     integrationOwner = parsed;
   }
 
-  const integrationName =
-    typeof body.integrationName === "string"
-      ? body.integrationName.trim() || null
-      : body.integrationName == null
-        ? null
-        : undefined;
-
-  const integrationDocsUrl =
-    typeof body.integrationDocsUrl === "string"
-      ? body.integrationDocsUrl.trim() || null
-      : body.integrationDocsUrl == null
-        ? null
-        : undefined;
-
-  const avgMonthlyConversations =
-    typeof body.avgMonthlyConversations === "number" &&
-    Number.isFinite(body.avgMonthlyConversations)
-      ? Math.floor(body.avgMonthlyConversations)
-      : body.avgMonthlyConversations == null
-        ? null
-        : undefined;
-
-  const created = await prisma.mapacheTask.create({
-    data: {
-      title,
-      status,
-      substatus,
-      origin,
-      description,
-      requesterEmail,
-      clientName,
-      productKey,
-      needFromTeam,
-      directness,
-      createdById: userId,
-      assigneeId,
-      presentationDate: presentationDate ?? undefined,
-      interlocutorRole,
-      clientWebsiteUrls,
-      pipedriveDealUrl,
-      clientPain,
-      managementType,
-      docsCountApprox,
-      docsLengthApprox,
-      integrationType: integrationType ?? undefined,
-      integrationOwner: integrationOwner ?? undefined,
-      integrationName,
-      integrationDocsUrl,
-      avgMonthlyConversations,
-    },
-    select: taskSelect,
-  });
-    rawBody.substatus === undefined || rawBody.substatus === null
-      ? "BACKLOG"
-      : parseSubstatus(rawBody.substatus);
-  if (!substatus) {
-    return NextResponse.json({ error: "Invalid substatus" }, { status: 400 });
-  }
-
-  const origin =
-    rawBody.origin === undefined || rawBody.origin === null
-      ? "MANUAL"
-      : parseOrigin(rawBody.origin);
-  if (!origin) {
-    return NextResponse.json({ error: "Invalid origin" }, { status: 400 });
-  }
-
-  let description: string | null | undefined;
-  if ("description" in rawBody) {
-    if (rawBody.description === null) {
-      description = null;
-    } else if (typeof rawBody.description === "string") {
-      description = rawBody.description;
-    } else {
-      return NextResponse.json(
-        { error: "Description must be a string or null" },
-        { status: 400 },
-      );
-    }
-  }
-
-  const assigneeIdResult = parseOptionalId(rawBody.assigneeId, "assigneeId");
-  if (assigneeIdResult instanceof NextResponse) return assigneeIdResult;
-  const assigneeId = assigneeIdResult;
-
-  const requesterEmailResult = parseEmail(rawBody.requesterEmail, "requesterEmail");
-  if (requesterEmailResult instanceof NextResponse) return requesterEmailResult;
-  const requesterEmail = requesterEmailResult;
-
-  const clientNameResult = parseStringWithDefault(
-    rawBody.clientName,
-    "clientName",
+  const integrationNameResult = parseOptionalString(
+    body.integrationName,
+    "integrationName",
   );
-  if (clientNameResult instanceof NextResponse) return clientNameResult;
-  const clientName = clientNameResult;
-
-  const productKeyResult = parseStringWithDefault(
-    rawBody.productKey,
-    "productKey",
-  );
-  if (productKeyResult instanceof NextResponse) return productKeyResult;
-  const productKey = productKeyResult;
-
-  const needFromTeam =
-    rawBody.needFromTeam === undefined || rawBody.needFromTeam === null
-      ? null
-      : parseNeedFromTeam(rawBody.needFromTeam);
-  if (rawBody.needFromTeam !== undefined && rawBody.needFromTeam !== null && !needFromTeam) {
-    return NextResponse.json({ error: "Invalid needFromTeam" }, { status: 400 });
-  }
-
-  const directness =
-    rawBody.directness === undefined || rawBody.directness === null
-      ? null
-      : parseDirectness(rawBody.directness);
-  if (rawBody.directness !== undefined && rawBody.directness !== null && !directness) {
-    return NextResponse.json({ error: "Invalid directness" }, { status: 400 });
-  }
-
-  const integrationType =
-    rawBody.integrationType === undefined || rawBody.integrationType === null
-      ? null
-      : parseIntegrationType(rawBody.integrationType);
-  if (
-    rawBody.integrationType !== undefined &&
-    rawBody.integrationType !== null &&
-    !integrationType
-  ) {
-    return NextResponse.json({ error: "Invalid integrationType" }, { status: 400 });
-  }
-
-  const integrationOwner =
-    rawBody.integrationOwner === undefined || rawBody.integrationOwner === null
-      ? null
-      : parseIntegrationOwner(rawBody.integrationOwner);
-  if (
-    rawBody.integrationOwner !== undefined &&
-    rawBody.integrationOwner !== null &&
-    !integrationOwner
-  ) {
-    return NextResponse.json({ error: "Invalid integrationOwner" }, { status: 400 });
-  }
-
-  const clientWebsiteUrlsResult = parseUrlArray(
-    rawBody.clientWebsiteUrls,
-    "clientWebsiteUrls",
-  );
-  if (clientWebsiteUrlsResult instanceof NextResponse) return clientWebsiteUrlsResult;
-  const clientWebsiteUrls = clientWebsiteUrlsResult;
-
-  const pipedriveDealUrlResult = parseUrl(
-    rawBody.pipedriveDealUrl,
-    "pipedriveDealUrl",
-  );
-  if (pipedriveDealUrlResult instanceof NextResponse) return pipedriveDealUrlResult;
-  const pipedriveDealUrl = pipedriveDealUrlResult;
+  if (integrationNameResult instanceof NextResponse) return integrationNameResult;
+  const integrationName = integrationNameResult;
 
   const integrationDocsUrlResult = parseUrl(
-    rawBody.integrationDocsUrl,
+    body.integrationDocsUrl,
     "integrationDocsUrl",
   );
   if (integrationDocsUrlResult instanceof NextResponse) return integrationDocsUrlResult;
   const integrationDocsUrl = integrationDocsUrlResult;
 
-  const docsCountApproxResult = parseInteger(
-    rawBody.docsCountApprox,
-    "docsCountApprox",
-  );
-  if (docsCountApproxResult instanceof NextResponse) return docsCountApproxResult;
-  const docsCountApprox = docsCountApproxResult;
-
   const avgMonthlyConversationsResult = parseInteger(
-    rawBody.avgMonthlyConversations,
+    body.avgMonthlyConversations,
     "avgMonthlyConversations",
   );
   if (avgMonthlyConversationsResult instanceof NextResponse) {
@@ -688,107 +472,72 @@ export async function POST(req: Request) {
   }
   const avgMonthlyConversations = avgMonthlyConversationsResult;
 
-  const presentationDateResult = parsePresentationDate(rawBody.presentationDate);
-  if (presentationDateResult instanceof NextResponse) return presentationDateResult;
-  const presentationDate = presentationDateResult;
-
-  const interlocutorRoleResult = parseOptionalString(
-    rawBody.interlocutorRole,
-    "interlocutorRole",
-  );
-  if (interlocutorRoleResult instanceof NextResponse) return interlocutorRoleResult;
-  const interlocutorRole = interlocutorRoleResult;
-
-  const clientPainResult = parseOptionalString(rawBody.clientPain, "clientPain");
-  if (clientPainResult instanceof NextResponse) return clientPainResult;
-  const clientPain = clientPainResult;
-
-  const managementTypeResult = parseOptionalString(
-    rawBody.managementType,
-    "managementType",
-  );
-  if (managementTypeResult instanceof NextResponse) return managementTypeResult;
-  const managementType = managementTypeResult;
-
-  const docsLengthApproxResult = parseOptionalString(
-    rawBody.docsLengthApprox,
-    "docsLengthApprox",
-  );
-  if (docsLengthApproxResult instanceof NextResponse) return docsLengthApproxResult;
-  const docsLengthApprox = docsLengthApproxResult;
-
-  const integrationNameResult = parseOptionalString(
-    rawBody.integrationName,
-    "integrationName",
-  );
-  if (integrationNameResult instanceof NextResponse) return integrationNameResult;
-  const integrationName = integrationNameResult;
-
-  const deliverablesResult = parseDeliverables(rawBody.deliverables);
+  const deliverablesResult = parseDeliverables(body.deliverables);
   if (deliverablesResult instanceof NextResponse) return deliverablesResult;
   const deliverables = deliverablesResult;
 
-  const createData: Prisma.MapacheTaskCreateInput = {
+  const taskData: Record<string, unknown> = {
     title,
     status,
     substatus,
     origin,
-    createdBy: { connect: { id: userId } },
     requesterEmail,
     clientName,
     productKey,
+    needFromTeam,
+    directness,
     clientWebsiteUrls,
+    description,
+    clientPain,
+    managementType,
+    docsCountApprox,
+    docsLengthApprox,
+    integrationName,
+    integrationDocsUrl,
+    avgMonthlyConversations,
+    pipedriveDealUrl,
+    createdBy: { connect: { id: userId } },
   };
 
-  if (description !== undefined) {
-    createData.description = description;
-  }
   if (assigneeId) {
-    createData.assignee = { connect: { id: assigneeId } };
-  }
-
-  if (needFromTeam) createData.needFromTeam = needFromTeam;
-  if (directness) createData.directness = directness;
-  if (integrationType) createData.integrationType = integrationType;
-  if (integrationOwner) createData.integrationOwner = integrationOwner;
-  if (pipedriveDealUrl) createData.pipedriveDealUrl = pipedriveDealUrl;
-  if (integrationDocsUrl) createData.integrationDocsUrl = integrationDocsUrl;
-  if (interlocutorRole) createData.interlocutorRole = interlocutorRole;
-  if (clientPain) createData.clientPain = clientPain;
-  if (managementType) createData.managementType = managementType;
-  if (docsLengthApprox) createData.docsLengthApprox = docsLengthApprox;
-  if (integrationName) createData.integrationName = integrationName;
-  if (docsCountApprox !== null) createData.docsCountApprox = docsCountApprox;
-  if (avgMonthlyConversations !== null) {
-    createData.avgMonthlyConversations = avgMonthlyConversations;
+    taskData.assignee = { connect: { id: assigneeId } };
   }
   if (presentationDate !== undefined) {
-    createData.presentationDate = presentationDate;
+    taskData.presentationDate = presentationDate;
+  }
+  if (interlocutorRole !== null) {
+    taskData.interlocutorRole = interlocutorRole;
+  }
+  if (integrationType !== undefined) {
+    taskData.integrationType = integrationType;
+  }
+  if (integrationOwner !== undefined) {
+    taskData.integrationOwner = integrationOwner;
   }
 
   if (deliverables.length > 0) {
-    createData.deliverables = {
+    taskData.deliverables = {
       create: deliverables.map((deliverable) => {
-        const payload: Prisma.MapacheTaskDeliverableCreateWithoutTaskInput = {
+        const payload: Record<string, unknown> = {
           title: deliverable.title,
           url: deliverable.url,
           type: deliverable.type,
         };
-        if (deliverable.addedById) {
-          payload.addedBy = { connect: { id: deliverable.addedById } };
+
+        const ownerId = deliverable.addedById ?? userId;
+        if (ownerId) {
+          payload.addedBy = { connect: { id: ownerId } };
         }
+
         return payload;
       }),
     };
   }
 
-  const created = await prisma.$transaction((tx) =>
-    tx.mapacheTask.create({
-      data: createData,
-      select: taskSelect,
-    }),
-  );
-
+  const created = await mapacheTask.create({
+    data: taskData,
+    select: taskSelect,
+  });
 
   return NextResponse.json(created, { status: 201 });
 }
