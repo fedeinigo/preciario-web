@@ -5,10 +5,15 @@ import { useEffect } from "react";
 export default function MapacheThemeToggle() {
   useEffect(() => {
     if (typeof document === "undefined") return;
-    document.body.classList.add("mapache-theme");
+    const root = document.documentElement;
+    const body = document.body;
+
+    root.classList.add("mapache-theme");
+    body.classList.add("mapache-theme");
 
     return () => {
-      document.body.classList.remove("mapache-theme");
+      root.classList.remove("mapache-theme");
+      body.classList.remove("mapache-theme");
     };
   }, []);
 

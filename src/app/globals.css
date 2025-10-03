@@ -62,6 +62,7 @@
   ::-webkit-scrollbar-track { background: transparent; }
 }
 
+html.mapache-theme,
 body.mapache-theme {
   --bg: 10 10 12;
   --paper: 24 24 27;
@@ -81,6 +82,7 @@ body.mapache-theme {
   color: rgb(var(--ink));
 }
 
+html.mapache-theme body .card,
 body.mapache-theme .card {
   background-color: rgb(var(--paper));
   border-color: rgba(255, 255, 255, 0.08);
@@ -88,18 +90,21 @@ body.mapache-theme .card {
   color: rgb(var(--ink));
 }
 
+html.mapache-theme body .table-th,
 body.mapache-theme .table-th {
   background: linear-gradient(90deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.6));
   border-color: rgba(255, 255, 255, 0.08);
   color: rgb(226, 232, 240);
 }
 
+html.mapache-theme body .table-td,
 body.mapache-theme .table-td {
   border-color: rgba(255, 255, 255, 0.06);
   background-color: rgba(255, 255, 255, 0.02);
   color: inherit;
 }
 
+html.mapache-theme body .navbar,
 body.mapache-theme .navbar {
   background: linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(15, 23, 42, 0.85));
   color: rgb(226, 232, 240);
@@ -107,6 +112,8 @@ body.mapache-theme .navbar {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+html.mapache-theme body .navbar .btn,
+html.mapache-theme body .navbar .btn-ghost,
 body.mapache-theme .navbar .btn,
 body.mapache-theme .navbar .btn-ghost {
   background-color: rgba(255, 255, 255, 0.04);
@@ -114,11 +121,14 @@ body.mapache-theme .navbar .btn-ghost {
   color: rgb(var(--ink));
 }
 
+html.mapache-theme body .navbar .btn:hover,
+html.mapache-theme body .navbar .btn-ghost:hover,
 body.mapache-theme .navbar .btn:hover,
 body.mapache-theme .navbar .btn-ghost:hover {
   background-color: rgba(255, 255, 255, 0.12);
 }
 
+html.mapache-theme body .chip,
 body.mapache-theme .chip {
   background-color: rgba(255, 255, 255, 0.08);
   color: rgb(226, 232, 240);
