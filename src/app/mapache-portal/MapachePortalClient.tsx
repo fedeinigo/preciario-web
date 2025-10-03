@@ -24,7 +24,6 @@ import {
   MAPACHE_INTEGRATION_TYPES,
   MAPACHE_NEEDS_FROM_TEAM,
   MAPACHE_TASK_STATUSES,
-  MAPACHE_TASK_SUBSTATUSES,
   normalizeMapacheTask,
 } from "./types";
 
@@ -236,8 +235,6 @@ function getDeliverableTypeKey(type: MapacheDeliverableType): DeliverableTypeKey
       return "other";
   }
 }
-
-const SUBSTATUS_ORDER: MapacheTaskSubstatus[] = [...MAPACHE_TASK_SUBSTATUSES];
 
 function createDefaultFormState(): FormState {
   return {
@@ -701,8 +698,9 @@ export default function MapachePortalClient({
       if (!prev.deliverables) return prev;
       const nextDeliverables = prev.deliverables.filter((_, idx) => idx !== index);
       if (nextDeliverables.length === 0) {
-        const { deliverables, ...rest } = prev;
-        return rest as FormErrors;
+        const nextErrors: FormErrors = { ...prev };
+        delete nextErrors.deliverables;
+        return nextErrors;
       }
       return {
         ...prev,
