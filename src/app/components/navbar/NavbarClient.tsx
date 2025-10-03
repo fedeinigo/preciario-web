@@ -3,7 +3,8 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
 import {
@@ -98,6 +99,7 @@ function readHash(): Tab {
 
 export default function NavbarClient({ session }: NavbarClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { locale, setLocale } = useLanguage();
   const t = useTranslations("navbar");
   const tabsT = useTranslations("navbar.tabs");
@@ -123,11 +125,14 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const showAuthActions = status === "authenticated";
 
   const role = (session?.user?.role as AnyRole) ?? "usuario";
-  const team = (session?.user?.team as string | null) ?? fallbacksT("team");
+  const rawTeam = (session?.user?.team as string | null) ?? null;
+  const team = rawTeam ?? fallbacksT("team");
   const name = session?.user?.name ?? fallbacksT("userName");
   const email = session?.user?.email ?? fallbacksT("email");
   const currentEmail = session?.user?.email ?? "";
   const canSeeUsers = role === "admin" || role === "superadmin";
+  const canOpenMapachePortal =
+    rawTeam === "Mapaches" || role === "superadmin" || role === "admin";
 
   const [activeTab, setActiveTab] = React.useState<Tab>(readHash());
   const [userModal, setUserModal] = React.useState(false);
@@ -231,11 +236,13 @@ export default function NavbarClient({ session }: NavbarClientProps) {
 
   const pct = goal > 0 ? (progress / goal) * 100 : 0;
 
+  const isMapachePortal = pathname === "/mapache-portal";
+
   return (
     <nav
       role="navigation"
       aria-label={t("ariaLabel")}
-      className="navbar fixed top-0 inset-x-0 z-50 border-b border-white/15 backdrop-blur supports-[backdrop-filter]:bg-opacity-80"
+      className={`navbar fixed top-0 inset-x-0 z-50 border-b border-white/15 backdrop-blur supports-[backdrop-filter]:bg-opacity-80 ${isMapachePortal ? "navbar--mapache-portal" : ""}`}
       style={{ height: "var(--nav-h)" }}
     >
       <div className="navbar-inner mx-auto max-w-[2000px] px-3">
@@ -310,6 +317,14 @@ export default function NavbarClient({ session }: NavbarClientProps) {
             >
               {name} — {team}
             </button>
+          )}
+          {showAuthActions && canOpenMapachePortal && (
+            <Link
+              href="/mapache-portal"
+              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+            >
+              {profileT("mapachePortal")}
+            </Link>
           )}
           {showAuthActions && (
             <select

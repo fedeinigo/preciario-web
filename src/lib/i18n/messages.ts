@@ -90,6 +90,7 @@ export const messages: Record<Locale, DeepRecord> = {
       profile: {
         open: "Ver perfil",
         signOut: "Cerrar sesión",
+        mapachePortal: "Portal Mapache",
       },
       modal: {
         title: "Mi perfil y objetivo",
@@ -1281,6 +1282,7 @@ export const messages: Record<Locale, DeepRecord> = {
       profile: {
         open: "View profile",
         signOut: "Sign out",
+        mapachePortal: "Mapache Portal",
       },
       modal: {
         title: "My profile and goal",
@@ -2468,6 +2470,7 @@ export const messages: Record<Locale, DeepRecord> = {
       profile: {
         open: "Ver perfil",
         signOut: "Encerrar sessão",
+        mapachePortal: "Portal Mapache",
       },
       modal: {
         title: "Meu perfil e meta",
