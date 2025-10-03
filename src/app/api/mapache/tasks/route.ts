@@ -3,9 +3,16 @@ import { NextResponse } from "next/server";
 
 import { requireApiSession } from "@/app/api/_utils/require-auth";
 import prisma from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
-
 import { ensureMapacheAccess, parseStatus, taskSelect } from "./access";
+
+type MapacheTaskDelegate = {
+  findMany: (args: unknown) => Promise<unknown>;
+  create: (args: unknown) => Promise<unknown>;
+  update: (args: unknown) => Promise<unknown>;
+  delete: (args: unknown) => Promise<unknown>;
+};
+
+const mapacheTask = (prisma as unknown as { mapacheTask: MapacheTaskDelegate }).mapacheTask;
 
 export async function GET() {
   const { session, response } = await requireApiSession();
@@ -14,10 +21,10 @@ export async function GET() {
   const { response: accessResponse } = ensureMapacheAccess(session);
   if (accessResponse) return accessResponse;
 
-  const tasks = await prisma.mapacheTask.findMany({
+  const tasks = (await mapacheTask.findMany({
     orderBy: { createdAt: "desc" },
     select: taskSelect,
-  });
+  })) as unknown[];
 
   return NextResponse.json(tasks);
 }
@@ -59,7 +66,7 @@ export async function POST(req: Request) {
         ? null
         : undefined;
 
-  const created = await prisma.mapacheTask.create({
+  const created = await mapacheTask.create({
     data: {
       title,
       status,
@@ -91,7 +98,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Task id is required" }, { status: 400 });
   }
 
-  const data: Prisma.MapacheTaskUpdateInput = {};
+  const data: Record<string, unknown> = {};
 
   if (body.title !== undefined) {
     if (typeof body.title !== "string" || !body.title.trim()) {
@@ -122,7 +129,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "No updates provided" }, { status: 400 });
   }
 
-  const updated = await prisma.mapacheTask.update({
+  const updated = await mapacheTask.update({
     where: { id },
     data,
     select: taskSelect,
@@ -144,7 +151,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Task id is required" }, { status: 400 });
   }
 
-  await prisma.mapacheTask.delete({ where: { id } });
+  await mapacheTask.delete({ where: { id } });
 
   return NextResponse.json({ ok: true });
 }
