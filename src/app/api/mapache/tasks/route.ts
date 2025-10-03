@@ -554,6 +554,7 @@ export async function PATCH(req: Request) {
     title?: unknown;
     description?: unknown;
     status?: unknown;
+    assigneeId?: unknown;
   };
 
   const id = typeof body.id === "string" ? body.id : "";
@@ -586,6 +587,15 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
     data.status = status;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "assigneeId")) {
+    const assigneeIdResult = parseOptionalId(body.assigneeId, "assigneeId");
+    if (assigneeIdResult instanceof NextResponse) return assigneeIdResult;
+    const assigneeId = assigneeIdResult;
+    data.assignee = assigneeId
+      ? { connect: { id: assigneeId } }
+      : { disconnect: true };
   }
 
   if (Object.keys(data).length === 0) {

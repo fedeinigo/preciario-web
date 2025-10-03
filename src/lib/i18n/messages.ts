@@ -137,6 +137,10 @@ export const messages: Record<Locale, DeepRecord> = {
         in_progress: "En progreso",
         completed: "Completada",
       },
+      filters: {
+        mine: "Mis tareas",
+        unassigned: "Sin Mapache asignado",
+      },
       statusBadges: {
         unassigned: "Sin asignar",
         assigned: "Asignado",
@@ -196,6 +200,21 @@ export const messages: Record<Locale, DeepRecord> = {
         deleteConfirm: "¿Seguro que deseas eliminar la tarea {id}?",
         cancel: "Cancelar",
       },
+      assignment: {
+        configure: "Configurar asignación",
+        title: "Asignación automática",
+        description:
+          "Definí qué porcentaje de tareas sin responsable recibirá cada Mapache. Los valores se normalizan automáticamente.",
+        percentageLabel: "Porcentaje deseado",
+        reset: "Restablecer proporciones",
+        totalLabel: "Total configurado",
+        normalizedHint: "Las proporciones se ajustan automáticamente para sumar 100%.",
+        empty: "No hay Mapaches disponibles.",
+        cancel: "Cancelar",
+        save: "Guardar proporciones",
+        autoAssign: "Asignar automáticamente",
+        autoAssigning: "Asignando…",
+      },
       empty: {
         title: "No hay tareas para mostrar",
         description: "Usa el botón “Agregar tarea” para crear la primera.",
@@ -234,6 +253,10 @@ export const messages: Record<Locale, DeepRecord> = {
         updateError: "No se pudo actualizar la tarea.",
         deleteSuccess: "Tarea eliminada",
         deleteError: "No se pudo eliminar la tarea.",
+        autoAssignSuccess: "Tareas asignadas automáticamente",
+        autoAssignError: "No se pudieron asignar las tareas automáticamente.",
+        autoAssignNoUsers: "Configura al menos un Mapache antes de asignar.",
+        autoAssignNone: "No hay tareas sin asignar.",
       },
     },
     admin: {
@@ -1442,6 +1465,10 @@ export const messages: Record<Locale, DeepRecord> = {
         in_progress: "In progress",
         completed: "Completed",
       },
+      filters: {
+        mine: "My tasks",
+        unassigned: "Unassigned",
+      },
       statusBadges: {
         unassigned: "Unassigned",
         assigned: "Assigned",
@@ -1501,6 +1528,21 @@ export const messages: Record<Locale, DeepRecord> = {
         deleteConfirm: "Are you sure you want to delete task {id}?",
         cancel: "Cancel",
       },
+      assignment: {
+        configure: "Configure assignment",
+        title: "Automatic assignment",
+        description:
+          "Set the percentage of unassigned tasks each Mapache should receive. Values are normalized automatically.",
+        percentageLabel: "Desired percentage",
+        reset: "Reset ratios",
+        totalLabel: "Configured total",
+        normalizedHint: "Percentages automatically adjust to add up to 100%.",
+        empty: "No Mapache teammates available.",
+        cancel: "Cancel",
+        save: "Save ratios",
+        autoAssign: "Auto-assign",
+        autoAssigning: "Assigning…",
+      },
       empty: {
         title: "No tasks yet",
         description: "Use the “Add task” button to create the first one.",
@@ -1539,6 +1581,10 @@ export const messages: Record<Locale, DeepRecord> = {
         updateError: "The task could not be updated.",
         deleteSuccess: "Task deleted",
         deleteError: "The task could not be deleted.",
+        autoAssignSuccess: "Tasks auto-assigned",
+        autoAssignError: "We couldn't auto-assign the tasks.",
+        autoAssignNoUsers: "Configure at least one Mapache before auto-assigning.",
+        autoAssignNone: "There are no unassigned tasks.",
       },
     },
     admin: {
@@ -2743,6 +2789,10 @@ export const messages: Record<Locale, DeepRecord> = {
         in_progress: "Em andamento",
         completed: "Concluída",
       },
+      filters: {
+        mine: "Minhas tarefas",
+        unassigned: "Sem Mapache atribuído",
+      },
       statusBadges: {
         unassigned: "Sem responsável",
         assigned: "Atribuída",
@@ -2802,6 +2852,21 @@ export const messages: Record<Locale, DeepRecord> = {
         deleteConfirm: "Tem certeza de que deseja excluir a tarefa {id}?",
         cancel: "Cancelar",
       },
+      assignment: {
+        configure: "Configurar distribuição",
+        title: "Distribuição automática",
+        description:
+          "Defina qual porcentagem de tarefas sem responsável cada Mapache deve receber. Os valores são normalizados automaticamente.",
+        percentageLabel: "Porcentagem desejada",
+        reset: "Reiniciar proporções",
+        totalLabel: "Total configurado",
+        normalizedHint: "As proporções se ajustam automaticamente para somar 100%.",
+        empty: "Não há Mapaches disponíveis.",
+        cancel: "Cancelar",
+        save: "Salvar proporções",
+        autoAssign: "Atribuir automaticamente",
+        autoAssigning: "Atribuindo…",
+      },
       empty: {
         title: "Nenhuma tarefa para exibir",
         description: "Use o botão “Adicionar tarefa” para criar a primeira.",
@@ -2840,6 +2905,10 @@ export const messages: Record<Locale, DeepRecord> = {
         updateError: "Não foi possível atualizar a tarefa.",
         deleteSuccess: "Tarefa excluída",
         deleteError: "Não foi possível excluir a tarefa.",
+        autoAssignSuccess: "Tarefas atribuídas automaticamente",
+        autoAssignError: "Não foi possível atribuir as tarefas automaticamente.",
+        autoAssignNoUsers: "Configure ao menos um Mapache antes de distribuir.",
+        autoAssignNone: "Não há tarefas sem responsável.",
       },
     },
     admin: {
