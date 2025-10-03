@@ -389,8 +389,9 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
         open={modalOpen}
         onClose={handleCloseModal}
         title={<span className="text-base font-semibold">{formT("title")}</span>}
+        variant="inverted"
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 rounded-lg bg-white/10 px-4 py-3">
             <button
               type="button"
               onClick={handleCloseModal}
@@ -409,8 +410,8 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
             </button>
           </div>
         }
-        panelClassName="bg-slate-900 text-white border-white/10"
-        backdropClassName="bg-black/70"
+        panelClassName="!bg-slate-950/95 !text-white !border-white/10 !shadow-[0_25px_60px_rgba(2,6,23,0.7)]"
+        backdropClassName="!bg-slate-950/85"
       >
         <form className="flex flex-col gap-4" onSubmit={(event) => event.preventDefault()}>
           <label className="flex flex-col gap-1 text-sm">
