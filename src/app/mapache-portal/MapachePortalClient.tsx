@@ -6,16 +6,8 @@ import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
 
-export type MapacheTaskStatus = "pending" | "in_progress" | "completed";
-
-export interface MapacheTask {
-  id: string;
-  title: string;
-  description?: string | null;
-  status: MapacheTaskStatus;
-  createdAt?: string;
-  updatedAt?: string;
-}
+import type { MapacheTask, MapacheTaskStatus } from "./types";
+import { MAPACHE_TASK_STATUSES } from "./types";
 
 type MapachePortalClientProps = {
   initialTasks: MapacheTask[];
@@ -32,10 +24,20 @@ type FormState = {
 const DEFAULT_FORM_STATE: FormState = {
   title: "",
   description: "",
-  status: "pending",
+  status: "PENDING",
 };
 
-const STATUS_ORDER: MapacheTaskStatus[] = ["pending", "in_progress", "completed"];
+const STATUS_ORDER: MapacheTaskStatus[] = [...MAPACHE_TASK_STATUSES];
+
+const STATUS_LABEL_KEYS: Record<MapacheTaskStatus, "pending" | "in_progress" | "completed"> = {
+  PENDING: "pending",
+  IN_PROGRESS: "in_progress",
+  DONE: "completed",
+};
+
+function getStatusLabelKey(status: MapacheTaskStatus) {
+  return STATUS_LABEL_KEYS[status];
+}
 
 function normalizeTask(task: unknown): MapacheTask | null {
   if (typeof task !== "object" || task === null) return null;
@@ -204,12 +206,12 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
 
       setUpdatingTaskId(task.id);
       try {
-        const response = await fetch(`/api/mapache/tasks/${task.id}`, {
+        const response = await fetch(`/api/mapache/tasks`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ status: nextStatus }),
+          body: JSON.stringify({ id: task.id, status: nextStatus }),
         });
 
         if (!response.ok) {
@@ -240,8 +242,12 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
 
       setDeletingTaskId(task.id);
       try {
-        const response = await fetch(`/api/mapache/tasks/${task.id}`, {
+        const response = await fetch(`/api/mapache/tasks`, {
           method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ id: task.id }),
         });
 
         if (!response.ok) {
@@ -282,7 +288,9 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
         {["all", ...STATUS_ORDER].map((status) => {
           const isActive = activeFilter === status;
           const label =
-            status === "all" ? statusT("all") : statusT(status as MapacheTaskStatus);
+            status === "all"
+              ? statusT("all")
+              : statusT(getStatusLabelKey(status as MapacheTaskStatus));
           return (
             <button
               key={status}
@@ -332,7 +340,7 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="text-lg font-semibold">{task.title}</h2>
                   <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white/80">
-                    {statusT(task.status)}
+                    {statusT(getStatusLabelKey(task.status))}
                   </span>
                 </div>
                 {task.description ? (
@@ -357,7 +365,7 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
                   >
                     {STATUS_ORDER.map((status) => (
                       <option key={status} value={status}>
-                        {statusT(status)}
+                        {statusT(getStatusLabelKey(status))}
                       </option>
                     ))}
                   </select>
@@ -438,7 +446,7 @@ export default function MapachePortalClient({ initialTasks }: MapachePortalClien
             >
               {STATUS_ORDER.map((status) => (
                 <option key={status} value={status}>
-                  {statusT(status)}
+                  {statusT(getStatusLabelKey(status))}
                 </option>
               ))}
             </select>
