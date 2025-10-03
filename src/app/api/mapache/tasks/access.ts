@@ -166,6 +166,7 @@ export const taskSelect = {
   updatedAt: true,
   createdById: true,
   assigneeId: true,
+
   assignee: {
     select: {
       id: true,
@@ -193,8 +194,15 @@ export const taskSelect = {
   avgMonthlyConversations: true,
   origin: true,
   deliverables: {
-    select: deliverableSelect,
-    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      type: true,
+      title: true,
+      url: true,
+      addedById: true,
+      createdAt: true,
+    },
+
   },
 } satisfies Prisma.MapacheTaskSelect;
 

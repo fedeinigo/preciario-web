@@ -31,6 +31,18 @@ export const MAPACHE_INTEGRATION_TYPES = [
   "SDK",
   "OTHER",
 ] as const;
+
+export const MAPACHE_INTEGRATION_OWNERS = [
+  "OWN",
+  "THIRD_PARTY",
+] as const;
+
+export const MAPACHE_SIGNAL_ORIGINS = [
+  "GOOGLE_FORM",
+  "GENERATOR",
+  "API",
+  "MANUAL",
+  "OTHER",
 export const MAPACHE_INTEGRATION_OWNERS = ["OWN", "THIRD_PARTY"] as const;
 
 export const MAPACHE_TASK_SUBSTATUSES = [
@@ -48,6 +60,14 @@ export const MAPACHE_DELIVERABLE_TYPES = [
 
 export type MapacheTaskStatus = (typeof MAPACHE_TASK_STATUSES)[number];
 export type MapacheTaskSubstatus = (typeof MAPACHE_TASK_SUBSTATUSES)[number];
+export type MapacheNeedFromTeam = (typeof MAPACHE_NEEDS_FROM_TEAM)[number];
+export type MapacheDirectness = (typeof MAPACHE_DIRECTNESS)[number];
+export type MapacheIntegrationType = (typeof MAPACHE_INTEGRATION_TYPES)[number];
+export type MapacheIntegrationOwner =
+  (typeof MAPACHE_INTEGRATION_OWNERS)[number];
+export type MapacheSignalOrigin = (typeof MAPACHE_SIGNAL_ORIGINS)[number];
+export type MapacheDeliverableType =
+  (typeof MAPACHE_DELIVERABLE_TYPES)[number];
 export type MapacheTaskDirectness = (typeof MAPACHE_DIRECTNESS)[number];
 export type MapacheTaskNeedFromTeam = (typeof MAPACHE_NEED_FROM_TEAM)[number];
 export type MapacheTaskOrigin = (typeof MAPACHE_TASK_ORIGINS)[number];
