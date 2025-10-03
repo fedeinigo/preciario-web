@@ -76,7 +76,7 @@ function TabBtn({
   return (
     <button
       onClick={() => onClick(id)}
-      className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition
+      className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition whitespace-nowrap shrink-0
         ${
           active
             ? "bg-white text-[#1f2937] border-transparent"
