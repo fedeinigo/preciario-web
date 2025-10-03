@@ -1,8 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 
 import MapachePortalClient from "./MapachePortalClient";
-import { getMapacheTasks } from "./tasks.stub";
+import type { MapacheTask } from "./types";
 import { auth } from "@/lib/auth";
+import { taskSelect } from "@/app/api/mapache/tasks/access";
+import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +22,20 @@ export default async function MapachePortalPage() {
     return notFound();
   }
 
-  const tasks = await getMapacheTasks();
+  const tasks = await prisma.mapacheTask.findMany({
+    select: taskSelect,
+    orderBy: { createdAt: "desc" },
+  });
+
+  const initialTasks: MapacheTask[] = tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    description: task.description ?? null,
+    status: task.status,
+    createdAt: task.createdAt?.toISOString(),
+    updatedAt: task.updatedAt?.toISOString(),
+    createdById: task.createdById,
+  }));
 
   return (
     <div className="space-y-6 px-4 pb-10">
@@ -33,7 +48,7 @@ export default async function MapachePortalPage() {
         </p>
       </header>
 
-      <MapachePortalClient initialTasks={tasks} />
+      <MapachePortalClient initialTasks={initialTasks} />
     </div>
   );
 }
