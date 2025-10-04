@@ -309,6 +309,32 @@ model MapacheTaskDeliverable {
   @@index([addedById])
 }
 
+model MapacheBoard {
+  id        String   @id @default(cuid())
+  name      String
+  position  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  columns MapacheBoardColumn[]
+
+  @@index([position])
+}
+
+model MapacheBoardColumn {
+  id        String   @id @default(cuid())
+  boardId   String
+  title     String
+  position  Int
+  filters   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board MapacheBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId, position])
+}
+
 /* =========================
    ENUMS
 ========================= */

@@ -5,6 +5,8 @@ import React from "react";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import type { Session } from "next-auth";
+
 import "../unit/setup-paths";
 
 const noop = () => {};
@@ -69,7 +71,7 @@ test("NavbarClient renders a scrollable tablist for mobile viewports", { concurr
 
       const html = renderToStaticMarkup(
         <LanguageProvider>
-          <NavbarClient session={session as any} />
+          <NavbarClient session={session as unknown as Session} />
         </LanguageProvider>
       );
 

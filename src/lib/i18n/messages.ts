@@ -267,8 +267,15 @@ export const messages: Record<Locale, DeepRecord> = {
         deleteConfirm: "¿Seguro que deseas eliminar la tarea {id}?",
         cancel: "Cancelar",
       },
+      settings: {
+        title: "Ajustes del Portal Mapache",
+        tabs: {
+          assignment: "Asignación",
+          boards: "Tableros",
+        },
+      },
       assignment: {
-        configure: "Configurar asignación",
+        configure: "Ajustes",
         title: "Asignación automática",
         description:
           "Definí qué porcentaje de tareas sin responsable recibirá cada Mapache. Los valores se normalizan automáticamente.",
@@ -281,6 +288,70 @@ export const messages: Record<Locale, DeepRecord> = {
         save: "Guardar proporciones",
         autoAssign: "Asignar automáticamente",
         autoAssigning: "Asignando…",
+      },
+      boards: {
+        title: "Tableros personalizados",
+        description:
+          "Diseñá distintas vistas para el modo tablero y ajustá las columnas según la operación.",
+        loading: "Cargando tableros…",
+        loadError: "No se pudieron cargar los tableros.",
+        empty: {
+          title: "Todavía no hay tableros configurados",
+          description:
+            "Creá el primero desde estos ajustes para personalizar la vista en modo tablero.",
+          action: "Crear tablero",
+        },
+        list: {
+          heading: "Tableros",
+          create: "Nuevo tablero",
+          reorderHint: "Usá subir/bajar para reordenar",
+          defaultName: "Tablero {index}",
+        },
+        form: {
+          nameLabel: "Nombre del tablero",
+          namePlaceholder: "Ej. Seguimiento semanal",
+          delete: "Eliminar tablero",
+          confirmDeleteTitle: "Eliminar tablero",
+          confirmDeleteDescription:
+            "Esta acción quitará el tablero \"{name}\" para todo el equipo.",
+          cancel: "Cancelar",
+          confirmDelete: "Eliminar",
+          save: "Guardar tablero",
+        },
+        columns: {
+          heading: "Columnas",
+          empty:
+            "Agregá al menos una columna para que el tablero funcione.",
+          add: "Agregar columna",
+          delete: "Eliminar",
+          moveUp: "Subir",
+          moveDown: "Bajar",
+          titleLabel: "Nombre",
+          statusesLabel: "Estados incluidos",
+          defaultTitle: "Columna {index}",
+        },
+        validation: {
+          nameRequired: "Ingresá un nombre para el tablero.",
+          columnTitleRequired: "Cada columna necesita un nombre.",
+          columnStatusesRequired:
+            "Cada columna debe incluir al menos un estado.",
+          columnsRequired: "Agregá al menos una columna.",
+        },
+        selector: {
+          label: "Tablero",
+          placeholder: "Elegí un tablero",
+          empty:
+            "Configura un tablero desde los ajustes para usar esta vista.",
+        },
+        toast: {
+          createSuccess: "Tablero creado",
+          createError: "No se pudo crear el tablero.",
+          updateSuccess: "Tablero actualizado",
+          updateError: "No se pudo actualizar el tablero.",
+          deleteSuccess: "Tablero eliminado",
+          deleteError: "No se pudo eliminar el tablero.",
+          reorderError: "No se pudo guardar el orden de los tableros.",
+        },
       },
       empty: {
         title: "No hay tareas para mostrar",
@@ -1666,8 +1737,15 @@ export const messages: Record<Locale, DeepRecord> = {
         deleteConfirm: "Are you sure you want to delete task {id}?",
         cancel: "Cancel",
       },
+      settings: {
+        title: "Mapache Portal settings",
+        tabs: {
+          assignment: "Assignment",
+          boards: "Boards",
+        },
+      },
       assignment: {
-        configure: "Configure assignment",
+        configure: "Settings",
         title: "Automatic assignment",
         description:
           "Set the percentage of unassigned tasks each Mapache should receive. Values are normalized automatically.",
@@ -1680,6 +1758,68 @@ export const messages: Record<Locale, DeepRecord> = {
         save: "Save ratios",
         autoAssign: "Auto-assign",
         autoAssigning: "Assigning…",
+      },
+      boards: {
+        title: "Custom boards",
+        description:
+          "Design different Kanban views and tune the columns for your workflow.",
+        loading: "Loading boards…",
+        loadError: "Boards could not be loaded.",
+        empty: {
+          title: "No boards yet",
+          description:
+            "Create the first one here to customize the board view.",
+          action: "Create board",
+        },
+        list: {
+          heading: "Boards",
+          create: "New board",
+          reorderHint: "Use up/down to reorder",
+          defaultName: "Board {index}",
+        },
+        form: {
+          nameLabel: "Board name",
+          namePlaceholder: "E.g. Weekly follow-up",
+          delete: "Delete board",
+          confirmDeleteTitle: "Delete board",
+          confirmDeleteDescription:
+            "This will remove the \"{name}\" board for the whole team.",
+          cancel: "Cancel",
+          confirmDelete: "Delete",
+          save: "Save board",
+        },
+        columns: {
+          heading: "Columns",
+          empty: "Add at least one column so the board can work.",
+          add: "Add column",
+          delete: "Remove",
+          moveUp: "Move up",
+          moveDown: "Move down",
+          titleLabel: "Name",
+          statusesLabel: "Included statuses",
+          defaultTitle: "Column {index}",
+        },
+        validation: {
+          nameRequired: "Enter a board name.",
+          columnTitleRequired: "Each column needs a name.",
+          columnStatusesRequired:
+            "Each column must include at least one status.",
+          columnsRequired: "Add at least one column.",
+        },
+        selector: {
+          label: "Board",
+          placeholder: "Choose a board",
+          empty: "Configure a board in settings to use this view.",
+        },
+        toast: {
+          createSuccess: "Board created",
+          createError: "The board could not be created.",
+          updateSuccess: "Board updated",
+          updateError: "The board could not be updated.",
+          deleteSuccess: "Board deleted",
+          deleteError: "The board could not be deleted.",
+          reorderError: "Could not save the board order.",
+        },
       },
       empty: {
         title: "No tasks yet",
@@ -3061,8 +3201,15 @@ export const messages: Record<Locale, DeepRecord> = {
         deleteConfirm: "Tem certeza de que deseja excluir a tarefa {id}?",
         cancel: "Cancelar",
       },
+      settings: {
+        title: "Configurações do Portal Mapache",
+        tabs: {
+          assignment: "Distribuição",
+          boards: "Quadros",
+        },
+      },
       assignment: {
-        configure: "Configurar distribuição",
+        configure: "Ajustes",
         title: "Distribuição automática",
         description:
           "Defina qual porcentagem de tarefas sem responsável cada Mapache deve receber. Os valores são normalizados automaticamente.",
@@ -3075,6 +3222,70 @@ export const messages: Record<Locale, DeepRecord> = {
         save: "Salvar proporções",
         autoAssign: "Atribuir automaticamente",
         autoAssigning: "Atribuindo…",
+      },
+      boards: {
+        title: "Quadros personalizados",
+        description:
+          "Crie diferentes visões no modo quadro e ajuste as colunas conforme o fluxo.",
+        loading: "Carregando quadros…",
+        loadError: "Não foi possível carregar os quadros.",
+        empty: {
+          title: "Ainda não há quadros configurados",
+          description:
+            "Crie o primeiro aqui para personalizar a visualização em modo quadro.",
+          action: "Criar quadro",
+        },
+        list: {
+          heading: "Quadros",
+          create: "Novo quadro",
+          reorderHint: "Use subir/descer para reordenar",
+          defaultName: "Quadro {index}",
+        },
+        form: {
+          nameLabel: "Nome do quadro",
+          namePlaceholder: "Ex.: Acompanhamento semanal",
+          delete: "Excluir quadro",
+          confirmDeleteTitle: "Excluir quadro",
+          confirmDeleteDescription:
+            "Esta ação remove o quadro \"{name}\" para toda a equipe.",
+          cancel: "Cancelar",
+          confirmDelete: "Excluir",
+          save: "Salvar quadro",
+        },
+        columns: {
+          heading: "Colunas",
+          empty:
+            "Adicione ao menos uma coluna para que o quadro funcione.",
+          add: "Adicionar coluna",
+          delete: "Remover",
+          moveUp: "Subir",
+          moveDown: "Descer",
+          titleLabel: "Nome",
+          statusesLabel: "Status incluídos",
+          defaultTitle: "Coluna {index}",
+        },
+        validation: {
+          nameRequired: "Informe um nome para o quadro.",
+          columnTitleRequired: "Cada coluna precisa de um nome.",
+          columnStatusesRequired:
+            "Cada coluna deve incluir ao menos um status.",
+          columnsRequired: "Adicione ao menos uma coluna.",
+        },
+        selector: {
+          label: "Quadro",
+          placeholder: "Escolha um quadro",
+          empty:
+            "Configure um quadro nas configurações para usar esta visualização.",
+        },
+        toast: {
+          createSuccess: "Quadro criado",
+          createError: "Não foi possível criar o quadro.",
+          updateSuccess: "Quadro atualizado",
+          updateError: "Não foi possível atualizar o quadro.",
+          deleteSuccess: "Quadro excluído",
+          deleteError: "Não foi possível excluir o quadro.",
+          reorderError: "Não foi possível salvar a ordem dos quadros.",
+        },
       },
       empty: {
         title: "Nenhuma tarefa para exibir",
