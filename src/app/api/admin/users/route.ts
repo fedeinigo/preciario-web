@@ -10,7 +10,7 @@ import { auth } from "@/lib/auth";
  * Normaliza strings de rol que puedan venir del front.
  * Acepta "comercial" como sinónimo de "usuario" (compatibilidad vieja).
  */
-export function normalizeRole(
+function normalizeRole(
   input: string | null | undefined,
 ): DbRole | undefined {
   if (!input) return undefined;
