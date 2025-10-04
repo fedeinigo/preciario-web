@@ -27,7 +27,7 @@ import {
   q3Range,
   q4Range,
 } from "@/app/components/features/proposals/lib/dateRanges";
-import { fetchAllProposals } from "@/app/components/features/proposals/lib/proposals-response";
+import { loadNavbarProgress } from "@/app/components/navbar/load-progress";
 import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { locales } from "@/lib/i18n/config";
@@ -297,18 +297,8 @@ export default function NavbarClient({ session }: NavbarClientProps) {
 
   const loadMyProgress = React.useCallback(async () => {
     try {
-      const { proposals } = await fetchAllProposals();
-      const from = new Date(range.from).getTime();
-      const to = new Date(range.to).getTime();
-      const sum = proposals
-        .filter((p) => {
-          if (p.userEmail !== currentEmail) return false;
-          if ((p.status ?? "").toUpperCase() !== "WON") return false;
-          const ts = new Date(p.createdAt as string).getTime();
-          return ts >= from && ts <= to;
-        })
-        .reduce((acc, p) => acc + Number(p.totalAmount ?? 0), 0);
-      setProgress(sum);
+      const total = await loadNavbarProgress({ userEmail: currentEmail, range });
+      setProgress(total);
     } catch {
       setProgress(0);
     }
