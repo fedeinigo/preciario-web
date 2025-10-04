@@ -2,7 +2,7 @@ import "./setup-paths";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { normalizeRole } from "../../src/app/api/admin/users/route";
+import { normalizeRole } from "../../src/app/api/admin/users/normalize-role";
 import { Role as DbRole } from "@prisma/client";
 
 test("normalizeRole mapea los strings esperados al enum de Prisma", () => {
