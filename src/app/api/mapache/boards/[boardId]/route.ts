@@ -92,7 +92,7 @@ async function applyColumnUpdates(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { boardId: string } },
+  { params }: { params: Promise<{ boardId: string }> },
 ) {
   const { session, response } = await requireApiSession();
   if (response) return response;
@@ -100,7 +100,7 @@ export async function PATCH(
   const access = ensureMapacheAccess(session);
   if (access.response) return access.response;
 
-  const boardId = params.boardId;
+  const { boardId } = (await params) ?? {};
   if (typeof boardId !== "string" || !boardId.trim()) {
     return badRequest("Invalid board id");
   }
@@ -180,7 +180,7 @@ export async function PATCH(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { boardId: string } },
+  { params }: { params: Promise<{ boardId: string }> },
 ) {
   const { session, response } = await requireApiSession();
   if (response) return response;
@@ -188,7 +188,7 @@ export async function DELETE(
   const access = ensureMapacheAccess(session);
   if (access.response) return access.response;
 
-  const boardId = params.boardId;
+  const { boardId } = (await params) ?? {};
   if (typeof boardId !== "string" || !boardId.trim()) {
     return badRequest("Invalid board id");
   }
