@@ -169,7 +169,7 @@ export default function Navbar() {
   const appRole = toAppRole(role);
   const rawTeam = (session?.user?.team as string | null) ?? null;
   const team = rawTeam ?? fallbacksT("team");
-  const name = session?.user?.name ?? fallbacksT("userName");
+  const name = session?.user?.name ?? fallbacksT("name");
   const email = session?.user?.email ?? fallbacksT("email");
   const currentEmail = session?.user?.email ?? "";
   const canSeeUsers = ADMIN_ROLES.has(appRole);
