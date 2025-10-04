@@ -288,9 +288,16 @@ function parseDeliverables(
 
 type MapacheTaskDelegate = {
   findMany: (args: unknown) => Promise<unknown>;
+  findUnique: (args: unknown) => Promise<unknown>;
   create: (args: unknown) => Promise<unknown>;
   update: (args: unknown) => Promise<unknown>;
   delete: (args: unknown) => Promise<unknown>;
+};
+
+type MapacheTaskDeliverableDelegate = {
+  findMany: (args: unknown) => Promise<unknown>;
+  deleteMany: (args: unknown) => Promise<unknown>;
+  create: (args: unknown) => Promise<unknown>;
 };
 
 const mapacheTask = (
@@ -546,16 +553,10 @@ export async function PATCH(req: Request) {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
-  const { response: accessResponse } = ensureMapacheAccess(session);
+  const { response: accessResponse, userId } = ensureMapacheAccess(session);
   if (accessResponse) return accessResponse;
 
-  const body = (await req.json()) as {
-    id?: unknown;
-    title?: unknown;
-    description?: unknown;
-    status?: unknown;
-    assigneeId?: unknown;
-  };
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
   const id = typeof body.id === "string" ? body.id : "";
   if (!id) {
@@ -564,14 +565,17 @@ export async function PATCH(req: Request) {
 
   const data: Record<string, unknown> = {};
 
-  if (body.title !== undefined) {
-    if (typeof body.title !== "string" || !body.title.trim()) {
+  if (Object.prototype.hasOwnProperty.call(body, "title")) {
+    const titleResult = parseStringWithDefault(body.title, "title");
+    if (titleResult instanceof NextResponse) return titleResult;
+    const title = titleResult;
+    if (!title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
-    data.title = body.title.trim();
+    data.title = title;
   }
 
-  if (body.description !== undefined) {
+  if (Object.prototype.hasOwnProperty.call(body, "description")) {
     if (typeof body.description === "string") {
       data.description = body.description;
     } else if (body.description == null) {
@@ -581,12 +585,86 @@ export async function PATCH(req: Request) {
     }
   }
 
-  if (body.status !== undefined) {
+  if (Object.prototype.hasOwnProperty.call(body, "status")) {
     const status = parseStatus(body.status);
     if (!status) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
     data.status = status;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "substatus")) {
+    const substatus = parseSubstatus(body.substatus);
+    if (!substatus) {
+      return NextResponse.json({ error: "Invalid substatus" }, { status: 400 });
+    }
+    data.substatus = substatus;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "origin")) {
+    const origin = parseOrigin(body.origin);
+    if (!origin) {
+      return NextResponse.json({ error: "Invalid origin" }, { status: 400 });
+    }
+    data.origin = origin;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "requesterEmail")) {
+    const requesterEmailResult = parseEmail(
+      body.requesterEmail,
+      "requesterEmail",
+    );
+    if (requesterEmailResult instanceof NextResponse) return requesterEmailResult;
+    const requesterEmail = requesterEmailResult;
+    if (!requesterEmail) {
+      return NextResponse.json(
+        { error: "requesterEmail is required" },
+        { status: 400 },
+      );
+    }
+    data.requesterEmail = requesterEmail;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "clientName")) {
+    const clientNameResult = parseStringWithDefault(body.clientName, "clientName");
+    if (clientNameResult instanceof NextResponse) return clientNameResult;
+    const clientName = clientNameResult;
+    if (!clientName) {
+      return NextResponse.json(
+        { error: "clientName is required" },
+        { status: 400 },
+      );
+    }
+    data.clientName = clientName;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "productKey")) {
+    const productKeyResult = parseStringWithDefault(body.productKey, "productKey");
+    if (productKeyResult instanceof NextResponse) return productKeyResult;
+    const productKey = productKeyResult;
+    if (!productKey) {
+      return NextResponse.json(
+        { error: "productKey is required" },
+        { status: 400 },
+      );
+    }
+    data.productKey = productKey;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "needFromTeam")) {
+    const needFromTeam = parseNeedFromTeam(body.needFromTeam);
+    if (!needFromTeam) {
+      return NextResponse.json({ error: "Invalid needFromTeam" }, { status: 400 });
+    }
+    data.needFromTeam = needFromTeam;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "directness")) {
+    const directness = parseDirectness(body.directness);
+    if (!directness) {
+      return NextResponse.json({ error: "Invalid directness" }, { status: 400 });
+    }
+    data.directness = directness;
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "assigneeId")) {
@@ -598,15 +676,265 @@ export async function PATCH(req: Request) {
       : { disconnect: true };
   }
 
-  if (Object.keys(data).length === 0) {
+  if (Object.prototype.hasOwnProperty.call(body, "presentationDate")) {
+    const presentationDateResult = parsePresentationDate(body.presentationDate);
+    if (presentationDateResult instanceof NextResponse)
+      return presentationDateResult;
+    if (presentationDateResult !== undefined) {
+      data.presentationDate = presentationDateResult;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "interlocutorRole")) {
+    const interlocutorRoleResult = parseOptionalString(
+      body.interlocutorRole,
+      "interlocutorRole",
+    );
+    if (interlocutorRoleResult instanceof NextResponse) {
+      return interlocutorRoleResult;
+    }
+    data.interlocutorRole = interlocutorRoleResult;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "clientWebsiteUrls")) {
+    const clientWebsiteUrlsResult = parseUrlArray(
+      body.clientWebsiteUrls,
+      "clientWebsiteUrls",
+    );
+    if (clientWebsiteUrlsResult instanceof NextResponse) {
+      return clientWebsiteUrlsResult;
+    }
+    data.clientWebsiteUrls = clientWebsiteUrlsResult;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "pipedriveDealUrl")) {
+    const pipedriveDealUrlResult = parseUrl(
+      body.pipedriveDealUrl,
+      "pipedriveDealUrl",
+    );
+    if (pipedriveDealUrlResult instanceof NextResponse) {
+      return pipedriveDealUrlResult;
+    }
+    data.pipedriveDealUrl = pipedriveDealUrlResult;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "clientPain")) {
+    const clientPainResult = parseOptionalString(body.clientPain, "clientPain");
+    if (clientPainResult instanceof NextResponse) return clientPainResult;
+    data.clientPain = clientPainResult;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "managementType")) {
+    const managementTypeResult = parseOptionalString(
+      body.managementType,
+      "managementType",
+    );
+    if (managementTypeResult instanceof NextResponse) {
+      return managementTypeResult;
+    }
+    data.managementType = managementTypeResult;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "docsCountApprox")) {
+    const docsCountApproxResult = parseInteger(
+      body.docsCountApprox,
+      "docsCountApprox",
+    );
+    if (docsCountApproxResult instanceof NextResponse) {
+      return docsCountApproxResult;
+    }
+    data.docsCountApprox = docsCountApproxResult;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "docsLengthApprox")) {
+    const docsLengthApproxResult = parseOptionalString(
+      body.docsLengthApprox,
+      "docsLengthApprox",
+    );
+    if (docsLengthApproxResult instanceof NextResponse) {
+      return docsLengthApproxResult;
+    }
+    data.docsLengthApprox = docsLengthApproxResult;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "integrationType")) {
+    if (body.integrationType === null) {
+      data.integrationType = null;
+    } else {
+      const parsed = parseIntegrationType(body.integrationType);
+      if (!parsed) {
+        return NextResponse.json(
+          { error: "Invalid integrationType" },
+          { status: 400 },
+        );
+      }
+      data.integrationType = parsed;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "integrationOwner")) {
+    if (body.integrationOwner === null) {
+      data.integrationOwner = null;
+    } else {
+      const parsed = parseIntegrationOwner(body.integrationOwner);
+      if (!parsed) {
+        return NextResponse.json(
+          { error: "Invalid integrationOwner" },
+          { status: 400 },
+        );
+      }
+      data.integrationOwner = parsed;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "integrationName")) {
+    const integrationNameResult = parseOptionalString(
+      body.integrationName,
+      "integrationName",
+    );
+    if (integrationNameResult instanceof NextResponse) {
+      return integrationNameResult;
+    }
+    data.integrationName = integrationNameResult;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "integrationDocsUrl")) {
+    const integrationDocsUrlResult = parseUrl(
+      body.integrationDocsUrl,
+      "integrationDocsUrl",
+    );
+    if (integrationDocsUrlResult instanceof NextResponse) {
+      return integrationDocsUrlResult;
+    }
+    data.integrationDocsUrl = integrationDocsUrlResult;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "avgMonthlyConversations")) {
+    const avgMonthlyConversationsResult = parseInteger(
+      body.avgMonthlyConversations,
+      "avgMonthlyConversations",
+    );
+    if (avgMonthlyConversationsResult instanceof NextResponse) {
+      return avgMonthlyConversationsResult;
+    }
+    data.avgMonthlyConversations = avgMonthlyConversationsResult;
+  }
+
+  let deliverablesUpdate: DeliverableInput[] | undefined;
+  if (Object.prototype.hasOwnProperty.call(body, "deliverables")) {
+    const deliverablesResult = parseDeliverables(body.deliverables);
+    if (deliverablesResult instanceof NextResponse) return deliverablesResult;
+    deliverablesUpdate = deliverablesResult;
+  }
+
+  const hasTaskUpdates = Object.keys(data).length > 0;
+  const hasDeliverablesUpdate = deliverablesUpdate !== undefined;
+
+  if (!hasTaskUpdates && !hasDeliverablesUpdate) {
     return NextResponse.json({ error: "No updates provided" }, { status: 400 });
   }
 
-  const updated = await mapacheTask.update({
-    where: { id },
-    data,
-    select: taskSelect,
+  const updated = await prisma.$transaction(async (tx) => {
+    const mapacheTaskTx = (
+      tx as unknown as { mapacheTask: MapacheTaskDelegate }
+    ).mapacheTask;
+    const mapacheTaskDeliverableTx = (
+      tx as unknown as { mapacheTaskDeliverable: MapacheTaskDeliverableDelegate }
+    ).mapacheTaskDeliverable;
+
+    if (hasDeliverablesUpdate) {
+      const currentDeliverables = (await mapacheTaskDeliverableTx.findMany({
+        where: { taskId: id },
+        select: {
+          id: true,
+          title: true,
+          url: true,
+          type: true,
+          addedById: true,
+        },
+      })) as Array<{
+        id: string;
+        title: string;
+        url: string;
+        type: MapacheDeliverableType;
+        addedById: string | null;
+      }>;
+
+      const remainingByKey = new Map<
+        string,
+        Array<{ id: string; addedById: string | null }>
+      >();
+      for (const deliverable of currentDeliverables) {
+        const key = `${deliverable.type}|${deliverable.title}|${deliverable.url}|${deliverable.addedById ?? ""}`;
+        const entries = remainingByKey.get(key);
+        if (entries) {
+          entries.push({ id: deliverable.id, addedById: deliverable.addedById });
+        } else {
+          remainingByKey.set(key, [
+            { id: deliverable.id, addedById: deliverable.addedById },
+          ]);
+        }
+      }
+
+      const toCreate: DeliverableInput[] = [];
+
+      for (const deliverable of deliverablesUpdate ?? []) {
+        const key = `${deliverable.type}|${deliverable.title}|${deliverable.url}|${deliverable.addedById ?? ""}`;
+        const existing = remainingByKey.get(key);
+        if (existing && existing.length > 0) {
+          existing.shift();
+        } else {
+          toCreate.push(deliverable);
+        }
+      }
+
+      const toDeleteIds: string[] = [];
+      for (const entries of remainingByKey.values()) {
+        for (const entry of entries) {
+          toDeleteIds.push(entry.id);
+        }
+      }
+
+      if (toDeleteIds.length > 0) {
+        await mapacheTaskDeliverableTx.deleteMany({
+          where: { id: { in: toDeleteIds } },
+        });
+      }
+
+      for (const deliverable of toCreate) {
+        const ownerId = deliverable.addedById ?? userId ?? null;
+        const payload: Record<string, unknown> = {
+          taskId: id,
+          title: deliverable.title,
+          url: deliverable.url,
+          type: deliverable.type,
+        };
+        if (ownerId !== null) {
+          payload.addedById = ownerId;
+        }
+
+        await mapacheTaskDeliverableTx.create({
+          data: payload,
+        });
+      }
+    }
+
+    if (hasTaskUpdates) {
+      await mapacheTaskTx.update({
+        where: { id },
+        data,
+      });
+    }
+
+    return mapacheTaskTx.findUnique({
+      where: { id },
+      select: taskSelect,
+    });
   });
+
+  if (!updated) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
 
   return NextResponse.json(updated);
 }
