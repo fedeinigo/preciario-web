@@ -43,7 +43,7 @@ function normalizeLines(items?: IncomingLine[]): NormalizedLine[] {
 }
 
 export async function POST(req: Request) {
-  const { session, response } = await requireApiSession();
+  const { response } = await requireApiSession();
   if (response) return response;
 
   const requestId = randomUUID();
