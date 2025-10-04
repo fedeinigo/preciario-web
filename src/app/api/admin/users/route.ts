@@ -23,6 +23,8 @@ function normalizeRole(
   return undefined;
 }
 
+export { normalizeRole };
+
 export async function GET() {
   const { session, response } = await requireApiSession();
   if (response) return response;

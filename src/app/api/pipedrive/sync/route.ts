@@ -1,6 +1,7 @@
 // src/app/api/pipedrive/sync/route.ts
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { requireApiSession } from "@/app/api/_utils/require-auth";
 import {
   replaceDealProducts,
   updateOneShotAndUrl,
@@ -42,6 +43,9 @@ function normalizeLines(items?: IncomingLine[]): NormalizedLine[] {
 }
 
 export async function POST(req: Request) {
+  const { session, response } = await requireApiSession();
+  if (response) return response;
+
   const requestId = randomUUID();
   const log = logger.child({ route: "api/pipedrive/sync", requestId });
   try {
