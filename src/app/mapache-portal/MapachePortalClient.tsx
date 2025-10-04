@@ -59,6 +59,11 @@ import {
   type StatusFilterValue,
   type TaskFilterState,
 } from "./filters";
+import {
+  normalizeBoardConfig,
+  normalizeBoardList,
+  type MapacheBoardConfig,
+} from "./board-types";
 
 const STATUS_ORDER: MapacheTaskStatus[] = [...MAPACHE_TASK_STATUSES];
 const NEED_OPTIONS: MapacheNeedFromTeam[] = [...MAPACHE_NEEDS_FROM_TEAM];
@@ -79,6 +84,60 @@ const ORIGIN_OPTIONS: MapacheSignalOrigin[] = [...MAPACHE_SIGNAL_ORIGINS];
 const NEED_METRIC_KEYS: NeedMetricKey[] = [...NEED_OPTIONS, "NONE"];
 const SUBSTATUS_OPTIONS: MapacheTaskSubstatus[] = [...MAPACHE_TASK_SUBSTATUSES];
 const MS_IN_DAY = 86_400_000;
+
+type BoardColumnDraft = {
+  id: string | null;
+  title: string;
+  statuses: MapacheTaskStatus[];
+};
+
+type BoardDraft = {
+  id: string;
+  name: string;
+  columns: BoardColumnDraft[];
+};
+
+function createBoardDraft(board: MapacheBoardConfig): BoardDraft {
+  return {
+    id: board.id,
+    name: board.name,
+    columns: board.columns
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .map((column) => ({
+        id: column.id,
+        title: column.title,
+        statuses: [...column.filters.statuses],
+      })),
+  };
+}
+
+function mapDraftToPayload(draft: BoardDraft) {
+  return {
+    name: draft.name.trim(),
+    columns: draft.columns.map((column) => ({
+      id: column.id ?? undefined,
+      title: column.title.trim(),
+      filters: {
+        statuses: [...column.statuses],
+      },
+    })),
+  };
+}
+
+function getSuggestedStatuses(columns: BoardColumnDraft[]): MapacheTaskStatus[] {
+  const used = new Set<MapacheTaskStatus>();
+  columns.forEach((column) => {
+    column.statuses.forEach((status) => {
+      used.add(status);
+    });
+  });
+  const available = MAPACHE_TASK_STATUSES.filter((status) => !used.has(status));
+  if (available.length > 0) {
+    return [available[0]!];
+  }
+  return [MAPACHE_TASK_STATUSES[0]!];
+}
 
 const EMAIL_REGEX = /.+@.+\..+/i;
 const VIEW_MODE_STORAGE_KEY = "mapache_portal_view_mode";
@@ -1147,6 +1206,9 @@ export default function MapachePortalClient({
   const actionsT = useTranslations("mapachePortal.actions");
   const filtersT = useTranslations("mapachePortal.filters");
   const assignmentT = useTranslations("mapachePortal.assignment");
+  const settingsT = useTranslations("mapachePortal.settings");
+  const boardsT = useTranslations("mapachePortal.boards");
+  const boardsToastT = useTranslations("mapachePortal.boards.toast");
   const needFromTeamTranslations = useTranslations(
     "mapachePortal.enums.needFromTeam",
   );
@@ -1217,9 +1279,30 @@ export default function MapachePortalClient({
 
   const [assignmentRatios, setAssignmentRatios] = React.useState<AssignmentRatios>({});
   const [ratiosLoaded, setRatiosLoaded] = React.useState(false);
-  const [showAssignmentModal, setShowAssignmentModal] = React.useState(false);
+  const [showSettingsModal, setShowSettingsModal] = React.useState(false);
   const [assignmentDraft, setAssignmentDraft] = React.useState<Record<string, string>>({});
   const [autoAssigning, setAutoAssigning] = React.useState(false);
+
+  const [settingsTab, setSettingsTab] = React.useState<"assignment" | "boards">(
+    "assignment",
+  );
+  const [boards, setBoards] = React.useState<MapacheBoardConfig[]>([]);
+  const [boardsLoading, setBoardsLoading] = React.useState(false);
+  const [boardsError, setBoardsError] = React.useState<string | null>(null);
+  const [activeBoardId, setActiveBoardId] = React.useState<string | null>(null);
+  const [boardDraft, setBoardDraft] = React.useState<BoardDraft | null>(null);
+  const [boardDraftError, setBoardDraftError] = React.useState<string | null>(
+    null,
+  );
+  const [boardPendingDeletion, setBoardPendingDeletion] = React.useState<
+    string | null
+  >(null);
+  const [deletingBoardId, setDeletingBoardId] = React.useState<string | null>(
+    null,
+  );
+  const [savingBoard, setSavingBoard] = React.useState(false);
+  const [creatingBoard, setCreatingBoard] = React.useState(false);
+  const [reorderingBoards, setReorderingBoards] = React.useState(false);
 
   const [showForm, setShowForm] = React.useState(false);
   const [currentStep, setCurrentStep] = React.useState(0);
@@ -1272,6 +1355,71 @@ export default function MapachePortalClient({
 
     return entries;
   }, [mapacheUsers]);
+
+  const boardLoadErrorMessage = boardsT("loadError");
+
+  const loadBoards = React.useCallback(
+    async ({ silent = false }: { silent?: boolean } = {}) => {
+      if (!silent) {
+        setBoardsLoading(true);
+        setBoardsError(null);
+      }
+      try {
+        const response = await fetch(`/api/mapache/boards`);
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+        const data = (await response.json()) as { boards?: unknown };
+        const normalized = normalizeBoardList(data?.boards);
+        setBoards(normalized);
+        setBoardsError(null);
+      } catch (error) {
+        console.error(error);
+        setBoardsError(boardLoadErrorMessage);
+      } finally {
+        if (!silent) {
+          setBoardsLoading(false);
+        }
+      }
+    },
+    [boardLoadErrorMessage],
+  );
+
+  React.useEffect(() => {
+    void loadBoards();
+  }, [loadBoards]);
+
+  React.useEffect(() => {
+    if (boards.length === 0) {
+      setActiveBoardId(null);
+      return;
+    }
+    setActiveBoardId((prev) => {
+      if (prev && boards.some((board) => board.id === prev)) {
+        return prev;
+      }
+      return boards[0]!.id;
+    });
+  }, [boards]);
+
+  React.useEffect(() => {
+    if (!activeBoardId) {
+      setBoardDraft(null);
+      setBoardDraftError(null);
+      setBoardPendingDeletion(null);
+      return;
+    }
+    const board = boards.find((item) => item.id === activeBoardId);
+    if (!board) {
+      setBoardDraft(null);
+      setBoardDraftError(null);
+      setBoardPendingDeletion(null);
+      return;
+    }
+    setBoardDraft(createBoardDraft(board));
+    setBoardDraftError(null);
+    setBoardPendingDeletion(null);
+  }, [activeBoardId, boards]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1844,24 +1992,31 @@ export default function MapachePortalClient({
     [allInsightsMetrics, filteredInsightsMetrics],
   );
 
-  const pipelineTasksByStatus = React.useMemo(() => {
-    const groups = STATUS_ORDER.reduce(
-      (acc, status) => {
-        acc[status] = [];
-        return acc;
-      },
-      {} as Record<MapacheTaskStatus, MapacheTask[]>,
-    );
+  const activeBoard = React.useMemo(() => {
+    if (!activeBoardId) return null;
+    return boards.find((board) => board.id === activeBoardId) ?? null;
+  }, [activeBoardId, boards]);
 
-    filteredTasks.forEach((task) => {
-      if (!groups[task.status]) {
-        groups[task.status] = [];
-      }
-      groups[task.status].push(task);
+  const boardColumnsWithTasks = React.useMemo(() => {
+    if (!activeBoard) return [];
+    return activeBoard.columns.map((column) => {
+      const statuses = column.filters.statuses;
+      const tasksForColumn = filteredTasks.filter((task) =>
+        statuses.includes(task.status),
+      );
+      return {
+        id: column.id,
+        title: column.title,
+        statuses,
+        tasks: tasksForColumn,
+      };
     });
+  }, [activeBoard, filteredTasks]);
 
-    return groups;
-  }, [filteredTasks]);
+  const formatStatusLabel = React.useCallback(
+    (status: MapacheTaskStatus) => statusT(getStatusLabelKey(status)),
+    [statusT],
+  );
 
   const hasActiveAdvancedFilters = normalizedAdvancedFilters.hasAny;
   const advancedFiltersCount = normalizedAdvancedFilters.activeCount;
@@ -1957,7 +2112,43 @@ export default function MapachePortalClient({
     </div>
   );
 
-  const handleOpenAssignmentModal = React.useCallback(() => {
+  const renderBoardSelector = () => {
+    if (viewMode !== "tablero") return null;
+    if (boardsLoading) {
+      return (
+        <div className="rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs text-white/60">
+          {boardsT("loading")}
+        </div>
+      );
+    }
+    if (boards.length === 0) {
+      return (
+        <div className="rounded-full border border-dashed border-white/20 bg-white/5 px-3 py-1 text-xs text-white/60">
+          {boardsT("selector.empty")}
+        </div>
+      );
+    }
+    return (
+      <label className="flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs text-white/70">
+        <span className="uppercase tracking-[0.2em] text-white/50">
+          {boardsT("selector.label")}
+        </span>
+        <select
+          value={activeBoardId ?? ""}
+          onChange={(event) => handleBoardSelectorChange(event.target.value)}
+          className="rounded-md border border-white/20 bg-black/20 px-2 py-1 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+        >
+          {boards.map((board) => (
+            <option key={board.id} value={board.id}>
+              {board.name}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  };
+
+  const handleOpenSettingsModal = React.useCallback(() => {
     const hasConfiguredRatios = Object.values(assignmentRatios).some(
       (value) => typeof value === "number" && value > 0,
     );
@@ -1979,11 +2170,14 @@ export default function MapachePortalClient({
       });
       return next;
     });
-    setShowAssignmentModal(true);
+    setSettingsTab("assignment");
+    setShowSettingsModal(true);
   }, [assignmentRatios, mapacheUsers]);
 
-  const handleCloseAssignmentModal = React.useCallback(() => {
-    setShowAssignmentModal(false);
+  const handleCloseSettingsModal = React.useCallback(() => {
+    setShowSettingsModal(false);
+    setBoardPendingDeletion(null);
+    setBoardDraftError(null);
   }, []);
 
   const handleAssignmentDraftChange = React.useCallback((userId: string, value: string) => {
@@ -2008,7 +2202,7 @@ export default function MapachePortalClient({
   const handleSaveAssignmentRatios = React.useCallback(() => {
     if (mapacheUsers.length === 0) {
       setAssignmentRatios({});
-      setShowAssignmentModal(false);
+      setShowSettingsModal(false);
       return;
     }
 
@@ -2023,14 +2217,14 @@ export default function MapachePortalClient({
 
     if (entries.length === 0) {
       setAssignmentRatios({});
-      setShowAssignmentModal(false);
+      setShowSettingsModal(false);
       return;
     }
 
     const total = entries.reduce((sum, [, value]) => sum + value, 0);
     if (total <= 0) {
       setAssignmentRatios({});
-      setShowAssignmentModal(false);
+      setShowSettingsModal(false);
       return;
     }
 
@@ -2039,8 +2233,269 @@ export default function MapachePortalClient({
         entries.map(([id, value]) => [id, value / total] as const),
       ),
     );
-    setShowAssignmentModal(false);
+    setShowSettingsModal(false);
   }, [assignmentDraft, mapacheUsers]);
+
+  const handleBoardNameChange = React.useCallback((value: string) => {
+    setBoardDraft((prev) => (prev ? { ...prev, name: value } : prev));
+    setBoardDraftError(null);
+  }, []);
+
+  const handleBoardColumnTitleChange = React.useCallback(
+    (index: number, value: string) => {
+      setBoardDraft((prev) => {
+        if (!prev) return prev;
+        const columns = prev.columns.map((column, columnIndex) =>
+          columnIndex === index ? { ...column, title: value } : column,
+        );
+        return { ...prev, columns };
+      });
+      setBoardDraftError(null);
+    },
+    [],
+  );
+
+  const handleToggleBoardColumnStatus = React.useCallback(
+    (index: number, status: MapacheTaskStatus) => {
+      setBoardDraft((prev) => {
+        if (!prev) return prev;
+        const columns = prev.columns.map((column, columnIndex) => {
+          if (columnIndex !== index) return column;
+          const nextStatuses = column.statuses.includes(status)
+            ? column.statuses.filter((item) => item !== status)
+            : [...column.statuses, status];
+          return { ...column, statuses: nextStatuses };
+        });
+        return { ...prev, columns };
+      });
+      setBoardDraftError(null);
+    },
+    [],
+  );
+
+  const handleAddBoardColumn = React.useCallback(() => {
+    setBoardDraft((prev) => {
+      if (!prev) return prev;
+      const title = boardsT("columns.defaultTitle", {
+        index: prev.columns.length + 1,
+      });
+      const statuses = getSuggestedStatuses(prev.columns);
+      return {
+        ...prev,
+        columns: [...prev.columns, { id: null, title, statuses }],
+      };
+    });
+    setBoardDraftError(null);
+  }, [boardsT]);
+
+  const handleRemoveBoardColumn = React.useCallback((index: number) => {
+    setBoardDraft((prev) => {
+      if (!prev) return prev;
+      const columns = prev.columns.filter((_, columnIndex) => columnIndex !== index);
+      return { ...prev, columns };
+    });
+    setBoardDraftError(null);
+  }, []);
+
+  const handleMoveBoardColumn = React.useCallback(
+    (index: number, direction: -1 | 1) => {
+      setBoardDraft((prev) => {
+        if (!prev) return prev;
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= prev.columns.length) return prev;
+        const columns = [...prev.columns];
+        const [moved] = columns.splice(index, 1);
+        columns.splice(targetIndex, 0, moved);
+        return { ...prev, columns };
+      });
+      setBoardDraftError(null);
+    },
+    [],
+  );
+
+  const handleBoardSelectorChange = React.useCallback((boardId: string) => {
+    setActiveBoardId(boardId || null);
+  }, []);
+
+  const persistBoardOrder = React.useCallback(
+    async (orderedBoards: MapacheBoardConfig[]) => {
+      setReorderingBoards(true);
+      try {
+        const response = await fetch(`/api/mapache/boards/reorder`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            boardIds: orderedBoards.map((board) => board.id),
+          }),
+        });
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error(boardsToastT("reorderError"));
+        await loadBoards({ silent: true });
+      } finally {
+        setReorderingBoards(false);
+      }
+    },
+    [boardsToastT, loadBoards],
+  );
+
+  const handleMoveBoard = React.useCallback(
+    (boardId: string, direction: "up" | "down") => {
+      let nextBoards: MapacheBoardConfig[] | null = null;
+      setBoards((prev) => {
+        const index = prev.findIndex((board) => board.id === boardId);
+        if (index < 0) return prev;
+        const targetIndex = direction === "up" ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+        const ordered = [...prev];
+        const [moved] = ordered.splice(index, 1);
+        ordered.splice(targetIndex, 0, moved);
+        const reindexed = ordered.map((board, order) => ({ ...board, order }));
+        nextBoards = reindexed;
+        return reindexed;
+      });
+      if (nextBoards) {
+        void persistBoardOrder(nextBoards);
+      }
+    },
+    [persistBoardOrder],
+  );
+
+  const handleCreateBoard = React.useCallback(async () => {
+    if (creatingBoard) return;
+    const defaultName = boardsT("list.defaultName", {
+      index: boards.length + 1,
+    });
+    setCreatingBoard(true);
+    try {
+      const response = await fetch(`/api/mapache/boards`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: defaultName }),
+      });
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+      const data = (await response.json()) as { board?: unknown };
+      const board = normalizeBoardConfig(data?.board);
+      if (!board) {
+        throw new Error("Invalid response");
+      }
+      setBoards((prev) => {
+        const next = [...prev.filter((item) => item.id !== board.id), board].sort(
+          (a, b) => a.order - b.order,
+        );
+        return next;
+      });
+      setActiveBoardId(board.id);
+      setBoardDraft(createBoardDraft(board));
+      setBoardDraftError(null);
+      setBoardPendingDeletion(null);
+      toast.success(boardsToastT("createSuccess"));
+    } catch (error) {
+      console.error(error);
+      toast.error(boardsToastT("createError"));
+    } finally {
+      setCreatingBoard(false);
+    }
+  }, [boards.length, boardsToastT, boardsT, creatingBoard]);
+
+  const handleSaveBoard = React.useCallback(async () => {
+    if (!boardDraft) return;
+    const trimmedName = boardDraft.name.trim();
+    if (!trimmedName) {
+      setBoardDraftError(boardsT("validation.nameRequired"));
+      return;
+    }
+    if (boardDraft.columns.length === 0) {
+      setBoardDraftError(boardsT("validation.columnsRequired"));
+      return;
+    }
+    for (const column of boardDraft.columns) {
+      if (!column.title.trim()) {
+        setBoardDraftError(boardsT("validation.columnTitleRequired"));
+        return;
+      }
+      if (column.statuses.length === 0) {
+        setBoardDraftError(boardsT("validation.columnStatusesRequired"));
+        return;
+      }
+    }
+    setBoardDraftError(null);
+    setSavingBoard(true);
+    try {
+      const payload = mapDraftToPayload({
+        ...boardDraft,
+        name: trimmedName,
+      });
+      const response = await fetch(`/api/mapache/boards/${boardDraft.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+      const data = (await response.json()) as { board?: unknown };
+      const board = normalizeBoardConfig(data?.board);
+      if (!board) {
+        throw new Error("Invalid response");
+      }
+      setBoards((prev) => {
+        const others = prev.filter((item) => item.id !== board.id);
+        const next = [...others, board].sort((a, b) => a.order - b.order);
+        return next;
+      });
+      setBoardDraft(createBoardDraft(board));
+      toast.success(boardsToastT("updateSuccess"));
+    } catch (error) {
+      console.error(error);
+      toast.error(boardsToastT("updateError"));
+    } finally {
+      setSavingBoard(false);
+    }
+  }, [boardDraft, boardsToastT, boardsT]);
+
+  const handleRequestDeleteBoard = React.useCallback(() => {
+    if (!boardDraft) return;
+    setBoardPendingDeletion(boardDraft.id);
+  }, [boardDraft]);
+
+  const handleCancelDeleteBoard = React.useCallback(() => {
+    setBoardPendingDeletion(null);
+  }, []);
+
+  const handleConfirmDeleteBoard = React.useCallback(async () => {
+    if (!boardDraft) return;
+    setDeletingBoardId(boardDraft.id);
+    try {
+      const response = await fetch(`/api/mapache/boards/${boardDraft.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+      setBoards((prev) => {
+        const remaining = prev.filter((board) => board.id !== boardDraft.id);
+        const reindexed = remaining.map((board, order) => ({ ...board, order }));
+        return reindexed;
+      });
+      setBoardPendingDeletion(null);
+      setBoardDraft(null);
+      setBoardDraftError(null);
+      setActiveBoardId((prev) => (prev === boardDraft.id ? null : prev));
+      toast.success(boardsToastT("deleteSuccess"));
+      void loadBoards({ silent: true });
+    } catch (error) {
+      console.error(error);
+      toast.error(boardsToastT("deleteError"));
+    } finally {
+      setDeletingBoardId(null);
+    }
+  }, [boardDraft, boardsToastT, loadBoards]);
 
   const handleAutoAssign = React.useCallback(async () => {
     if (autoAssigning) return;
@@ -2101,7 +2556,7 @@ export default function MapachePortalClient({
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={handleCloseAssignmentModal}
+          onClick={handleCloseSettingsModal}
           className="rounded-md border border-white/30 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
         >
           {assignmentT("cancel")}
@@ -2906,13 +3361,15 @@ function TaskMetaChip({
   };
 
   type PipelineColumnProps = {
-    status: MapacheTaskStatus;
+    title: string;
+    statuses: MapacheTaskStatus[];
     tasks: MapacheTask[];
     onTaskDrop: (
       taskId: string,
       fromStatus: MapacheTaskStatus,
       nextStatus: MapacheTaskStatus,
     ) => void;
+    formatStatus: (status: MapacheTaskStatus) => string;
   };
 
   const PipelineDraggableTask = ({ task }: { task: MapacheTask }) => {
@@ -2944,12 +3401,19 @@ function TaskMetaChip({
   };
 
   const PipelineColumn = ({
-    status,
+    title,
+    statuses,
     tasks,
     onTaskDrop,
+    formatStatus,
   }: PipelineColumnProps) => {
     const columnRef = React.useRef<HTMLDivElement | null>(null);
     const [isDraggingOver, setIsDraggingOver] = React.useState(false);
+
+    const statusSummary = React.useMemo(() => {
+      if (statuses.length === 0) return "";
+      return statuses.map((status) => formatStatus(status)).join(" • ");
+    }, [formatStatus, statuses]);
 
     React.useEffect(() => {
       const element = columnRef.current;
@@ -2957,7 +3421,7 @@ function TaskMetaChip({
 
       return dropTargetForElements({
         element,
-        getData: () => ({ type: "mapache-column", status }),
+        getData: () => ({ type: "mapache-column", statuses }),
         onDragEnter: ({ source }) => {
           const data = source.data as PipelineDragData | undefined;
           if (data?.type === "mapache-task") {
@@ -2973,19 +3437,30 @@ function TaskMetaChip({
           if (!data || data.type !== "mapache-task") {
             return;
           }
+          const targetStatus = statuses[0];
+          if (!targetStatus) {
+            return;
+          }
 
-          onTaskDrop(data.taskId, data.status, status);
+          onTaskDrop(data.taskId, data.status, targetStatus);
         },
         onDragEnd: () => {
           setIsDraggingOver(false);
         },
       });
-    }, [onTaskDrop, status]);
+    }, [onTaskDrop, statuses]);
 
     return (
       <section className="flex min-w-[260px] max-w-[280px] flex-1 flex-col rounded-xl border border-white/10 bg-slate-950/70 text-white shadow-soft">
-        <header className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3 text-sm font-semibold text-white/80">
-          <span>{statusT(getStatusLabelKey(status))}</span>
+        <header className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-white/80">{title}</span>
+            {statusSummary ? (
+              <span className="text-[11px] uppercase tracking-[0.2em] text-white/40">
+                {statusSummary}
+              </span>
+            ) : null}
+          </div>
           <span className="text-xs text-white/50">{tasks.length}</span>
         </header>
         <div
@@ -3039,7 +3514,7 @@ function TaskMetaChip({
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={handleOpenAssignmentModal}
+            onClick={handleOpenSettingsModal}
             className="inline-flex items-center gap-2 rounded-md border border-white/25 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
           >
             <Settings className="h-4 w-4" aria-hidden="true" />
@@ -3056,65 +3531,358 @@ function TaskMetaChip({
       </header>
 
       <Modal
-        open={showAssignmentModal}
-        onClose={handleCloseAssignmentModal}
+        open={showSettingsModal}
+        onClose={handleCloseSettingsModal}
         variant="inverted"
-        title={assignmentT("title")}
-        panelClassName="w-full max-w-xl"
-        footer={assignmentModalFooter}
+        title={settingsT("title")}
+        panelClassName="w-full max-w-4xl"
+        footer={settingsTab === "assignment" ? assignmentModalFooter : undefined}
       >
-        <div className="space-y-4 text-white">
-          <p className="text-sm text-white/70">{assignmentT("description")}</p>
-          {mapacheUsers.length === 0 ? (
-            <div className="rounded-md border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/70">
-              {assignmentT("empty")}
+        <div className="space-y-6 text-white">
+          <div className="inline-flex items-center gap-1 rounded-full bg-white/10 p-1 text-xs text-white/60">
+            <button
+              type="button"
+              onClick={() => setSettingsTab("assignment")}
+              className={`rounded-full px-3 py-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+                settingsTab === "assignment"
+                  ? "bg-white text-[rgb(var(--primary))] shadow-soft"
+                  : "text-white/70 hover:bg-white/10"
+              }`}
+            >
+              {settingsT("tabs.assignment")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSettingsTab("boards")}
+              className={`rounded-full px-3 py-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+                settingsTab === "boards"
+                  ? "bg-white text-[rgb(var(--primary))] shadow-soft"
+                  : "text-white/70 hover:bg-white/10"
+              }`}
+            >
+              {settingsT("tabs.boards")}
+            </button>
+          </div>
+
+          {settingsTab === "assignment" ? (
+            <div className="space-y-4">
+              <p className="text-sm text-white/70">{assignmentT("description")}</p>
+              {mapacheUsers.length === 0 ? (
+                <div className="rounded-md border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/70">
+                  {assignmentT("empty")}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleResetAssignmentDraft}
+                      className="inline-flex items-center rounded-md border border-white/20 px-3 py-1.5 text-xs uppercase tracking-wide text-white/70 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+                    >
+                      {assignmentT("reset")}
+                    </button>
+                  </div>
+                  <div className="grid gap-3">
+                    {mapacheUsers.map((user) => {
+                      const value = assignmentDraft[user.id] ?? "";
+                      return (
+                        <label
+                          key={user.id}
+                          className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white/80"
+                        >
+                          <span className="font-medium text-white">{formatAssigneeOption(user)}</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              value={value}
+                              onChange={(event) =>
+                                handleAssignmentDraftChange(user.id, event.target.value)
+                              }
+                              className="flex-1 rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                              placeholder="0"
+                            />
+                            <span className="text-sm text-white/60">%</span>
+                          </div>
+                          <span className="text-[11px] uppercase tracking-[0.2em] text-white/40">
+                            {assignmentT("percentageLabel")}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center justify-between rounded-md border border-white/10 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.2em] text-white/60">
+                    <span>{assignmentT("totalLabel")}</span>
+                    <span className="text-white">{`${formatPercentage(assignmentDraftTotal)}%`}</span>
+                  </div>
+                  <p className="text-xs text-white/40">{assignmentT("normalizedHint")}</p>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleResetAssignmentDraft}
-                  className="inline-flex items-center rounded-md border border-white/20 px-3 py-1.5 text-xs uppercase tracking-wide text-white/70 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-                >
-                  {assignmentT("reset")}
-                </button>
-              </div>
-              <div className="grid gap-3">
-                {mapacheUsers.map((user) => {
-                  const value = assignmentDraft[user.id] ?? "";
-                  return (
-                    <label
-                      key={user.id}
-                      className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white/80"
+            <div className="space-y-5">
+              <p className="text-sm text-white/70">{boardsT("description")}</p>
+              {boardsError ? (
+                <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
+                  {boardsError}
+                </div>
+              ) : null}
+              <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
+                <aside className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white">
+                      {boardsT("list.heading")}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={handleCreateBoard}
+                      className="rounded-md border border-white/20 px-3 py-1.5 text-xs uppercase tracking-wide text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={creatingBoard}
                     >
-                      <span className="font-medium text-white">{formatAssigneeOption(user)}</span>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={value}
-                          onChange={(event) =>
-                            handleAssignmentDraftChange(user.id, event.target.value)
-                          }
-                          className="flex-1 rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-                          placeholder="0"
-                        />
-                        <span className="text-sm text-white/60">%</span>
+                      {boardsT("list.create")}
+                    </button>
+                  </div>
+                  {boardsLoading ? (
+                    <div className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60">
+                      {boardsT("loading")}
+                    </div>
+                  ) : null}
+                  {boards.length === 0 && !boardsLoading ? (
+                    <div className="space-y-3 rounded-md border border-dashed border-white/15 bg-white/5 px-3 py-4 text-xs text-white/70">
+                      <div>
+                        <p className="font-medium text-white">{boardsT("empty.title")}</p>
+                        <p className="mt-1">{boardsT("empty.description")}</p>
                       </div>
-                      <span className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-                        {assignmentT("percentageLabel")}
-                      </span>
-                    </label>
-                  );
-                })}
+                      <button
+                        type="button"
+                        onClick={handleCreateBoard}
+                        className="inline-flex items-center rounded-md border border-white/25 px-3 py-1.5 text-xs uppercase tracking-wide text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={creatingBoard}
+                      >
+                        {boardsT("empty.action")}
+                      </button>
+                    </div>
+                  ) : (
+                    <ul className="space-y-2">
+                      {boards.map((board, index) => {
+                        const isActive = board.id === activeBoardId;
+                        return (
+                          <li key={board.id}>
+                            <div
+                              className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
+                                isActive
+                                  ? "border-white/60 bg-white/15 text-white"
+                                  : "border-white/15 text-white/70 hover:border-white/30 hover:text-white"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleBoardSelectorChange(board.id)}
+                                className="flex-1 text-left"
+                              >
+                                {board.name}
+                              </button>
+                              <div className="flex items-center gap-1 text-xs">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveBoard(board.id, "up")}
+                                  className="rounded-md border border-white/20 px-2 py-1 text-white/70 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:cursor-not-allowed disabled:opacity-40"
+                                  disabled={index === 0 || reorderingBoards}
+                                  title={boardsT("list.reorderHint")}
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveBoard(board.id, "down")}
+                                  className="rounded-md border border-white/20 px-2 py-1 text-white/70 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:cursor-not-allowed disabled:opacity-40"
+                                  disabled={index === boards.length - 1 || reorderingBoards}
+                                  title={boardsT("list.reorderHint")}
+                                >
+                                  ↓
+                                </button>
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </aside>
+                <section className="space-y-4">
+                  {boardsLoading && !boardDraft ? (
+                    <div className="rounded-md border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/70">
+                      {boardsT("loading")}
+                    </div>
+                  ) : null}
+                  {!boardsLoading && !boardDraft ? (
+                    <div className="rounded-md border border-dashed border-white/15 bg-white/5 px-4 py-6 text-sm text-white/70">
+                      {boardsT("selector.empty")}
+                    </div>
+                  ) : null}
+                  {boardDraft ? (
+                    <div className="space-y-4">
+                      <label className="flex flex-col gap-2 text-sm">
+                        <span className="text-white/80">{boardsT("form.nameLabel")}</span>
+                        <input
+                          type="text"
+                          value={boardDraft.name}
+                          onChange={(event) => handleBoardNameChange(event.target.value)}
+                          placeholder={boardsT("form.namePlaceholder")}
+                          className="rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                        />
+                      </label>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-semibold text-white">
+                            {boardsT("columns.heading")}
+                          </h4>
+                          <button
+                            type="button"
+                            onClick={handleAddBoardColumn}
+                            className="rounded-md border border-white/20 px-3 py-1.5 text-xs uppercase tracking-wide text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+                          >
+                            {boardsT("columns.add")}
+                          </button>
+                        </div>
+                        {boardDraft.columns.length === 0 ? (
+                          <div className="rounded-md border border-dashed border-white/15 bg-white/5 px-3 py-4 text-xs text-white/70">
+                            {boardsT("columns.empty")}
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {boardDraft.columns.map((column, index) => (
+                              <div
+                                key={column.id ?? `draft-${index}`}
+                                className="space-y-3 rounded-lg border border-white/15 bg-white/5 p-4"
+                              >
+                                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                  <label className="flex-1 text-sm">
+                                    <span className="text-white/80">{boardsT("columns.titleLabel")}</span>
+                                    <input
+                                      type="text"
+                                      value={column.title}
+                                      onChange={(event) =>
+                                        handleBoardColumnTitleChange(index, event.target.value)
+                                      }
+                                      className="mt-1 w-full rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                                    />
+                                  </label>
+                                  <div className="flex items-center gap-1 text-xs">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveBoardColumn(index, -1)}
+                                      className="rounded-md border border-white/20 px-2 py-1 text-white/70 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:cursor-not-allowed disabled:opacity-40"
+                                      disabled={index === 0}
+                                    >
+                                      {boardsT("columns.moveUp")}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveBoardColumn(index, 1)}
+                                      className="rounded-md border border-white/20 px-2 py-1 text-white/70 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:cursor-not-allowed disabled:opacity-40"
+                                      disabled={index === boardDraft.columns.length - 1}
+                                    >
+                                      {boardsT("columns.moveDown")}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveBoardColumn(index)}
+                                      className="rounded-md border border-white/20 px-2 py-1 text-white/70 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+                                    >
+                                      {boardsT("columns.delete")}
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="space-y-2 text-xs">
+                                  <span className="uppercase tracking-[0.2em] text-white/50">
+                                    {boardsT("columns.statusesLabel")}
+                                  </span>
+                                  <div className="flex flex-wrap gap-2">
+                                    {STATUS_ORDER.map((status) => {
+                                      const checked = column.statuses.includes(status);
+                                      return (
+                                        <label
+                                          key={status}
+                                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition ${
+                                            checked
+                                              ? "border-white bg-white/10 text-white"
+                                              : "border-white/20 text-white/60 hover:border-white/40 hover:text-white"
+                                          }`}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => handleToggleBoardColumnStatus(index, status)}
+                                            className="sr-only"
+                                          />
+                                          <span>{statusT(getStatusLabelKey(status))}</span>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {boardDraftError ? (
+                        <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
+                          {boardDraftError}
+                        </div>
+                      ) : null}
+                      <div className="flex flex-col gap-2 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        {boardPendingDeletion === boardDraft.id ? (
+                          <div className="space-y-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-3 text-sm text-rose-100">
+                            <p className="font-semibold">{boardsT("form.confirmDeleteTitle")}</p>
+                            <p className="text-xs text-rose-100/80">
+                              {boardsT("form.confirmDeleteDescription", {
+                                name:
+                                  boardDraft.name.trim() || boardsT("form.namePlaceholder"),
+                              })}
+                            </p>
+                            <div className="mt-2 flex gap-2">
+                              <button
+                                type="button"
+                                onClick={handleCancelDeleteBoard}
+                                className="rounded-md border border-rose-100/40 px-3 py-1.5 text-xs uppercase tracking-wide text-rose-100/80 transition hover:bg-rose-500/20"
+                              >
+                                {boardsT("form.cancel")}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleConfirmDeleteBoard}
+                                className="rounded-md bg-rose-500 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-rose-500/90 disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={deletingBoardId === boardDraft.id}
+                              >
+                                {boardsT("form.confirmDelete")}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleRequestDeleteBoard}
+                            className="self-start rounded-md border border-white/20 px-3 py-1.5 text-xs uppercase tracking-wide text-white/70 transition hover:bg-white/10"
+                          >
+                            {boardsT("form.delete")}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleSaveBoard}
+                          className="inline-flex items-center justify-center rounded-md bg-[rgb(var(--primary))] px-4 py-2 text-sm font-medium text-white shadow-soft transition hover:bg-[rgb(var(--primary))]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={savingBoard}
+                        >
+                          {boardsT("form.save")}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
               </div>
-              <div className="flex items-center justify-between rounded-md border border-white/10 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.2em] text-white/60">
-                <span>{assignmentT("totalLabel")}</span>
-                <span className="text-white">{`${formatPercentage(assignmentDraftTotal)}%`}</span>
-              </div>
-              <p className="text-xs text-white/40">{assignmentT("normalizedHint")}</p>
             </div>
           )}
         </div>
@@ -3735,14 +4503,15 @@ function TaskMetaChip({
 
       {isTasksSection ? (
         <>
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex-1">{renderFilterBar()}</div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-              {renderViewModeToggle()}
-              {activeFilter.ownership === "unassigned" ? (
-                <button
-                  type="button"
-                  onClick={handleAutoAssign}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex-1">{renderFilterBar()}</div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+          {renderBoardSelector()}
+          {renderViewModeToggle()}
+          {activeFilter.ownership === "unassigned" ? (
+            <button
+              type="button"
+              onClick={handleAutoAssign}
                   disabled={autoAssigning || mapacheUsers.length === 0}
                   className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--primary))] bg-[rgb(var(--primary))]/10 px-4 py-1 text-sm text-[rgb(var(--primary))] transition hover:bg-[rgb(var(--primary))]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -3777,17 +4546,36 @@ function TaskMetaChip({
           ))}
         </div>
       ) : (
-        <div className="-mx-1 overflow-x-auto pb-2">
-          <div className="flex min-w-max gap-4 px-1">
-            {STATUS_ORDER.map((status) => (
-              <PipelineColumn
-                key={status}
-                status={status}
-                tasks={pipelineTasksByStatus[status] ?? []}
-                onTaskDrop={handleTaskDroppedOnStatus}
-              />
-            ))}
-          </div>
+        <div className="space-y-3">
+          {boardsError ? (
+            <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+              {boardsError}
+            </div>
+          ) : null}
+          {boards.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-white/20 bg-white/5 px-4 py-6 text-sm text-white/70">
+              {boardsT("selector.empty")}
+            </div>
+          ) : boardColumnsWithTasks.length === 0 ? (
+            <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/70">
+              {boardsT("columns.empty")}
+            </div>
+          ) : (
+            <div className="-mx-1 overflow-x-auto pb-2">
+              <div className="flex min-w-max gap-4 px-1">
+                {boardColumnsWithTasks.map((column) => (
+                  <PipelineColumn
+                    key={column.id}
+                    title={column.title}
+                    statuses={column.statuses}
+                    tasks={column.tasks}
+                    onTaskDrop={handleTaskDroppedOnStatus}
+                    formatStatus={formatStatusLabel}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
