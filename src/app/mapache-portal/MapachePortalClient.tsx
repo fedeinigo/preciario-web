@@ -38,6 +38,15 @@ import {
   normalizeMapacheStatus,
   normalizeMapacheTask,
 } from "./types";
+import {
+  didColumnStatusesChange,
+  ensureValidFilterStatus,
+  ensureValidTaskStatus,
+  normalizeColumnStatuses,
+  removeStatus,
+  sortStatuses,
+  upsertStatus,
+} from "./status-management";
 import MapachePortalFilters from "./components/MapachePortalFilters";
 import MapachePortalInsights, {
   type MapachePortalInsightsMetrics,
@@ -215,6 +224,25 @@ type FormState = {
   integrationDocsUrl: string;
   avgMonthlyConversations: string;
   deliverables: DeliverableFormState[];
+};
+
+type StatusFormState = {
+  key: string;
+  label: string;
+  order: string;
+};
+
+type StatusFormErrors = {
+  key?: string;
+  label?: string;
+  order?: string;
+};
+
+type StatusValidationMessages = {
+  keyRequired: string;
+  labelRequired: string;
+  orderRequired: string;
+  orderInvalid: string;
 };
 
 type DeliverableError = {
@@ -752,6 +780,48 @@ function createDefaultFormState(): FormState {
   };
 }
 
+function validateStatusFormState(
+  state: StatusFormState,
+  messages: StatusValidationMessages,
+): { errors: StatusFormErrors; payload: { key: string; label: string; order: number } | null } {
+  const errors: StatusFormErrors = {};
+  const key = state.key.trim();
+  if (!key) {
+    errors.key = messages.keyRequired;
+  }
+
+  const label = state.label.trim();
+  if (!label) {
+    errors.label = messages.labelRequired;
+  }
+
+  const orderRaw = state.order.trim();
+  let orderValue: number | null = null;
+  if (!orderRaw) {
+    errors.order = messages.orderRequired;
+  } else {
+    const parsed = Number.parseInt(orderRaw, 10);
+    if (!Number.isFinite(parsed)) {
+      errors.order = messages.orderInvalid;
+    } else {
+      orderValue = parsed;
+    }
+  }
+
+  if (Object.keys(errors).length > 0 || orderValue === null) {
+    return { errors, payload: null };
+  }
+
+  return {
+    errors,
+    payload: {
+      key: key.toUpperCase(),
+      label,
+      order: orderValue,
+    },
+  };
+}
+
 function isEqualFieldValue<T>(a: T, b: T): boolean {
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) return false;
@@ -1279,6 +1349,7 @@ export default function MapachePortalClient({
   const filtersT = useTranslations("mapachePortal.filters");
   const assignmentT = useTranslations("mapachePortal.assignment");
   const settingsT = useTranslations("mapachePortal.settings");
+  const statusSettingsT = useTranslations("mapachePortal.statusSettings");
   const boardsT = useTranslations("mapachePortal.boards");
   const boardsToastT = useTranslations("mapachePortal.boards.toast");
   const needFromTeamTranslations = useTranslations(
@@ -1368,8 +1439,8 @@ export default function MapachePortalClient({
                 (status): status is MapacheStatusDetails => status !== null,
               )
           : [];
-        if (!cancelled && loaded.length > 0) {
-          setStatuses(loaded);
+        if (!cancelled) {
+          setStatuses(sortStatuses(loaded));
         }
       } catch (error) {
         if (abortController.signal.aborted) return;
@@ -1443,7 +1514,9 @@ export default function MapachePortalClient({
   const [assignmentDraft, setAssignmentDraft] = React.useState<Record<string, string>>({});
   const [autoAssigning, setAutoAssigning] = React.useState(false);
 
-  const [settingsTab, setSettingsTab] = React.useState<"assignment" | "boards">(
+  const [settingsTab, setSettingsTab] = React.useState<
+    "assignment" | "boards" | "statuses"
+  >(
     "assignment",
   );
   const [boards, setBoards] = React.useState<MapacheBoardConfig[]>([]);
@@ -1463,6 +1536,28 @@ export default function MapachePortalClient({
   const [savingBoard, setSavingBoard] = React.useState(false);
   const [creatingBoard, setCreatingBoard] = React.useState(false);
   const [reorderingBoards, setReorderingBoards] = React.useState(false);
+
+  const [statusCreateState, setStatusCreateState] = React.useState<
+    StatusFormState
+  >({ key: "", label: "", order: "" });
+  const [statusCreateErrors, setStatusCreateErrors] = React.useState<
+    StatusFormErrors
+  >({});
+  const [statusCreatePending, setStatusCreatePending] = React.useState(false);
+  const [statusEditId, setStatusEditId] = React.useState<string | null>(null);
+  const [statusEditState, setStatusEditState] = React.useState<StatusFormState>(
+    { key: "", label: "", order: "" },
+  );
+  const [statusEditErrors, setStatusEditErrors] = React.useState<
+    StatusFormErrors
+  >({});
+  const [statusEditPending, setStatusEditPending] = React.useState(false);
+  const [statusPendingDeletion, setStatusPendingDeletion] = React.useState<
+    string | null
+  >(null);
+  const [statusDeletingId, setStatusDeletingId] = React.useState<string | null>(
+    null,
+  );
 
   const [showForm, setShowForm] = React.useState(false);
   const [currentStep, setCurrentStep] = React.useState(0);
@@ -1497,6 +1592,88 @@ export default function MapachePortalClient({
   const [selectedTaskSubmitting, setSelectedTaskSubmitting] = React.useState(false);
   const selectedTaskInitialPayloadRef = React.useRef<CreateTaskPayload | null>(null);
   const selectedTaskInitialDeliverablesRef = React.useRef<DeliverableInput[]>([]);
+
+  React.useEffect(() => {
+    setFormState((prev) => {
+      const nextStatus = ensureValidTaskStatus(prev.status, statusIndex);
+      if (nextStatus === prev.status) {
+        return prev;
+      }
+      return { ...prev, status: nextStatus };
+    });
+
+    setSelectedTaskFormState((prev) => {
+      const nextStatus = ensureValidTaskStatus(prev.status, statusIndex);
+      if (nextStatus === prev.status) {
+        return prev;
+      }
+      return { ...prev, status: nextStatus };
+    });
+
+    setActiveFilter((prev) => {
+      const nextStatus = ensureValidFilterStatus(prev.status, statusIndex);
+      if (nextStatus === prev.status) {
+        return prev;
+      }
+      return { ...prev, status: nextStatus };
+    });
+
+    setBoardDraft((prev) => {
+      if (!prev) return prev;
+      let changed = false;
+      const nextColumns = prev.columns.map((column) => {
+        const nextStatuses = normalizeColumnStatuses(
+          column.statuses,
+          statusIndex,
+        );
+        if (!didColumnStatusesChange(column.statuses, nextStatuses)) {
+          return column;
+        }
+        changed = true;
+        return { ...column, statuses: nextStatuses };
+      });
+      if (!changed) {
+        return prev;
+      }
+      return { ...prev, columns: nextColumns };
+    });
+  }, [statusIndex]);
+
+  React.useEffect(() => {
+    if (!statusEditId) {
+      setStatusEditState({ key: "", label: "", order: "" });
+      setStatusEditErrors({});
+      return;
+    }
+    const match = statusIndex.byId.get(statusEditId);
+    if (!match) {
+      setStatusEditId(null);
+      return;
+    }
+    setStatusEditState((prev) => {
+      const nextState: StatusFormState = {
+        key: match.key,
+        label: match.label,
+        order: String(match.order),
+      };
+      if (
+        prev.key === nextState.key &&
+        prev.label === nextState.label &&
+        prev.order === nextState.order
+      ) {
+        return prev;
+      }
+      return nextState;
+    });
+    setStatusEditErrors({});
+  }, [statusEditId, statusIndex]);
+
+  React.useEffect(() => {
+    if (!statusPendingDeletion) return;
+    if (!statusIndex.byId.has(statusPendingDeletion)) {
+      setStatusPendingDeletion(null);
+    }
+  }, [statusIndex, statusPendingDeletion]);
 
   const assigneesErrorMessage = formT("assigneeLoadError");
 
@@ -1647,6 +1824,16 @@ export default function MapachePortalClient({
       deliverableUrlRequired: validationT("deliverableUrlRequired"),
     }),
     [formT, validationT],
+  );
+
+  const statusValidationMessages = React.useMemo<StatusValidationMessages>(
+    () => ({
+      keyRequired: statusSettingsT("validation.keyRequired"),
+      labelRequired: statusSettingsT("validation.labelRequired"),
+      orderRequired: statusSettingsT("validation.orderRequired"),
+      orderInvalid: statusSettingsT("validation.orderInvalid"),
+    }),
+    [statusSettingsT],
   );
 
   const unspecifiedOptionLabel = formT("unspecifiedOption");
@@ -2334,6 +2521,15 @@ export default function MapachePortalClient({
     setShowSettingsModal(false);
     setBoardPendingDeletion(null);
     setBoardDraftError(null);
+    setStatusPendingDeletion(null);
+    setStatusEditId(null);
+    setStatusCreateErrors({});
+    setStatusEditErrors({});
+    setStatusCreateState({ key: "", label: "", order: "" });
+    setStatusEditState({ key: "", label: "", order: "" });
+    setStatusCreatePending(false);
+    setStatusEditPending(false);
+    setStatusDeletingId(null);
   }, []);
 
   const handleAssignmentDraftChange = React.useCallback((userId: string, value: string) => {
@@ -2655,6 +2851,131 @@ export default function MapachePortalClient({
       setDeletingBoardId(null);
     }
   }, [boardDraft, boardsToastT, loadBoards]);
+
+  const handleStatusCreate = React.useCallback(async () => {
+    const { errors, payload } = validateStatusFormState(
+      statusCreateState,
+      statusValidationMessages,
+    );
+    setStatusCreateErrors(errors);
+    if (!payload) {
+      toast.error(statusSettingsT("toast.validationError"));
+      return;
+    }
+
+    setStatusCreatePending(true);
+    try {
+      const response = await fetch(`/api/mapache/statuses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+      const data = (await response.json()) as { status?: unknown };
+      const created = normalizeMapacheStatus(data?.status);
+      if (!created) {
+        throw new Error("Invalid response");
+      }
+      setStatuses((prev) => upsertStatus(prev, created));
+      setStatusCreateState({ key: "", label: "", order: "" });
+      setStatusCreateErrors({});
+      toast.success(statusSettingsT("toast.createSuccess"));
+    } catch (error) {
+      console.error(error);
+      toast.error(statusSettingsT("toast.createError"));
+    } finally {
+      setStatusCreatePending(false);
+    }
+  }, [
+    statusCreateState,
+    statusSettingsT,
+    statusValidationMessages,
+    toast,
+  ]);
+
+  const handleStatusUpdate = React.useCallback(async () => {
+    if (!statusEditId) {
+      toast.error(statusSettingsT("toast.validationError"));
+      return;
+    }
+    const { errors, payload } = validateStatusFormState(
+      statusEditState,
+      statusValidationMessages,
+    );
+    setStatusEditErrors(errors);
+    if (!payload) {
+      toast.error(statusSettingsT("toast.validationError"));
+      return;
+    }
+
+    setStatusEditPending(true);
+    try {
+      const response = await fetch(`/api/mapache/statuses/${statusEditId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+      const data = (await response.json()) as { status?: unknown };
+      const updated = normalizeMapacheStatus(data?.status);
+      if (!updated) {
+        throw new Error("Invalid response");
+      }
+      setStatuses((prev) => upsertStatus(prev, updated));
+      setStatusEditErrors({});
+      toast.success(statusSettingsT("toast.updateSuccess"));
+    } catch (error) {
+      console.error(error);
+      toast.error(statusSettingsT("toast.updateError"));
+    } finally {
+      setStatusEditPending(false);
+    }
+  }, [
+    statusEditId,
+    statusEditState,
+    statusSettingsT,
+    statusValidationMessages,
+    toast,
+  ]);
+
+  const handleRequestDeleteStatus = React.useCallback((statusId: string) => {
+    setStatusPendingDeletion(statusId);
+  }, []);
+
+  const handleCancelDeleteStatus = React.useCallback(() => {
+    setStatusPendingDeletion(null);
+  }, []);
+
+  const handleConfirmDeleteStatus = React.useCallback(async () => {
+    if (!statusPendingDeletion) return;
+    setStatusDeletingId(statusPendingDeletion);
+    try {
+      const response = await fetch(
+        `/api/mapache/statuses/${statusPendingDeletion}`,
+        {
+          method: "DELETE",
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+      setStatuses((prev) => removeStatus(prev, statusPendingDeletion));
+      setStatusEditId((prev) =>
+        prev === statusPendingDeletion ? null : prev,
+      );
+      toast.success(statusSettingsT("toast.deleteSuccess"));
+    } catch (error) {
+      console.error(error);
+      toast.error(statusSettingsT("toast.deleteError"));
+    } finally {
+      setStatusDeletingId(null);
+      setStatusPendingDeletion(null);
+    }
+  }, [statusPendingDeletion, statusSettingsT, toast]);
 
   const handleAutoAssign = React.useCallback(async () => {
     if (autoAssigning) return;
@@ -3799,6 +4120,17 @@ function TaskMetaChip({
             >
               {settingsT("tabs.boards")}
             </button>
+            <button
+              type="button"
+              onClick={() => setSettingsTab("statuses")}
+              className={`rounded-full px-3 py-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+                settingsTab === "statuses"
+                  ? "bg-white text-[rgb(var(--primary))] shadow-soft"
+                  : "text-white/70 hover:bg-white/10"
+              }`}
+            >
+              {settingsT("tabs.statuses")}
+            </button>
           </div>
 
           {settingsTab === "assignment" ? (
@@ -3857,7 +4189,7 @@ function TaskMetaChip({
                 </div>
               )}
             </div>
-          ) : (
+          ) : settingsTab === "boards" ? (
             <div className="space-y-5">
               <p className="text-sm text-white/70">{boardsT("description")}</p>
               {boardsError ? (
@@ -4091,12 +4423,12 @@ function TaskMetaChip({
                             </div>
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={handleRequestDeleteBoard}
-                            className="self-start rounded-md border border-white/20 px-3 py-1.5 text-xs uppercase tracking-wide text-white/70 transition hover:bg-white/10"
-                          >
-                            {boardsT("form.delete")}
+                        <button
+                          type="button"
+                          onClick={handleRequestDeleteBoard}
+                          className="self-start rounded-md border border-white/20 px-3 py-1.5 text-xs uppercase tracking-wide text-white/70 transition hover:bg-white/10"
+                        >
+                          {boardsT("form.delete")}
                           </button>
                         )}
                         <button
@@ -4112,6 +4444,334 @@ function TaskMetaChip({
                   ) : null}
                 </section>
               </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-white/90">
+                  {statusSettingsT("title")}
+                </h3>
+                <p className="text-sm text-white/70">
+                  {statusSettingsT("description")}
+                </p>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                <section className="space-y-4 rounded-lg border border-white/10 bg-white/5 p-4">
+                  <header className="space-y-1">
+                    <h4 className="text-sm font-semibold text-white">
+                      {statusSettingsT("create.heading")}
+                    </h4>
+                    <p className="text-xs text-white/60">
+                      {statusSettingsT("create.description")}
+                    </p>
+                  </header>
+                  <div className="space-y-3 text-xs">
+                    <label className="flex flex-col gap-1 text-left">
+                      <span className="font-semibold uppercase tracking-[0.2em] text-white/50">
+                        {statusSettingsT("form.keyLabel")}
+                      </span>
+                      <input
+                        type="text"
+                        value={statusCreateState.key}
+                        onChange={(event) =>
+                          setStatusCreateState((prev) => ({
+                            ...prev,
+                            key: event.target.value,
+                          }))
+                        }
+                        className="rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                        disabled={statusCreatePending}
+                      />
+                      <span className="text-[11px] text-white/40">
+                        {statusSettingsT("form.keyHint")}
+                      </span>
+                      {statusCreateErrors.key ? (
+                        <span className="text-[11px] text-rose-300">
+                          {statusCreateErrors.key}
+                        </span>
+                      ) : null}
+                    </label>
+                    <label className="flex flex-col gap-1 text-left">
+                      <span className="font-semibold uppercase tracking-[0.2em] text-white/50">
+                        {statusSettingsT("form.labelLabel")}
+                      </span>
+                      <input
+                        type="text"
+                        value={statusCreateState.label}
+                        onChange={(event) =>
+                          setStatusCreateState((prev) => ({
+                            ...prev,
+                            label: event.target.value,
+                          }))
+                        }
+                        className="rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                        disabled={statusCreatePending}
+                      />
+                      {statusCreateErrors.label ? (
+                        <span className="text-[11px] text-rose-300">
+                          {statusCreateErrors.label}
+                        </span>
+                      ) : null}
+                    </label>
+                    <label className="flex flex-col gap-1 text-left">
+                      <span className="font-semibold uppercase tracking-[0.2em] text-white/50">
+                        {statusSettingsT("form.orderLabel")}
+                      </span>
+                      <input
+                        type="number"
+                        value={statusCreateState.order}
+                        onChange={(event) =>
+                          setStatusCreateState((prev) => ({
+                            ...prev,
+                            order: event.target.value,
+                          }))
+                        }
+                        className="rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                        disabled={statusCreatePending}
+                      />
+                      {statusCreateErrors.order ? (
+                        <span className="text-[11px] text-rose-300">
+                          {statusCreateErrors.order}
+                        </span>
+                      ) : null}
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleStatusCreate}
+                    className="inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-[rgb(var(--primary))] shadow-soft transition hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={statusCreatePending}
+                  >
+                    {statusCreatePending
+                      ? statusSettingsT("create.saving")
+                      : statusSettingsT("create.submit")}
+                  </button>
+                </section>
+
+                <section className="space-y-4 rounded-lg border border-white/10 bg-white/5 p-4">
+                  <header className="space-y-1">
+                    <h4 className="text-sm font-semibold text-white">
+                      {statusSettingsT("edit.heading")}
+                    </h4>
+                    <p className="text-xs text-white/60">
+                      {statusSettingsT("edit.description")}
+                    </p>
+                  </header>
+                  <label className="flex flex-col gap-1 text-left text-xs">
+                    <span className="font-semibold uppercase tracking-[0.2em] text-white/50">
+                      {statusSettingsT("edit.selectLabel")}
+                    </span>
+                    <select
+                      value={statusEditId ?? ""}
+                      onChange={(event) =>
+                        setStatusEditId(event.target.value || null)
+                      }
+                      className="rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                    >
+                      <option value="">
+                        {statusSettingsT("edit.selectPlaceholder")}
+                      </option>
+                      {statusIndex.ordered.map((status) => (
+                        <option key={status.id} value={status.id}>
+                          {status.label} ({status.key})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="space-y-3 text-xs">
+                    <label className="flex flex-col gap-1 text-left">
+                      <span className="font-semibold uppercase tracking-[0.2em] text-white/50">
+                        {statusSettingsT("form.keyLabel")}
+                      </span>
+                      <input
+                        type="text"
+                        value={statusEditState.key}
+                        onChange={(event) =>
+                          setStatusEditState((prev) => ({
+                            ...prev,
+                            key: event.target.value,
+                          }))
+                        }
+                        className="rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                        disabled={statusEditPending || !statusEditId}
+                      />
+                      {statusEditErrors.key ? (
+                        <span className="text-[11px] text-rose-300">
+                          {statusEditErrors.key}
+                        </span>
+                      ) : null}
+                    </label>
+                    <label className="flex flex-col gap-1 text-left">
+                      <span className="font-semibold uppercase tracking-[0.2em] text-white/50">
+                        {statusSettingsT("form.labelLabel")}
+                      </span>
+                      <input
+                        type="text"
+                        value={statusEditState.label}
+                        onChange={(event) =>
+                          setStatusEditState((prev) => ({
+                            ...prev,
+                            label: event.target.value,
+                          }))
+                        }
+                        className="rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                        disabled={statusEditPending || !statusEditId}
+                      />
+                      {statusEditErrors.label ? (
+                        <span className="text-[11px] text-rose-300">
+                          {statusEditErrors.label}
+                        </span>
+                      ) : null}
+                    </label>
+                    <label className="flex flex-col gap-1 text-left">
+                      <span className="font-semibold uppercase tracking-[0.2em] text-white/50">
+                        {statusSettingsT("form.orderLabel")}
+                      </span>
+                      <input
+                        type="number"
+                        value={statusEditState.order}
+                        onChange={(event) =>
+                          setStatusEditState((prev) => ({
+                            ...prev,
+                            order: event.target.value,
+                          }))
+                        }
+                        className="rounded-md border border-white/20 bg-black/20 px-3 py-2 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                        disabled={statusEditPending || !statusEditId}
+                      />
+                      {statusEditErrors.order ? (
+                        <span className="text-[11px] text-rose-300">
+                          {statusEditErrors.order}
+                        </span>
+                      ) : null}
+                    </label>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <button
+                      type="button"
+                      onClick={handleStatusUpdate}
+                      className="inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-[rgb(var(--primary))] shadow-soft transition hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={statusEditPending || !statusEditId}
+                    >
+                      {statusEditPending
+                        ? statusSettingsT("edit.saving")
+                        : statusSettingsT("edit.submit")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        statusEditId ? handleRequestDeleteStatus(statusEditId) : undefined
+                      }
+                      className="inline-flex items-center justify-center rounded-md border border-rose-400/60 px-3 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={statusEditPending || !statusEditId}
+                    >
+                      {statusSettingsT("edit.delete")}
+                    </button>
+                  </div>
+                  {statusPendingDeletion === statusEditId ? (
+                    <div className="space-y-2 rounded-md border border-rose-400/40 bg-rose-500/10 p-3 text-xs text-rose-100">
+                      <p className="font-semibold">
+                        {statusSettingsT("delete.confirmTitle")}
+                      </p>
+                      <p className="text-[11px] text-rose-100/80">
+                        {statusSettingsT("delete.confirmDescription", {
+                          label: statusEditState.label || statusEditState.key,
+                        })}
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCancelDeleteStatus}
+                          className="rounded-md border border-rose-100/40 px-3 py-1 text-[11px] uppercase tracking-wide text-rose-100/90 transition hover:bg-rose-500/20"
+                          disabled={statusDeletingId === statusEditId}
+                        >
+                          {statusSettingsT("delete.cancel")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleConfirmDeleteStatus}
+                          className="rounded-md bg-rose-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white transition hover:bg-rose-500/90 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={statusDeletingId !== null}
+                        >
+                          {statusDeletingId === statusEditId
+                            ? statusSettingsT("delete.deleting")
+                            : statusSettingsT("delete.confirm")}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+              </div>
+
+              <section className="space-y-3">
+                <h4 className="text-sm font-semibold text-white/80">
+                  {statusSettingsT("list.heading")}
+                </h4>
+                {statusIndex.ordered.length === 0 ? (
+                  <p className="rounded-md border border-white/10 bg-white/5 px-3 py-4 text-sm text-white/70">
+                    {statusSettingsT("list.empty")}
+                  </p>
+                ) : (
+                  <div className="overflow-hidden rounded-lg border border-white/10">
+                    <table className="min-w-full divide-y divide-white/10 text-left text-xs text-white/80">
+                      <thead className="bg-white/5 text-[11px] uppercase tracking-[0.2em] text-white/50">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold">
+                            {statusSettingsT("list.order")}
+                          </th>
+                          <th className="px-3 py-2 font-semibold">
+                            {statusSettingsT("list.key")}
+                          </th>
+                          <th className="px-3 py-2 font-semibold">
+                            {statusSettingsT("list.label")}
+                          </th>
+                          <th className="px-3 py-2 font-semibold">
+                            {statusSettingsT("list.actions")}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/10">
+                        {statusIndex.ordered.map((status) => (
+                          <tr key={status.id}>
+                            <td className="px-3 py-2 align-middle text-sm text-white/70">
+                              {status.order}
+                            </td>
+                            <td className="px-3 py-2 align-middle text-sm font-semibold text-white">
+                              {status.key}
+                            </td>
+                            <td className="px-3 py-2 align-middle text-sm text-white/80">
+                              {status.label}
+                            </td>
+                            <td className="px-3 py-2 align-middle text-sm text-white/80">
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setStatusEditId(status.id)}
+                                  className="rounded-md border border-white/20 px-2 py-1 text-xs uppercase tracking-wide text-white/70 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                                  disabled={
+                                    statusDeletingId !== null && statusDeletingId !== status.id
+                                  }
+                                >
+                                  {statusSettingsT("list.edit")}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRequestDeleteStatus(status.id)}
+                                  className="rounded-md border border-rose-400/40 px-2 py-1 text-xs uppercase tracking-wide text-rose-200 transition hover:bg-rose-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                                  disabled={statusDeletingId !== null}
+                                >
+                                  {statusSettingsT("list.delete")}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
             </div>
           )}
         </div>
