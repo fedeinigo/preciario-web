@@ -16,7 +16,9 @@
     "incremental": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@tanstack/react-table": ["vendor/tanstack-react-table/index"],
+      "@tanstack/react-virtual": ["vendor/tanstack-react-virtual/index"]
     },
     "plugins": [{ "name": "next" }]
   },
