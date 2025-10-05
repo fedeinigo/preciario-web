@@ -355,7 +355,9 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
                       translations: data.translations,
                       name: data.translations[locale].name,
                       description: data.translations[locale].description,
-                      category: data.translations[defaultLocale].category,
+                      category:
+                        data.translations[locale]?.category ??
+                        data.translations[defaultLocale].category,
                     }
                   : item
               )
