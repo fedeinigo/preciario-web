@@ -64,11 +64,20 @@ export type MapacheTaskDeliverable = {
   createdAt?: string;
 };
 
+export type MapacheStatusDetails = {
+  id: string;
+  key: string;
+  label: string;
+  order: number;
+};
+
 export type MapacheTask = {
   id: string;
   title: string;
   description: string | null;
   status: MapacheTaskStatus;
+  statusId: string | null;
+  statusDetails: MapacheStatusDetails | null;
   substatus: MapacheTaskSubstatus;
   createdAt?: string;
   updatedAt?: string;
@@ -151,11 +160,48 @@ export function normalizeMapacheTask(task: unknown): MapacheTask | null {
 
   const id = task.id;
   const title = task.title;
-  const status = parseEnumValue(task.status, MAPACHE_TASK_STATUSES);
+  const rawStatus = task.status;
+  const rawStatusId = task.statusId;
+  let statusDetails: MapacheStatusDetails | null = null;
+  let statusKeySource: unknown = rawStatus;
+
+  if (isRecord(rawStatus)) {
+    const key = typeof rawStatus.key === "string" ? rawStatus.key : null;
+    const label = typeof rawStatus.label === "string" ? rawStatus.label : null;
+    const order =
+      typeof rawStatus.order === "number" ? rawStatus.order : null;
+    const idValue = rawStatus.id;
+
+    if (key) {
+      statusKeySource = key;
+      if (
+        (typeof idValue === "string" || typeof idValue === "number") &&
+        label !== null &&
+        order !== null
+      ) {
+        statusDetails = {
+          id: String(idValue),
+          key,
+          label,
+          order,
+        };
+      }
+    }
+  }
+
+  const status = parseEnumValue(statusKeySource, MAPACHE_TASK_STATUSES);
   const substatus = parseEnumValue(task.substatus, MAPACHE_TASK_SUBSTATUSES);
 
   if (typeof id !== "string" && typeof id !== "number") return null;
   if (typeof title !== "string" || !status || !substatus) return null;
+
+  let statusId: string | null = null;
+  if (typeof rawStatusId === "string") {
+    statusId = rawStatusId;
+  }
+  if (!statusId && statusDetails) {
+    statusId = statusDetails.id;
+  }
 
   const description =
     typeof task.description === "string" ? task.description : null;
@@ -243,6 +289,8 @@ export function normalizeMapacheTask(task: unknown): MapacheTask | null {
     title,
     description,
     status,
+    statusId,
+    statusDetails,
     substatus,
     createdAt:
       typeof task.createdAt === "string" ? (task.createdAt as string) : undefined,

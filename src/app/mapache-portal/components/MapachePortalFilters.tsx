@@ -137,7 +137,7 @@ function AdvancedFiltersPopover({
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
-  anchorRef: React.RefObject<HTMLElement>;
+  anchorRef: React.RefObject<HTMLElement | null>;
 }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const [portalElement, setPortalElement] = React.useState<HTMLDivElement | null>(
