@@ -3499,19 +3499,30 @@ function TaskMetaChip({
       </div>
     );
 
-  const headerTitle = heading ?? t("title");
-  const headerSubtitle = subheading ?? t("subtitle");
+  const headerTitle = heading;
+  const headerSubtitle = subheading;
+  const hasHeaderTitle =
+    headerTitle !== null && headerTitle !== undefined && headerTitle !== false;
+  const hasHeaderSubtitle =
+    headerSubtitle !== null &&
+    headerSubtitle !== undefined &&
+    headerSubtitle !== false;
+  const hasHeaderContent = hasHeaderTitle || hasHeaderSubtitle;
 
   return (
     <section className="flex flex-col gap-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">{headerTitle}</h1>
-          {headerSubtitle ? (
-            <p className="mt-1 text-sm text-white/70">{headerSubtitle}</p>
-          ) : null}
-        </div>
-        <div className="flex gap-2">
+        {hasHeaderContent ? (
+          <div>
+            {hasHeaderTitle ? (
+              <h1 className="text-2xl font-semibold text-white">{headerTitle}</h1>
+            ) : null}
+            {hasHeaderSubtitle ? (
+              <p className="mt-1 text-sm text-white/70">{headerSubtitle}</p>
+            ) : null}
+          </div>
+        ) : null}
+        <div className="flex gap-2 md:ml-auto">
           <button
             type="button"
             onClick={handleOpenSettingsModal}
