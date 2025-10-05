@@ -248,7 +248,8 @@ model MapacheTask {
   id          String                @id @default(cuid())
   title       String
   description String?
-  status      MapacheTaskStatus     @default(PENDING)
+  statusId    String
+  status      MapacheStatus         @relation(fields: [statusId], references: [id])
   substatus   MapacheTaskSubstatus  @default(BACKLOG) // BACKLOG / WAITING_CLIENT / BLOCKED
 
   createdAt   DateTime              @default(now())
@@ -290,7 +291,7 @@ model MapacheTask {
   @@index([requesterEmail])
   @@index([clientName])
   @@index([origin])
-  @@index([status])
+  @@index([statusId])
 }
 
 model MapacheTaskDeliverable {
@@ -335,6 +336,17 @@ model MapacheBoardColumn {
   @@index([boardId, position])
 }
 
+model MapacheStatus {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  label     String
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks MapacheTask[]
+}
+
 /* =========================
    ENUMS
 ========================= */
@@ -370,12 +382,6 @@ enum CreatedChannel {
 }
 
 // (MapacheTask) estado principal
-enum MapacheTaskStatus {
-  PENDING
-  IN_PROGRESS
-  DONE
-}
-
 // (MapacheTask) subestado fino
 enum MapacheTaskSubstatus {
   BACKLOG

@@ -3,10 +3,9 @@ import { NextResponse } from "next/server";
 
 import type { ApiSession } from "@/app/api/_utils/require-auth";
 import type { AppRole } from "@/constants/teams";
+import prisma from "@/lib/prisma";
 
 export const MAPACHE_TEAM = "Mapaches" as const;
-export const VALID_STATUSES = ["PENDING", "IN_PROGRESS", "DONE"] as const;
-export type MapacheStatus = (typeof VALID_STATUSES)[number];
 
 export const VALID_SUBSTATUSES = [
   "BACKLOG",
@@ -58,11 +57,73 @@ export type MapacheIntegrationOwner = (typeof VALID_INTEGRATION_OWNERS)[number];
 const MAPACHE_ADMIN_ROLES: ReadonlyArray<AppRole> = ["superadmin", "admin"];
 const MAPACHE_ADMIN_ROLE_SET = new Set<AppRole>(MAPACHE_ADMIN_ROLES);
 
-export function parseStatus(status: unknown): MapacheStatus | null {
-  if (typeof status !== "string") return null;
-  return VALID_STATUSES.includes(status as MapacheStatus)
-    ? (status as MapacheStatus)
-    : null;
+export const mapacheStatusSummarySelect = {
+  id: true,
+  key: true,
+  label: true,
+  order: true,
+} as const;
+
+export const mapacheStatusWithMetaSelect = {
+  ...mapacheStatusSummarySelect,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+export type MapacheStatusSummary = {
+  id: string;
+  key: string;
+  label: string;
+  order: number;
+};
+
+function normalizeStatusKey(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.toUpperCase();
+}
+
+export async function resolveStatusFromPayload(
+  value: unknown,
+  options: { fallbackKey?: string } = {},
+): Promise<{ response: NextResponse | null; status: MapacheStatusSummary | null }>
+{
+  const { fallbackKey } = options;
+
+  let normalizedKey: string | null = null;
+
+  if (value === undefined || value === null) {
+    normalizedKey =
+      fallbackKey === undefined ? null : normalizeStatusKey(fallbackKey);
+  } else {
+    normalizedKey = normalizeStatusKey(value);
+  }
+
+  if (!normalizedKey) {
+    return {
+      response: NextResponse.json({ error: "Invalid status" }, { status: 400 }),
+      status: null,
+    };
+  }
+
+  const status = await prisma.mapacheStatus.findUnique({
+    where: { key: normalizedKey },
+    select: mapacheStatusSummarySelect,
+  });
+
+  if (!status) {
+    return {
+      response: NextResponse.json({ error: "Invalid status" }, { status: 400 }),
+      status: null,
+    };
+  }
+
+  return { response: null, status };
+}
+
+export function normalizeMapacheStatusKey(value: unknown): string | null {
+  return normalizeStatusKey(value);
 }
 
 export function parseSubstatus(substatus: unknown): MapacheSubstatus | null {
@@ -164,7 +225,10 @@ export const taskSelect = {
   id: true,
   title: true,
   description: true,
-  status: true,
+  statusId: true,
+  status: {
+    select: mapacheStatusSummarySelect,
+  },
   substatus: true,
   createdAt: true,
   updatedAt: true,

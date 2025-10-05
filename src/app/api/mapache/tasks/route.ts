@@ -12,8 +12,8 @@ import {
   parseIntegrationType,
   parseNeedFromTeam,
   parseOrigin,
-  parseStatus,
   parseSubstatus,
+  resolveStatusFromPayload,
   taskSelect,
 } from "./access";
 import type {
@@ -338,7 +338,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
 
-  const status = parseStatus(body.status) ?? "PENDING";
+  const statusResult = await resolveStatusFromPayload(body.status, {
+    fallbackKey: "PENDING",
+  });
+  if (statusResult.response) return statusResult.response;
+  const statusId = statusResult.status?.id;
+  if (!statusId) {
+    return NextResponse.json(
+      { error: "Invalid status" },
+      { status: 400 },
+    );
+  }
   const substatus = parseSubstatus(body.substatus) ?? "BACKLOG";
   const origin = parseOrigin(body.origin) ?? "MANUAL";
 
@@ -485,7 +495,7 @@ export async function POST(req: Request) {
 
   const taskData: Record<string, unknown> = {
     title,
-    status,
+    statusId,
     substatus,
     origin,
     requesterEmail,
@@ -586,11 +596,13 @@ export async function PATCH(req: Request) {
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "status")) {
-    const status = parseStatus(body.status);
+    const statusResult = await resolveStatusFromPayload(body.status);
+    if (statusResult.response) return statusResult.response;
+    const status = statusResult.status;
     if (!status) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
-    data.status = status;
+    data.statusId = status.id;
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "substatus")) {

@@ -9,12 +9,20 @@ Endpoints protegidos para gestionar tareas internas del equipo **Mapaches**. Tod
   "id": "string",
   "title": "string",
   "description": "string | null",
-  "status": "PENDING" | "IN_PROGRESS" | "DONE",
+  "statusId": "string", // FK a MapacheStatus
+  "status": {
+    "id": "string",
+    "key": "string",     // p.ej. "PENDING"
+    "label": "string",
+    "order": 0
+  },
   "createdAt": "Date",
   "updatedAt": "Date",
   "createdById": "string"
 }
 ```
+
+El campo `status` devuelto incluye el objeto completo para futuras necesidades de UI. Para crear o editar tareas se envía la propiedad `status` con el `key` deseado.
 
 ## GET `/api/mapache/tasks`
 
@@ -32,7 +40,7 @@ Crea una nueva tarea asociada al usuario autenticado.
   {
     "title": "string",        // requerido, no vacío
     "description": "string?",  // opcional
-    "status": "PENDING" | "IN_PROGRESS" | "DONE" // opcional, default PENDING
+    "status": "string" // opcional, default "PENDING". Debe existir en MapacheStatus.key
   }
   ```
 - **Respuesta 201**: tarea creada.
@@ -48,7 +56,7 @@ Actualiza campos seleccionados de una tarea.
     "id": "string",           // requerido
     "title": "string?",       // opcional, no vacío si se envía
     "description": "string?", // opcional (null para borrar)
-    "status": "PENDING" | "IN_PROGRESS" | "DONE" // opcional
+    "status": "string"        // opcional. Debe existir en MapacheStatus.key
   }
   ```
 - **Respuesta 200**: tarea actualizada.
@@ -65,3 +73,24 @@ Elimina una tarea por `id`.
 - **Respuesta 200**: `{ "ok": true }`.
 
 Todos los métodos comparten los códigos `401`/`403` descritos anteriormente.
+
+## Gestión de estados (`/api/mapache/statuses`)
+
+Los estados disponibles se persisten en la tabla `MapacheStatus` y pueden administrarse mediante los siguientes endpoints protegidos (mismas reglas de autenticación que las tareas):
+
+- **GET `/api/mapache/statuses`**: lista todos los estados ordenados por `order` ascendente.
+- **POST `/api/mapache/statuses`**: crea un estado nuevo. Body esperado:
+
+  ```jsonc
+  {
+    "key": "string",   // requerido, se normaliza en MAYÚSCULAS y debe ser único
+    "label": "string", // requerido
+    "order": 0          // opcional, entero. Si falta se asigna el siguiente disponible
+  }
+  ```
+
+- **PUT `/api/mapache/statuses/{id}`**: reemplaza completamente un estado existente (requiere `key`, `label`, `order`).
+- **PATCH `/api/mapache/statuses/{id}`**: permite actualizar parcialmente cualquiera de los campos anteriores.
+- **DELETE `/api/mapache/statuses/{id}`**: elimina el estado (falla con `409` si hay tareas vinculadas).
+
+Los `key` se comparan en mayúsculas y se devolverá `409` cuando exista un duplicado.

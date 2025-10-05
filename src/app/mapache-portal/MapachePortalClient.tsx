@@ -2880,7 +2880,12 @@ export default function MapachePortalClient({
 
         const payload = await response.json();
         const updatedTask =
-          normalizeMapacheTask(payload) ?? { ...task, status: nextStatus };
+          normalizeMapacheTask(payload) ?? {
+            ...task,
+            status: nextStatus,
+            statusId: task.statusId,
+            statusDetails: task.statusDetails,
+          };
 
         setTasks((prev) =>
           prev.map((item) => (item.id === task.id ? { ...item, ...updatedTask } : item)),
