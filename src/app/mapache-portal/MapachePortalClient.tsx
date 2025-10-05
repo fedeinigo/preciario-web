@@ -3222,12 +3222,7 @@ export default function MapachePortalClient({
     } finally {
       setStatusCreatePending(false);
     }
-  }, [
-    statusCreateState,
-    statusSettingsT,
-    statusValidationMessages,
-    toast,
-  ]);
+  }, [statusCreateState, statusSettingsT, statusValidationMessages]);
 
   const handleStatusUpdate = React.useCallback(async () => {
     if (!statusEditId) {
@@ -3273,7 +3268,6 @@ export default function MapachePortalClient({
     statusEditState,
     statusSettingsT,
     statusValidationMessages,
-    toast,
   ]);
 
   const handleRequestDeleteStatus = React.useCallback((statusId: string) => {
@@ -3309,7 +3303,7 @@ export default function MapachePortalClient({
       setStatusDeletingId(null);
       setStatusPendingDeletion(null);
     }
-  }, [statusPendingDeletion, statusSettingsT, toast]);
+  }, [statusPendingDeletion, statusSettingsT]);
 
   const handleAutoAssign = React.useCallback(async () => {
     if (autoAssigning) return;
@@ -3927,6 +3921,7 @@ export default function MapachePortalClient({
     loadTasks,
     selectedTask,
     selectedTaskFormState,
+    statusIndex,
     toastT,
     validationMessages,
   ]);
