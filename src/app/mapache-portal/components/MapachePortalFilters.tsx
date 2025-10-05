@@ -21,6 +21,7 @@ import type {
   MapacheIntegrationType,
   MapacheNeedFromTeam,
   MapacheSignalOrigin,
+  MapacheStatusDetails,
   MapacheTaskStatus,
 } from "../types";
 import {
@@ -63,15 +64,16 @@ type MapachePortalFiltersProps = {
   setAdvancedFilters: React.Dispatch<
     React.SetStateAction<AdvancedFiltersState>
   >;
-  statusOptions: MapacheTaskStatus[];
+  statusOptions: MapacheStatusDetails[];
   statusLabel: string;
+  statusAllLabel: string;
+  formatStatusLabel: (status: MapacheTaskStatus) => string;
   needOptions: MapacheNeedFromTeam[];
   directnessOptions: MapacheDirectness[];
   integrationTypeOptions: MapacheIntegrationType[];
   originOptions: MapacheSignalOrigin[];
   assigneeOptions: AssigneeOption[];
   filtersT: (key: string) => string;
-  statusT: (key: "all" | "pending" | "in_progress" | "completed") => string;
   needFromTeamT: (value: MapacheNeedFromTeam) => string;
   directnessT: (value: MapacheDirectness) => string;
   integrationTypeT: (value: MapacheIntegrationType) => string;
@@ -221,12 +223,37 @@ function AdvancedFiltersPopover({
   );
 }
 
-const STATUS_ICON_MAP: Record<StatusFilterValue, React.ReactNode> = {
-  all: <Sparkles className="h-4 w-4" aria-hidden="true" />,
-  PENDING: <Clock className="h-4 w-4" aria-hidden="true" />,
-  IN_PROGRESS: <Loader2 className="h-4 w-4" aria-hidden="true" />,
-  DONE: <CheckCircle2 className="h-4 w-4" aria-hidden="true" />,
-};
+const STATUS_ALL_ICON = <Sparkles className="h-4 w-4" aria-hidden="true" />;
+const STATUS_FIRST_ICON = <Clock className="h-4 w-4" aria-hidden="true" />;
+const STATUS_MIDDLE_ICON = <Loader2 className="h-4 w-4" aria-hidden="true" />;
+const STATUS_LAST_ICON = <CheckCircle2 className="h-4 w-4" aria-hidden="true" />;
+
+function getStatusFilterIcon(
+  status: StatusFilterValue,
+  orderedStatuses: MapacheTaskStatus[],
+): React.ReactNode {
+  if (status === "all") {
+    return STATUS_ALL_ICON;
+  }
+
+  if (orderedStatuses.length === 0) {
+    return STATUS_MIDDLE_ICON;
+  }
+
+  const normalized = status.trim().toUpperCase();
+  const first = orderedStatuses[0];
+  const last = orderedStatuses[orderedStatuses.length - 1];
+
+  if (normalized === last) {
+    return STATUS_LAST_ICON;
+  }
+
+  if (normalized === first) {
+    return STATUS_FIRST_ICON;
+  }
+
+  return STATUS_MIDDLE_ICON;
+}
 
 const OWNERSHIP_ICON_MAP: Record<OwnershipFilterValue, React.ReactNode> = {
   all: <Users className="h-4 w-4" aria-hidden="true" />,
@@ -242,13 +269,14 @@ export default function MapachePortalFilters({
   setAdvancedFilters,
   statusOptions,
   statusLabel,
+  statusAllLabel,
+  formatStatusLabel,
   needOptions,
   directnessOptions,
   integrationTypeOptions,
   originOptions,
   assigneeOptions,
   filtersT,
-  statusT,
   needFromTeamT,
   directnessT,
   integrationTypeT,
@@ -369,23 +397,36 @@ export default function MapachePortalFilters({
     ].filter((item) => item.count > 0);
   }, [advancedFilters, filtersT]);
 
+  const statusKeys = React.useMemo(
+    () => statusOptions.map((option) => option.key),
+    [statusOptions],
+  );
+
   const statusOptionsWithLabels = React.useMemo(
-    () =>
-      ["all" as StatusFilterValue, ...statusOptions].map((option) => ({
-        value: option,
-        label:
-          option === "all"
-            ? statusT("all")
-            : statusT(
-                option === "PENDING"
-                  ? "pending"
-                  : option === "IN_PROGRESS"
-                  ? "in_progress"
-                  : "completed",
-              ),
-        icon: STATUS_ICON_MAP[option as StatusFilterValue],
-      })),
-    [statusOptions, statusT],
+    () => {
+      const options: Array<{
+        value: StatusFilterValue;
+        label: string;
+        icon: React.ReactNode;
+      }> = [
+        {
+          value: "all",
+          label: statusAllLabel,
+          icon: getStatusFilterIcon("all", statusKeys),
+        },
+      ];
+
+      statusKeys.forEach((status) => {
+        options.push({
+          value: status,
+          label: formatStatusLabel(status),
+          icon: getStatusFilterIcon(status, statusKeys),
+        });
+      });
+
+      return options;
+    },
+    [formatStatusLabel, statusAllLabel, statusKeys],
   );
 
   const ownershipOptionsWithLabels = React.useMemo(
@@ -394,13 +435,13 @@ export default function MapachePortalFilters({
         value: option,
         label:
           option === "all"
-            ? statusT("all")
+            ? statusAllLabel
             : option === "mine"
             ? filtersT("mine")
             : filtersT("unassigned"),
         icon: OWNERSHIP_ICON_MAP[option],
       })),
-    [filtersT, statusT],
+    [filtersT, statusAllLabel],
   );
 
   const presentationDate = advancedFilters.presentationDate;

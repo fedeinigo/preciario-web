@@ -20,6 +20,8 @@ import type {
   MapacheIntegrationType,
   MapacheNeedFromTeam,
   MapacheSignalOrigin,
+  MapacheStatusDetails,
+  MapacheStatusIndex,
   MapacheTask,
   MapacheTaskStatus,
   MapacheTaskSubstatus,
@@ -31,8 +33,9 @@ import {
   MAPACHE_INTEGRATION_TYPES,
   MAPACHE_NEEDS_FROM_TEAM,
   MAPACHE_SIGNAL_ORIGINS,
-  MAPACHE_TASK_STATUSES,
   MAPACHE_TASK_SUBSTATUSES,
+  createStatusIndex,
+  normalizeMapacheStatus,
   normalizeMapacheTask,
 } from "./types";
 import MapachePortalFilters from "./components/MapachePortalFilters";
@@ -65,7 +68,6 @@ import {
   type MapacheBoardConfig,
 } from "./board-types";
 
-const STATUS_ORDER: MapacheTaskStatus[] = [...MAPACHE_TASK_STATUSES];
 const NEED_OPTIONS: MapacheNeedFromTeam[] = [...MAPACHE_NEEDS_FROM_TEAM];
 const DIRECTNESS_OPTIONS: MapacheDirectness[] = [...MAPACHE_DIRECTNESS];
 const INTEGRATION_TYPE_OPTIONS: MapacheIntegrationType[] = [
@@ -112,31 +114,38 @@ function createBoardDraft(board: MapacheBoardConfig): BoardDraft {
   };
 }
 
-function mapDraftToPayload(draft: BoardDraft) {
+function mapDraftToPayload(draft: BoardDraft, statusIndex: MapacheStatusIndex) {
+  const allowedStatuses = statusIndex.byKey;
   return {
     name: draft.name.trim(),
     columns: draft.columns.map((column) => ({
       id: column.id ?? undefined,
       title: column.title.trim(),
       filters: {
-        statuses: [...column.statuses],
+        statuses: column.statuses.filter((status) => allowedStatuses.has(status)),
       },
     })),
   };
 }
 
-function getSuggestedStatuses(columns: BoardColumnDraft[]): MapacheTaskStatus[] {
+function getSuggestedStatuses(
+  columns: BoardColumnDraft[],
+  orderedStatuses: MapacheTaskStatus[],
+): MapacheTaskStatus[] {
+  if (orderedStatuses.length === 0) {
+    return [];
+  }
   const used = new Set<MapacheTaskStatus>();
   columns.forEach((column) => {
     column.statuses.forEach((status) => {
       used.add(status);
     });
   });
-  const available = MAPACHE_TASK_STATUSES.filter((status) => !used.has(status));
+  const available = orderedStatuses.filter((status) => !used.has(status));
   if (available.length > 0) {
     return [available[0]!];
   }
-  return [MAPACHE_TASK_STATUSES[0]!];
+  return [orderedStatuses[0]!];
 }
 
 const EMAIL_REGEX = /.+@.+\..+/i;
@@ -344,21 +353,72 @@ const STATUS_INDICATOR_ACCENT_CLASSNAMES: Record<
 };
 
 type StatusBadgeKey = keyof typeof STATUS_BADGE_CLASSNAMES;
-function getStatusLabelKey(status: MapacheTaskStatus) {
-  return STATUS_LABEL_KEYS[status];
+function humanizeStatusKey(value: string): string {
+  return value
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((part) => part[0] ? part[0].toUpperCase() + part.slice(1).toLowerCase() : part)
+    .join(" ");
 }
 
-
-function getStatusBadgeKey(task: MapacheTask): StatusBadgeKey {
-  if (task.status === "PENDING") {
+function getStatusBadgeKey(
+  task: MapacheTask,
+  statusIndex: MapacheStatusIndex,
+): StatusBadgeKey {
+  if (statusIndex.ordered.length === 0) {
     return task.assigneeId ? "assigned" : "unassigned";
   }
 
-  if (task.status === "IN_PROGRESS") {
-    return "in_progress";
+  const details = statusIndex.byKey.get(task.status);
+  if (!details) {
+    return task.assigneeId ? "assigned" : "in_progress";
   }
 
-  return "completed";
+  const first = statusIndex.ordered[0];
+  const last = statusIndex.ordered[statusIndex.ordered.length - 1];
+
+  if (details.key === last.key) {
+    return "completed";
+  }
+
+  if (details.key === first.key) {
+    return task.assigneeId ? "assigned" : "unassigned";
+  }
+
+  return "in_progress";
+}
+
+function deriveStatusesFromTasks(tasks: MapacheTask[]): MapacheStatusDetails[] {
+  const byKey = new Map<string, MapacheStatusDetails>();
+  let fallbackOrder = 0;
+
+  tasks.forEach((task) => {
+    const key = typeof task.status === "string" ? task.status.trim().toUpperCase() : "";
+    if (!key) return;
+
+    if (task.statusDetails) {
+      const normalized: MapacheStatusDetails = {
+        id: String(task.statusDetails.id),
+        key: task.statusDetails.key.trim().toUpperCase(),
+        label: task.statusDetails.label.trim(),
+        order: task.statusDetails.order,
+      };
+      byKey.set(normalized.key, normalized);
+      return;
+    }
+
+    if (!byKey.has(key)) {
+      byKey.set(key, {
+        id: task.statusId ?? key,
+        key,
+        label: humanizeStatusKey(key),
+        order: fallbackOrder,
+      });
+      fallbackOrder += 1;
+    }
+  });
+
+  return Array.from(byKey.values()).sort((a, b) => a.order - b.order);
 }
 
 function parseEnumArray<const T extends readonly string[]>(
@@ -426,11 +486,14 @@ function parseStoredAdvancedFilters(value: unknown): AdvancedFiltersState {
   };
 }
 
-function parseStatusFilterValue(value: unknown): StatusFilterValue {
+function parseStatusFilterValue(
+  value: unknown,
+  allowedStatuses: readonly MapacheTaskStatus[],
+): StatusFilterValue {
   if (value === "all") return "all";
   if (typeof value === "string") {
     const upper = value.trim().toUpperCase();
-    if (STATUS_ORDER.includes(upper as MapacheTaskStatus)) {
+    if (allowedStatuses.includes(upper as MapacheTaskStatus)) {
       return upper as MapacheTaskStatus;
     }
   }
@@ -444,7 +507,10 @@ function parseOwnershipFilterValue(value: unknown): OwnershipFilterValue {
   return "all";
 }
 
-function parseStoredTaskFilterState(value: unknown): TaskFilterState {
+function parseStoredTaskFilterState(
+  value: unknown,
+  allowedStatuses: readonly MapacheTaskStatus[],
+): TaskFilterState {
   if (typeof value === "string") {
     if (value === "mine" || value === "unassigned") {
       return { status: "all", ownership: value };
@@ -453,14 +519,14 @@ function parseStoredTaskFilterState(value: unknown): TaskFilterState {
       return createDefaultTaskFilterState();
     }
     const upper = value.trim().toUpperCase();
-    if (STATUS_ORDER.includes(upper as MapacheTaskStatus)) {
+    if (allowedStatuses.includes(upper as MapacheTaskStatus)) {
       return { status: upper as MapacheTaskStatus, ownership: "all" };
     }
   }
 
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
     const record = value as Record<string, unknown>;
-    const status = parseStatusFilterValue(record.status);
+    const status = parseStatusFilterValue(record.status, allowedStatuses);
     const ownership = parseOwnershipFilterValue(record.ownership);
     return { status, ownership };
   }
@@ -468,7 +534,10 @@ function parseStoredTaskFilterState(value: unknown): TaskFilterState {
   return createDefaultTaskFilterState();
 }
 
-function parseStoredFiltersSnapshot(value: unknown): {
+function parseStoredFiltersSnapshot(
+  value: unknown,
+  allowedStatuses: readonly MapacheTaskStatus[],
+): {
   activeFilter: TaskFilterState;
   advancedFilters: AdvancedFiltersState;
 } {
@@ -483,7 +552,7 @@ function parseStoredFiltersSnapshot(value: unknown): {
 
   if (typeof value === "string") {
     return {
-      activeFilter: parseStoredTaskFilterState(value),
+      activeFilter: parseStoredTaskFilterState(value, allowedStatuses),
       advancedFilters: defaults.advancedFilters,
     };
   }
@@ -503,14 +572,17 @@ function parseStoredFiltersSnapshot(value: unknown): {
 
   let activeFilter = defaults.activeFilter;
   if ("activeFilter" in record) {
-    activeFilter = parseStoredTaskFilterState(record.activeFilter);
+    activeFilter = parseStoredTaskFilterState(
+      record.activeFilter,
+      allowedStatuses,
+    );
   } else if ("filter" in record) {
-    activeFilter = parseStoredTaskFilterState(record.filter);
+    activeFilter = parseStoredTaskFilterState(record.filter, allowedStatuses);
   } else if ("status" in record || "ownership" in record) {
     activeFilter = parseStoredTaskFilterState({
       status: record.status,
       ownership: record.ownership,
-    });
+    }, allowedStatuses);
   }
 
   return { activeFilter, advancedFilters };
@@ -1256,9 +1328,97 @@ export default function MapachePortalClient({
     [deliverableTypeTranslations],
   );
 
+  const [statuses, setStatuses] = React.useState<MapacheStatusDetails[]>(() =>
+    deriveStatusesFromTasks(Array.isArray(initialTasks) ? initialTasks : []),
+  );
+
+  const statusIndex = React.useMemo(() => createStatusIndex(statuses), [statuses]);
+
+  const statusKeys = React.useMemo(
+    () => statusIndex.ordered.map((status) => status.key),
+    [statusIndex],
+  );
+
+  const formatStatusLabel = React.useCallback(
+    (status: MapacheTaskStatus) => {
+      const match = statusIndex.byKey.get(status);
+      if (match) return match.label;
+      return humanizeStatusKey(status);
+    },
+    [statusIndex],
+  );
+
+  React.useEffect(() => {
+    const abortController = new AbortController();
+    let cancelled = false;
+
+    async function fetchStatuses() {
+      try {
+        const response = await fetch(`/api/mapache/statuses`, {
+          signal: abortController.signal,
+        });
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+        const data = (await response.json()) as { statuses?: unknown };
+        const loaded = Array.isArray(data?.statuses)
+          ? data.statuses
+              .map(normalizeMapacheStatus)
+              .filter(
+                (status): status is MapacheStatusDetails => status !== null,
+              )
+          : [];
+        if (!cancelled && loaded.length > 0) {
+          setStatuses(loaded);
+        }
+      } catch (error) {
+        if (abortController.signal.aborted) return;
+        console.error(error);
+      }
+    }
+
+    void fetchStatuses();
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
+  }, []);
+
   const [tasks, setTasks] = React.useState<MapacheTask[]>(() =>
     Array.isArray(initialTasks) ? initialTasks : [],
   );
+
+  React.useEffect(() => {
+    setTasks((prev) =>
+      prev.map((task) => {
+        const match = statusIndex.byKey.get(task.status);
+        if (!match) {
+          return task;
+        }
+
+        const nextStatusId = task.statusId ?? match.id;
+        const needsDetails =
+          !task.statusDetails ||
+          task.statusDetails.id !== match.id ||
+          task.statusDetails.label !== match.label ||
+          task.statusDetails.order !== match.order;
+        const needsId = task.statusId !== nextStatusId;
+        const needsKey = task.status !== match.key;
+
+        if (!needsDetails && !needsId && !needsKey) {
+          return task;
+        }
+
+        return {
+          ...task,
+          status: match.key,
+          statusId: nextStatusId,
+          statusDetails: match,
+        };
+      }),
+    );
+  }, [statusIndex]);
   const [activeFilter, setActiveFilter] = React.useState<TaskFilterState>(
     () => createDefaultTaskFilterState(),
   );
@@ -1370,7 +1530,7 @@ export default function MapachePortalClient({
           throw new Error(`Request failed with status ${response.status}`);
         }
         const data = (await response.json()) as { boards?: unknown };
-        const normalized = normalizeBoardList(data?.boards);
+        const normalized = normalizeBoardList(data?.boards, statusIndex);
         setBoards(normalized);
         setBoardsError(null);
       } catch (error) {
@@ -1382,7 +1542,7 @@ export default function MapachePortalClient({
         }
       }
     },
-    [boardLoadErrorMessage],
+    [boardLoadErrorMessage, statusIndex],
   );
 
   React.useEffect(() => {
@@ -1532,7 +1692,7 @@ export default function MapachePortalClient({
         const payload = await response.json();
         const nextTasks = Array.isArray(payload)
           ? payload
-              .map(normalizeMapacheTask)
+              .map((task) => normalizeMapacheTask(task, statusIndex))
               .filter((task): task is MapacheTask => task !== null)
           : [];
         setTasks(nextTasks);
@@ -1545,7 +1705,7 @@ export default function MapachePortalClient({
         }
       }
     },
-    [toastT],
+    [statusIndex, toastT],
   );
 
   React.useEffect(() => {
@@ -1555,7 +1715,7 @@ export default function MapachePortalClient({
       if (stored) {
         const parsed = JSON.parse(stored) as unknown;
         const { activeFilter: nextFilter, advancedFilters: nextAdvanced } =
-          parseStoredFiltersSnapshot(parsed);
+          parseStoredFiltersSnapshot(parsed, statusKeys);
         setActiveFilter(nextFilter);
         setAdvancedFilters(nextAdvanced);
       }
@@ -1564,7 +1724,7 @@ export default function MapachePortalClient({
     } finally {
       setFiltersHydrated(true);
     }
-  }, []);
+  }, [statusKeys]);
 
   React.useEffect(() => {
     if (!filtersHydrated) return;
@@ -1851,11 +2011,10 @@ export default function MapachePortalClient({
 
   const computeInsights = React.useCallback(
     (source: MapacheTask[]): MapachePortalInsightsMetrics => {
-      const statusTotals: Record<MapacheTaskStatus, number> = {
-        PENDING: 0,
-        IN_PROGRESS: 0,
-        DONE: 0,
-      };
+      const statusTotals: Record<MapacheTaskStatus, number> = {};
+      statusKeys.forEach((status) => {
+        statusTotals[status] = 0;
+      });
       const substatusTotals: Record<MapacheTaskSubstatus, number> = {
         BACKLOG: 0,
         WAITING_CLIENT: 0,
@@ -1971,7 +2130,7 @@ export default function MapachePortalClient({
         upcomingDue,
       };
     },
-    [assigneeLabelMap],
+    [assigneeLabelMap, statusKeys],
   );
 
   const filteredInsightsMetrics = React.useMemo(
@@ -2013,11 +2172,6 @@ export default function MapachePortalClient({
     });
   }, [activeBoard, filteredTasks]);
 
-  const formatStatusLabel = React.useCallback(
-    (status: MapacheTaskStatus) => statusT(getStatusLabelKey(status)),
-    [statusT],
-  );
-
   const hasActiveAdvancedFilters = normalizedAdvancedFilters.hasAny;
   const advancedFiltersCount = normalizedAdvancedFilters.activeCount;
   const hasActiveQuickFilter =
@@ -2047,6 +2201,7 @@ export default function MapachePortalClient({
 
   const statusSegmentLabel = formT("statusLabel");
   const ownershipSegmentLabel = filtersT("assignee");
+  const statusAllLabel = statusT("all");
 
   const renderFilterBar = (className?: string) => (
     <MapachePortalFilters
@@ -2054,15 +2209,16 @@ export default function MapachePortalClient({
       setActiveFilter={setActiveFilter}
       advancedFilters={advancedFilters}
       setAdvancedFilters={setAdvancedFilters}
-      statusOptions={STATUS_ORDER}
+      statusOptions={statusIndex.ordered}
       statusLabel={statusSegmentLabel}
+      statusAllLabel={statusAllLabel}
+      formatStatusLabel={formatStatusLabel}
       needOptions={NEED_OPTIONS}
       directnessOptions={DIRECTNESS_OPTIONS}
       integrationTypeOptions={INTEGRATION_TYPE_OPTIONS}
       originOptions={ORIGIN_OPTIONS}
       assigneeOptions={assigneeOptions}
       filtersT={filtersT}
-      statusT={statusT}
       needFromTeamT={needFromTeamT}
       directnessT={directnessT}
       integrationTypeT={integrationTypeT}
@@ -2279,14 +2435,14 @@ export default function MapachePortalClient({
       const title = boardsT("columns.defaultTitle", {
         index: prev.columns.length + 1,
       });
-      const statuses = getSuggestedStatuses(prev.columns);
+      const statuses = getSuggestedStatuses(prev.columns, statusKeys);
       return {
         ...prev,
         columns: [...prev.columns, { id: null, title, statuses }],
       };
     });
     setBoardDraftError(null);
-  }, [boardsT]);
+  }, [boardsT, statusKeys]);
 
   const handleRemoveBoardColumn = React.useCallback((index: number) => {
     setBoardDraft((prev) => {
@@ -2380,7 +2536,7 @@ export default function MapachePortalClient({
         throw new Error(`Request failed with status ${response.status}`);
       }
       const data = (await response.json()) as { board?: unknown };
-      const board = normalizeBoardConfig(data?.board);
+      const board = normalizeBoardConfig(data?.board, statusIndex);
       if (!board) {
         throw new Error("Invalid response");
       }
@@ -2401,7 +2557,7 @@ export default function MapachePortalClient({
     } finally {
       setCreatingBoard(false);
     }
-  }, [boards.length, boardsToastT, boardsT, creatingBoard]);
+  }, [boards.length, boardsToastT, boardsT, creatingBoard, statusIndex]);
 
   const handleSaveBoard = React.useCallback(async () => {
     if (!boardDraft) return;
@@ -2427,10 +2583,13 @@ export default function MapachePortalClient({
     setBoardDraftError(null);
     setSavingBoard(true);
     try {
-      const payload = mapDraftToPayload({
-        ...boardDraft,
-        name: trimmedName,
-      });
+      const payload = mapDraftToPayload(
+        {
+          ...boardDraft,
+          name: trimmedName,
+        },
+        statusIndex,
+      );
       const response = await fetch(`/api/mapache/boards/${boardDraft.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -2440,7 +2599,7 @@ export default function MapachePortalClient({
         throw new Error(`Request failed with status ${response.status}`);
       }
       const data = (await response.json()) as { board?: unknown };
-      const board = normalizeBoardConfig(data?.board);
+      const board = normalizeBoardConfig(data?.board, statusIndex);
       if (!board) {
         throw new Error("Invalid response");
       }
@@ -2457,7 +2616,7 @@ export default function MapachePortalClient({
     } finally {
       setSavingBoard(false);
     }
-  }, [boardDraft, boardsToastT, boardsT]);
+  }, [boardDraft, boardsToastT, boardsT, statusIndex]);
 
   const handleRequestDeleteBoard = React.useCallback(() => {
     if (!boardDraft) return;
@@ -2783,7 +2942,7 @@ export default function MapachePortalClient({
       }
 
       const payloadResponse = await response.json();
-      const task = normalizeMapacheTask(payloadResponse);
+      const task = normalizeMapacheTask(payloadResponse, statusIndex);
 
       if (!task) {
         throw new Error("Invalid response payload");
@@ -2831,7 +2990,14 @@ export default function MapachePortalClient({
     } finally {
       setSubmitting(false);
     }
-  }, [formState, handleCloseForm, loadTasks, toastT, validationMessages]);
+  }, [
+    formState,
+    handleCloseForm,
+    loadTasks,
+    statusIndex,
+    toastT,
+    validationMessages,
+  ]);
 
   const modalFooter = (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2880,7 +3046,7 @@ export default function MapachePortalClient({
 
         const payload = await response.json();
         const updatedTask =
-          normalizeMapacheTask(payload) ?? {
+          normalizeMapacheTask(payload, statusIndex) ?? {
             ...task,
             status: nextStatus,
             statusId: task.statusId,
@@ -2898,7 +3064,7 @@ export default function MapachePortalClient({
         setUpdatingTaskId(null);
       }
     },
-    [toastT],
+    [statusIndex, toastT],
   );
 
   const handleSubstatusChange = React.useCallback(
@@ -2939,14 +3105,14 @@ export default function MapachePortalClient({
     ) => {
       if (viewMode !== "tablero") return;
       if (fromStatus === nextStatus) return;
-      if (!STATUS_ORDER.includes(nextStatus)) return;
+      if (!statusKeys.includes(nextStatus)) return;
 
       const task = tasks.find((item) => item.id === taskId);
       if (!task) return;
 
       void handleStatusChange(task, nextStatus);
     },
-    [handleStatusChange, tasks, viewMode],
+    [handleStatusChange, statusKeys, tasks, viewMode],
   );
 
   const handleDeleteTask = React.useCallback(
@@ -3083,7 +3249,7 @@ export default function MapachePortalClient({
       }
 
       const payloadResponse = await response.json();
-      const updatedTask = normalizeMapacheTask(payloadResponse);
+      const updatedTask = normalizeMapacheTask(payloadResponse, statusIndex);
 
       if (updatedTask) {
         setTasks((prev) =>
@@ -3174,7 +3340,7 @@ function TaskMetaChip({
     onOpen,
     isDragging = false,
   }: TaskBoardCardProps) => {
-    const statusBadgeKey = getStatusBadgeKey(task);
+    const statusBadgeKey = getStatusBadgeKey(task, statusIndex);
     const presentationMeta = getPresentationDateMeta(task.presentationDate);
     const presentationLabel =
       presentationMeta.label ?? formT("unspecifiedOption");
@@ -3247,7 +3413,7 @@ function TaskMetaChip({
   const TaskListRow = ({ task, onOpen }: TaskListRowProps) => {
     const isUpdating = updatingTaskId === task.id;
     const isDeleting = deletingTaskId === task.id;
-    const statusBadgeKey = getStatusBadgeKey(task);
+    const statusBadgeKey = getStatusBadgeKey(task, statusIndex);
     const presentationMeta = getPresentationDateMeta(task.presentationDate);
     const presentationLabel =
       presentationMeta.label ?? formT("unspecifiedOption");
@@ -3321,9 +3487,9 @@ function TaskMetaChip({
               }
               disabled={isUpdating || isDeleting}
             >
-              {STATUS_ORDER.map((status) => (
+              {statusKeys.map((status) => (
                 <option key={status} value={status}>
-                  {statusT(getStatusLabelKey(status))}
+                  {formatStatusLabel(status)}
                 </option>
               ))}
             </select>
@@ -3863,7 +4029,7 @@ function TaskMetaChip({
                                     {boardsT("columns.statusesLabel")}
                                   </span>
                                   <div className="flex flex-wrap gap-2">
-                                    {STATUS_ORDER.map((status) => {
+                                    {statusKeys.map((status) => {
                                       const checked = column.statuses.includes(status);
                                       return (
                                         <label
@@ -3880,7 +4046,7 @@ function TaskMetaChip({
                                             onChange={() => handleToggleBoardColumnStatus(index, status)}
                                             className="sr-only"
                                           />
-                                          <span>{statusT(getStatusLabelKey(status))}</span>
+                                          <span>{formatStatusLabel(status)}</span>
                                         </label>
                                       );
                                     })}
@@ -4000,9 +4166,9 @@ function TaskMetaChip({
                       }
                       className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
                     >
-                      {STATUS_ORDER.map((option) => (
+                      {statusKeys.map((option) => (
                         <option key={option} value={option}>
-                          {statusT(getStatusLabelKey(option))}
+                          {formatStatusLabel(option)}
                         </option>
                       ))}
                     </select>
@@ -4559,6 +4725,8 @@ function TaskMetaChip({
               scope={insightsScope}
               onScopeChange={setInsightsScope}
               metricsByScope={insightsMetrics}
+              statuses={statusIndex.ordered}
+              formatStatusLabel={formatStatusLabel}
             />
           </div>
           {renderLoadingMessage()}
@@ -4699,12 +4867,12 @@ function TaskMetaChip({
                     <span
                       className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
                         STATUS_BADGE_CLASSNAMES[
-                          getStatusBadgeKey(selectedTaskSummaryMeta.task)
+                      getStatusBadgeKey(selectedTaskSummaryMeta.task, statusIndex)
                         ]
                       }`}
                     >
                       {statusBadgeT(
-                        getStatusBadgeKey(selectedTaskSummaryMeta.task),
+                        getStatusBadgeKey(selectedTaskSummaryMeta.task, statusIndex),
                       )}
                     </span>
                     {selectedTaskSummaryMeta.task.substatus ? (
@@ -4766,7 +4934,7 @@ function TaskMetaChip({
                     {actionsT("statusLabel")}
                   </span>
                   <span>
-                    {statusT(getStatusLabelKey(selectedTaskFormState.status))}
+                    {formatStatusLabel(selectedTaskFormState.status)}
                   </span>
                 </div>
                 <div className="flex flex-col gap-1">
@@ -4837,9 +5005,9 @@ function TaskMetaChip({
                       }
                       className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
                     >
-                      {STATUS_ORDER.map((option) => (
+                      {statusKeys.map((option) => (
                         <option key={option} value={option}>
-                          {statusT(getStatusLabelKey(option))}
+                          {formatStatusLabel(option)}
                         </option>
                       ))}
                     </select>

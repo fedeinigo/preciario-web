@@ -6,9 +6,10 @@ import prisma from "@/lib/prisma";
 
 import { ensureMapacheAccess } from "../tasks/access";
 import {
-  DEFAULT_BOARD_COLUMNS,
   badRequest,
+  createDefaultBoardColumns,
   normalizeBoardFromDb,
+  loadStatusIndex,
   parseColumnsPayload,
 } from "./utils";
 
@@ -29,6 +30,7 @@ export async function GET() {
   const access = ensureMapacheAccess(session);
   if (access.response) return access.response;
 
+  const statusIndex = await loadStatusIndex();
   const boards = await prisma.mapacheBoard.findMany({
     orderBy: { position: "asc" },
     include: {
@@ -37,7 +39,7 @@ export async function GET() {
   });
 
   return NextResponse.json({
-    boards: boards.map((board) => normalizeBoardFromDb(board)),
+    boards: boards.map((board) => normalizeBoardFromDb(board, statusIndex)),
   });
 }
 
@@ -65,13 +67,22 @@ export async function POST(request: Request) {
   }
 
   const columnsInputRaw = (payload as Record<string, unknown>).columns;
+  const statusIndex = await loadStatusIndex();
+  if (statusIndex.ordered.length === 0) {
+    return badRequest("No statuses available");
+  }
+
   const columnsResult =
     columnsInputRaw === undefined
-      ? DEFAULT_BOARD_COLUMNS
-      : parseColumnsPayload(columnsInputRaw);
+      ? createDefaultBoardColumns(statusIndex)
+      : parseColumnsPayload(columnsInputRaw, statusIndex);
 
   if (columnsResult instanceof NextResponse) {
     return columnsResult;
+  }
+
+  if (columnsResult.length === 0) {
+    return badRequest("columns must include at least one column");
   }
 
   const lastBoard = await prisma.mapacheBoard.findFirst({
@@ -96,7 +107,7 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json(
-    { board: normalizeBoardFromDb(created) },
+    { board: normalizeBoardFromDb(created, statusIndex) },
     { status: 201 },
   );
 }

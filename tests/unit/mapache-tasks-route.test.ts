@@ -4,6 +4,7 @@ import { describe, it, mock } from "node:test";
 
 import type { ApiSession } from "@/app/api/_utils/require-auth";
 import * as requireAuth from "@/app/api/_utils/require-auth";
+import * as mapacheAccess from "@/app/api/mapache/tasks/access";
 import prisma from "@/lib/prisma";
 import { PATCH } from "@/app/api/mapache/tasks/route";
 
@@ -18,6 +19,20 @@ describe("PATCH /api/mapache/tasks", () => {
       session,
       response: undefined,
     }));
+
+    mock.method(
+      mapacheAccess,
+      "resolveStatusFromPayload",
+      async () => ({
+        response: null,
+        status: {
+          id: "status-in-progress",
+          key: "IN_PROGRESS",
+          label: "In Progress",
+          order: 1,
+        },
+      }),
+    );
 
     const updateCalls: Array<{
       where: { id: string };
@@ -181,6 +196,20 @@ describe("PATCH /api/mapache/tasks", () => {
       session,
       response: undefined,
     }));
+
+    mock.method(
+      mapacheAccess,
+      "resolveStatusFromPayload",
+      async () => ({
+        response: null,
+        status: {
+          id: "status-in-progress",
+          key: "IN_PROGRESS",
+          label: "In Progress",
+          order: 1,
+        },
+      }),
+    );
 
     const deleteCalls: Array<{ where: { id: { in: string[] } } }> = [];
     const createCalls: Array<{ data: Record<string, unknown> }> = [];
