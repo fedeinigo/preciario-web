@@ -3116,8 +3116,13 @@ type TaskBoardCardProps = {
   isDragging?: boolean;
 };
 
-type TaskDetailCardProps = {
+type TaskListRowProps = {
   task: MapacheTask;
+  onOpen: (task: MapacheTask) => void;
+};
+
+type TaskListViewProps = {
+  tasks: MapacheTask[];
   onOpen: (task: MapacheTask) => void;
 };
 
@@ -3239,7 +3244,7 @@ function TaskMetaChip({
     );
   };
 
-  const TaskDetailCard = ({ task, onOpen }: TaskDetailCardProps) => {
+  const TaskListRow = ({ task, onOpen }: TaskListRowProps) => {
     const isUpdating = updatingTaskId === task.id;
     const isDeleting = deletingTaskId === task.id;
     const statusBadgeKey = getStatusBadgeKey(task);
@@ -3252,66 +3257,64 @@ function TaskMetaChip({
     const clientLabel = task.clientName ?? formT("unspecifiedOption");
 
     return (
-      <article className="flex h-full flex-col justify-between rounded-xl border border-white/10 bg-slate-950/80 p-4 text-white shadow-soft transition hover:border-white/20">
-        <div className="flex flex-1 flex-col gap-3">
+      <tr className="border-b border-white/10 last:border-0">
+        <td className="max-w-xs px-4 py-3 align-top">
           <button
             type="button"
             tabIndex={0}
             onClick={() => onOpen(task)}
             aria-label={`Abrir detalles de ${task.title}`}
-            className="flex flex-col gap-3 rounded-lg border border-transparent bg-transparent p-0 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 hover:border-white/10"
+            className="flex w-full flex-col gap-2 rounded-lg border border-transparent bg-transparent p-0 text-left transition hover:border-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
           >
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <span
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-[11px] font-semibold uppercase text-white"
+                title={assigneeLabel}
+              >
+                {assigneeInitials}
+              </span>
               <div className="min-w-0 flex-1">
-                <h2 className="line-clamp-2 text-lg font-semibold text-white">
-                  {task.title}
-                </h2>
-                <p className="mt-1 text-sm text-white/60" title={clientLabel}>
-                  {clientLabel}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-2 text-xs text-white/60">
-                <span
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-[11px] font-semibold uppercase text-white"
-                  title={assigneeLabel}
-                >
-                  {assigneeInitials}
-                </span>
                 <div className="flex items-center gap-2">
                   <span
                     className={`h-2 w-2 rounded-full ${STATUS_INDICATOR_ACCENT_CLASSNAMES[statusBadgeKey]}`}
                     aria-hidden="true"
                   />
-                  <span className="font-semibold text-white/80">
-                    {statusBadgeT(statusBadgeKey)}
+                  <span className="line-clamp-2 text-sm font-semibold text-white">
+                    {task.title}
                   </span>
                 </div>
+                <p className="text-xs text-white/60" title={clientLabel}>
+                  {clientLabel}
+                </p>
+                {task.substatus ? (
+                  <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/60">
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${STATUS_INDICATOR_ACCENT_CLASSNAMES[statusBadgeKey]}`}
+                      aria-hidden="true"
+                    />
+                    {substatusT(getSubstatusKey(task.substatus))}
+                  </span>
+                ) : null}
               </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-white/60">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`h-2 w-2 rounded-full ${presentationMeta.indicatorClassName}`}
-                  aria-hidden="true"
-                />
-                <span className="font-semibold text-white/80">
-                  {presentationLabel}
-                </span>
-              </div>
-              {task.substatus ? (
-                <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/60">
-                  {substatusT(getSubstatusKey(task.substatus))}
-                </span>
-              ) : null}
             </div>
           </button>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/70">
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 align-middle text-sm text-white/80">
+          <div className="flex items-center gap-2">
+            <span
+              className={`h-2 w-2 rounded-full ${presentationMeta.indicatorClassName}`}
+              aria-hidden="true"
+            />
+            <span className="font-semibold text-white/80">{presentationLabel}</span>
+          </div>
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 align-middle text-sm text-white/80">
           <label className="flex items-center gap-2">
-            <span>{actionsT("statusLabel")}:</span>
+            <span className="hidden text-white/60 lg:inline">
+              {actionsT("statusLabel")}:
+            </span>
             <select
-              className="min-w-[120px] rounded-md border border-white/20 bg-slate-950/60 px-2 py-1 text-xs text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+              className="min-w-[140px] rounded-md border border-white/20 bg-slate-950/60 px-2 py-1 text-xs text-white focus:border-[rgb(var(--primary))] focus:outline-none"
               value={task.status}
               onChange={(event) =>
                 handleStatusChange(task, event.target.value as MapacheTaskStatus)
@@ -3325,10 +3328,14 @@ function TaskMetaChip({
               ))}
             </select>
           </label>
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 align-middle text-sm text-white/80">
           <label className="flex items-center gap-2">
-            <span>{actionsT("substatusLabel")}:</span>
+            <span className="hidden text-white/60 lg:inline">
+              {actionsT("substatusLabel")}:
+            </span>
             <select
-              className="min-w-[150px] rounded-md border border-white/20 bg-slate-950/60 px-2 py-1 text-xs text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+              className="min-w-[160px] rounded-md border border-white/20 bg-slate-950/60 px-2 py-1 text-xs text-white focus:border-[rgb(var(--primary))] focus:outline-none"
               value={task.substatus}
               onChange={(event) =>
                 handleSubstatusChange(
@@ -3345,17 +3352,65 @@ function TaskMetaChip({
               ))}
             </select>
           </label>
-
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 align-middle text-sm text-white/80">
+          <div className="flex items-center gap-3">
+            <span
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-[11px] font-semibold uppercase text-white"
+              title={assigneeLabel}
+            >
+              {assigneeInitials}
+            </span>
+            <span className="text-sm text-white/80">{assigneeLabel}</span>
+          </div>
+        </td>
+        <td className="whitespace-nowrap px-4 py-3 align-middle text-right text-sm text-white/80">
           <button
             type="button"
             onClick={() => handleRequestDeleteTask(task.id)}
             disabled={isDeleting || isUpdating}
-            className="ml-auto inline-flex items-center rounded-md border border-white/20 px-3 py-1 text-xs text-white/80 transition hover:bg-rose-500/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center rounded-md border border-white/20 px-3 py-1 text-xs text-white/80 transition hover:bg-rose-500/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isDeleting ? actionsT("deleting") : actionsT("delete")}
           </button>
-        </div>
-      </article>
+        </td>
+      </tr>
+    );
+  };
+
+  const TaskListView = ({ tasks, onOpen }: TaskListViewProps) => {
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-left text-sm text-white/80">
+          <thead>
+            <tr className="text-xs uppercase tracking-wide text-white/60">
+              <th className="px-4 py-3 text-left font-semibold">
+                {formT("titleLabel")}
+              </th>
+              <th className="px-4 py-3 text-left font-semibold">
+                {filtersT("presentationDate")}
+              </th>
+              <th className="px-4 py-3 text-left font-semibold">
+                {actionsT("statusLabel")}
+              </th>
+              <th className="px-4 py-3 text-left font-semibold">
+                {actionsT("substatusLabel")}
+              </th>
+              <th className="px-4 py-3 text-left font-semibold">
+                {filtersT("assignee")}
+              </th>
+              <th className="px-4 py-3 text-right font-semibold">
+                {actionsT("delete")}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {tasks.map((task) => (
+              <TaskListRow key={task.id} task={task} onOpen={onOpen} />
+            ))}
+          </tbody>
+        </table>
+      </div>
     );
   };
 
@@ -4552,11 +4607,7 @@ function TaskMetaChip({
           )}
 
       {viewMode === "lista" ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredTasks.map((task) => (
-            <TaskDetailCard key={task.id} task={task} onOpen={openTask} />
-          ))}
-        </div>
+        <TaskListView tasks={filteredTasks} onOpen={openTask} />
       ) : (
         <div className="space-y-3">
           {boardsError ? (
