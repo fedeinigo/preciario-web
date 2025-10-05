@@ -4056,6 +4056,100 @@ function TaskMetaChip({
     status: MapacheTaskStatus;
   };
 
+  type StatusDropMenuProps = {
+    pendingDrop: PipelineDragData | null;
+    statuses: MapacheTaskStatus[];
+    formatStatus: (status: MapacheTaskStatus) => string;
+    onTaskDrop: (
+      taskId: string,
+      fromStatus: MapacheTaskStatus,
+      nextStatus: MapacheTaskStatus,
+    ) => void;
+    onCancel: () => void;
+    title: string;
+    description: string;
+    cancelLabel: string;
+  };
+
+  const StatusDropMenu = ({
+    pendingDrop,
+    statuses,
+    formatStatus,
+    onTaskDrop,
+    onCancel,
+    title,
+    description,
+    cancelLabel,
+  }: StatusDropMenuProps) => {
+    const firstOptionRef = React.useRef<HTMLButtonElement | null>(null);
+
+    React.useEffect(() => {
+      if (pendingDrop) {
+        firstOptionRef.current?.focus();
+      }
+    }, [pendingDrop]);
+
+    React.useEffect(() => {
+      if (!pendingDrop) return;
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Escape") {
+          onCancel();
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [onCancel, pendingDrop]);
+
+    if (!pendingDrop) return null;
+
+    return (
+      <div
+        className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm"
+        onMouseDown={onCancel}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+          className="w-full max-w-xs space-y-3 rounded-lg border border-white/15 bg-slate-950/95 p-4 text-white shadow-soft"
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">
+              {title}
+            </p>
+            <p className="text-xs text-white/50">{description}</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {statuses.map((status, index) => (
+              <button
+                key={status}
+                ref={index === 0 ? firstOptionRef : undefined}
+                type="button"
+                className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                onClick={() => {
+                  onTaskDrop(pendingDrop.taskId, pendingDrop.status, status);
+                  onCancel();
+                }}
+              >
+                {formatStatus(status)}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="w-full rounded-md border border-transparent bg-white/10 px-3 py-2 text-sm text-white/70 transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            onClick={onCancel}
+          >
+            {cancelLabel}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   type PipelineColumnProps = {
     title: string;
     statuses: MapacheTaskStatus[];
@@ -4066,6 +4160,9 @@ function TaskMetaChip({
       nextStatus: MapacheTaskStatus,
     ) => void;
     formatStatus: (status: MapacheTaskStatus) => string;
+    dropMenuTitle: string;
+    dropMenuDescription: string;
+    dropMenuCancelLabel: string;
   };
 
   const PipelineDraggableTask = ({ task }: { task: MapacheTask }) => {
@@ -4102,14 +4199,33 @@ function TaskMetaChip({
     tasks,
     onTaskDrop,
     formatStatus,
+    dropMenuTitle,
+    dropMenuDescription,
+    dropMenuCancelLabel,
   }: PipelineColumnProps) => {
     const columnRef = React.useRef<HTMLDivElement | null>(null);
     const [isDraggingOver, setIsDraggingOver] = React.useState(false);
+    const [pendingDrop, setPendingDrop] = React.useState<PipelineDragData | null>(
+      null,
+    );
 
     const statusSummary = React.useMemo(() => {
       if (statuses.length === 0) return "";
       return statuses.map((status) => formatStatus(status)).join(" • ");
     }, [formatStatus, statuses]);
+
+    const statusBadges = React.useMemo(
+      () =>
+        statuses.map((status) => ({
+          key: status,
+          label: formatStatus(status),
+        })),
+      [formatStatus, statuses],
+    );
+
+    const closePendingDrop = React.useCallback(() => {
+      setPendingDrop(null);
+    }, []);
 
     React.useEffect(() => {
       const element = columnRef.current;
@@ -4133,12 +4249,20 @@ function TaskMetaChip({
           if (!data || data.type !== "mapache-task") {
             return;
           }
-          const targetStatus = statuses[0];
-          if (!targetStatus) {
+          if (statuses.length === 0) {
             return;
           }
 
-          onTaskDrop(data.taskId, data.status, targetStatus);
+          if (statuses.length === 1) {
+            const targetStatus = statuses[0];
+            if (!targetStatus) {
+              return;
+            }
+            onTaskDrop(data.taskId, data.status, targetStatus);
+            return;
+          }
+
+          setPendingDrop(data);
         },
         onDragEnd: () => {
           setIsDraggingOver(false);
@@ -4146,15 +4270,31 @@ function TaskMetaChip({
       });
     }, [onTaskDrop, statuses]);
 
+    React.useEffect(() => {
+      if (statuses.length <= 1 && pendingDrop) {
+        setPendingDrop(null);
+      }
+    }, [pendingDrop, statuses.length]);
+
     return (
-      <section className="flex min-w-[260px] max-w-[280px] flex-1 flex-col rounded-xl border border-white/10 bg-slate-950/70 text-white shadow-soft">
+      <section
+        className="relative flex min-w-[260px] max-w-[280px] flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/70 text-white shadow-soft"
+        title={statusSummary}
+      >
         <header className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-white/80">{title}</span>
-            {statusSummary ? (
-              <span className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-                {statusSummary}
-              </span>
+            {statusBadges.length > 0 ? (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {statusBadges.map((badge) => (
+                  <span
+                    key={badge.key}
+                    className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.18em] text-white/55"
+                  >
+                    {badge.label}
+                  </span>
+                ))}
+              </div>
             ) : null}
           </div>
           <span className="text-xs text-white/50">{tasks.length}</span>
@@ -4174,6 +4314,17 @@ function TaskMetaChip({
             </div>
           ) : null}
         </div>
+
+        <StatusDropMenu
+          pendingDrop={pendingDrop}
+          statuses={statuses}
+          formatStatus={formatStatus}
+          onTaskDrop={onTaskDrop}
+          onCancel={closePendingDrop}
+          title={dropMenuTitle}
+          description={dropMenuDescription}
+          cancelLabel={dropMenuCancelLabel}
+        />
       </section>
     );
   };
@@ -5629,6 +5780,9 @@ function TaskMetaChip({
                     tasks={column.tasks}
                     onTaskDrop={handleTaskDroppedOnStatus}
                     formatStatus={formatStatusLabel}
+                    dropMenuTitle={boardsT("columns.dropMenuTitle")}
+                    dropMenuDescription={boardsT("columns.dropMenuDescription")}
+                    dropMenuCancelLabel={boardsT("columns.dropMenuCancel")}
                   />
                 ))}
               </div>

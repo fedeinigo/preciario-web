@@ -394,6 +394,9 @@ export const messages: Record<Locale, DeepRecord> = {
           titleLabel: "Nombre",
           statusesLabel: "Estados incluidos",
           defaultTitle: "Columna {index}",
+          dropMenuTitle: "Seleccioná el estado destino",
+          dropMenuDescription: "Elegí a qué estado mover la tarea.",
+          dropMenuCancel: "Cancelar",
         },
         validation: {
           nameRequired: "Ingresá un nombre para el tablero.",
@@ -1934,6 +1937,9 @@ export const messages: Record<Locale, DeepRecord> = {
           titleLabel: "Name",
           statusesLabel: "Included statuses",
           defaultTitle: "Column {index}",
+          dropMenuTitle: "Pick the destination status",
+          dropMenuDescription: "Choose where this task should move.",
+          dropMenuCancel: "Cancel",
         },
         validation: {
           nameRequired: "Enter a board name.",
@@ -3470,6 +3476,9 @@ export const messages: Record<Locale, DeepRecord> = {
           titleLabel: "Nome",
           statusesLabel: "Status incluídos",
           defaultTitle: "Coluna {index}",
+          dropMenuTitle: "Escolha o status de destino",
+          dropMenuDescription: "Selecione para qual status a tarefa deve ir.",
+          dropMenuCancel: "Cancelar",
         },
         validation: {
           nameRequired: "Informe um nome para o quadro.",
