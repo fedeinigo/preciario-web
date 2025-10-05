@@ -76,6 +76,7 @@ import {
   normalizeBoardList,
   type MapacheBoardConfig,
 } from "./board-types";
+import TaskDataGrid from "./components/TaskDataGrid";
 
 const NEED_OPTIONS: MapacheNeedFromTeam[] = [...MAPACHE_NEEDS_FROM_TEAM];
 const DIRECTNESS_OPTIONS: MapacheDirectness[] = [...MAPACHE_DIRECTNESS];
@@ -1417,6 +1418,39 @@ export default function MapachePortalClient({
       return humanizeStatusKey(status);
     },
     [statusIndex],
+  );
+
+  const formatSubstatusLabel = React.useCallback(
+    (substatus: MapacheTaskSubstatus) =>
+      substatusT(getSubstatusKey(substatus)),
+    [substatusT],
+  );
+
+  const taskGridMessages = React.useMemo(
+    () => ({
+      title: formT("titleLabel"),
+      presentationDate: filtersT("presentationDate"),
+      status: actionsT("statusLabel"),
+      substatus: actionsT("substatusLabel"),
+      assignee: filtersT("assignee"),
+      actions: actionsT("delete"),
+      delete: actionsT("delete"),
+      deleting: actionsT("deleting"),
+      exportCsv: "Exportar CSV",
+      density: "Densidad",
+      densityComfortable: "Cómoda",
+      densityCompact: "Compacta",
+      densitySpacious: "Amplia",
+      columns: "Columnas",
+      columnManagerTitle: "Columnas visibles",
+      virtualization: "Virtualización",
+      virtualizationHint:
+        "Activa la virtualización para mejorar el rendimiento con listados extensos.",
+      rowsPerPage: "Filas por página",
+      page: "Página",
+      of: "de",
+    }),
+    [actionsT, filtersT, formT],
   );
 
   React.useEffect(() => {
@@ -3603,16 +3637,6 @@ type TaskBoardCardProps = {
   isDragging?: boolean;
 };
 
-type TaskListRowProps = {
-  task: MapacheTask;
-  onOpen: (task: MapacheTask) => void;
-};
-
-type TaskListViewProps = {
-  tasks: MapacheTask[];
-  onOpen: (task: MapacheTask) => void;
-};
-
 type TaskMetaChipProps = {
   label: string;
   tone?: TaskMetaChipTone;
@@ -3728,176 +3752,6 @@ function TaskMetaChip({
           </div>
         </button>
       </article>
-    );
-  };
-
-  const TaskListRow = ({ task, onOpen }: TaskListRowProps) => {
-    const isUpdating = updatingTaskId === task.id;
-    const isDeleting = deletingTaskId === task.id;
-    const statusBadgeKey = getStatusBadgeKey(task, statusIndex);
-    const presentationMeta = getPresentationDateMeta(task.presentationDate);
-    const presentationLabel =
-      presentationMeta.label ?? formT("unspecifiedOption");
-    const assigneeLabel =
-      formatTaskAssigneeLabel(task) || formT("unspecifiedOption");
-    const assigneeInitials = getInitials(assigneeLabel);
-    const clientLabel = task.clientName ?? formT("unspecifiedOption");
-
-    return (
-      <tr className="border-b border-white/10 last:border-0">
-        <td className="max-w-xs px-4 py-3 align-top">
-          <button
-            type="button"
-            tabIndex={0}
-            onClick={() => onOpen(task)}
-            aria-label={`Abrir detalles de ${task.title}`}
-            className="flex w-full flex-col gap-2 rounded-lg border border-transparent bg-transparent p-0 text-left transition hover:border-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-          >
-            <div className="flex items-start gap-3">
-              <span
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-[11px] font-semibold uppercase text-white"
-                title={assigneeLabel}
-              >
-                {assigneeInitials}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`h-2 w-2 rounded-full ${STATUS_INDICATOR_ACCENT_CLASSNAMES[statusBadgeKey]}`}
-                    aria-hidden="true"
-                  />
-                  <span className="line-clamp-2 text-sm font-semibold text-white">
-                    {task.title}
-                  </span>
-                </div>
-                <p className="text-xs text-white/60" title={clientLabel}>
-                  {clientLabel}
-                </p>
-                {task.substatus ? (
-                  <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white/60">
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${STATUS_INDICATOR_ACCENT_CLASSNAMES[statusBadgeKey]}`}
-                      aria-hidden="true"
-                    />
-                    {substatusT(getSubstatusKey(task.substatus))}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </button>
-        </td>
-        <td className="whitespace-nowrap px-4 py-3 align-middle text-sm text-white/80">
-          <div className="flex items-center gap-2">
-            <span
-              className={`h-2 w-2 rounded-full ${presentationMeta.indicatorClassName}`}
-              aria-hidden="true"
-            />
-            <span className="font-semibold text-white/80">{presentationLabel}</span>
-          </div>
-        </td>
-        <td className="whitespace-nowrap px-4 py-3 align-middle text-sm text-white/80">
-          <label className="flex items-center gap-2">
-            <span className="hidden text-white/60 lg:inline">
-              {actionsT("statusLabel")}:
-            </span>
-            <select
-              className="min-w-[140px] rounded-md border border-white/20 bg-slate-950/60 px-2 py-1 text-xs text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-              value={task.status}
-              onChange={(event) =>
-                handleStatusChange(task, event.target.value as MapacheTaskStatus)
-              }
-              disabled={isUpdating || isDeleting}
-            >
-              {statusKeys.map((status) => (
-                <option key={status} value={status}>
-                  {formatStatusLabel(status)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </td>
-        <td className="whitespace-nowrap px-4 py-3 align-middle text-sm text-white/80">
-          <label className="flex items-center gap-2">
-            <span className="hidden text-white/60 lg:inline">
-              {actionsT("substatusLabel")}:
-            </span>
-            <select
-              className="min-w-[160px] rounded-md border border-white/20 bg-slate-950/60 px-2 py-1 text-xs text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-              value={task.substatus}
-              onChange={(event) =>
-                handleSubstatusChange(
-                  task,
-                  event.target.value as MapacheTaskSubstatus,
-                )
-              }
-              disabled={isUpdating || isDeleting}
-            >
-              {SUBSTATUS_OPTIONS.map((substatus) => (
-                <option key={substatus} value={substatus}>
-                  {substatusT(getSubstatusKey(substatus))}
-                </option>
-              ))}
-            </select>
-          </label>
-        </td>
-        <td className="whitespace-nowrap px-4 py-3 align-middle text-sm text-white/80">
-          <div className="flex items-center gap-3">
-            <span
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-[11px] font-semibold uppercase text-white"
-              title={assigneeLabel}
-            >
-              {assigneeInitials}
-            </span>
-            <span className="text-sm text-white/80">{assigneeLabel}</span>
-          </div>
-        </td>
-        <td className="whitespace-nowrap px-4 py-3 align-middle text-right text-sm text-white/80">
-          <button
-            type="button"
-            onClick={() => handleRequestDeleteTask(task.id)}
-            disabled={isDeleting || isUpdating}
-            className="inline-flex items-center rounded-md border border-white/20 px-3 py-1 text-xs text-white/80 transition hover:bg-rose-500/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isDeleting ? actionsT("deleting") : actionsT("delete")}
-          </button>
-        </td>
-      </tr>
-    );
-  };
-
-  const TaskListView = ({ tasks, onOpen }: TaskListViewProps) => {
-    return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-left text-sm text-white/80">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-white/60">
-              <th className="px-4 py-3 text-left font-semibold">
-                {formT("titleLabel")}
-              </th>
-              <th className="px-4 py-3 text-left font-semibold">
-                {filtersT("presentationDate")}
-              </th>
-              <th className="px-4 py-3 text-left font-semibold">
-                {actionsT("statusLabel")}
-              </th>
-              <th className="px-4 py-3 text-left font-semibold">
-                {actionsT("substatusLabel")}
-              </th>
-              <th className="px-4 py-3 text-left font-semibold">
-                {filtersT("assignee")}
-              </th>
-              <th className="px-4 py-3 text-right font-semibold">
-                {actionsT("delete")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.map((task) => (
-              <TaskListRow key={task.id} task={task} onOpen={onOpen} />
-            ))}
-          </tbody>
-        </table>
-      </div>
     );
   };
 
@@ -5433,7 +5287,27 @@ function TaskMetaChip({
           )}
 
       {viewMode === "lista" ? (
-        <TaskListView tasks={filteredTasks} onOpen={openTask} />
+        <TaskDataGrid
+          tasks={filteredTasks}
+          onOpen={openTask}
+          statusKeys={statusKeys}
+          substatusOptions={SUBSTATUS_OPTIONS}
+          statusIndex={statusIndex}
+          statusIndicatorClassNames={STATUS_INDICATOR_ACCENT_CLASSNAMES}
+          unspecifiedOptionLabel={formT("unspecifiedOption")}
+          messages={taskGridMessages}
+          onStatusChange={handleStatusChange}
+          onSubstatusChange={handleSubstatusChange}
+          onRequestDeleteTask={handleRequestDeleteTask}
+          deletingTaskId={deletingTaskId}
+          updatingTaskId={updatingTaskId}
+          getStatusBadgeKey={getStatusBadgeKey}
+          getPresentationDateMeta={getPresentationDateMeta}
+          formatStatusLabel={formatStatusLabel}
+          formatSubstatusLabel={formatSubstatusLabel}
+          formatAssigneeLabel={formatTaskAssigneeLabel}
+          getInitials={getInitials}
+        />
       ) : (
         <div className="space-y-3">
           {boardsError ? (

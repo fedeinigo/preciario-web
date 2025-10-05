@@ -198,6 +198,17 @@ body.mapache-theme .chip {
   }
   .btn-ghost:hover { border-color: rgb(var(--ink)); }
 
+  /* --- data grid --- */
+  .data-grid-menu {
+    @apply rounded-lg border border-white/10 bg-slate-950/95 p-3 text-sm text-white shadow-soft backdrop-blur;
+  }
+  .data-grid-menu label {
+    @apply flex items-center justify-between gap-3 rounded-md px-2 py-1 text-xs text-white/80 transition hover:bg-white/5;
+  }
+  .data-grid-menu button {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30;
+  }
+
   /* botón acento (cian) – “Editar/Guardar objetivo”, “Perfil”, “Editar”, “Limpiar” */
   .btn-accent {
     @apply inline-flex items-center justify-center gap-2 font-semibold;
