@@ -76,6 +76,26 @@ test("removeStatus updates forms and board columns", () => {
   assert.equal(didColumnStatusesChange(["IN_PROGRESS"], column), true);
 });
 
+test("normalizeColumnStatuses keeps valid multi-status columns", () => {
+  const initial = [
+    makeStatus("1", "PENDING", "Pending", 0),
+    makeStatus("2", "IN_PROGRESS", "In progress", 1),
+    makeStatus("3", "DONE", "Done", 2),
+  ];
+
+  const index = createStatusIndex(initial);
+  const normalized = normalizeColumnStatuses(
+    ["PENDING", "IN_PROGRESS", "DONE"],
+    index,
+  );
+
+  assert.deepEqual(normalized, ["PENDING", "IN_PROGRESS", "DONE"]);
+  assert.equal(
+    didColumnStatusesChange(["PENDING", "IN_PROGRESS", "DONE"], normalized),
+    false,
+  );
+});
+
 test("sortStatuses trims and orders entries", () => {
   const unordered = [
     makeStatus("1", " done ", " Done ", 3),
