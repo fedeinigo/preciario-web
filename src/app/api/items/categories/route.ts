@@ -1,6 +1,6 @@
 // src/app/api/items/categories/route.ts
 import { NextResponse } from "next/server";
-import type { LanguageCode } from "@prisma/client";
+import { Prisma, type LanguageCode } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
@@ -11,8 +11,25 @@ function toLanguageCode(locale: Locale): LanguageCode {
   return locale as LanguageCode;
 }
 
+function normalizeCategoryKey(value: string): string {
+  return value
+    .replace(/\s+/g, " ")
+    .trim()
+    .normalize("NFKC")
+    .toLowerCase();
+}
+
+function sanitizeCategoryLabel(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 export async function GET(request: Request) {
   const locale = getLocaleFromRequest(request);
+
+  const storedCategoriesPromise = prisma.itemCategory.findMany({
+    select: { name: true },
+    orderBy: { name: "asc" },
+  });
 
   const translations = await prisma.itemTranslation.findMany({
     where: { locale: toLanguageCode(locale) },
@@ -20,6 +37,9 @@ export async function GET(request: Request) {
     select: { category: true },
     orderBy: { category: "asc" },
   });
+
+  const storedCategories = await storedCategoriesPromise;
+  const categorySet = new Set(storedCategories.map((row) => row.name));
 
   let categories = translations.map((row) => row.category);
 
@@ -42,7 +62,15 @@ export async function GET(request: Request) {
     categories = rows.map((row) => row.category);
   }
 
-  return NextResponse.json(Array.from(new Set(categories)));
+  for (const category of categories) {
+    if (typeof category === "string" && category.trim()) {
+      categorySet.add(category);
+    }
+  }
+
+  const orderedCategories = Array.from(categorySet).sort((a, b) => a.localeCompare(b));
+
+  return NextResponse.json(orderedCategories);
 }
 
 export async function PATCH(req: Request) {
@@ -97,5 +125,69 @@ export async function DELETE(req: Request) {
   ]);
 
   return NextResponse.json({ ok: true, moved: result[0].count, to: target });
+}
+
+export async function POST(req: Request) {
+  const session = await auth();
+  if (session?.user?.role !== "superadmin") {
+    return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 403 });
+  }
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "JSON invalido" }, { status: 400 });
+  }
+
+  const payload =
+    body && typeof body === "object"
+      ? (body as { name?: unknown })
+      : ({} as { name?: unknown });
+  const name = typeof payload.name === "string" ? payload.name : "";
+  const sanitizedName = sanitizeCategoryLabel(name);
+
+  if (!sanitizedName) {
+    return NextResponse.json({ ok: false, error: "Parametros invalidos" }, { status: 400 });
+  }
+
+  const normalizedName = normalizeCategoryKey(sanitizedName);
+
+  const [stored, translations, items] = await Promise.all([
+    prisma.itemCategory.findMany({ select: { normalizedName: true } }),
+    prisma.itemTranslation.findMany({ distinct: ["category"], select: { category: true } }),
+    prisma.item.findMany({ distinct: ["category"], select: { category: true } }),
+  ]);
+
+  const normalizedSet = new Set<string>();
+  for (const row of stored) {
+    normalizedSet.add(row.normalizedName);
+  }
+  for (const row of translations) {
+    const key = normalizeCategoryKey(row.category);
+    if (key) normalizedSet.add(key);
+  }
+  for (const row of items) {
+    const key = normalizeCategoryKey(row.category);
+    if (key) normalizedSet.add(key);
+  }
+
+  if (normalizedSet.has(normalizedName)) {
+    return NextResponse.json({ ok: false, error: "Categoria duplicada" }, { status: 409 });
+  }
+
+  try {
+    const created = await prisma.itemCategory.create({
+      data: { name: sanitizedName, normalizedName },
+      select: { name: true },
+    });
+
+    return NextResponse.json({ ok: true, name: created.name }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ ok: false, error: "Categoria duplicada" }, { status: 409 });
+    }
+    throw error;
+  }
 }
 

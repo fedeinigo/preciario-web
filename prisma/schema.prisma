@@ -106,6 +106,14 @@ model ItemTranslation {
   @@index([locale])
 }
 
+model ItemCategory {
+  id             String   @id @default(cuid())
+  name           String
+  normalizedName String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
 /* =========================
    PROPUESTAS
 ========================= */
