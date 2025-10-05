@@ -6,12 +6,12 @@ import { useTranslations } from "@/app/LanguageProvider";
 
 import type {
   MapacheNeedFromTeam,
+  MapacheStatusDetails,
   MapacheTaskStatus,
   MapacheTaskSubstatus,
 } from "./types";
 import {
   MAPACHE_NEEDS_FROM_TEAM,
-  MAPACHE_TASK_STATUSES,
   MAPACHE_TASK_SUBSTATUSES,
 } from "./types";
 
@@ -50,6 +50,8 @@ type MapachePortalInsightsProps = {
     MapachePortalInsightsScope,
     MapachePortalInsightsMetrics
   >;
+  statuses: MapacheStatusDetails[];
+  formatStatusLabel: (status: MapacheTaskStatus) => string;
 };
 
 type TrendVariant = "positive" | "negative" | "neutral" | "muted" | "info";
@@ -83,18 +85,8 @@ type InsightsSnapshot = {
 const STORAGE_KEY = "mapache_portal_insights_snapshots";
 const WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
 
-const STATUS_ORDER: MapacheTaskStatus[] = [...MAPACHE_TASK_STATUSES];
 const SUBSTATUS_ORDER: MapacheTaskSubstatus[] = [...MAPACHE_TASK_SUBSTATUSES];
 const NEED_KEYS: NeedMetricKey[] = [...MAPACHE_NEEDS_FROM_TEAM, "NONE"];
-
-const STATUS_LABEL_KEYS: Record<
-  MapacheTaskStatus,
-  "pending" | "in_progress" | "completed"
-> = {
-  PENDING: "pending",
-  IN_PROGRESS: "in_progress",
-  DONE: "completed",
-};
 
 const SUBSTATUS_LABEL_KEYS: Record<
   MapacheTaskSubstatus,
@@ -309,9 +301,10 @@ export default function MapachePortalInsights({
   scope,
   onScopeChange,
   metricsByScope,
+  statuses,
+  formatStatusLabel,
 }: MapachePortalInsightsProps) {
   const insightsT = useTranslations("mapachePortal.insights");
-  const statusesT = useTranslations("mapachePortal.statuses");
   const substatusesT = useTranslations("mapachePortal.substatuses");
   const needT = useTranslations("mapachePortal.enums.needFromTeam");
   const statusBadgeT = useTranslations("mapachePortal.statusBadges");
@@ -411,9 +404,41 @@ export default function MapachePortalInsights({
       translate: insightsT,
     }) ?? totalTrend;
 
+  const statusOrder = React.useMemo(() => {
+    const ordered: MapacheTaskStatus[] = [];
+    const seen = new Set<string>();
+
+    const append = (status: string | undefined) => {
+      if (!status) return;
+      const normalized = status.trim().toUpperCase();
+      if (!normalized || seen.has(normalized)) return;
+      seen.add(normalized);
+      ordered.push(normalized);
+    };
+
+    statuses.forEach((status) => append(status.key));
+
+    const appendTotals = (totals: Record<MapacheTaskStatus, number>) => {
+      Object.keys(totals).forEach((status) => append(status));
+    };
+
+    appendTotals(metricsByScope.filtered.statusTotals);
+    appendTotals(metricsByScope.all.statusTotals);
+    if (previousSnapshot) {
+      appendTotals(previousSnapshot.statusTotals);
+    }
+
+    return ordered;
+  }, [
+    metricsByScope.all.statusTotals,
+    metricsByScope.filtered.statusTotals,
+    previousSnapshot,
+    statuses,
+  ]);
+
   const statusTrendMap = React.useMemo(() => {
     const map: Record<string, TrendDescriptor> = {};
-    STATUS_ORDER.forEach((status) => {
+    statusOrder.forEach((status) => {
       const descriptor = createTrendDescriptor(
         metrics.statusTotals[status] ?? 0,
         previousSnapshot?.statusTotals[status],
@@ -429,16 +454,16 @@ export default function MapachePortalInsights({
       }
     });
     return map;
-  }, [canCompare, insightsT, metrics.statusTotals, previousSnapshot]);
+  }, [canCompare, insightsT, metrics.statusTotals, previousSnapshot, statusOrder]);
 
   const statusItems = React.useMemo<MiniBarItem[]>(
     () =>
-      STATUS_ORDER.map((status) => ({
+      statusOrder.map((status) => ({
         key: status,
-        label: statusesT(STATUS_LABEL_KEYS[status]),
+        label: formatStatusLabel(status),
         value: metrics.statusTotals[status] ?? 0,
       })),
-    [metrics.statusTotals, statusesT],
+    [formatStatusLabel, metrics.statusTotals, statusOrder],
   );
 
   const substatusItems = React.useMemo<MiniBarItem[]>(

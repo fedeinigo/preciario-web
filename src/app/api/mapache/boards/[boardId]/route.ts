@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 import { ensureMapacheAccess } from "../../tasks/access";
 import {
   badRequest,
+  loadStatusIndex,
   normalizeBoardFromDb,
   parseColumnsPayload,
   type ColumnPayload,
@@ -122,10 +123,15 @@ export async function PATCH(
   }
   const nextName = nameResult;
 
+  const statusIndex = await loadStatusIndex();
+  if (statusIndex.ordered.length === 0) {
+    return badRequest("No statuses available");
+  }
+
   const columnsRaw = (payload as Record<string, unknown>).columns;
   let columns: ColumnPayload[] | null = null;
   if (columnsRaw !== undefined) {
-    const parsed = parseColumnsPayload(columnsRaw);
+    const parsed = parseColumnsPayload(columnsRaw, statusIndex);
     if (parsed instanceof NextResponse) {
       return parsed;
     }
@@ -175,7 +181,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ board: normalizeBoardFromDb(updated) });
+  return NextResponse.json({ board: normalizeBoardFromDb(updated, statusIndex) });
 }
 
 export async function DELETE(

@@ -38,7 +38,7 @@ export default async function MapachePortalPage() {
   })) as unknown[];
 
   const initialTasks: MapacheTask[] = records
-    .map(normalizeMapacheTask)
+    .map((record) => normalizeMapacheTask(record))
     .filter((task): task is MapacheTask => task !== null);
 
   return (
