@@ -11,8 +11,10 @@ import {
 } from "../../tasks/access";
 import { badRequest, parseLabel, parseOrder, parseStatusKey } from "../utils";
 
-function parseStatusId(params: { statusId?: string }): string | NextResponse {
-  const statusId = params.statusId;
+function parseStatusId(
+  params: { statusId?: string } | null | undefined,
+): string | NextResponse {
+  const statusId = params?.statusId;
   if (!statusId || typeof statusId !== "string" || !statusId.trim()) {
     return badRequest("statusId is required");
   }
@@ -21,7 +23,7 @@ function parseStatusId(params: { statusId?: string }): string | NextResponse {
 
 async function handleUpdate(
   request: Request,
-  params: { statusId?: string },
+  params: Promise<{ statusId?: string }>,
   { requireAllFields }: { requireAllFields: boolean },
 ) {
   const { session, response } = await requireApiSession();
@@ -30,7 +32,8 @@ async function handleUpdate(
   const access = ensureMapacheAccess(session);
   if (access.response) return access.response;
 
-  const statusIdResult = parseStatusId(params);
+  const paramsValue = await params;
+  const statusIdResult = parseStatusId(paramsValue);
   if (statusIdResult instanceof NextResponse) return statusIdResult;
   const statusId = statusIdResult;
 
@@ -105,21 +108,21 @@ async function handleUpdate(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { statusId: string } },
+  { params }: { params: Promise<{ statusId: string }> },
 ) {
   return handleUpdate(request, params, { requireAllFields: false });
 }
 
 export async function PUT(
   request: Request,
-  { params }: { params: { statusId: string } },
+  { params }: { params: Promise<{ statusId: string }> },
 ) {
   return handleUpdate(request, params, { requireAllFields: true });
 }
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { statusId: string } },
+  { params }: { params: Promise<{ statusId: string }> },
 ) {
   const { session, response } = await requireApiSession();
   if (response) return response;
@@ -127,7 +130,8 @@ export async function DELETE(
   const access = ensureMapacheAccess(session);
   if (access.response) return access.response;
 
-  const statusIdResult = parseStatusId(params);
+  const paramsValue = await params;
+  const statusIdResult = parseStatusId(paramsValue);
   if (statusIdResult instanceof NextResponse) return statusIdResult;
   const statusId = statusIdResult;
 
