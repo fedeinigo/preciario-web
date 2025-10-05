@@ -144,7 +144,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
     [resolveProposalActionError]
   );
 
-  const { items, setItems, popularity, loading: catalogLoading } = useCatalogData(
+  const { items, setItems, mutateItems, popularity, loading: catalogLoading } = useCatalogData(
     locale,
     handleCatalogError
   );
@@ -338,13 +338,13 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
       try {
         if (itemFormMode === "create") {
           const created = await createCatalogItem(locale, data);
-          setItems((prev) => [created, ...prev]);
+          mutateItems((prev) => [created, ...prev]);
           toast.success(toastT("itemCreated"));
         } else if (itemFormMode === "edit" && editingId != null) {
           const current = items.find((i) => i.id === editingId);
           if (current?.dbId) {
             await updateCatalogItem(current.dbId, data);
-            setItems((prev) =>
+            mutateItems((prev) =>
               prev.map((item) =>
                 item.id === editingId
                   ? {
@@ -376,7 +376,15 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
         setItemFormOpen(false);
       }
     },
-    [editingId, itemFormMode, items, locale, resolveProposalErrorMessage, setItems, toastT]
+    [
+      editingId,
+      itemFormMode,
+      items,
+      locale,
+      mutateItems,
+      resolveProposalErrorMessage,
+      toastT,
+    ]
   );
 
   const generate = React.useCallback(() => {
@@ -689,14 +697,14 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
       if (!target) return;
       try {
         if (target.dbId) await deleteCatalogItem(target.dbId);
-        setItems((prev) => prev.filter((i) => i.id !== itemId));
+        mutateItems((prev) => prev.filter((i) => i.id !== itemId));
         toast.success(toastT("itemDeleted"));
       } catch (e) {
         const msg = resolveProposalErrorMessage(e, "catalog.deleteFailed");
         toast.error(toastT("itemDeleteError", { message: msg }));
       }
     },
-    [items, resolveProposalErrorMessage, setItems, toastT]
+    [items, mutateItems, resolveProposalErrorMessage, toastT]
   );
 
   const availableCategories = useMemo(
