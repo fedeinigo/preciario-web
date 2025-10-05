@@ -11,12 +11,8 @@ import {
 } from "../../tasks/access";
 import { badRequest, parseLabel, parseOrder, parseStatusKey } from "../utils";
 
-type RouteContext = {
-  params: { statusId: string };
-};
-
-function parseStatusId(context: RouteContext): string | NextResponse {
-  const statusId = context.params?.statusId;
+function parseStatusId(params: { statusId?: string }): string | NextResponse {
+  const statusId = params.statusId;
   if (!statusId || typeof statusId !== "string" || !statusId.trim()) {
     return badRequest("statusId is required");
   }
@@ -25,7 +21,7 @@ function parseStatusId(context: RouteContext): string | NextResponse {
 
 async function handleUpdate(
   request: Request,
-  context: RouteContext,
+  params: { statusId?: string },
   { requireAllFields }: { requireAllFields: boolean },
 ) {
   const { session, response } = await requireApiSession();
@@ -34,7 +30,7 @@ async function handleUpdate(
   const access = ensureMapacheAccess(session);
   if (access.response) return access.response;
 
-  const statusIdResult = parseStatusId(context);
+  const statusIdResult = parseStatusId(params);
   if (statusIdResult instanceof NextResponse) return statusIdResult;
   const statusId = statusIdResult;
 
@@ -107,22 +103,31 @@ async function handleUpdate(
   }
 }
 
-export async function PATCH(request: Request, context: RouteContext) {
-  return handleUpdate(request, context, { requireAllFields: false });
+export async function PATCH(
+  request: Request,
+  { params }: { params: { statusId: string } },
+) {
+  return handleUpdate(request, params, { requireAllFields: false });
 }
 
-export async function PUT(request: Request, context: RouteContext) {
-  return handleUpdate(request, context, { requireAllFields: true });
+export async function PUT(
+  request: Request,
+  { params }: { params: { statusId: string } },
+) {
+  return handleUpdate(request, params, { requireAllFields: true });
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(
+  _request: Request,
+  { params }: { params: { statusId: string } },
+) {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
   const access = ensureMapacheAccess(session);
   if (access.response) return access.response;
 
-  const statusIdResult = parseStatusId(context);
+  const statusIdResult = parseStatusId(params);
   if (statusIdResult instanceof NextResponse) return statusIdResult;
   const statusId = statusIdResult;
 
