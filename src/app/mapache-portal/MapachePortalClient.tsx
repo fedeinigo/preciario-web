@@ -106,6 +106,16 @@ const ORIGIN_OPTIONS: MapacheSignalOrigin[] = [...MAPACHE_SIGNAL_ORIGINS];
 const NEED_METRIC_KEYS: NeedMetricKey[] = [...NEED_OPTIONS, "NONE"];
 const SUBSTATUS_OPTIONS: MapacheTaskSubstatus[] = [...MAPACHE_TASK_SUBSTATUSES];
 const MS_IN_DAY = 86_400_000;
+
+type SegmentAccumulator = {
+  key: string;
+  label: string;
+  type: "assignee" | "team";
+  statusTotals: Record<MapacheTaskStatus, number>;
+  substatusTotals: Record<MapacheTaskSubstatus, number>;
+  needTotals: Record<NeedMetricKey, number>;
+  total: number;
+};
 const FILTER_QUERY_KEYS = [
   "status",
   "owner",
@@ -1791,6 +1801,11 @@ export default function MapachePortalClient({
     return entries;
   }, [mapacheUsers]);
 
+  const mapacheTeamMemberIds = React.useMemo(
+    () => new Set(mapacheUsers.map((user) => user.id)),
+    [mapacheUsers],
+  );
+
   const boardLoadErrorMessage = boardsT("loadError");
 
   const loadBoards = React.useCallback(
@@ -2005,12 +2020,16 @@ export default function MapachePortalClient({
     }
 
     const payload = await response.json();
-    const list = Array.isArray(payload?.presets) ? payload.presets : [];
+    const list: unknown[] = Array.isArray(payload?.presets)
+      ? payload.presets
+      : [];
 
     return list
-      .map((preset) => normalizeFilterPreset(preset, statusKeys))
+      .map((preset: unknown) => normalizeFilterPreset(preset, statusKeys))
       .filter((preset): preset is MapacheFilterPreset => preset !== null)
-      .sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, "es", { sensitivity: "base" }),
+      );
   }, [statusKeys]);
 
   React.useEffect(() => {
@@ -2542,6 +2561,33 @@ export default function MapachePortalClient({
         {} as Record<NeedMetricKey, number>,
       );
 
+      const createSegmentAccumulator = (
+        key: string,
+        label: string,
+        type: "assignee" | "team",
+      ): SegmentAccumulator => ({
+        key,
+        label,
+        type,
+        statusTotals: statusKeys.reduce((acc, status) => {
+          acc[status] = 0;
+          return acc;
+        }, {} as Record<MapacheTaskStatus, number>),
+        substatusTotals: {
+          BACKLOG: 0,
+          WAITING_CLIENT: 0,
+          BLOCKED: 0,
+        },
+        needTotals: NEED_METRIC_KEYS.reduce((segmentAcc, segmentKey) => {
+          segmentAcc[segmentKey] = 0;
+          return segmentAcc;
+        }, {} as Record<NeedMetricKey, number>),
+        total: 0,
+      });
+
+      const assigneeSegments = new Map<string, SegmentAccumulator>();
+      const teamSegments = new Map<string, SegmentAccumulator>();
+
       const workloadMap = new Map<string, MapachePortalInsightsWorkloadEntry>();
       const upcomingMap = new Map<string, { date: Date; value: number }>();
       let dueSoonCount = 0;
@@ -2568,6 +2614,12 @@ export default function MapachePortalClient({
 
         const assigneeId = getTaskAssigneeId(task);
         const workloadKey = assigneeId ?? "__unassigned__";
+        const teamKey: "team:mapache" | "team:external" | "team:unassigned" =
+          assigneeId === null
+            ? "team:unassigned"
+            : mapacheTeamMemberIds.has(assigneeId)
+              ? "team:mapache"
+              : "team:external";
         const existingWorkload = workloadMap.get(workloadKey);
         if (existingWorkload) {
           existingWorkload.value += 1;
@@ -2584,8 +2636,51 @@ export default function MapachePortalClient({
             label,
             value: 1,
             isUnassigned: assigneeId === null,
+            teamKey,
           });
         }
+
+        const assigneeKey = assigneeId ?? "__unassigned__";
+        const assigneeLabel =
+          assigneeId === null
+            ? "__unassigned__"
+            : assigneeLabelMap.get(assigneeId) ||
+              formatTaskAssigneeLabel(task) ||
+              assigneeId;
+
+        const assigneeSegment =
+          assigneeSegments.get(assigneeKey) ??
+          (() => {
+            const segment = createSegmentAccumulator(
+              assigneeKey,
+              assigneeLabel,
+              "assignee",
+            );
+            assigneeSegments.set(assigneeKey, segment);
+            return segment;
+          })();
+        assigneeSegment.total += 1;
+        assigneeSegment.statusTotals[task.status] =
+          (assigneeSegment.statusTotals[task.status] ?? 0) + 1;
+        assigneeSegment.substatusTotals[task.substatus] =
+          (assigneeSegment.substatusTotals[task.substatus] ?? 0) + 1;
+        assigneeSegment.needTotals[needKey] =
+          (assigneeSegment.needTotals[needKey] ?? 0) + 1;
+
+        const teamSegment =
+          teamSegments.get(teamKey) ??
+          (() => {
+            const segment = createSegmentAccumulator(teamKey, teamKey, "team");
+            teamSegments.set(teamKey, segment);
+            return segment;
+          })();
+        teamSegment.total += 1;
+        teamSegment.statusTotals[task.status] =
+          (teamSegment.statusTotals[task.status] ?? 0) + 1;
+        teamSegment.substatusTotals[task.substatus] =
+          (teamSegment.substatusTotals[task.substatus] ?? 0) + 1;
+        teamSegment.needTotals[needKey] =
+          (teamSegment.needTotals[needKey] ?? 0) + 1;
 
         if (task.presentationDate) {
           const parsed = new Date(task.presentationDate);
@@ -2633,6 +2728,27 @@ export default function MapachePortalClient({
         }))
         .slice(0, 12);
 
+      const serializeSegments = (entries: SegmentAccumulator[]) =>
+        entries
+          .map((entry) => ({
+            key: entry.key,
+            label: entry.label,
+            type: entry.type,
+            total: entry.total,
+            statusTotals: { ...entry.statusTotals },
+            substatusTotals: { ...entry.substatusTotals },
+            needTotals: { ...entry.needTotals },
+          }))
+          .sort((a, b) => {
+            if (b.total !== a.total) return b.total - a.total;
+            return a.label.localeCompare(b.label, "es", { sensitivity: "base" });
+          });
+
+      const segments = {
+        assignee: serializeSegments(Array.from(assigneeSegments.values())),
+        team: serializeSegments(Array.from(teamSegments.values())),
+      };
+
       return {
         total: source.length,
         dueSoonCount,
@@ -2642,9 +2758,10 @@ export default function MapachePortalClient({
         needTotals,
         workload,
         upcomingDue,
+        segments,
       };
     },
-    [assigneeLabelMap, statusKeys],
+    [assigneeLabelMap, mapacheTeamMemberIds, statusKeys],
   );
 
   const filteredInsightsMetrics = React.useMemo(

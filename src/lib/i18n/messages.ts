@@ -179,18 +179,55 @@ export const messages: Record<Locale, DeepRecord> = {
           dueSoon: "Próximas a vencer (7 días)",
           overdue: "Vencidas",
         },
-        sections: {
-          status: "Por estado",
-          substatus: "Por subestado",
-          need: "Necesidad del equipo",
-          workload: "Carga por Mapache",
-          upcoming: "Agenda próxima",
+      sections: {
+        status: "Por estado",
+        substatus: "Por subestado",
+        need: "Necesidad del equipo",
+        workload: "Carga por Mapache",
+        upcoming: "Agenda próxima",
+        timeline: "Evolución histórica",
+      },
+      charts: {
+        status: {
+          description: "Distribución total de tareas por estado.",
         },
-        empty: "Todavía no hay datos suficientes.",
-        upcomingEmpty: "Sin fechas próximas registradas.",
-        needs: {
-          none: "Sin especificar",
+        axis: {
+          tasks: "Tareas",
         },
+      },
+      segments: {
+        label: "Segmentación",
+        mode: {
+          none: "Sin segmentar",
+          team: "Por equipo",
+          assignee: "Por Mapache",
+        },
+        focus: {
+          all: "Todos",
+        },
+        others: "Otros",
+        team: {
+          mapache: "Equipo Mapache",
+          external: "Otros equipos",
+          unassigned: "Sin asignar",
+        },
+      },
+      timeRange: {
+        lastSixWeeks: "Últimas 6 semanas",
+        lastTwelveWeeks: "Últimas 12 semanas",
+        lastTwentyFourWeeks: "Últimas 24 semanas",
+        all: "Todo el historial",
+      },
+      timeline: {
+        description: "Compará el volumen total semana a semana.",
+        empty: "Todavía no registramos semanas suficientes.",
+        meta: "Próximas: {dueSoon} · Vencidas: {overdue}",
+      },
+      empty: "Todavía no hay datos suficientes.",
+      upcomingEmpty: "Sin fechas próximas registradas.",
+      needs: {
+        none: "Sin especificar",
+      },
         trend: {
           positive: "+{value} vs. semana anterior",
           negative: "{value} menos vs. semana anterior",
@@ -1729,6 +1766,43 @@ export const messages: Record<Locale, DeepRecord> = {
           need: "Team need",
           workload: "Workload by Mapache",
           upcoming: "Upcoming agenda",
+          timeline: "Historic trend",
+        },
+        charts: {
+          status: {
+            description: "Total tasks grouped by current status.",
+          },
+          axis: {
+            tasks: "Tasks",
+          },
+        },
+        segments: {
+          label: "Segmentation",
+          mode: {
+            none: "No segmentation",
+            team: "By team",
+            assignee: "By Mapache",
+          },
+          focus: {
+            all: "All",
+          },
+          others: "Others",
+          team: {
+            mapache: "Mapache team",
+            external: "Other teams",
+            unassigned: "Unassigned",
+          },
+        },
+        timeRange: {
+          lastSixWeeks: "Last 6 weeks",
+          lastTwelveWeeks: "Last 12 weeks",
+          lastTwentyFourWeeks: "Last 24 weeks",
+          all: "Entire history",
+        },
+        timeline: {
+          description: "Track total volume week over week.",
+          empty: "Not enough historical snapshots yet.",
+          meta: "Due soon: {dueSoon} · Overdue: {overdue}",
         },
         empty: "No data yet.",
         upcomingEmpty: "No upcoming dates recorded.",
@@ -3267,6 +3341,43 @@ export const messages: Record<Locale, DeepRecord> = {
           need: "Necessidade da equipe",
           workload: "Carga por Mapache",
           upcoming: "Agenda próxima",
+          timeline: "Tendência histórica",
+        },
+        charts: {
+          status: {
+            description: "Total de tarefas agrupadas pelo status atual.",
+          },
+          axis: {
+            tasks: "Tarefas",
+          },
+        },
+        segments: {
+          label: "Segmentação",
+          mode: {
+            none: "Sem segmentação",
+            team: "Por equipe",
+            assignee: "Por Mapache",
+          },
+          focus: {
+            all: "Todos",
+          },
+          others: "Outros",
+          team: {
+            mapache: "Equipe Mapache",
+            external: "Outras equipes",
+            unassigned: "Sem responsável",
+          },
+        },
+        timeRange: {
+          lastSixWeeks: "Últimas 6 semanas",
+          lastTwelveWeeks: "Últimas 12 semanas",
+          lastTwentyFourWeeks: "Últimas 24 semanas",
+          all: "Todo o histórico",
+        },
+        timeline: {
+          description: "Acompanhe o volume total semana a semana.",
+          empty: "Ainda não temos histórico suficiente.",
+          meta: "Próximas: {dueSoon} · Atrasadas: {overdue}",
         },
         empty: "Ainda não há dados suficientes.",
         upcomingEmpty: "Sem datas próximas registradas.",

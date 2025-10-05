@@ -123,10 +123,11 @@ export async function POST(request: Request) {
     snapshot.advancedFilters,
   );
 
-  const userId = session.user?.id;
-  if (!userId) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "User not found" }, { status: 400 });
   }
+
+  const userId = session.user.id;
 
   const created = await prisma.mapacheFilterPreset.create({
     data: {
