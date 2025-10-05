@@ -303,7 +303,6 @@ export const messages: Record<Locale, DeepRecord> = {
         },
         list: {
           heading: "Tableros",
-          create: "Nuevo tablero",
           reorderHint: "Usá subir/bajar para reordenar",
           defaultName: "Tablero {index}",
         },
@@ -1773,7 +1772,6 @@ export const messages: Record<Locale, DeepRecord> = {
         },
         list: {
           heading: "Boards",
-          create: "New board",
           reorderHint: "Use up/down to reorder",
           defaultName: "Board {index}",
         },
@@ -3237,7 +3235,6 @@ export const messages: Record<Locale, DeepRecord> = {
         },
         list: {
           heading: "Quadros",
-          create: "Novo quadro",
           reorderHint: "Use subir/descer para reordenar",
           defaultName: "Quadro {index}",
         },
