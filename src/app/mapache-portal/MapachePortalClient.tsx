@@ -247,23 +247,33 @@ function createFilterQueryString(
   }
 
   if (advancedFilters.needFromTeam.length > 0) {
-    params.set("needs", advancedFilters.needFromTeam.join(","));
+    advancedFilters.needFromTeam.forEach((value) => {
+      params.append("needs", value);
+    });
   }
 
   if (advancedFilters.directness.length > 0) {
-    params.set("directness", advancedFilters.directness.join(","));
+    advancedFilters.directness.forEach((value) => {
+      params.append("directness", value);
+    });
   }
 
   if (advancedFilters.integrationTypes.length > 0) {
-    params.set("integration", advancedFilters.integrationTypes.join(","));
+    advancedFilters.integrationTypes.forEach((value) => {
+      params.append("integration", value);
+    });
   }
 
   if (advancedFilters.origins.length > 0) {
-    params.set("origins", advancedFilters.origins.join(","));
+    advancedFilters.origins.forEach((value) => {
+      params.append("origins", value);
+    });
   }
 
   if (advancedFilters.assignees.length > 0) {
-    params.set("assignees", advancedFilters.assignees.join(","));
+    advancedFilters.assignees.forEach((value) => {
+      params.append("assignees", value);
+    });
   }
 
   const { from, to } = advancedFilters.presentationDate;
