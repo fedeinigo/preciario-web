@@ -132,7 +132,6 @@ export const messages: Record<Locale, DeepRecord> = {
     },
     mapachePortal: {
       title: "Portal Mapache",
-      subtitle: "Gestiona las tareas del equipo Mapache.",
       loading: "Cargando tareas…",
       loadFallback:
         "No se pudieron cargar las tareas. Mostramos la versión más reciente disponible.",
@@ -1601,7 +1600,6 @@ export const messages: Record<Locale, DeepRecord> = {
     },
     mapachePortal: {
       title: "Mapache Portal",
-      subtitle: "Manage the Mapache team tasks.",
       loading: "Loading tasks…",
       loadFallback:
         "We couldn't refresh tasks. Showing the latest known data.",
@@ -3064,7 +3062,6 @@ export const messages: Record<Locale, DeepRecord> = {
     },
     mapachePortal: {
       title: "Portal Mapache",
-      subtitle: "Gerencie as tarefas da equipe Mapache.",
       loading: "Carregando tarefas…",
       loadFallback:
         "Não foi possível carregar as tarefas. Mostramos a última versão disponível.",
