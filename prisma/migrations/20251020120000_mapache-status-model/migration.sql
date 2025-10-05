@@ -19,21 +19,26 @@ VALUES
 
 ALTER TABLE "MapacheTask" ADD COLUMN "statusId" TEXT;
 
+-- Cast explícito del enum a texto para que Postgres pueda comparar
 UPDATE "MapacheTask" AS mt
 SET "statusId" = ms."id"
 FROM "MapacheStatus" AS ms
-WHERE ms."key" = mt."status";
+WHERE ms."key" = (mt."status")::text;
 
+-- Fallback a 'pending' por si quedó algún caso sin mapear
 UPDATE "MapacheTask"
 SET "statusId" = 'mapache_status_pending'
 WHERE "statusId" IS NULL;
 
 ALTER TABLE "MapacheTask" ALTER COLUMN "statusId" SET NOT NULL;
 
+-- Si existía un índice sobre la columna antigua 'status', lo removemos
 DROP INDEX IF EXISTS "MapacheTask_status_idx";
 
+-- Eliminamos la columna enum antigua
 ALTER TABLE "MapacheTask" DROP COLUMN "status";
 
+-- Índice y FK sobre el nuevo campo
 CREATE INDEX "MapacheTask_statusId_idx" ON "MapacheTask"("statusId");
 
 ALTER TABLE "MapacheTask"
@@ -41,4 +46,5 @@ ALTER TABLE "MapacheTask"
     FOREIGN KEY ("statusId") REFERENCES "MapacheStatus"("id")
     ON DELETE RESTRICT ON UPDATE CASCADE;
 
-DROP TYPE "MapacheTaskStatus";
+-- Limpiamos el tipo enum antiguo (si existe)
+DROP TYPE IF EXISTS "MapacheTaskStatus";
