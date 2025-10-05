@@ -81,6 +81,13 @@ type MapachePortalFiltersProps = {
   hasActiveAdvancedFilters: boolean;
   advancedFiltersCount: number;
   ownershipLabel: string;
+  filterPresets: Array<{ id: string; name: string }>;
+  filterPresetsLoading: boolean;
+  savingFilterPreset: boolean;
+  onSaveCurrentFilters: () => void;
+  onApplyPreset: (presetId: string | null) => void;
+  selectedPresetId: string | null;
+  setSelectedPresetId: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
 function SegmentedControl<T extends string>({
@@ -284,9 +291,17 @@ export default function MapachePortalFilters({
   hasActiveAdvancedFilters,
   advancedFiltersCount,
   ownershipLabel,
+  filterPresets,
+  filterPresetsLoading,
+  savingFilterPreset,
+  onSaveCurrentFilters,
+  onApplyPreset,
+  selectedPresetId,
+  setSelectedPresetId,
 }: MapachePortalFiltersProps) {
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const popoverAnchorRef = React.useRef<HTMLButtonElement | null>(null);
+  const presetSelectId = React.useId();
 
   const handleStatusChange = React.useCallback(
     (next: StatusFilterValue) => {
@@ -465,11 +480,11 @@ export default function MapachePortalFilters({
             onChange={handleOwnershipChange}
             options={ownershipOptionsWithLabels}
           />
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-          <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70">
-            <Calendar className="h-4 w-4 text-white/60" aria-hidden="true" />
-            <label className="flex items-center gap-1">
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70">
+          <Calendar className="h-4 w-4 text-white/60" aria-hidden="true" />
+          <label className="flex items-center gap-1">
               <span className="hidden text-white/50 sm:inline">{filtersT("from")}</span>
               <input
                 type="date"
@@ -667,6 +682,76 @@ export default function MapachePortalFilters({
               </section>
             </AdvancedFiltersPopover>
           </div>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <button
+          type="button"
+          onClick={onSaveCurrentFilters}
+          disabled={savingFilterPreset}
+          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+            savingFilterPreset
+              ? "cursor-wait border-white/10 bg-white/10 text-white/60"
+              : "border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
+          }`}
+        >
+          {savingFilterPreset ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+          )}
+          <span>
+            {savingFilterPreset
+              ? filtersT("savingPreset")
+              : filtersT("savePreset")}
+          </span>
+        </button>
+        <div className="flex flex-1 items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70">
+          <Users className="h-4 w-4 text-white/60" aria-hidden="true" />
+          <label className="sr-only" htmlFor={presetSelectId}>
+            {filtersT("presetsLabel")}
+          </label>
+          <select
+            id={presetSelectId}
+            value={selectedPresetId ?? ""}
+            onChange={(event) =>
+              setSelectedPresetId(
+                event.target.value ? event.target.value : null,
+              )
+            }
+            disabled={filterPresetsLoading || filterPresets.length === 0}
+            className="flex-1 rounded-md border border-white/20 bg-black/20 px-2 py-1 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:text-white/40"
+          >
+            {filterPresets.length === 0 ? (
+              <option value="">{filtersT("noPresets")}</option>
+            ) : (
+              <>
+                <option value="">{filtersT("selectPresetPlaceholder")}</option>
+                {filterPresets.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.name}
+                  </option>
+                ))}
+              </>
+            )}
+          </select>
+          <button
+            type="button"
+            onClick={() => onApplyPreset(selectedPresetId)}
+            disabled={!selectedPresetId || filterPresetsLoading}
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+              !selectedPresetId || filterPresetsLoading
+                ? "cursor-not-allowed border-white/10 text-white/40"
+                : "border-white/20 bg-white/10 text-white/80 hover:bg-white/20"
+            }`}
+          >
+            {filterPresetsLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+            )}
+            <span>{filtersT("loadPreset")}</span>
+          </button>
         </div>
       </div>
       {summaryItems.length > 0 ? (
