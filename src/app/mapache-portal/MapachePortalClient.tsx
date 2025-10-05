@@ -8,6 +8,12 @@ import {
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { Settings, Wand2 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import {
+  usePathname,
+  useRouter,
+  useSearchParams,
+  type ReadonlyURLSearchParams,
+} from "next/navigation";
 
 import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
@@ -63,14 +69,18 @@ import {
 } from "./section-events";
 import {
   DATE_INPUT_REGEX,
+  areAdvancedFiltersEqual,
+  areTaskFiltersEqual,
   createDefaultFiltersState,
   createDefaultTaskFilterState,
   type AdvancedFiltersState,
-  type PresentationDateFilter,
-  type OwnershipFilterValue,
-  type StatusFilterValue,
   type TaskFilterState,
 } from "./filters";
+import {
+  createFiltersSnapshotPayload,
+  parseStoredFiltersSnapshot,
+  type FiltersSnapshot,
+} from "./filter-storage";
 import {
   normalizeBoardConfig,
   normalizeBoardList,
@@ -96,6 +106,222 @@ const ORIGIN_OPTIONS: MapacheSignalOrigin[] = [...MAPACHE_SIGNAL_ORIGINS];
 const NEED_METRIC_KEYS: NeedMetricKey[] = [...NEED_OPTIONS, "NONE"];
 const SUBSTATUS_OPTIONS: MapacheTaskSubstatus[] = [...MAPACHE_TASK_SUBSTATUSES];
 const MS_IN_DAY = 86_400_000;
+const FILTER_QUERY_KEYS = [
+  "status",
+  "owner",
+  "needs",
+  "directness",
+  "integration",
+  "origins",
+  "assignees",
+  "presentationFrom",
+  "presentationTo",
+  "presentation_from",
+  "presentation_to",
+] as const;
+
+type MapacheFilterPresetOwner = {
+  id: string;
+  name: string | null;
+  email: string | null;
+};
+
+type MapacheFilterPreset = {
+  id: string;
+  name: string;
+  filters: FiltersSnapshot;
+  createdAt: string | null;
+  updatedAt: string | null;
+  createdBy: MapacheFilterPresetOwner | null;
+};
+
+function parseQueryParamList(values: string[]): string[] {
+  if (values.length === 0) return [];
+  const seen = new Set<string>();
+  values.forEach((value) => {
+    value
+      .split(",")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+      .forEach((item) => {
+        if (!seen.has(item)) {
+          seen.add(item);
+        }
+      });
+  });
+  return Array.from(seen);
+}
+
+function extractFiltersFromSearchParams(
+  searchParams: ReadonlyURLSearchParams,
+): Record<string, unknown> | null {
+  let hasAny = false;
+  const snapshot: Record<string, unknown> = {};
+
+  const status = searchParams.get("status");
+  if (status !== null) {
+    snapshot.status = status;
+    hasAny = true;
+  }
+
+  const owner = searchParams.get("owner");
+  if (owner !== null) {
+    snapshot.owner = owner;
+    hasAny = true;
+  }
+
+  const needs = parseQueryParamList(searchParams.getAll("needs"));
+  if (needs.length > 0) {
+    snapshot.needs = needs;
+    hasAny = true;
+  }
+
+  const directness = parseQueryParamList(searchParams.getAll("directness"));
+  if (directness.length > 0) {
+    snapshot.directness = directness;
+    hasAny = true;
+  }
+
+  const integration = parseQueryParamList(searchParams.getAll("integration"));
+  if (integration.length > 0) {
+    snapshot.integration = integration;
+    hasAny = true;
+  }
+
+  const origins = parseQueryParamList(searchParams.getAll("origins"));
+  if (origins.length > 0) {
+    snapshot.origins = origins;
+    hasAny = true;
+  }
+
+  const assignees = parseQueryParamList(searchParams.getAll("assignees"));
+  if (assignees.length > 0) {
+    snapshot.assignees = assignees;
+    hasAny = true;
+  }
+
+  const presentationFrom =
+    searchParams.get("presentationFrom") ??
+    searchParams.get("presentation_from");
+  if (presentationFrom !== null) {
+    snapshot.presentationFrom = presentationFrom;
+    hasAny = true;
+  }
+
+  const presentationTo =
+    searchParams.get("presentationTo") ?? searchParams.get("presentation_to");
+  if (presentationTo !== null) {
+    snapshot.presentationTo = presentationTo;
+    hasAny = true;
+  }
+
+  return hasAny ? snapshot : null;
+}
+
+function createFilterQueryString(
+  searchParams: ReadonlyURLSearchParams,
+  activeFilter: TaskFilterState,
+  advancedFilters: AdvancedFiltersState,
+): string {
+  const params = new URLSearchParams(searchParams.toString());
+  FILTER_QUERY_KEYS.forEach((key) => {
+    params.delete(key);
+  });
+
+  if (activeFilter.status !== "all") {
+    params.set("status", activeFilter.status);
+  }
+
+  if (activeFilter.ownership !== "all") {
+    params.set("owner", activeFilter.ownership);
+  }
+
+  if (advancedFilters.needFromTeam.length > 0) {
+    params.set("needs", advancedFilters.needFromTeam.join(","));
+  }
+
+  if (advancedFilters.directness.length > 0) {
+    params.set("directness", advancedFilters.directness.join(","));
+  }
+
+  if (advancedFilters.integrationTypes.length > 0) {
+    params.set("integration", advancedFilters.integrationTypes.join(","));
+  }
+
+  if (advancedFilters.origins.length > 0) {
+    params.set("origins", advancedFilters.origins.join(","));
+  }
+
+  if (advancedFilters.assignees.length > 0) {
+    params.set("assignees", advancedFilters.assignees.join(","));
+  }
+
+  const { from, to } = advancedFilters.presentationDate;
+  if (from) {
+    params.set("presentationFrom", from);
+  }
+  if (to) {
+    params.set("presentationTo", to);
+  }
+
+  return params.toString();
+}
+
+function normalizeFilterPreset(
+  value: unknown,
+  allowedStatuses: readonly MapacheTaskStatus[],
+): MapacheFilterPreset | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const id = record.id;
+  const name = record.name;
+  const filters = record.filters;
+
+  if (
+    (typeof id !== "string" && typeof id !== "number") ||
+    typeof name !== "string" ||
+    !filters
+  ) {
+    return null;
+  }
+
+  const parsedFilters = parseStoredFiltersSnapshot(filters, allowedStatuses);
+  const createdAt =
+    typeof record.createdAt === "string" ? record.createdAt : null;
+  const updatedAt =
+    typeof record.updatedAt === "string" ? record.updatedAt : null;
+
+  let createdBy: MapacheFilterPresetOwner | null = null;
+  if (
+    record.createdBy &&
+    typeof record.createdBy === "object" &&
+    record.createdBy !== null
+  ) {
+    const ownerRecord = record.createdBy as Record<string, unknown>;
+    const ownerId = ownerRecord.id;
+    if (typeof ownerId === "string" || typeof ownerId === "number") {
+      createdBy = {
+        id: String(ownerId),
+        name:
+          typeof ownerRecord.name === "string" ? ownerRecord.name : null,
+        email:
+          typeof ownerRecord.email === "string" ? ownerRecord.email : null,
+      };
+    }
+  }
+
+  return {
+    id: String(id),
+    name: name.trim(),
+    filters: parsedFilters,
+    createdAt,
+    updatedAt,
+    createdBy,
+  };
+}
 
 type BoardColumnDraft = {
   id: string | null;
@@ -350,16 +576,6 @@ type AssignmentWeight = { userId: string; weight: number };
 const FILTERS_STORAGE_KEY = "mapache_portal_filters";
 const ASSIGNMENT_STORAGE_KEY = "mapache_assignment_ratios";
 
-const STATUS_LABEL_KEYS: Record<
-  MapacheTaskStatus,
-  "pending" | "in_progress" | "completed"
-> = {
-  PENDING: "pending",
-  IN_PROGRESS: "in_progress",
-  DONE: "completed",
-};
-
-
 const STATUS_BADGE_CLASSNAMES: Record<
   "unassigned" | "assigned" | "in_progress" | "completed",
   string
@@ -448,173 +664,6 @@ function deriveStatusesFromTasks(tasks: MapacheTask[]): MapacheStatusDetails[] {
   });
 
   return Array.from(byKey.values()).sort((a, b) => a.order - b.order);
-}
-
-function parseEnumArray<const T extends readonly string[]>(
-  value: unknown,
-  allowed: T,
-): T[number][] {
-  if (!Array.isArray(value)) return [];
-  const allowedSet = new Set(allowed);
-  const selected = new Set<T[number]>();
-  for (const item of value) {
-    if (typeof item !== "string") continue;
-    if (allowedSet.has(item as T[number])) {
-      selected.add(item as T[number]);
-    }
-  }
-  if (selected.size === 0) return [];
-  return allowed.filter((option) => selected.has(option)) as T[number][];
-}
-
-function parseAssigneeArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
-  for (const item of value) {
-    if (typeof item !== "string") continue;
-    const trimmed = item.trim();
-    if (!trimmed) continue;
-    seen.add(trimmed);
-  }
-  return Array.from(seen);
-}
-
-function parsePresentationDate(value: unknown): PresentationDateFilter {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return { from: null, to: null };
-  }
-  const record = value as Record<string, unknown>;
-  const from =
-    typeof record.from === "string" && DATE_INPUT_REGEX.test(record.from)
-      ? record.from
-      : null;
-  const to =
-    typeof record.to === "string" && DATE_INPUT_REGEX.test(record.to)
-      ? record.to
-      : null;
-  return { from, to };
-}
-
-function parseStoredAdvancedFilters(value: unknown): AdvancedFiltersState {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return createDefaultFiltersState();
-  }
-
-  const record = value as Record<string, unknown>;
-
-  return {
-    needFromTeam: parseEnumArray(record.needFromTeam, MAPACHE_NEEDS_FROM_TEAM),
-    directness: parseEnumArray(record.directness, MAPACHE_DIRECTNESS),
-    integrationTypes: parseEnumArray(
-      record.integrationTypes,
-      MAPACHE_INTEGRATION_TYPES,
-    ),
-    origins: parseEnumArray(record.origins, MAPACHE_SIGNAL_ORIGINS),
-    assignees: parseAssigneeArray(record.assignees),
-    presentationDate: parsePresentationDate(record.presentationDate),
-  };
-}
-
-function parseStatusFilterValue(
-  value: unknown,
-  allowedStatuses: readonly MapacheTaskStatus[],
-): StatusFilterValue {
-  if (value === "all") return "all";
-  if (typeof value === "string") {
-    const upper = value.trim().toUpperCase();
-    if (allowedStatuses.includes(upper as MapacheTaskStatus)) {
-      return upper as MapacheTaskStatus;
-    }
-  }
-  return "all";
-}
-
-function parseOwnershipFilterValue(value: unknown): OwnershipFilterValue {
-  if (value === "mine" || value === "unassigned") {
-    return value;
-  }
-  return "all";
-}
-
-function parseStoredTaskFilterState(
-  value: unknown,
-  allowedStatuses: readonly MapacheTaskStatus[],
-): TaskFilterState {
-  if (typeof value === "string") {
-    if (value === "mine" || value === "unassigned") {
-      return { status: "all", ownership: value };
-    }
-    if (value === "all") {
-      return createDefaultTaskFilterState();
-    }
-    const upper = value.trim().toUpperCase();
-    if (allowedStatuses.includes(upper as MapacheTaskStatus)) {
-      return { status: upper as MapacheTaskStatus, ownership: "all" };
-    }
-  }
-
-  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-    const record = value as Record<string, unknown>;
-    const status = parseStatusFilterValue(record.status, allowedStatuses);
-    const ownership = parseOwnershipFilterValue(record.ownership);
-    return { status, ownership };
-  }
-
-  return createDefaultTaskFilterState();
-}
-
-function parseStoredFiltersSnapshot(
-  value: unknown,
-  allowedStatuses: readonly MapacheTaskStatus[],
-): {
-  activeFilter: TaskFilterState;
-  advancedFilters: AdvancedFiltersState;
-} {
-  const defaults = {
-    activeFilter: createDefaultTaskFilterState(),
-    advancedFilters: createDefaultFiltersState(),
-  } as const;
-
-  if (value === null || value === undefined) {
-    return { ...defaults };
-  }
-
-  if (typeof value === "string") {
-    return {
-      activeFilter: parseStoredTaskFilterState(value, allowedStatuses),
-      advancedFilters: defaults.advancedFilters,
-    };
-  }
-
-  if (typeof value !== "object" || Array.isArray(value)) {
-    return { ...defaults };
-  }
-
-  const record = value as Record<string, unknown>;
-
-  const rawAdvanced =
-    "advancedFilters" in record
-      ? record.advancedFilters
-      : (value as Record<string, unknown>);
-
-  const advancedFilters = parseStoredAdvancedFilters(rawAdvanced);
-
-  let activeFilter = defaults.activeFilter;
-  if ("activeFilter" in record) {
-    activeFilter = parseStoredTaskFilterState(
-      record.activeFilter,
-      allowedStatuses,
-    );
-  } else if ("filter" in record) {
-    activeFilter = parseStoredTaskFilterState(record.filter, allowedStatuses);
-  } else if ("status" in record || "ownership" in record) {
-    activeFilter = parseStoredTaskFilterState({
-      status: record.status,
-      ownership: record.ownership,
-    }, allowedStatuses);
-  }
-
-  return { activeFilter, advancedFilters };
 }
 
 function getTaskAssigneeId(task: MapacheTask): string | null {
@@ -1338,6 +1387,14 @@ export default function MapachePortalClient({
   subheading,
 }: MapachePortalClientProps) {
   const { data: session } = useSession();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamsString = React.useMemo(
+    () => searchParams.toString(),
+    [searchParams],
+  );
+  const lastSyncedQueryRef = React.useRef(searchParamsString);
   const t = useTranslations("mapachePortal");
   const statusT = useTranslations("mapachePortal.statuses");
   const statusBadgeT = useTranslations("mapachePortal.statusBadges");
@@ -1531,6 +1588,13 @@ export default function MapachePortalClient({
     () => createDefaultFiltersState(),
   );
   const [filtersHydrated, setFiltersHydrated] = React.useState(false);
+  const [filterPresets, setFilterPresets] = React.useState<MapacheFilterPreset[]>([]);
+  const [filterPresetsLoading, setFilterPresetsLoading] = React.useState(false);
+  const [savingFilterPreset, setSavingFilterPreset] = React.useState(false);
+  const [selectedPresetId, setSelectedPresetId] = React.useState<string | null>(
+    null,
+  );
+  const lastSavedPresetIdRef = React.useRef<string | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [fetchError, setFetchError] = React.useState<string | null>(null);
   const [viewMode, setViewMode] = React.useState<"lista" | "tablero">(
@@ -1929,23 +1993,63 @@ export default function MapachePortalClient({
     [statusIndex, toastT],
   );
 
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const stored = window.localStorage.getItem(FILTERS_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as unknown;
-        const { activeFilter: nextFilter, advancedFilters: nextAdvanced } =
-          parseStoredFiltersSnapshot(parsed, statusKeys);
-        setActiveFilter(nextFilter);
-        setAdvancedFilters(nextAdvanced);
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setFiltersHydrated(true);
+  const fetchFilterPresetsFromApi = React.useCallback(async () => {
+    const response = await fetch("/api/mapache/filters", {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
     }
+
+    const payload = await response.json();
+    const list = Array.isArray(payload?.presets) ? payload.presets : [];
+
+    return list
+      .map((preset) => normalizeFilterPreset(preset, statusKeys))
+      .filter((preset): preset is MapacheFilterPreset => preset !== null)
+      .sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
   }, [statusKeys]);
+
+  React.useEffect(() => {
+    if (filtersHydrated) return;
+
+    const snapshotFromUrl = extractFiltersFromSearchParams(searchParams);
+    if (snapshotFromUrl) {
+      const { activeFilter: nextFilter, advancedFilters: nextAdvanced } =
+        parseStoredFiltersSnapshot(snapshotFromUrl, statusKeys);
+      setActiveFilter(nextFilter);
+      setAdvancedFilters(nextAdvanced);
+      setFiltersHydrated(true);
+      lastSyncedQueryRef.current = searchParamsString;
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.localStorage.getItem(FILTERS_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as unknown;
+          const { activeFilter: nextFilter, advancedFilters: nextAdvanced } =
+            parseStoredFiltersSnapshot(parsed, statusKeys);
+          setActiveFilter(nextFilter);
+          setAdvancedFilters(nextAdvanced);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    setFiltersHydrated(true);
+    lastSyncedQueryRef.current = searchParamsString;
+  }, [
+    filtersHydrated,
+    searchParams,
+    searchParamsString,
+    statusKeys,
+  ]);
 
   React.useEffect(() => {
     if (!filtersHydrated) return;
@@ -1953,16 +2057,205 @@ export default function MapachePortalClient({
     try {
       window.localStorage.setItem(
         FILTERS_STORAGE_KEY,
-        JSON.stringify({
-          version: 2,
-          activeFilter,
-          advancedFilters,
-        }),
+        JSON.stringify(
+          createFiltersSnapshotPayload(activeFilter, advancedFilters),
+        ),
       );
     } catch (error) {
       console.error(error);
     }
   }, [activeFilter, advancedFilters, filtersHydrated]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadPresets() {
+      setFilterPresetsLoading(true);
+      try {
+        const presets = await fetchFilterPresetsFromApi();
+        if (cancelled) return;
+        setFilterPresets(presets);
+      } catch (error) {
+        if (cancelled) return;
+        console.error(error);
+        toast.error(toastT("filterPresetsLoadError"));
+      } finally {
+        if (!cancelled) {
+          setFilterPresetsLoading(false);
+        }
+      }
+    }
+
+    void loadPresets();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchFilterPresetsFromApi, toastT]);
+
+  React.useEffect(() => {
+    setSelectedPresetId((prev) => {
+      if (lastSavedPresetIdRef.current) {
+        const match = filterPresets.find(
+          (preset) => preset.id === lastSavedPresetIdRef.current,
+        );
+        if (match) {
+          const nextId = match.id;
+          lastSavedPresetIdRef.current = null;
+          return nextId;
+        }
+        lastSavedPresetIdRef.current = null;
+      }
+
+      if (prev && filterPresets.some((preset) => preset.id === prev)) {
+        return prev;
+      }
+
+      if (filterPresets.length === 0) {
+        return null;
+      }
+
+      return filterPresets[0]!.id;
+    });
+  }, [filterPresets]);
+
+  const handleSaveCurrentFilters = React.useCallback(async () => {
+    const promptMessage = filtersT("savePresetPrompt");
+    const name = window.prompt(promptMessage ?? "");
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (!trimmed) {
+      toast.error(toastT("filterPresetNameRequired"));
+      return;
+    }
+
+    setSavingFilterPreset(true);
+    try {
+      const response = await fetch("/api/mapache/filters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: trimmed,
+          filters: createFiltersSnapshotPayload(activeFilter, advancedFilters),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      const payload = await response.json();
+      const created = normalizeFilterPreset(payload?.preset, statusKeys);
+      if (created) {
+        setFilterPresets((prev) => {
+          const next = prev.filter((preset) => preset.id !== created.id);
+          next.push(created);
+          next.sort((a, b) =>
+            a.name.localeCompare(b.name, "es", { sensitivity: "base" }),
+          );
+          return next;
+        });
+        lastSavedPresetIdRef.current = created.id;
+      } else {
+        const presets = await fetchFilterPresetsFromApi();
+        setFilterPresets(presets);
+      }
+
+      toast.success(toastT("filterPresetSaved"));
+    } catch (error) {
+      console.error(error);
+      toast.error(toastT("filterPresetSaveError"));
+    } finally {
+      setSavingFilterPreset(false);
+    }
+  }, [
+    activeFilter,
+    advancedFilters,
+    fetchFilterPresetsFromApi,
+    filtersT,
+    statusKeys,
+    toastT,
+  ]);
+
+  const handleApplyPreset = React.useCallback(
+    (presetId: string | null) => {
+      if (!presetId) return;
+      const preset = filterPresets.find((item) => item.id === presetId);
+      if (!preset) {
+        toast.error(toastT("filterPresetApplyError"));
+        return;
+      }
+      setActiveFilter(preset.filters.activeFilter);
+      setAdvancedFilters(preset.filters.advancedFilters);
+      toast.success(toastT("filterPresetLoaded"));
+    },
+    [filterPresets, toastT],
+  );
+
+  React.useEffect(() => {
+    if (!filtersHydrated) return;
+    const desiredQuery = createFilterQueryString(
+      searchParams,
+      activeFilter,
+      advancedFilters,
+    );
+    if (desiredQuery === searchParamsString) {
+      lastSyncedQueryRef.current = desiredQuery;
+      return;
+    }
+    if (desiredQuery === lastSyncedQueryRef.current) {
+      return;
+    }
+
+    lastSyncedQueryRef.current = desiredQuery;
+    const nextUrl = desiredQuery ? `${pathname}?${desiredQuery}` : pathname;
+    router.replace(nextUrl, { scroll: false });
+  }, [
+    activeFilter,
+    advancedFilters,
+    filtersHydrated,
+    pathname,
+    router,
+    searchParams,
+    searchParamsString,
+  ]);
+
+  React.useEffect(() => {
+    if (!filtersHydrated) return;
+    if (searchParamsString === lastSyncedQueryRef.current) {
+      return;
+    }
+
+    const snapshotFromUrl = extractFiltersFromSearchParams(searchParams);
+    if (!snapshotFromUrl) {
+      const defaultTaskFilter = createDefaultTaskFilterState();
+      const defaultAdvancedFilters = createDefaultFiltersState();
+      if (!areTaskFiltersEqual(activeFilter, defaultTaskFilter)) {
+        setActiveFilter(defaultTaskFilter);
+      }
+      if (!areAdvancedFiltersEqual(advancedFilters, defaultAdvancedFilters)) {
+        setAdvancedFilters(defaultAdvancedFilters);
+      }
+      lastSyncedQueryRef.current = searchParamsString;
+      return;
+    }
+
+    const parsed = parseStoredFiltersSnapshot(snapshotFromUrl, statusKeys);
+    if (!areTaskFiltersEqual(parsed.activeFilter, activeFilter)) {
+      setActiveFilter(parsed.activeFilter);
+    }
+    if (!areAdvancedFiltersEqual(parsed.advancedFilters, advancedFilters)) {
+      setAdvancedFilters(parsed.advancedFilters);
+    }
+    lastSyncedQueryRef.current = searchParamsString;
+  }, [
+    activeFilter,
+    advancedFilters,
+    filtersHydrated,
+    searchParams,
+    searchParamsString,
+    statusKeys,
+  ]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2447,6 +2740,13 @@ export default function MapachePortalClient({
       hasActiveAdvancedFilters={hasActiveAdvancedFilters}
       advancedFiltersCount={advancedFiltersCount}
       ownershipLabel={ownershipSegmentLabel}
+      filterPresets={filterPresets}
+      filterPresetsLoading={filterPresetsLoading}
+      savingFilterPreset={savingFilterPreset}
+      onSaveCurrentFilters={handleSaveCurrentFilters}
+      onApplyPreset={handleApplyPreset}
+      selectedPresetId={selectedPresetId}
+      setSelectedPresetId={setSelectedPresetId}
       className={className}
     />
   );

@@ -44,3 +44,34 @@ export function createDefaultFiltersState(): AdvancedFiltersState {
     presentationDate: { from: null, to: null },
   };
 }
+
+export function areTaskFiltersEqual(
+  a: TaskFilterState,
+  b: TaskFilterState,
+): boolean {
+  return a.status === b.status && a.ownership === b.ownership;
+}
+
+function areStringArraysEqual(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1) {
+    if (a[index] !== b[index]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function areAdvancedFiltersEqual(
+  a: AdvancedFiltersState,
+  b: AdvancedFiltersState,
+): boolean {
+  if (!areStringArraysEqual(a.needFromTeam, b.needFromTeam)) return false;
+  if (!areStringArraysEqual(a.directness, b.directness)) return false;
+  if (!areStringArraysEqual(a.integrationTypes, b.integrationTypes)) return false;
+  if (!areStringArraysEqual(a.origins, b.origins)) return false;
+  if (!areStringArraysEqual(a.assignees, b.assignees)) return false;
+  if (a.presentationDate.from !== b.presentationDate.from) return false;
+  if (a.presentationDate.to !== b.presentationDate.to) return false;
+  return true;
+}
