@@ -3640,7 +3640,7 @@ function TaskMetaChip({
                       className="rounded-md border border-white/20 px-3 py-1.5 text-xs uppercase tracking-wide text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={creatingBoard}
                     >
-                      {boardsT("list.create")}
+                      {boardsT("empty.action")}
                     </button>
                   </div>
                   {boardsLoading ? (
@@ -3654,14 +3654,6 @@ function TaskMetaChip({
                         <p className="font-medium text-white">{boardsT("empty.title")}</p>
                         <p className="mt-1">{boardsT("empty.description")}</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleCreateBoard}
-                        className="inline-flex items-center rounded-md border border-white/25 px-3 py-1.5 text-xs uppercase tracking-wide text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={creatingBoard}
-                      >
-                        {boardsT("empty.action")}
-                      </button>
                     </div>
                   ) : (
                     <ul className="space-y-2">
