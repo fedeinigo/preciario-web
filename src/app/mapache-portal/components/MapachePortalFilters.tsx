@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 import {
   Calendar,
@@ -131,12 +132,41 @@ function AdvancedFiltersPopover({
   open,
   onClose,
   children,
+  anchorRef,
 }: {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  anchorRef: React.RefObject<HTMLElement>;
 }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const [portalElement, setPortalElement] = React.useState<HTMLDivElement | null>(
+    null,
+  );
+  const [position, setPosition] = React.useState<{ top: number; right: number }>(
+    { top: 0, right: 0 },
+  );
+
+  const updatePosition = React.useCallback(() => {
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    setPosition({
+      top: rect.bottom + 8,
+      right: Math.max(window.innerWidth - rect.right, 0),
+    });
+  }, [anchorRef]);
+
+  React.useEffect(() => {
+    const element = document.createElement("div");
+    element.setAttribute("data-advanced-filters-portal", "true");
+    document.body.appendChild(element);
+    setPortalElement(element);
+
+    return () => {
+      document.body.removeChild(element);
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!open) return;
@@ -160,21 +190,34 @@ function AdvancedFiltersPopover({
     document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
 
+    updatePosition();
+
+    const handleWindowChange = () => {
+      updatePosition();
+    };
+
+    window.addEventListener("resize", handleWindowChange);
+    window.addEventListener("scroll", handleWindowChange, true);
+
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleWindowChange);
+      window.removeEventListener("scroll", handleWindowChange, true);
     };
-  }, [open, onClose]);
+  }, [open, onClose, updatePosition]);
 
-  if (!open) return null;
+  if (!open || !portalElement) return null;
 
-  return (
+  return createPortal(
     <div
       ref={containerRef}
-      className="absolute right-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] space-y-4 rounded-2xl border border-white/10 bg-slate-950/95 p-4 text-sm text-white shadow-xl backdrop-blur"
+      style={{ top: position.top, right: position.right }}
+      className="fixed z-[100] w-[min(22rem,calc(100vw-2rem))] space-y-4 rounded-2xl border border-white/10 bg-slate-950/95 p-4 text-sm text-white shadow-xl backdrop-blur max-h-[min(70vh,28rem)] overflow-y-auto overscroll-contain"
     >
       {children}
-    </div>
+    </div>,
+    portalElement,
   );
 }
 
@@ -215,6 +258,7 @@ export default function MapachePortalFilters({
   ownershipLabel,
 }: MapachePortalFiltersProps) {
   const [popoverOpen, setPopoverOpen] = React.useState(false);
+  const popoverAnchorRef = React.useRef<HTMLButtonElement | null>(null);
 
   const handleStatusChange = React.useCallback(
     (next: StatusFilterValue) => {
@@ -420,6 +464,7 @@ export default function MapachePortalFilters({
           </div>
           <div className="relative">
             <button
+              ref={popoverAnchorRef}
               type="button"
               onClick={() => setPopoverOpen((prev) => !prev)}
               className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
@@ -436,7 +481,11 @@ export default function MapachePortalFilters({
                 </span>
               ) : null}
             </button>
-            <AdvancedFiltersPopover open={popoverOpen} onClose={handleClosePopover}>
+            <AdvancedFiltersPopover
+              open={popoverOpen}
+              onClose={handleClosePopover}
+              anchorRef={popoverAnchorRef}
+            >
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-white">
                   {filtersT("title")}
