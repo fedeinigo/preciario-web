@@ -4551,17 +4551,15 @@ function TaskMetaChip({
 
       {isMetricsSection ? (
         <>
-          <div className="flex justify-center">
-            <div className="w-full max-w-5xl space-y-6">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="flex-1">{renderFilterBar()}</div>
-              </div>
-              <MapachePortalInsights
-                scope={insightsScope}
-                onScopeChange={setInsightsScope}
-                metricsByScope={insightsMetrics}
-              />
-            </div>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex-1">{renderFilterBar()}</div>
+          </div>
+          <div className="mt-6 space-y-6">
+            <MapachePortalInsights
+              scope={insightsScope}
+              onScopeChange={setInsightsScope}
+              metricsByScope={insightsMetrics}
+            />
           </div>
           {renderLoadingMessage()}
           {renderFetchErrorMessage()}
