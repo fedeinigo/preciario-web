@@ -32,6 +32,7 @@ export default function Modal({
   disableCloseOnBackdrop = false,
 }: Props) {
   const panelRef = React.useRef<HTMLDivElement>(null);
+  const closeButtonRef = React.useRef<HTMLButtonElement>(null);
   const titleId = React.useId();
 
   React.useEffect(() => {
@@ -42,7 +43,9 @@ export default function Modal({
     const selectors =
       'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
     const focusable = Array.from(panel.querySelectorAll<HTMLElement>(selectors));
-    const initialTarget = focusable[0] ?? panel;
+    const closeButton = closeButtonRef.current;
+    const initialTarget =
+      closeButton && !disableCloseOnBackdrop ? closeButton : focusable[0] ?? panel;
     initialTarget.focus({ preventScroll: true });
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -114,7 +117,30 @@ export default function Modal({
             ].join(" ")}
             id={titleId}
           >
-            {title}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0 text-left">{title}</div>
+              {typeof onClose === "function" && (
+                <button
+                  type="button"
+                  aria-label="Cerrar modal"
+                  onClick={() => {
+                    if (!disableCloseOnBackdrop) {
+                      onClose();
+                    }
+                  }}
+                  disabled={disableCloseOnBackdrop}
+                  ref={closeButtonRef}
+                  className={[
+                    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-transparent text-lg leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+                    isInverted
+                      ? "text-white hover:bg-white/10 focus-visible:outline-white/40 disabled:text-white/60 disabled:hover:bg-transparent"
+                      : "text-gray-500 hover:bg-gray-100 focus-visible:outline-gray-300 disabled:text-gray-300 disabled:hover:bg-transparent",
+                  ].join(" ")}
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              )}
+            </div>
           </div>
         )}
 
