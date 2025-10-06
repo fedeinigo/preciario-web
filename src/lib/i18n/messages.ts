@@ -1591,6 +1591,37 @@ export const messages: Record<Locale, DeepRecord> = {
             title: "Top usuarios por cantidad de propuestas",
           },
         },
+        charts: {
+          empty: "Sin datos suficientes para esta visualización.",
+          others: "Otros",
+          trend: {
+            positive: "+{value}% vs. período previo",
+            negative: "-{value}% vs. período previo",
+            equal: "Sin cambios vs. período previo",
+            unavailable: "Sin datos suficientes",
+          },
+          monthlyPerformance: {
+            title: "Evolución mensual",
+            description: "Seguimiento del volumen de propuestas y el monto mensual generado.",
+            countLabel: "Propuestas",
+            amountLabel: "Monto mensual",
+            latestLabel: "Último mes con datos: {label}",
+          },
+          statusDistribution: {
+            title: "Estado de las propuestas",
+            description: "Visualizá cómo se distribuye el pipeline filtrado.",
+            totalLabel: "Total filtrado: {total}",
+            unknown: "Sin estado",
+          },
+          countryLeaderboard: {
+            title: "Países más activos",
+            description: "Los países con mayor cantidad de propuestas generadas.",
+          },
+          skuMomentum: {
+            title: "Ítems en tendencia",
+            description: "SKU con más cotizaciones en el período seleccionado.",
+          },
+        },
         table: {
           empty: "Sin datos para los filtros seleccionados.",
           sku: {
@@ -3200,6 +3231,37 @@ export const messages: Record<Locale, DeepRecord> = {
           },
           byUser: {
             title: "Top users by proposal count",
+          },
+        },
+        charts: {
+          empty: "Not enough data for this visualization.",
+          others: "Others",
+          trend: {
+            positive: "+{value}% vs. previous period",
+            negative: "-{value}% vs. previous period",
+            equal: "No change vs. previous period",
+            unavailable: "Not enough history",
+          },
+          monthlyPerformance: {
+            title: "Monthly momentum",
+            description: "Track how many proposals you create and the monthly amount closed.",
+            countLabel: "Proposals",
+            amountLabel: "Monthly amount",
+            latestLabel: "Last month with data: {label}",
+          },
+          statusDistribution: {
+            title: "Proposal status mix",
+            description: "See how the filtered pipeline is distributed.",
+            totalLabel: "Filtered total: {total}",
+            unknown: "No status",
+          },
+          countryLeaderboard: {
+            title: "Most active countries",
+            description: "Where proposals are being created the most.",
+          },
+          skuMomentum: {
+            title: "Trending items",
+            description: "SKUs with the highest number of quotes in the current filters.",
           },
         },
         table: {
@@ -4814,6 +4876,37 @@ export const messages: Record<Locale, DeepRecord> = {
           },
           byUser: {
             title: "Top usuários por quantidade de propostas",
+          },
+        },
+        charts: {
+          empty: "Dados insuficientes para esta visualização.",
+          others: "Outros",
+          trend: {
+            positive: "+{value}% vs. período anterior",
+            negative: "-{value}% vs. período anterior",
+            equal: "Sem mudanças vs. período anterior",
+            unavailable: "Sem histórico suficiente",
+          },
+          monthlyPerformance: {
+            title: "Evolução mensal",
+            description: "Acompanhe o volume de propostas e o valor mensal gerado.",
+            countLabel: "Propostas",
+            amountLabel: "Valor mensal",
+            latestLabel: "Último mês com dados: {label}",
+          },
+          statusDistribution: {
+            title: "Status das propostas",
+            description: "Veja como o pipeline filtrado está distribuído.",
+            totalLabel: "Total filtrado: {total}",
+            unknown: "Sem status",
+          },
+          countryLeaderboard: {
+            title: "Países mais ativos",
+            description: "Onde mais propostas estão sendo geradas.",
+          },
+          skuMomentum: {
+            title: "Itens em destaque",
+            description: "SKUs com mais cotações no período atual.",
           },
         },
         table: {
