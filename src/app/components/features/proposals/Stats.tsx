@@ -747,9 +747,7 @@ export default function Stats({
     const last = monthlyPerformance[monthlyPerformance.length - 1];
     const prev = monthlyPerformance[monthlyPerformance.length - 2];
     const computeTrend = (current: number, previous: number) => {
-      if (previous === 0) {
-        return current === 0 ? 0 : 100;
-      }
+      if (previous === 0) return current === 0 ? 0 : 100;
       return ((current - previous) / previous) * 100;
     };
     return {
@@ -817,7 +815,7 @@ export default function Stats({
     if (!showAll && byCountryFull.length > 6) {
       const remaining = byCountryFull.slice(6).reduce((acc, [, total]) => acc + total, 0);
       if (remaining > 0) {
-        items.push({ name: chartsOthersLabel, value: remaining });
+        items.push({ name: chartsOthersLabel, value: remaining, helper: "" });
       }
     }
     return items;
@@ -832,7 +830,7 @@ export default function Stats({
     if (!showAll && bySkuFull.length > 6) {
       const remaining = bySkuFull.slice(6).reduce((acc, [, info]) => acc + info.qty, 0);
       if (remaining > 0) {
-        items.push({ name: chartsOthersLabel, value: remaining });
+        items.push({ name: chartsOthersLabel, value: remaining, helper: "" });
       }
     }
     return items;
