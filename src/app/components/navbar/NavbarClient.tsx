@@ -16,6 +16,7 @@ import {
   Mail,
   Shield,
   Target,
+  Wand2,
 } from "lucide-react";
 
 import Modal from "@/app/components/ui/Modal";
@@ -46,6 +47,15 @@ export type NavbarClientProps = {
 };
 
 type Tab = "generator" | "history" | "stats" | "users" | "teams" | "goals";
+
+type ViewTransition = {
+  ready: Promise<void>;
+  finished: Promise<void>;
+};
+
+type DocumentWithViewTransition = Document & {
+  startViewTransition?: (callback: () => void) => ViewTransition;
+};
 
 type AnyRole =
   | "superadmin"
@@ -211,6 +221,61 @@ export default function NavbarClient({ session }: NavbarClientProps) {
       }
     }
 
+    const navigate = () => {
+      router.push("/mapache-portal");
+    };
+
+    if (typeof window === "undefined") {
+      navigate();
+      return;
+    }
+
+    const showOverlay = (makeOpaqueImmediately = false) => {
+      setMapacheTransitionVisible(true);
+      if (makeOpaqueImmediately) {
+        setMapacheTransitionOpaque(true);
+        return;
+      }
+      setMapacheTransitionOpaque(false);
+      requestAnimationFrame(() => {
+        setMapacheTransitionOpaque(true);
+      });
+    };
+
+    const doc = document as DocumentWithViewTransition;
+
+    if (doc?.startViewTransition) {
+      try {
+        const transition = doc.startViewTransition(() => {
+          navigate();
+        });
+        setMapacheTransitionVisible(true);
+        setMapacheTransitionOpaque(false);
+        transition.ready
+          .then(() => {
+            setMapacheTransitionOpaque(true);
+          })
+          .catch(() => {
+            setMapacheTransitionOpaque(true);
+          });
+        transition.finished
+          .finally(() => {
+            setMapacheTransitionOpaque(false);
+            window.setTimeout(() => {
+              setMapacheTransitionVisible(false);
+              mapacheTransitionStartedRef.current = false;
+            }, 200);
+          });
+        return;
+      } catch {
+        // fall through to manual animation
+      }
+    }
+
+    showOverlay();
+    window.setTimeout(() => {
+      navigate();
+    }, 220);
     if (typeof window === "undefined") {
       router.push("/mapache-portal");
       return;
@@ -284,6 +349,26 @@ export default function NavbarClient({ session }: NavbarClientProps) {
       setMapacheSection(MAPACHE_PORTAL_DEFAULT_SECTION);
     }
   }, [isMapachePortal]);
+
+  React.useEffect(() => {
+    if (!mapacheTransitionVisible) return;
+    if (typeof window === "undefined") return;
+    if (!pathname?.startsWith("/mapache-portal")) return;
+
+    const fadeTimeout = window.setTimeout(() => {
+      setMapacheTransitionOpaque(false);
+    }, 150);
+
+    const hideTimeout = window.setTimeout(() => {
+      setMapacheTransitionVisible(false);
+      mapacheTransitionStartedRef.current = false;
+    }, 420);
+
+    return () => {
+      window.clearTimeout(fadeTimeout);
+      window.clearTimeout(hideTimeout);
+    };
+  }, [mapacheTransitionVisible, pathname]);
 
   function setTab(t: Tab) {
     setActiveTab(t);
@@ -518,6 +603,35 @@ export default function NavbarClient({ session }: NavbarClientProps) {
       {mapacheTransitionVisible ? (
         <div
           aria-hidden="true"
+          className={`fixed inset-0 z-[60] overflow-hidden bg-gradient-to-br from-[#020617]/85 via-[#00010a]/95 to-[#020617]/85 backdrop-blur-xl transition-opacity duration-400 ease-out ${
+            mapacheTransitionOpaque ? "opacity-100" : "opacity-0"
+          } pointer-events-auto`}
+        >
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute -inset-[35%] animate-[spin_18s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,rgba(15,118,254,0.08),transparent,rgba(59,130,246,0.16),transparent)] opacity-60" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(148,163,184,0.18),rgba(2,6,23,0.92))]" />
+          </div>
+          <div className="relative z-10 flex h-full flex-col items-center justify-center gap-6 text-white">
+            <div className="relative flex items-center justify-center">
+              <span className="absolute h-32 w-32 rounded-full bg-white/10 blur-3xl" />
+              <span className="absolute h-24 w-24 rounded-full border border-white/20" />
+              <span className="absolute h-24 w-24 rounded-full border border-white/10 animate-ping" />
+              <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white/15 text-white/90 shadow-[0_0_30px_rgba(59,130,246,0.35)] backdrop-blur-lg">
+                <Wand2 className="h-8 w-8 drop-shadow-[0_6px_16px_rgba(148,163,184,0.45)]" />
+              </span>
+            </div>
+            <div className="text-center">
+              <p className="text-[11px] uppercase tracking-[0.6em] text-white/60">
+                Portal Mapache
+              </p>
+              <p className="mt-2 text-lg font-semibold text-white">
+                Preparando tablero inteligente…
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-white/70">
+              <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-white/70" aria-hidden="true" />
+              <span>Sincronizando tareas y métricas del equipo</span>
+            </div>
           className={`fixed inset-0 z-[60] bg-gradient-to-br from-[#0f172a]/80 via-[#020617]/95 to-[#00010a]/90 backdrop-blur-md transition-opacity duration-300 ease-out ${
             mapacheTransitionOpaque ? "opacity-100" : "opacity-0"
           } pointer-events-auto cursor-wait`}
