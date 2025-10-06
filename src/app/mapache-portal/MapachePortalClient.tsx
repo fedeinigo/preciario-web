@@ -154,6 +154,15 @@ function normalizeQueryString(value: string): string {
   return normalized.toString();
 }
 
+function resolveStateAction<S>(
+  action: React.SetStateAction<S>,
+  prev: S,
+): S {
+  return typeof action === "function"
+    ? (action as (state: S) => S)(prev)
+    : action;
+}
+
 type MapacheFilterPresetOwner = {
   id: string;
   name: string | null;
@@ -1632,8 +1641,6 @@ export default function MapachePortalClient({
       }),
     );
   }, [statusIndex]);
-  const [filtersPending, startFilterTransition] = React.useTransition();
-
   const [activeFilter, setActiveFilter] = React.useState<TaskFilterState>(
     () => createDefaultTaskFilterState(),
   );
@@ -1746,20 +1753,16 @@ export default function MapachePortalClient({
 
   const updateActiveFilter = React.useCallback(
     (value: React.SetStateAction<TaskFilterState>) => {
-      startFilterTransition(() => {
-        setActiveFilter(value);
-      });
+      setActiveFilter((prev) => resolveStateAction(value, prev));
     },
-    [setActiveFilter, startFilterTransition],
+    [],
   );
 
   const updateAdvancedFilters = React.useCallback(
     (value: React.SetStateAction<AdvancedFiltersState>) => {
-      startFilterTransition(() => {
-        setAdvancedFilters(value);
-      });
+      setAdvancedFilters((prev) => resolveStateAction(value, prev));
     },
-    [setAdvancedFilters, startFilterTransition],
+    [],
   );
 
   React.useEffect(() => {
@@ -2620,6 +2623,7 @@ export default function MapachePortalClient({
   }, [baseFilteredTasks, normalizedAdvancedFilters]);
 
   const deferredFilteredTasks = React.useDeferredValue(filteredTasks);
+  const filtersPending = deferredFilteredTasks !== filteredTasks;
 
   const computeInsights = React.useCallback(
     (source: MapacheTask[]): MapachePortalInsightsMetrics => {
@@ -2883,9 +2887,13 @@ export default function MapachePortalClient({
     if (!activeBoard) return [];
     return activeBoard.columns.map((column) => {
       const statuses = column.filters.statuses;
-      const tasksForColumn = deferredFilteredTasks.filter((task) =>
-        statuses.includes(task.status),
-      );
+      const tasksForColumn = statuses.reduce<MapacheTask[]>((acc, status) => {
+        const bucket = tasksByStatus.get(status);
+        if (bucket && bucket.length > 0) {
+          acc.push(...bucket);
+        }
+        return acc;
+      }, []);
       return {
         id: column.id,
         title: column.title,
@@ -2893,7 +2901,7 @@ export default function MapachePortalClient({
         tasks: tasksForColumn,
       };
     });
-  }, [activeBoard, deferredFilteredTasks]);
+  }, [activeBoard, tasksByStatus]);
 
   const hasActiveAdvancedFilters = normalizedAdvancedFilters.hasAny;
   const advancedFiltersCount = normalizedAdvancedFilters.activeCount;
