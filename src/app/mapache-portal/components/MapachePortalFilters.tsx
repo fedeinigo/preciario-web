@@ -98,6 +98,7 @@ type MapachePortalFiltersProps = {
   onApplyPreset: (presetId: string | null) => void;
   selectedPresetId: string | null;
   setSelectedPresetId: React.Dispatch<React.SetStateAction<string | null>>;
+  filtering?: boolean;
 };
 
 function SegmentedControl<T extends string>({
@@ -440,6 +441,7 @@ export default function MapachePortalFilters({
   onApplyPreset,
   selectedPresetId,
   setSelectedPresetId,
+  filtering = false,
 }: MapachePortalFiltersProps) {
   const [popoverOpen, setPopoverOpen] = React.useState(false);
   const presetSelectId = React.useId();
@@ -635,6 +637,10 @@ export default function MapachePortalFilters({
   const helperSelectionText = safeFiltersT(
     "selectionHelper",
     "Aún no hay elementos seleccionados.",
+  );
+  const applyingFiltersLabel = safeFiltersT(
+    "applyingFilters",
+    "Aplicando filtros...",
   );
   const noAssigneesText = safeFiltersT(
     "noAssignees",
@@ -1093,6 +1099,16 @@ export default function MapachePortalFilters({
               </FloatingPortal>
             ) : null}
           </div>
+          {filtering ? (
+            <span
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70"
+              role="status"
+              aria-live="polite"
+            >
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              <span>{applyingFiltersLabel}</span>
+            </span>
+          ) : null}
         </div>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">

@@ -6,7 +6,7 @@ import {
   draggable,
   dropTargetForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { Settings, Wand2 } from "lucide-react";
+import { Loader2, Settings, Wand2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import {
   usePathname,
@@ -1514,6 +1514,11 @@ export default function MapachePortalClient({
     [statusIndex],
   );
 
+  const statusIndexRef = React.useRef(statusIndex);
+  React.useEffect(() => {
+    statusIndexRef.current = statusIndex;
+  }, [statusIndex]);
+
   const formatStatusLabel = React.useCallback(
     (status: MapacheTaskStatus) => {
       const match = statusIndex.byKey.get(status);
@@ -1627,6 +1632,8 @@ export default function MapachePortalClient({
       }),
     );
   }, [statusIndex]);
+  const [filtersPending, startFilterTransition] = React.useTransition();
+
   const [activeFilter, setActiveFilter] = React.useState<TaskFilterState>(
     () => createDefaultTaskFilterState(),
   );
@@ -1737,6 +1744,24 @@ export default function MapachePortalClient({
   const selectedTaskInitialPayloadRef = React.useRef<CreateTaskPayload | null>(null);
   const selectedTaskInitialDeliverablesRef = React.useRef<DeliverableInput[]>([]);
 
+  const updateActiveFilter = React.useCallback(
+    (value: React.SetStateAction<TaskFilterState>) => {
+      startFilterTransition(() => {
+        setActiveFilter(value);
+      });
+    },
+    [setActiveFilter, startFilterTransition],
+  );
+
+  const updateAdvancedFilters = React.useCallback(
+    (value: React.SetStateAction<AdvancedFiltersState>) => {
+      startFilterTransition(() => {
+        setAdvancedFilters(value);
+      });
+    },
+    [setAdvancedFilters, startFilterTransition],
+  );
+
   React.useEffect(() => {
     setFormState((prev) => {
       const nextStatus = ensureValidTaskStatus(prev.status, statusIndex);
@@ -1754,7 +1779,7 @@ export default function MapachePortalClient({
       return { ...prev, status: nextStatus };
     });
 
-    setActiveFilter((prev) => {
+    updateActiveFilter((prev) => {
       const nextStatus = ensureValidFilterStatus(prev.status, statusIndex);
       if (nextStatus === prev.status) {
         return prev;
@@ -1781,7 +1806,7 @@ export default function MapachePortalClient({
       }
       return { ...prev, columns: nextColumns };
     });
-  }, [statusIndex]);
+  }, [statusIndex, updateActiveFilter]);
 
   React.useEffect(() => {
     if (!statusEditId) {
@@ -2026,9 +2051,10 @@ export default function MapachePortalClient({
         }
 
         const payload = await response.json();
+        const currentStatusIndex = statusIndexRef.current;
         const nextTasks = Array.isArray(payload)
           ? payload
-              .map((task) => normalizeMapacheTask(task, statusIndex))
+              .map((task) => normalizeMapacheTask(task, currentStatusIndex))
               .filter((task): task is MapacheTask => task !== null)
           : [];
         setTasks(nextTasks);
@@ -2041,7 +2067,7 @@ export default function MapachePortalClient({
         }
       }
     },
-    [statusIndex, toastT],
+    [statusIndexRef, toastT],
   );
 
   const fetchFilterPresetsFromApi = React.useCallback(async () => {
@@ -2075,8 +2101,8 @@ export default function MapachePortalClient({
     if (snapshotFromUrl) {
       const { activeFilter: nextFilter, advancedFilters: nextAdvanced } =
         parseStoredFiltersSnapshot(snapshotFromUrl, statusKeys);
-      setActiveFilter(nextFilter);
-      setAdvancedFilters(nextAdvanced);
+      updateActiveFilter(nextFilter);
+      updateAdvancedFilters(nextAdvanced);
       setFiltersHydrated(true);
       lastSyncedQueryRef.current = normalizeQueryString(searchParamsString);
       return;
@@ -2089,8 +2115,8 @@ export default function MapachePortalClient({
           const parsed = JSON.parse(stored) as unknown;
           const { activeFilter: nextFilter, advancedFilters: nextAdvanced } =
             parseStoredFiltersSnapshot(parsed, statusKeys);
-          setActiveFilter(nextFilter);
-          setAdvancedFilters(nextAdvanced);
+          updateActiveFilter(nextFilter);
+          updateAdvancedFilters(nextAdvanced);
         }
       } catch (error) {
         console.error(error);
@@ -2104,6 +2130,8 @@ export default function MapachePortalClient({
     searchParams,
     searchParamsString,
     statusKeys,
+    updateActiveFilter,
+    updateAdvancedFilters,
   ]);
 
   React.useEffect(() => {
@@ -2240,11 +2268,16 @@ export default function MapachePortalClient({
         toast.error(toastT("filterPresetApplyError"));
         return;
       }
-      setActiveFilter(preset.filters.activeFilter);
-      setAdvancedFilters(preset.filters.advancedFilters);
+      updateActiveFilter(preset.filters.activeFilter);
+      updateAdvancedFilters(preset.filters.advancedFilters);
       toast.success(toastT("filterPresetLoaded"));
     },
-    [filterPresets, toastT],
+    [
+      filterPresets,
+      toastT,
+      updateActiveFilter,
+      updateAdvancedFilters,
+    ],
   );
 
   React.useEffect(() => {
@@ -2292,10 +2325,10 @@ export default function MapachePortalClient({
       const defaultTaskFilter = createDefaultTaskFilterState();
       const defaultAdvancedFilters = createDefaultFiltersState();
       if (!areTaskFiltersEqual(activeFilter, defaultTaskFilter)) {
-        setActiveFilter(defaultTaskFilter);
+        updateActiveFilter(defaultTaskFilter);
       }
       if (!areAdvancedFiltersEqual(advancedFilters, defaultAdvancedFilters)) {
-        setAdvancedFilters(defaultAdvancedFilters);
+        updateAdvancedFilters(defaultAdvancedFilters);
       }
       lastSyncedQueryRef.current = normalizedCurrent;
       return;
@@ -2303,10 +2336,10 @@ export default function MapachePortalClient({
 
     const parsed = parseStoredFiltersSnapshot(snapshotFromUrl, statusKeys);
     if (!areTaskFiltersEqual(parsed.activeFilter, activeFilter)) {
-      setActiveFilter(parsed.activeFilter);
+      updateActiveFilter(parsed.activeFilter);
     }
     if (!areAdvancedFiltersEqual(parsed.advancedFilters, advancedFilters)) {
-      setAdvancedFilters(parsed.advancedFilters);
+      updateAdvancedFilters(parsed.advancedFilters);
     }
     lastSyncedQueryRef.current = normalizedCurrent;
   }, [
@@ -2316,6 +2349,8 @@ export default function MapachePortalClient({
     searchParams,
     searchParamsString,
     statusKeys,
+    updateActiveFilter,
+    updateAdvancedFilters,
   ]);
 
   React.useEffect(() => {
@@ -2584,6 +2619,8 @@ export default function MapachePortalClient({
     });
   }, [baseFilteredTasks, normalizedAdvancedFilters]);
 
+  const deferredFilteredTasks = React.useDeferredValue(filteredTasks);
+
   const computeInsights = React.useCallback(
     (source: MapacheTask[]): MapachePortalInsightsMetrics => {
       const statusTotals: Record<MapacheTaskStatus, number> = {};
@@ -2807,8 +2844,8 @@ export default function MapachePortalClient({
   );
 
   const filteredInsightsMetrics = React.useMemo(
-    () => computeInsights(filteredTasks),
-    [computeInsights, filteredTasks],
+    () => computeInsights(deferredFilteredTasks),
+    [computeInsights, deferredFilteredTasks],
   );
 
   const allInsightsMetrics = React.useMemo(
@@ -2829,13 +2866,30 @@ export default function MapachePortalClient({
     return boards.find((board) => board.id === activeBoardId) ?? null;
   }, [activeBoardId, boards]);
 
+  const tasksByStatus = React.useMemo(() => {
+    const buckets = new Map<MapacheTaskStatus, MapacheTask[]>();
+    deferredFilteredTasks.forEach((task) => {
+      const existing = buckets.get(task.status);
+      if (existing) {
+        existing.push(task);
+      } else {
+        buckets.set(task.status, [task]);
+      }
+    });
+    return buckets;
+  }, [deferredFilteredTasks]);
+
   const boardColumnsWithTasks = React.useMemo(() => {
     if (!activeBoard) return [];
     return activeBoard.columns.map((column) => {
       const statuses = column.filters.statuses;
-      const tasksForColumn = filteredTasks.filter((task) =>
-        statuses.includes(task.status),
-      );
+      const tasksForColumn: MapacheTask[] = [];
+      statuses.forEach((status) => {
+        const matching = tasksByStatus.get(status);
+        if (matching && matching.length > 0) {
+          tasksForColumn.push(...matching);
+        }
+      });
       return {
         id: column.id,
         title: column.title,
@@ -2843,7 +2897,7 @@ export default function MapachePortalClient({
         tasks: tasksForColumn,
       };
     });
-  }, [activeBoard, filteredTasks]);
+  }, [activeBoard, tasksByStatus]);
 
   const hasActiveAdvancedFilters = normalizedAdvancedFilters.hasAny;
   const advancedFiltersCount = normalizedAdvancedFilters.activeCount;
@@ -2875,13 +2929,21 @@ export default function MapachePortalClient({
   const statusSegmentLabel = formT("statusLabel");
   const ownershipSegmentLabel = filtersT("assignee");
   const statusAllLabel = statusT("all");
+  const filtersApplyingLabel = React.useMemo(() => {
+    try {
+      const value = filtersT("applying");
+      return value && value !== "applying" ? value : "Aplicando filtros";
+    } catch {
+      return "Aplicando filtros";
+    }
+  }, [filtersT]);
 
   const renderFilterBar = (className?: string) => (
     <MapachePortalFilters
       activeFilter={activeFilter}
-      setActiveFilter={setActiveFilter}
+      setActiveFilter={updateActiveFilter}
       advancedFilters={advancedFilters}
-      setAdvancedFilters={setAdvancedFilters}
+      setAdvancedFilters={updateAdvancedFilters}
       statusOptions={statusIndex.ordered}
       statusLabel={statusSegmentLabel}
       statusAllLabel={statusAllLabel}
@@ -2907,6 +2969,7 @@ export default function MapachePortalClient({
       selectedPresetId={selectedPresetId}
       setSelectedPresetId={setSelectedPresetId}
       className={className}
+      filtering={filtersPending}
     />
   );
 
@@ -5892,29 +5955,53 @@ function TaskMetaChip({
           )}
 
       {viewMode === "lista" ? (
-        <TaskDataGrid
-          tasks={filteredTasks}
-          onOpen={openTask}
-          statusKeys={statusKeys}
-          substatusOptions={SUBSTATUS_OPTIONS}
-          statusIndex={statusIndex}
-          statusIndicatorClassNames={STATUS_INDICATOR_ACCENT_CLASSNAMES}
-          unspecifiedOptionLabel={formT("unspecifiedOption")}
-          messages={taskGridMessages}
-          onStatusChange={handleStatusChange}
-          onSubstatusChange={handleSubstatusChange}
-          onRequestDeleteTask={handleRequestDeleteTask}
-          deletingTaskId={deletingTaskId}
-          updatingTaskId={updatingTaskId}
-          getStatusBadgeKey={getStatusBadgeKey}
-          getPresentationDateMeta={getPresentationDateMeta}
-          formatStatusLabel={formatStatusLabel}
-          formatSubstatusLabel={formatSubstatusLabel}
-          formatAssigneeLabel={formatTaskAssigneeLabel}
-          getInitials={getInitials}
-        />
+        <div
+          aria-busy={filtersPending}
+          className={filtersPending ? "relative" : undefined}
+        >
+          {filtersPending ? (
+            <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center pt-2">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                <span>{filtersApplyingLabel}</span>
+              </span>
+            </div>
+          ) : null}
+          <TaskDataGrid
+            tasks={deferredFilteredTasks}
+            onOpen={openTask}
+            statusKeys={statusKeys}
+            substatusOptions={SUBSTATUS_OPTIONS}
+            statusIndex={statusIndex}
+            statusIndicatorClassNames={STATUS_INDICATOR_ACCENT_CLASSNAMES}
+            unspecifiedOptionLabel={formT("unspecifiedOption")}
+            messages={taskGridMessages}
+            onStatusChange={handleStatusChange}
+            onSubstatusChange={handleSubstatusChange}
+            onRequestDeleteTask={handleRequestDeleteTask}
+            deletingTaskId={deletingTaskId}
+            updatingTaskId={updatingTaskId}
+            getStatusBadgeKey={getStatusBadgeKey}
+            getPresentationDateMeta={getPresentationDateMeta}
+            formatStatusLabel={formatStatusLabel}
+            formatSubstatusLabel={formatSubstatusLabel}
+            formatAssigneeLabel={formatTaskAssigneeLabel}
+            getInitials={getInitials}
+          />
+        </div>
       ) : (
-        <div className="space-y-3">
+        <div
+          className="space-y-3"
+          aria-busy={filtersPending}
+        >
+          {filtersPending ? (
+            <div className="pointer-events-none flex justify-center">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                <span>{filtersApplyingLabel}</span>
+              </span>
+            </div>
+          ) : null}
           {boardsError ? (
             <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
               {boardsError}
