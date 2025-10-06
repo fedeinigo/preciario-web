@@ -1,49 +1,76 @@
-import { notFound, redirect } from "next/navigation";
+"use client";
+
+import * as React from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 import MapachePortalClient from "./MapachePortalClient";
-import { normalizeMapacheTask } from "./types";
-import type { MapacheTask } from "./types";
-import { auth } from "@/lib/auth";
-import { taskSelect } from "@/app/api/mapache/tasks/access";
-import prisma from "@/lib/prisma";
 
-type MapacheTaskDelegate = {
-  findMany: (args: unknown) => Promise<unknown>;
-};
+type AuthorizationState = "loading" | "authorized" | "unauthorized" | "redirect";
 
-const mapacheTask = (
-  prisma as unknown as { mapacheTask: MapacheTaskDelegate }
-).mapacheTask;
+export default function MapachePortalPage() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const [authorization, setAuthorization] = React.useState<AuthorizationState>(
+    "loading",
+  );
+  const hasRedirectedRef = React.useRef(false);
+  const sessionUser = session?.user ?? null;
 
-export const dynamic = "force-dynamic";
+  React.useEffect(() => {
+    if (status === "loading") {
+      return;
+    }
 
-export default async function MapachePortalPage() {
-  const session = await auth();
+    if (!sessionUser) {
+      setAuthorization((prev) => (prev === "redirect" ? prev : "redirect"));
+      if (!hasRedirectedRef.current) {
+        hasRedirectedRef.current = true;
+        router.replace("/");
+      }
+      return;
+    }
 
-  if (!session?.user) {
-    redirect("/");
+    const isMapache = sessionUser.team === "Mapaches";
+    const isAdmin = ["admin", "superadmin"].includes(sessionUser.role ?? "");
+
+    if (!isMapache && !isAdmin) {
+      setAuthorization((prev) =>
+        prev === "unauthorized" ? prev : "unauthorized",
+      );
+      return;
+    }
+
+    setAuthorization((prev) => (prev === "authorized" ? prev : "authorized"));
+  }, [router, sessionUser, status]);
+
+  if (status === "loading" || authorization === "loading") {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center px-4">
+        <p className="text-sm text-muted-foreground">Cargando portal…</p>
+      </div>
+    );
   }
 
-  const isMapache = session.user.team === "Mapaches";
-  const isAdmin = ["admin", "superadmin"].includes(session.user.role ?? "");
-  const hasAccess = isMapache || isAdmin;
-
-  if (!hasAccess) {
-    return notFound();
+  if (authorization === "redirect") {
+    return null;
   }
 
-  const records = (await mapacheTask.findMany({
-    select: taskSelect,
-    orderBy: { createdAt: "desc" },
-  })) as unknown[];
-
-  const initialTasks: MapacheTask[] = records
-    .map((record) => normalizeMapacheTask(record))
-    .filter((task): task is MapacheTask => task !== null);
+  if (authorization === "unauthorized") {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center space-y-2 px-4 text-center">
+        <h1 className="text-lg font-semibold">No tienes acceso al portal Mapache.</h1>
+        <p className="text-sm text-muted-foreground">
+          Ponte en contacto con una persona administradora si consideras que se trata
+          de un error.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 px-4 pb-10">
-      <MapachePortalClient initialTasks={initialTasks} />
+      <MapachePortalClient initialTasks={[]} />
     </div>
   );
 }
