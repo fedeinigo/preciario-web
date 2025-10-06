@@ -27,14 +27,14 @@ import { useAdminUsers } from "./hooks/useAdminUsers";
 
 function GradientShell({ children }: { children: React.ReactNode }) {
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.18),_rgba(15,23,42,0.92))] p-6 text-white shadow-[0_24px_60px_rgba(8,15,26,0.55)]">
+    <section className="relative overflow-hidden rounded-3xl border border-brand-primary/10 bg-white p-6 text-slate-900 shadow-[0_28px_72px_rgba(60,3,140,0.12)]">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-32 right-[-10%] h-72 w-72 rounded-full bg-[radial-gradient(circle,_rgba(99,102,241,0.35),_transparent_70%)] blur-3xl"
+        className="pointer-events-none absolute -top-32 right-[-10%] h-72 w-72 rounded-full bg-[radial-gradient(circle,_rgba(132,90,191,0.25),_transparent_70%)] blur-3xl"
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -left-24 top-1/3 h-80 w-80 rounded-full bg-[radial-gradient(circle,_rgba(56,189,248,0.2),_transparent_70%)] blur-3xl"
+        className="pointer-events-none absolute -left-24 top-1/3 h-80 w-80 rounded-full bg-[radial-gradient(circle,_rgba(60,3,140,0.18),_transparent_70%)] blur-3xl"
       />
       <div className="relative z-10 space-y-6">{children}</div>
     </section>
@@ -51,10 +51,10 @@ function GlassKpi({
   hint?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-4 shadow-[0_18px_40px_rgba(8,15,26,0.45)] backdrop-blur">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-white/60">{label}</p>
-      <p className="mt-2 text-3xl font-semibold text-white">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-white/70">{hint}</p> : null}
+    <div className="rounded-2xl border border-brand-primary/10 bg-white px-5 py-4 shadow-[0_16px_32px_rgba(60,3,140,0.08)]">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">{label}</p>
+      <p className="mt-2 text-3xl font-semibold text-brand-primary">{value}</p>
+      {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
     </div>
   );
 }
@@ -69,24 +69,24 @@ function TableCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_18px_42px_rgba(8,15,26,0.45)] backdrop-blur">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-3">
-        <h3 className="text-sm font-semibold text-white/90">{title}</h3>
-        {actions ? <div className="flex items-center gap-3 text-xs text-white/70">{actions}</div> : null}
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_40px_rgba(60,3,140,0.08)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/60 bg-slate-50/70 px-5 py-3">
+        <h3 className="text-sm font-semibold text-brand-primary">{title}</h3>
+        {actions ? <div className="flex items-center gap-3 text-xs text-brand-primary/80">{actions}</div> : null}
       </div>
       {children}
     </div>
   );
 }
 
-function DarkTableSkeleton({ rows, cols }: { rows: number; cols: number }) {
+function TableSkeleton({ rows, cols }: { rows: number; cols: number }) {
   return (
-    <tbody className="divide-y divide-white/5">
+    <tbody className="divide-y divide-slate-100">
       {Array.from({ length: rows }).map((_, rowIndex) => (
         <tr key={rowIndex} className="animate-pulse">
           {Array.from({ length: cols }).map((__, colIndex) => (
             <td key={colIndex} className="px-5 py-3">
-              <div className="h-3.5 w-full rounded bg-white/10" />
+              <div className="h-3.5 w-full rounded bg-slate-200" />
             </td>
           ))}
         </tr>
@@ -117,7 +117,7 @@ function QuickRanges({
   ];
 
   const baseClass =
-    "inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/70 transition hover:border-white/40 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40";
+    "inline-flex items-center rounded-full border border-brand-primary/20 bg-brand-primary/5 px-3 py-1 text-xs font-medium text-brand-primary transition hover:border-brand-primary/40 hover:bg-brand-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40";
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -457,13 +457,13 @@ export default function Stats({
   };
 
   const controlClass =
-    "w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60";
+    "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 disabled:cursor-not-allowed disabled:opacity-60";
   const secondaryButtonClass =
-    "inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-medium text-white/80 transition hover:border-white/30 hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40";
+    "inline-flex items-center justify-center rounded-xl border border-brand-primary/20 bg-white px-3 py-2 text-sm font-medium text-brand-primary transition hover:border-brand-primary/40 hover:bg-brand-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40";
   const primaryButtonClass =
-    "inline-flex items-center justify-center rounded-xl border border-[rgb(var(--primary))]/60 bg-[rgb(var(--primary))]/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-[rgb(var(--primary))]/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40";
+    "inline-flex items-center justify-center rounded-xl border border-brand-primary bg-brand-primary px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40";
   const pillSelectClass =
-    "rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60";
+    "rounded-full border border-brand-primary/20 bg-white px-3 py-1 text-xs font-medium text-brand-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
     <div className="p-4">
@@ -472,14 +472,14 @@ export default function Stats({
           <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
         </header>
 
-        <section className="rounded-3xl border border-white/10 bg-white/[0.05] p-5 shadow-[0_14px_36px_rgba(8,15,26,0.45)] backdrop-blur">
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_18px_48px_rgba(60,3,140,0.12)]">
           <div className="flex flex-col gap-4">
             <div>
               <QuickRanges setFrom={setFrom} setTo={setTo} />
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div>
-                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
                   {filtersT("from")}
                 </label>
                 <input
@@ -490,7 +490,7 @@ export default function Stats({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
                   {filtersT("to")}
                 </label>
                 <input
@@ -501,7 +501,7 @@ export default function Stats({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
                   {filtersT("orderBy.label")}
                 </label>
                 <select
@@ -516,7 +516,7 @@ export default function Stats({
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
                   {filtersT("direction.label")}
                 </label>
                 <select
@@ -532,7 +532,7 @@ export default function Stats({
               </div>
               {isSuperAdmin ? (
                 <div>
-                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
                     {filtersT("team.label")}
                   </label>
                   <select
@@ -550,7 +550,7 @@ export default function Stats({
                 </div>
               ) : null}
               <div>
-                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
                   {filtersT("country.label")}
                 </label>
                 <select
@@ -567,7 +567,7 @@ export default function Stats({
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
                   {filtersT("user.label")}
                 </label>
                 <select
@@ -641,10 +641,10 @@ export default function Stats({
               <>
                 <button
                   type="button"
-                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 ${
                     showAll
-                      ? "border-[rgb(var(--primary))]/60 bg-[rgb(var(--primary))]/20 text-white"
-                      : "border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white"
+                      ? "border-brand-primary bg-brand-primary text-white shadow-inner"
+                      : "border-brand-primary/30 bg-white text-brand-primary hover:border-brand-primary/50 hover:bg-brand-primary/5"
                   }`}
                   onClick={() => setShowAll((prev) => !prev)}
                   title={actionsT("showAllTitle")}
@@ -652,7 +652,9 @@ export default function Stats({
                   {actionsT("showAll")}
                 </button>
                 <div className="inline-flex items-center gap-1">
-                  <span className="text-xs text-white/60">{actionsT("topN")}</span>
+                  <span className="text-xs font-medium uppercase tracking-wide text-brand-primary/70">
+                    {actionsT("topN")}
+                  </span>
                   <select
                     value={topN}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -680,34 +682,34 @@ export default function Stats({
               </>
             }
           >
-            <table className="min-w-full divide-y divide-white/10 text-sm">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead>
                 <tr>
-                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
                     {tableT("sku.headers.sku")}
                   </th>
-                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
                     {tableT("sku.headers.item")}
                   </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
                     {tableT("sku.headers.quantity")}
                   </th>
                 </tr>
               </thead>
               {loading ? (
-                <DarkTableSkeleton rows={3} cols={3} />
+                <TableSkeleton rows={3} cols={3} />
               ) : (
-                <tbody className="divide-y divide-white/10">
+                <tbody className="divide-y divide-slate-200">
                   {bySku.map(([sku, info]) => (
                     <tr key={sku}>
-                      <td className="px-5 py-3 font-mono text-sm text-white/70">{sku}</td>
-                      <td className="px-5 py-3 text-white/80">{info.name}</td>
-                      <td className="px-5 py-3 text-right text-white font-semibold">{info.qty}</td>
+                      <td className="px-5 py-3 font-mono text-sm text-slate-500">{sku}</td>
+                      <td className="px-5 py-3 text-slate-600">{info.name}</td>
+                      <td className="px-5 py-3 text-right text-brand-primary font-semibold">{info.qty}</td>
                     </tr>
                   ))}
                   {!loading && bySku.length === 0 && (
                     <tr>
-                      <td className="px-5 py-3 text-center text-sm text-white/60" colSpan={3}>
+                      <td className="px-5 py-3 text-center text-sm text-slate-500" colSpan={3}>
                         {tableT("empty")}
                       </td>
                     </tr>
@@ -730,33 +732,33 @@ export default function Stats({
               </button>
             }
           >
-            <table className="min-w-full divide-y divide-white/10 text-sm">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead>
                 <tr>
-                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
                     {tableT("country.headers.country")}
                   </th>
-                  <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
                     {tableT("country.headers.quantity")}
                   </th>
                 </tr>
               </thead>
               {loading ? (
-                <DarkTableSkeleton rows={3} cols={2} />
+                <TableSkeleton rows={3} cols={2} />
               ) : (
-                <tbody className="divide-y divide-white/10">
+                <tbody className="divide-y divide-slate-200">
                   {byCountry.map(([country, total]) => (
                     <tr key={country}>
-                      <td className="px-5 py-3 text-white/80">
+                      <td className="px-5 py-3 text-slate-600">
                         {country}{" "}
-                        <span className="text-xs text-white/50">({countryIdFromName(country)})</span>
+                        <span className="text-xs text-slate-400">({countryIdFromName(country)})</span>
                       </td>
-                      <td className="px-5 py-3 text-right text-white font-semibold">{total}</td>
+                      <td className="px-5 py-3 text-right text-brand-primary font-semibold">{total}</td>
                     </tr>
                   ))}
                   {!loading && byCountry.length === 0 && (
                     <tr>
-                      <td className="px-5 py-3 text-center text-sm text-white/60" colSpan={2}>
+                      <td className="px-5 py-3 text-center text-sm text-slate-500" colSpan={2}>
                         {tableT("empty")}
                       </td>
                     </tr>
@@ -765,7 +767,7 @@ export default function Stats({
               )}
             </table>
             {!loading && byCountryFull.length > 0 && (
-              <div className="border-t border-white/10 px-5 py-3 text-xs text-white/60">
+              <div className="border-t border-slate-200 px-5 py-3 text-xs text-brand-primary/70">
                 {showAll
                   ? tableT("country.footer.showAll", { count: byCountryFull.length })
                   : tableT("country.footer.total", { count: byCountryFull.length })}
@@ -787,30 +789,30 @@ export default function Stats({
             </button>
           }
         >
-          <table className="min-w-full divide-y divide-white/10 text-sm">
+          <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead>
               <tr>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
                   {tableT("user.headers.user")}
                 </th>
-                <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
                   {tableT("user.headers.proposals")}
                 </th>
               </tr>
             </thead>
             {loading ? (
-              <DarkTableSkeleton rows={3} cols={2} />
+              <TableSkeleton rows={3} cols={2} />
             ) : (
-              <tbody className="divide-y divide-white/10">
+              <tbody className="divide-y divide-slate-200">
                 {byUser.map(([email, total]) => (
                   <tr key={email}>
-                    <td className="px-5 py-3 text-white/80">{email}</td>
-                    <td className="px-5 py-3 text-right text-white font-semibold">{total}</td>
+                    <td className="px-5 py-3 text-slate-600">{email}</td>
+                    <td className="px-5 py-3 text-right text-brand-primary font-semibold">{total}</td>
                   </tr>
                 ))}
                 {!loading && byUser.length === 0 && (
                   <tr>
-                    <td className="px-5 py-3 text-center text-sm text-white/60" colSpan={2}>
+                    <td className="px-5 py-3 text-center text-sm text-slate-500" colSpan={2}>
                       {tableT("empty")}
                     </td>
                   </tr>
