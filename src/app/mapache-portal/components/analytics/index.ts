@@ -1,3 +1,5 @@
+"use client";
+
 export { ChartCard } from "./ChartCard";
 export { default as ChartSkeleton } from "./ChartSkeleton";
 export { StackedBarChart } from "./StackedBarChart";
