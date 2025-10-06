@@ -6,7 +6,6 @@ import type { ProposalRecord } from "@/lib/types";
 import type { AppRole } from "@/constants/teams";
 import { countryIdFromName } from "./lib/catalogs";
 import { buildCsv, downloadCsv } from "./lib/csv";
-import { TableSkeletonRows } from "@/app/components/ui/Skeleton";
 import { formatUSD, formatDateTime } from "./lib/format";
 import { toast } from "@/app/components/ui/toast";
 import {
@@ -26,33 +25,23 @@ import {
 } from "./lib/proposals-response";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 
-/** Header full-bleed como en Objetivos */
-function PageHeader({ children }: { children: React.ReactNode }) {
+function GradientShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-4 h-12 flex items-center text-white font-semibold bg-[#4c1d95] rounded-t-2xl">
-      {children}
-    </div>
+    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.18),_rgba(15,23,42,0.92))] p-6 text-white shadow-[0_24px_60px_rgba(8,15,26,0.55)]">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-32 right-[-10%] h-72 w-72 rounded-full bg-[radial-gradient(circle,_rgba(99,102,241,0.35),_transparent_70%)] blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-24 top-1/3 h-80 w-80 rounded-full bg-[radial-gradient(circle,_rgba(56,189,248,0.2),_transparent_70%)] blur-3xl"
+      />
+      <div className="relative z-10 space-y-6">{children}</div>
+    </section>
   );
 }
 
-/** Encabezado de sección (tablas) igual a Objetivos */
-function SectionHeader({
-  title,
-  actions,
-}: {
-  title: React.ReactNode;
-  actions?: React.ReactNode;
-}) {
-  return (
-    <div className="px-4 h-12 flex items-center justify-between text-white font-semibold bg-[#4c1d95] rounded-t-2xl">
-      <span className="truncate">{title}</span>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
-    </div>
-  );
-}
-
-/** KPI tipo “glass” como GoalKpi (Objetivos) */
-function VioletKpi({
+function GlassKpi({
   label,
   value,
   hint,
@@ -62,11 +51,47 @@ function VioletKpi({
   hint?: string;
 }) {
   return (
-    <div className="rounded-xl border bg-gradient-to-br from-[#6d28d9] to-[#4c1d95] text-white px-4 py-3 shadow-[0_6px_18px_rgba(76,29,149,0.25)]">
-      <div className="text-[12px] opacity-90">{label}</div>
-      <div className="text-2xl font-extrabold">{value}</div>
-      {hint ? <div className="text-[11px] opacity-80 mt-1">{hint}</div> : null}
+    <div className="rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-4 shadow-[0_18px_40px_rgba(8,15,26,0.45)] backdrop-blur">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-white/60">{label}</p>
+      <p className="mt-2 text-3xl font-semibold text-white">{value}</p>
+      {hint ? <p className="mt-1 text-xs text-white/70">{hint}</p> : null}
     </div>
+  );
+}
+
+function TableCard({
+  title,
+  actions,
+  children,
+}: {
+  title: React.ReactNode;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_18px_42px_rgba(8,15,26,0.45)] backdrop-blur">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-3">
+        <h3 className="text-sm font-semibold text-white/90">{title}</h3>
+        {actions ? <div className="flex items-center gap-3 text-xs text-white/70">{actions}</div> : null}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function DarkTableSkeleton({ rows, cols }: { rows: number; cols: number }) {
+  return (
+    <tbody className="divide-y divide-white/5">
+      {Array.from({ length: rows }).map((_, rowIndex) => (
+        <tr key={rowIndex} className="animate-pulse">
+          {Array.from({ length: cols }).map((__, colIndex) => (
+            <td key={colIndex} className="px-5 py-3">
+              <div className="h-3.5 w-full rounded bg-white/10" />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
   );
 }
 
@@ -91,28 +116,48 @@ function QuickRanges({
     { label: "Q4", get: () => q4Range(year) },
   ];
 
+  const baseClass =
+    "inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/70 transition hover:border-white/40 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40";
+
   return (
-    <div className="flex flex-wrap gap-2 mb-3">
+    <div className="flex flex-wrap gap-2">
       {quarters.map((q) => (
         <button
           key={q.label}
-          className="btn-ghost !py-1"
+          className={baseClass}
           onClick={() => apply(q.get())}
           title={t("quarterTooltip")}
+          type="button"
         >
           {q.label}
         </button>
       ))}
-      <button className="btn-ghost !py-1" onClick={() => apply(currentMonthRange())}>
+      <button
+        className={baseClass}
+        onClick={() => apply(currentMonthRange())}
+        type="button"
+      >
         {t("currentMonth")}
       </button>
-      <button className="btn-ghost !py-1" onClick={() => apply(prevMonthRange())}>
+      <button
+        className={baseClass}
+        onClick={() => apply(prevMonthRange())}
+        type="button"
+      >
         {t("previousMonth")}
       </button>
-      <button className="btn-ghost !py-1" onClick={() => apply(currentWeekRange())}>
+      <button
+        className={baseClass}
+        onClick={() => apply(currentWeekRange())}
+        type="button"
+      >
         {t("currentWeek")}
       </button>
-      <button className="btn-ghost !py-1" onClick={() => apply(prevWeekRange())}>
+      <button
+        className={baseClass}
+        onClick={() => apply(prevWeekRange())}
+        type="button"
+      >
         {t("previousWeek")}
       </button>
     </div>
@@ -411,113 +456,56 @@ export default function Stats({
     toast.success(toastT("csv.filtered"));
   };
 
-  // textura suave como en Objetivos
-  const textureStyle: React.CSSProperties = {
-    backgroundColor: "#f8f5ff",
-    backgroundImage:
-      "radial-gradient( rgba(76,29,149,0.06) 1px, transparent 1px ), radial-gradient( rgba(76,29,149,0.04) 1px, transparent 1px )",
-    backgroundSize: "16px 16px, 24px 24px",
-    backgroundPosition: "0 0, 8px 8px",
-    borderRadius: "12px",
-  };
+  const controlClass =
+    "w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60";
+  const secondaryButtonClass =
+    "inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-medium text-white/80 transition hover:border-white/30 hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40";
+  const primaryButtonClass =
+    "inline-flex items-center justify-center rounded-xl border border-[rgb(var(--primary))]/60 bg-[rgb(var(--primary))]/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-[rgb(var(--primary))]/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40";
+  const pillSelectClass =
+    "rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
-    <div className="p-4" style={textureStyle}>
-      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-        <PageHeader>{t("title")}</PageHeader>
+    <div className="p-4">
+      <GradientShell>
+        <header className="flex flex-col gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+        </header>
 
-        <div className="p-3">
-          {/* Rango rápido */}
-          <QuickRanges setFrom={setFrom} setTo={setTo} />
-
-          {/* Filtros */}
-          <div className="rounded-md border-2 bg-white p-3 shadow-soft">
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 items-end">
-              {/* fechas */}
-              <div className="xl:col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">{filtersT("from")}</label>
+        <section className="rounded-3xl border border-white/10 bg-white/[0.05] p-5 shadow-[0_14px_36px_rgba(8,15,26,0.45)] backdrop-blur">
+          <div className="flex flex-col gap-4">
+            <div>
+              <QuickRanges setFrom={setFrom} setTo={setTo} />
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                  {filtersT("from")}
+                </label>
                 <input
                   type="date"
-                  className="input"
+                  className={controlClass}
                   value={from}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFrom(e.target.value)}
                 />
               </div>
-              <div className="xl:col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">{filtersT("to")}</label>
+              <div>
+                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                  {filtersT("to")}
+                </label>
                 <input
                   type="date"
-                  className="input"
+                  className={controlClass}
                   value={to}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTo(e.target.value)}
                 />
               </div>
-
-              {/* equipo (solo superadmin) con filtro de equipos vacíos */}
-              {isSuperAdmin ? (
-                <div className="xl:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">{filtersT("team.label")}</label>
-                  <select
-                    className="select"
-                    value={teamFilter}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTeamFilter(e.target.value)}
-                  >
-                    <option value="">{filtersT("team.all")}</option>
-                    {visibleTeams.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <div className="xl:col-span-2" />
-              )}
-
-              {/* país */}
-              <div className="xl:col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">{filtersT("country.label")}</label>
+              <div>
+                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                  {filtersT("orderBy.label")}
+                </label>
                 <select
-                  className="select"
-                  value={countryFilter}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCountryFilter(e.target.value)}
-                >
-                  <option value="">{filtersT("country.all")}</option>
-                  {countryOptions.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* usuario */}
-              <div className="xl:col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">{filtersT("user.label")}</label>
-                <select
-                  className="select"
-                  value={userFilter}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setUserFilter(e.target.value)}
-                  disabled={role === "usuario"}
-                >
-                  <option value="">
-                    {role === "usuario" ? currentEmail : filtersT("user.all")}
-                  </option>
-                  {(role === "usuario" ? [currentEmail] : userOptions).map((u) =>
-                    u ? (
-                      <option key={u} value={u}>
-                        {u}
-                      </option>
-                    ) : null
-                  )}
-                </select>
-              </div>
-
-              {/* ordenar / dirección */}
-              <div className="xl:col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">{filtersT("orderBy.label")}</label>
-                <select
-                  className="select"
+                  className={controlClass}
                   value={orderKey}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                     setOrderKey(e.target.value as OrderKey)
@@ -527,10 +515,12 @@ export default function Stats({
                   <option value="totalAmount">{filtersT("orderBy.totalAmount")}</option>
                 </select>
               </div>
-              <div className="xl:col-span-2">
-                <label className="block text-xs text-gray-600 mb-1">{filtersT("direction.label")}</label>
+              <div>
+                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                  {filtersT("direction.label")}
+                </label>
                 <select
-                  className="select"
+                  className={controlClass}
                   value={orderDir}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                     setOrderDir(e.target.value as OrderDir)
@@ -540,11 +530,68 @@ export default function Stats({
                   <option value="asc">{filtersT("direction.asc")}</option>
                 </select>
               </div>
-
-              {/* acciones */}
-              <div className="xl:col-span-2 flex gap-2">
+              {isSuperAdmin ? (
+                <div>
+                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                    {filtersT("team.label")}
+                  </label>
+                  <select
+                    className={controlClass}
+                    value={teamFilter}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTeamFilter(e.target.value)}
+                  >
+                    <option value="">{filtersT("team.all")}</option>
+                    {visibleTeams.map((team) => (
+                      <option key={team} value={team}>
+                        {team}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              <div>
+                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                  {filtersT("country.label")}
+                </label>
+                <select
+                  className={controlClass}
+                  value={countryFilter}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCountryFilter(e.target.value)}
+                >
+                  <option value="">{filtersT("country.all")}</option>
+                  {countryOptions.map((country) => (
+                    <option key={country} value={country}>
+                      {country}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-white/60">
+                  {filtersT("user.label")}
+                </label>
+                <select
+                  className={controlClass}
+                  value={userFilter}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setUserFilter(e.target.value)}
+                  disabled={role === "usuario"}
+                >
+                  <option value="">
+                    {role === "usuario" ? currentEmail : filtersT("user.all")}
+                  </option>
+                  {(role === "usuario" ? [currentEmail] : userOptions).map((email) =>
+                    email ? (
+                      <option key={email} value={email}>
+                        {email}
+                      </option>
+                    ) : null,
+                  )}
+                </select>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-end">
                 <button
-                  className="btn-bar w-full transition hover:bg-[rgb(var(--primary))]/90"
+                  type="button"
+                  className={secondaryButtonClass}
                   onClick={() => {
                     setFrom("");
                     setTo("");
@@ -560,202 +607,107 @@ export default function Stats({
                 >
                   {actionsT("reset")}
                 </button>
-                <button className="btn-bar w-full" onClick={exportFilteredProposalsCsv}>
+                <button
+                  type="button"
+                  className={primaryButtonClass}
+                  onClick={exportFilteredProposalsCsv}
+                >
                   {actionsT("exportFiltered")}
                 </button>
               </div>
             </div>
           </div>
+        </section>
 
-          {/* KPIs (primera fila) */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 my-4">
-            <VioletKpi label={kpisT("generated")} value={String(subset.length)} />
-            <VioletKpi label={kpisT("uniqueUsers")} value={String(uniqueUsers)} />
-            <VioletKpi label={kpisT("uniqueCompanies")} value={String(uniqueCompanies)} />
-            <VioletKpi label={kpisT("totalMonthly")} value={formatUSD(totalMonthly)} />
-            <VioletKpi label={kpisT("averagePerProposal")} value={formatUSD(avgPerProposal)} />
-          </div>
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+          <GlassKpi label={kpisT("generated")} value={String(subset.length)} />
+          <GlassKpi label={kpisT("uniqueUsers")} value={String(uniqueUsers)} />
+          <GlassKpi label={kpisT("uniqueCompanies")} value={String(uniqueCompanies)} />
+          <GlassKpi label={kpisT("totalMonthly")} value={formatUSD(totalMonthly)} />
+          <GlassKpi label={kpisT("averagePerProposal")} value={formatUSD(avgPerProposal)} />
+        </section>
 
-          {/* KPIs WON (segunda fila) */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
-            <VioletKpi label={kpisT("wonCount")} value={String(wonCount)} />
-            <VioletKpi label={kpisT("wonAmount")} value={formatUSD(wonAmount)} />
-            <VioletKpi label={kpisT("winRate")} value={`${winRate.toFixed(1)}%`} />
-            <VioletKpi label={kpisT("wonAverageTicket")} value={formatUSD(wonAvgTicket)} />
-          </div>
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+          <GlassKpi label={kpisT("wonCount")} value={String(wonCount)} />
+          <GlassKpi label={kpisT("wonAmount")} value={formatUSD(wonAmount)} />
+          <GlassKpi label={kpisT("winRate")} value={`${winRate.toFixed(1)}%`} />
+          <GlassKpi label={kpisT("wonAverageTicket")} value={formatUSD(wonAvgTicket)} />
+        </section>
 
-          {/* Grillas */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* Ítems por SKU */}
-            <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-              <SectionHeader
-                title={sectionsT("bySku.title")}
-                actions={
-                  <div className="flex items-center gap-3">
-                    <label
-                      className="inline-flex items-center gap-2 text-[12px] text-white/90"
-                      title={actionsT("showAllTitle")}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={showAll}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShowAll(e.target.checked)}
-                      />
-                      {actionsT("showAll")}
-                    </label>
-                    <div className="inline-flex items-center gap-1">
-                      <span className="text-[12px] text-white/90">{actionsT("topN")}</span>
-                      <select
-                        value={topN}
-                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                          setTopN(Number(e.target.value))
-                        }
-                        className="h-8 text-xs rounded border border-white/40 bg-white/10 text-white px-2 py-1
-                                   focus:outline-none focus:ring-2 focus:ring-white/60 focus:border-white/60 disabled:opacity-50"
-                        title={actionsT("topNTitle")}
-                        disabled={showAll}
-                      >
-                        {[5, 10, 20, 50, 100].map((n) => (
-                          <option key={n} value={n}>
-                            {n}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <button
-                      className="btn-ghost !py-1"
-                      onClick={exportSkuCsv}
-                      title={actionsT("csvTooltip")}
-                    >
-                      {actionsT("csvButton")}
-                    </button>
-                  </div>
-                }
-              />
-              <table className="min-w-full bg-white">
-                <thead>
-                  <tr>
-                    <th className="table-th">{tableT("sku.headers.sku")}</th>
-                    <th className="table-th">{tableT("sku.headers.item")}</th>
-                    <th className="table-th w-40 text-right">{tableT("sku.headers.quantity")}</th>
-                  </tr>
-                </thead>
-                {loading ? (
-                  <TableSkeletonRows rows={3} cols={3} />
-                ) : (
-                  <tbody>
-                    {bySku.map(([sku, info]) => (
-                      <tr key={sku}>
-                        <td className="table-td">
-                          <span className="text-gray-500 font-mono">{sku}</span>
-                        </td>
-                        <td className="table-td">{info.name}</td>
-                        <td className="table-td text-right font-semibold">{info.qty}</td>
-                      </tr>
-                    ))}
-                    {!loading && bySku.length === 0 && (
-                      <tr>
-                        <td className="table-td text-center text-gray-500" colSpan={3}>
-                          {tableT("empty")}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                )}
-              </table>
-            </div>
-
-            {/* Propuestas por país */}
-            <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-              <SectionHeader
-                title={sectionsT("byCountry.title")}
-                actions={
-                  <div className="flex items-center gap-2">
-                    <button
-                      className="btn-ghost !py-1"
-                      onClick={exportCountryCsv}
-                      title={actionsT("csvTooltip")}
-                    >
-                      {actionsT("csvButton")}
-                    </button>
-                  </div>
-                }
-              />
-              <table className="min-w-full bg-white">
-                <thead>
-                  <tr>
-                    <th className="table-th">{tableT("country.headers.country")}</th>
-                    <th className="table-th w-40 text-right">{tableT("country.headers.quantity")}</th>
-                  </tr>
-                </thead>
-                {loading ? (
-                  <TableSkeletonRows rows={3} cols={2} />
-                ) : (
-                  <tbody>
-                    {byCountry.map(([c, n]) => (
-                      <tr key={c}>
-                        <td className="table-td">
-                          {c}{" "}
-                          <span className="text-xs text-gray-500">({countryIdFromName(c)})</span>
-                        </td>
-                        <td className="table-td text-right font-semibold">{n}</td>
-                      </tr>
-                    ))}
-                    {!loading && byCountry.length === 0 && (
-                      <tr>
-                        <td className="table-td text-center text-gray-500" colSpan={2}>
-                          {tableT("empty")}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                )}
-              </table>
-
-              {!loading && byCountryFull.length > 0 && (
-                <div className="px-3 py-2 text-sm text-gray-600">
-                  {showAll
-                    ? tableT("country.footer.showAll", { count: byCountryFull.length })
-                    : tableT("country.footer.total", { count: byCountryFull.length })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Top usuarios */}
-          <div className="rounded-2xl border bg-white shadow-sm overflow-hidden mt-6">
-            <SectionHeader
-              title={sectionsT("byUser.title")}
-              actions={
+        <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <TableCard
+            title={sectionsT("bySku.title")}
+            actions={
+              <>
                 <button
-                  className="btn-ghost !py-1"
-                  onClick={exportUserCsv}
+                  type="button"
+                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+                    showAll
+                      ? "border-[rgb(var(--primary))]/60 bg-[rgb(var(--primary))]/20 text-white"
+                      : "border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white"
+                  }`}
+                  onClick={() => setShowAll((prev) => !prev)}
+                  title={actionsT("showAllTitle")}
+                >
+                  {actionsT("showAll")}
+                </button>
+                <div className="inline-flex items-center gap-1">
+                  <span className="text-xs text-white/60">{actionsT("topN")}</span>
+                  <select
+                    value={topN}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                      setTopN(Number(e.target.value))
+                    }
+                    className={pillSelectClass}
+                    title={actionsT("topNTitle")}
+                    disabled={showAll}
+                  >
+                    {[5, 10, 20, 50, 100].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className={secondaryButtonClass}
+                  onClick={exportSkuCsv}
                   title={actionsT("csvTooltip")}
                 >
                   {actionsT("csvButton")}
                 </button>
-              }
-            />
-            <table className="min-w-full bg-white">
+              </>
+            }
+          >
+            <table className="min-w-full divide-y divide-white/10 text-sm">
               <thead>
                 <tr>
-                  <th className="table-th">{tableT("user.headers.user")}</th>
-                  <th className="table-th w-40 text-right">{tableT("user.headers.proposals")}</th>
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                    {tableT("sku.headers.sku")}
+                  </th>
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                    {tableT("sku.headers.item")}
+                  </th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                    {tableT("sku.headers.quantity")}
+                  </th>
                 </tr>
               </thead>
               {loading ? (
-                <TableSkeletonRows rows={3} cols={2} />
+                <DarkTableSkeleton rows={3} cols={3} />
               ) : (
-                <tbody>
-                  {byUser.map(([email, n]) => (
-                    <tr key={email}>
-                      <td className="table-td">{email}</td>
-                      <td className="table-td text-right font-semibold">{n}</td>
+                <tbody className="divide-y divide-white/10">
+                  {bySku.map(([sku, info]) => (
+                    <tr key={sku}>
+                      <td className="px-5 py-3 font-mono text-sm text-white/70">{sku}</td>
+                      <td className="px-5 py-3 text-white/80">{info.name}</td>
+                      <td className="px-5 py-3 text-right text-white font-semibold">{info.qty}</td>
                     </tr>
                   ))}
-                  {!loading && byUser.length === 0 && (
+                  {!loading && bySku.length === 0 && (
                     <tr>
-                      <td className="table-td text-center text-gray-500" colSpan={2}>
+                      <td className="px-5 py-3 text-center text-sm text-white/60" colSpan={3}>
                         {tableT("empty")}
                       </td>
                     </tr>
@@ -763,9 +715,111 @@ export default function Stats({
                 </tbody>
               )}
             </table>
-          </div>
-        </div>
-      </div>
+          </TableCard>
+
+          <TableCard
+            title={sectionsT("byCountry.title")}
+            actions={
+              <button
+                type="button"
+                className={secondaryButtonClass}
+                onClick={exportCountryCsv}
+                title={actionsT("csvTooltip")}
+              >
+                {actionsT("csvButton")}
+              </button>
+            }
+          >
+            <table className="min-w-full divide-y divide-white/10 text-sm">
+              <thead>
+                <tr>
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                    {tableT("country.headers.country")}
+                  </th>
+                  <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                    {tableT("country.headers.quantity")}
+                  </th>
+                </tr>
+              </thead>
+              {loading ? (
+                <DarkTableSkeleton rows={3} cols={2} />
+              ) : (
+                <tbody className="divide-y divide-white/10">
+                  {byCountry.map(([country, total]) => (
+                    <tr key={country}>
+                      <td className="px-5 py-3 text-white/80">
+                        {country}{" "}
+                        <span className="text-xs text-white/50">({countryIdFromName(country)})</span>
+                      </td>
+                      <td className="px-5 py-3 text-right text-white font-semibold">{total}</td>
+                    </tr>
+                  ))}
+                  {!loading && byCountry.length === 0 && (
+                    <tr>
+                      <td className="px-5 py-3 text-center text-sm text-white/60" colSpan={2}>
+                        {tableT("empty")}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              )}
+            </table>
+            {!loading && byCountryFull.length > 0 && (
+              <div className="border-t border-white/10 px-5 py-3 text-xs text-white/60">
+                {showAll
+                  ? tableT("country.footer.showAll", { count: byCountryFull.length })
+                  : tableT("country.footer.total", { count: byCountryFull.length })}
+              </div>
+            )}
+          </TableCard>
+        </section>
+
+        <TableCard
+          title={sectionsT("byUser.title")}
+          actions={
+            <button
+              type="button"
+              className={secondaryButtonClass}
+              onClick={exportUserCsv}
+              title={actionsT("csvTooltip")}
+            >
+              {actionsT("csvButton")}
+            </button>
+          }
+        >
+          <table className="min-w-full divide-y divide-white/10 text-sm">
+            <thead>
+              <tr>
+                <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                  {tableT("user.headers.user")}
+                </th>
+                <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                  {tableT("user.headers.proposals")}
+                </th>
+              </tr>
+            </thead>
+            {loading ? (
+              <DarkTableSkeleton rows={3} cols={2} />
+            ) : (
+              <tbody className="divide-y divide-white/10">
+                {byUser.map(([email, total]) => (
+                  <tr key={email}>
+                    <td className="px-5 py-3 text-white/80">{email}</td>
+                    <td className="px-5 py-3 text-right text-white font-semibold">{total}</td>
+                  </tr>
+                ))}
+                {!loading && byUser.length === 0 && (
+                  <tr>
+                    <td className="px-5 py-3 text-center text-sm text-white/60" colSpan={2}>
+                      {tableT("empty")}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            )}
+          </table>
+        </TableCard>
+      </GradientShell>
     </div>
   );
 }
