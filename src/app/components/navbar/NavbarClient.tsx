@@ -193,6 +193,56 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const [userModal, setUserModal] = React.useState(false);
   const [mapacheSection, setMapacheSection] =
     React.useState<MapachePortalSection>(MAPACHE_PORTAL_DEFAULT_SECTION);
+  const [mapacheTransitionVisible, setMapacheTransitionVisible] =
+    React.useState(false);
+  const [mapacheTransitionOpaque, setMapacheTransitionOpaque] =
+    React.useState(false);
+  const mapacheTransitionStartedRef = React.useRef(false);
+
+  const beginMapacheTransition = React.useCallback(() => {
+    if (mapacheTransitionStartedRef.current) return;
+    mapacheTransitionStartedRef.current = true;
+
+    if (typeof router.prefetch === "function") {
+      try {
+        void router.prefetch("/mapache-portal");
+      } catch {
+        // ignore prefetch errors and proceed with navigation
+      }
+    }
+
+    if (typeof window === "undefined") {
+      router.push("/mapache-portal");
+      return;
+    }
+
+    setMapacheTransitionVisible(true);
+    requestAnimationFrame(() => {
+      setMapacheTransitionOpaque(true);
+    });
+    window.setTimeout(() => {
+      router.push("/mapache-portal");
+    }, 240);
+  }, [router]);
+
+  const handleMapacheLinkClick = React.useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement>) => {
+      if (
+        event.defaultPrevented ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        event.button !== 0
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      beginMapacheTransition();
+    },
+    [beginMapacheTransition],
+  );
 
   React.useEffect(() => {
     const onHash = () => setActiveTab(readHash());
@@ -434,6 +484,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
             <Link
               href="/mapache-portal"
               className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+              onClick={handleMapacheLinkClick}
             >
               {profileT("mapachePortal")}
             </Link>
@@ -463,6 +514,19 @@ export default function NavbarClient({ session }: NavbarClientProps) {
           )}
         </div>
       </div>
+
+      {mapacheTransitionVisible ? (
+        <div
+          aria-hidden="true"
+          className={`fixed inset-0 z-[60] bg-gradient-to-br from-[#0f172a]/80 via-[#020617]/95 to-[#00010a]/90 backdrop-blur-md transition-opacity duration-300 ease-out ${
+            mapacheTransitionOpaque ? "opacity-100" : "opacity-0"
+          } pointer-events-auto cursor-wait`}
+        >
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="h-12 w-12 rounded-full border-2 border-white/30 border-t-transparent animate-spin" />
+          </div>
+        </div>
+      ) : null}
 
       <Modal
         open={showAuthActions && userModal}
