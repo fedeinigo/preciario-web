@@ -128,6 +128,7 @@ const DENSITY_CONFIG: Record<
 };
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
+const VIRTUALIZATION_AUTO_THRESHOLD = 80;
 
 function toCsvValue(value: string) {
   if (value.includes(",") || value.includes("\"") || value.includes("\n")) {
@@ -169,9 +170,28 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
   const [pageSize, setPageSize] = React.useState(PAGE_SIZE_OPTIONS[0] ?? 25);
   const [pageIndex, setPageIndex] = React.useState(0);
   const [density, setDensity] = React.useState<DensityOption>("comfortable");
+  const shouldEnableVirtualization =
+    tasks.length > VIRTUALIZATION_AUTO_THRESHOLD;
   const [virtualizationEnabled, setVirtualizationEnabled] = React.useState(
-    tasks.length > 150,
+    shouldEnableVirtualization,
   );
+  const virtualizationPreferenceLockedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (virtualizationPreferenceLockedRef.current) {
+      if (!shouldEnableVirtualization) {
+        virtualizationPreferenceLockedRef.current = false;
+      } else {
+        return;
+      }
+    }
+    if (virtualizationEnabled !== shouldEnableVirtualization) {
+      setVirtualizationEnabled(shouldEnableVirtualization);
+    }
+  }, [shouldEnableVirtualization, virtualizationEnabled]);
+  const handleVirtualizationToggle = React.useCallback((next: boolean) => {
+    virtualizationPreferenceLockedRef.current = true;
+    setVirtualizationEnabled(next);
+  }, []);
   const [columnsMenuOpen, setColumnsMenuOpen] = React.useState(false);
 
   const densityConfig = DENSITY_CONFIG[density];
@@ -810,7 +830,9 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
             type="checkbox"
             className="h-4 w-4 rounded border border-white/30 bg-slate-900 text-[rgb(var(--primary))] focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--primary))]/60"
             checked={virtualizationEnabled}
-            onChange={(event) => setVirtualizationEnabled(event.target.checked)}
+            onChange={(event) =>
+              handleVirtualizationToggle(event.target.checked)
+            }
           />
           <span>{messages.virtualization}</span>
         </label>

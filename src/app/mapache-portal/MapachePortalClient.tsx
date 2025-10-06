@@ -1514,6 +1514,11 @@ export default function MapachePortalClient({
     [statusIndex],
   );
 
+  const statusIndexRef = React.useRef(statusIndex);
+  React.useEffect(() => {
+    statusIndexRef.current = statusIndex;
+  }, [statusIndex]);
+
   const formatStatusLabel = React.useCallback(
     (status: MapacheTaskStatus) => {
       const match = statusIndex.byKey.get(status);
@@ -2026,9 +2031,10 @@ export default function MapachePortalClient({
         }
 
         const payload = await response.json();
+        const currentStatusIndex = statusIndexRef.current;
         const nextTasks = Array.isArray(payload)
           ? payload
-              .map((task) => normalizeMapacheTask(task, statusIndex))
+              .map((task) => normalizeMapacheTask(task, currentStatusIndex))
               .filter((task): task is MapacheTask => task !== null)
           : [];
         setTasks(nextTasks);
@@ -2041,7 +2047,7 @@ export default function MapachePortalClient({
         }
       }
     },
-    [statusIndex, toastT],
+    [statusIndexRef, toastT],
   );
 
   const fetchFilterPresetsFromApi = React.useCallback(async () => {
@@ -2584,6 +2590,8 @@ export default function MapachePortalClient({
     });
   }, [baseFilteredTasks, normalizedAdvancedFilters]);
 
+  const deferredFilteredTasks = React.useDeferredValue(filteredTasks);
+
   const computeInsights = React.useCallback(
     (source: MapacheTask[]): MapachePortalInsightsMetrics => {
       const statusTotals: Record<MapacheTaskStatus, number> = {};
@@ -2807,8 +2815,8 @@ export default function MapachePortalClient({
   );
 
   const filteredInsightsMetrics = React.useMemo(
-    () => computeInsights(filteredTasks),
-    [computeInsights, filteredTasks],
+    () => computeInsights(deferredFilteredTasks),
+    [computeInsights, deferredFilteredTasks],
   );
 
   const allInsightsMetrics = React.useMemo(
@@ -2833,7 +2841,7 @@ export default function MapachePortalClient({
     if (!activeBoard) return [];
     return activeBoard.columns.map((column) => {
       const statuses = column.filters.statuses;
-      const tasksForColumn = filteredTasks.filter((task) =>
+      const tasksForColumn = deferredFilteredTasks.filter((task) =>
         statuses.includes(task.status),
       );
       return {
@@ -2843,7 +2851,7 @@ export default function MapachePortalClient({
         tasks: tasksForColumn,
       };
     });
-  }, [activeBoard, filteredTasks]);
+  }, [activeBoard, deferredFilteredTasks]);
 
   const hasActiveAdvancedFilters = normalizedAdvancedFilters.hasAny;
   const advancedFiltersCount = normalizedAdvancedFilters.activeCount;
@@ -5893,7 +5901,7 @@ function TaskMetaChip({
 
       {viewMode === "lista" ? (
         <TaskDataGrid
-          tasks={filteredTasks}
+          tasks={deferredFilteredTasks}
           onOpen={openTask}
           statusKeys={statusKeys}
           substatusOptions={SUBSTATUS_OPTIONS}
