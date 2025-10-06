@@ -130,6 +130,30 @@ const FILTER_QUERY_KEYS = [
   "presentation_to",
 ] as const;
 
+function normalizeQueryString(value: string): string {
+  const trimmed = value.trim().replace(/^\?/, "");
+  if (!trimmed) {
+    return "";
+  }
+
+  const params = new URLSearchParams(trimmed);
+  const entries = Array.from(params.entries());
+
+  entries.sort((a, b) => {
+    if (a[0] === b[0]) {
+      return a[1].localeCompare(b[1]);
+    }
+    return a[0].localeCompare(b[0]);
+  });
+
+  const normalized = new URLSearchParams();
+  for (const [key, entryValue] of entries) {
+    normalized.append(key, entryValue);
+  }
+
+  return normalized.toString();
+}
+
 type MapacheFilterPresetOwner = {
   id: string;
   name: string | null;
@@ -284,7 +308,7 @@ function createFilterQueryString(
     params.set("presentationTo", to);
   }
 
-  return params.toString();
+  return normalizeQueryString(params.toString());
 }
 
 function normalizeFilterPreset(
@@ -1414,7 +1438,9 @@ export default function MapachePortalClient({
     () => searchParams.toString(),
     [searchParams],
   );
-  const lastSyncedQueryRef = React.useRef(searchParamsString);
+  const lastSyncedQueryRef = React.useRef(
+    normalizeQueryString(searchParamsString),
+  );
   const t = useTranslations("mapachePortal");
   const statusT = useTranslations("mapachePortal.statuses");
   const statusBadgeT = useTranslations("mapachePortal.statusBadges");
@@ -2052,7 +2078,7 @@ export default function MapachePortalClient({
       setActiveFilter(nextFilter);
       setAdvancedFilters(nextAdvanced);
       setFiltersHydrated(true);
-      lastSyncedQueryRef.current = searchParamsString;
+      lastSyncedQueryRef.current = normalizeQueryString(searchParamsString);
       return;
     }
 
@@ -2072,7 +2098,7 @@ export default function MapachePortalClient({
     }
 
     setFiltersHydrated(true);
-    lastSyncedQueryRef.current = searchParamsString;
+    lastSyncedQueryRef.current = normalizeQueryString(searchParamsString);
   }, [
     filtersHydrated,
     searchParams,
@@ -2228,16 +2254,21 @@ export default function MapachePortalClient({
       activeFilter,
       advancedFilters,
     );
-    if (desiredQuery === searchParamsString) {
-      lastSyncedQueryRef.current = desiredQuery;
+    const normalizedDesired = normalizeQueryString(desiredQuery);
+    const normalizedCurrent = normalizeQueryString(searchParamsString);
+
+    if (normalizedDesired === normalizedCurrent) {
+      lastSyncedQueryRef.current = normalizedCurrent;
       return;
     }
-    if (desiredQuery === lastSyncedQueryRef.current) {
+    if (normalizedDesired === lastSyncedQueryRef.current) {
       return;
     }
 
-    lastSyncedQueryRef.current = desiredQuery;
-    const nextUrl = desiredQuery ? `${pathname}?${desiredQuery}` : pathname;
+    lastSyncedQueryRef.current = normalizedDesired;
+    const nextUrl = normalizedDesired
+      ? `${pathname}?${normalizedDesired}`
+      : pathname;
     router.replace(nextUrl, { scroll: false });
   }, [
     activeFilter,
@@ -2251,7 +2282,8 @@ export default function MapachePortalClient({
 
   React.useEffect(() => {
     if (!filtersHydrated) return;
-    if (searchParamsString === lastSyncedQueryRef.current) {
+    const normalizedCurrent = normalizeQueryString(searchParamsString);
+    if (normalizedCurrent === lastSyncedQueryRef.current) {
       return;
     }
 
@@ -2265,7 +2297,7 @@ export default function MapachePortalClient({
       if (!areAdvancedFiltersEqual(advancedFilters, defaultAdvancedFilters)) {
         setAdvancedFilters(defaultAdvancedFilters);
       }
-      lastSyncedQueryRef.current = searchParamsString;
+      lastSyncedQueryRef.current = normalizedCurrent;
       return;
     }
 
@@ -2276,7 +2308,7 @@ export default function MapachePortalClient({
     if (!areAdvancedFiltersEqual(parsed.advancedFilters, advancedFilters)) {
       setAdvancedFilters(parsed.advancedFilters);
     }
-    lastSyncedQueryRef.current = searchParamsString;
+    lastSyncedQueryRef.current = normalizedCurrent;
   }, [
     activeFilter,
     advancedFilters,
