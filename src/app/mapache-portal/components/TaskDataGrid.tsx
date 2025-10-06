@@ -620,11 +620,19 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
   }, [pageCount, pageIndex, virtualizationActive]);
 
   const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const getScrollElement = React.useCallback(
+    () => scrollContainerRef.current,
+    [],
+  );
+  const estimateSize = React.useCallback(
+    () => densityConfig.rowHeight,
+    [densityConfig.rowHeight],
+  );
 
   const virtualizer = useVirtualizer({
     count: virtualizationActive ? sortedTasks.length : 0,
-    estimateSize: () => densityConfig.rowHeight,
-    getScrollElement: () => scrollContainerRef.current,
+    estimateSize,
+    getScrollElement,
     overscan: 6,
   });
 
