@@ -21,7 +21,7 @@
     "test:e2e": "node -e \"require('fs').rmSync('.tmp/test-dist', { recursive: true, force: true })\" && tsc -p tsconfig.test.json && node --test .tmp/test-dist/tests/e2e"
   },
   "dependencies": {
-    "@atlaskit/pragmatic-drag-and-drop": "1.7.7",
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.7",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "1.1.0",
     "@auth/prisma-adapter": "^2.10.0",
     "@floating-ui/react": "file:vendor/@floating-ui/react",
