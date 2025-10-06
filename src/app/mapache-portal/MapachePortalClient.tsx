@@ -2883,13 +2883,9 @@ export default function MapachePortalClient({
     if (!activeBoard) return [];
     return activeBoard.columns.map((column) => {
       const statuses = column.filters.statuses;
-      const tasksForColumn: MapacheTask[] = [];
-      statuses.forEach((status) => {
-        const matching = tasksByStatus.get(status);
-        if (matching && matching.length > 0) {
-          tasksForColumn.push(...matching);
-        }
-      });
+      const tasksForColumn = deferredFilteredTasks.filter((task) =>
+        statuses.includes(task.status),
+      );
       return {
         id: column.id,
         title: column.title,
@@ -2897,7 +2893,7 @@ export default function MapachePortalClient({
         tasks: tasksForColumn,
       };
     });
-  }, [activeBoard, tasksByStatus]);
+  }, [activeBoard, deferredFilteredTasks]);
 
   const hasActiveAdvancedFilters = normalizedAdvancedFilters.hasAny;
   const advancedFiltersCount = normalizedAdvancedFilters.activeCount;
@@ -5955,40 +5951,27 @@ function TaskMetaChip({
           )}
 
       {viewMode === "lista" ? (
-        <div
-          aria-busy={filtersPending}
-          className={filtersPending ? "relative" : undefined}
-        >
-          {filtersPending ? (
-            <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center pt-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                <span>{filtersApplyingLabel}</span>
-              </span>
-            </div>
-          ) : null}
-          <TaskDataGrid
-            tasks={deferredFilteredTasks}
-            onOpen={openTask}
-            statusKeys={statusKeys}
-            substatusOptions={SUBSTATUS_OPTIONS}
-            statusIndex={statusIndex}
-            statusIndicatorClassNames={STATUS_INDICATOR_ACCENT_CLASSNAMES}
-            unspecifiedOptionLabel={formT("unspecifiedOption")}
-            messages={taskGridMessages}
-            onStatusChange={handleStatusChange}
-            onSubstatusChange={handleSubstatusChange}
-            onRequestDeleteTask={handleRequestDeleteTask}
-            deletingTaskId={deletingTaskId}
-            updatingTaskId={updatingTaskId}
-            getStatusBadgeKey={getStatusBadgeKey}
-            getPresentationDateMeta={getPresentationDateMeta}
-            formatStatusLabel={formatStatusLabel}
-            formatSubstatusLabel={formatSubstatusLabel}
-            formatAssigneeLabel={formatTaskAssigneeLabel}
-            getInitials={getInitials}
-          />
-        </div>
+        <TaskDataGrid
+          tasks={deferredFilteredTasks}
+          onOpen={openTask}
+          statusKeys={statusKeys}
+          substatusOptions={SUBSTATUS_OPTIONS}
+          statusIndex={statusIndex}
+          statusIndicatorClassNames={STATUS_INDICATOR_ACCENT_CLASSNAMES}
+          unspecifiedOptionLabel={formT("unspecifiedOption")}
+          messages={taskGridMessages}
+          onStatusChange={handleStatusChange}
+          onSubstatusChange={handleSubstatusChange}
+          onRequestDeleteTask={handleRequestDeleteTask}
+          deletingTaskId={deletingTaskId}
+          updatingTaskId={updatingTaskId}
+          getStatusBadgeKey={getStatusBadgeKey}
+          getPresentationDateMeta={getPresentationDateMeta}
+          formatStatusLabel={formatStatusLabel}
+          formatSubstatusLabel={formatSubstatusLabel}
+          formatAssigneeLabel={formatTaskAssigneeLabel}
+          getInitials={getInitials}
+        />
       ) : (
         <div
           className="space-y-3"

@@ -276,6 +276,18 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     window.setTimeout(() => {
       navigate();
     }, 220);
+    if (typeof window === "undefined") {
+      router.push("/mapache-portal");
+      return;
+    }
+
+    setMapacheTransitionVisible(true);
+    requestAnimationFrame(() => {
+      setMapacheTransitionOpaque(true);
+    });
+    window.setTimeout(() => {
+      router.push("/mapache-portal");
+    }, 240);
   }, [router]);
 
   const handleMapacheLinkClick = React.useCallback(
@@ -620,6 +632,12 @@ export default function NavbarClient({ session }: NavbarClientProps) {
               <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-white/70" aria-hidden="true" />
               <span>Sincronizando tareas y métricas del equipo</span>
             </div>
+          className={`fixed inset-0 z-[60] bg-gradient-to-br from-[#0f172a]/80 via-[#020617]/95 to-[#00010a]/90 backdrop-blur-md transition-opacity duration-300 ease-out ${
+            mapacheTransitionOpaque ? "opacity-100" : "opacity-0"
+          } pointer-events-auto cursor-wait`}
+        >
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="h-12 w-12 rounded-full border-2 border-white/30 border-t-transparent animate-spin" />
           </div>
         </div>
       ) : null}
