@@ -12,7 +12,7 @@ import QuarterPicker from "./components/QuarterPicker";
 import IndividualGoalCard from "./components/IndividualGoalCard";
 import TeamGoalCard from "./components/TeamGoalCard";
 import TeamMembersTable, { TeamGoalRow } from "./components/TeamMembersTable";
-import { Users2 } from "lucide-react";
+import { Download, Users2 } from "lucide-react";
 
 type Props = {
   role: AppRole;
@@ -30,6 +30,7 @@ export default function GoalsPage({
   const pageT = useTranslations("goals.page");
   const toastT = useTranslations("goals.toast");
   const csvT = useTranslations("goals.csv");
+  const teamT = useTranslations("goals.team");
 
   const { users: adminUsers } = useAdminUsers({
     isSuperAdmin,
@@ -225,10 +226,6 @@ export default function GoalsPage({
     borderRadius: "12px",
   };
 
-  const teamTitle = effectiveTeam
-    ? pageT("teamTitleWithName", { team: effectiveTeam })
-    : pageT("teamTitle");
-
   return (
     <div className="space-y-6" style={textureStyle}>
       {/* Header Objetivos */}
@@ -262,35 +259,54 @@ export default function GoalsPage({
           teamGoal={teamGoal}
           teamProgress={teamProgress}
           sumMembersGoal={sumMembersGoal}
-          onExportCsv={exportCsv}
           onSaveTeamGoal={saveTeamGoal}
         />
       </div>
 
       {/* Tabla de equipo */}
-      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden max-w-6xl mx-auto">
-        <div className="px-4 h-12 flex items-center gap-2 text-white font-semibold bg-[#4c1d95]">
-          <Users2 className="h-4 w-4" />
-          {teamTitle}
-        </div>
-        <div className="p-4">
-          {!effectiveTeam ? (
-            <div className="rounded-lg border bg-white p-4 text-sm text-gray-600">
-              {isSuperAdmin ? pageT("emptySuperadmin") : pageT("emptyMember")}
+      <div className="max-w-6xl mx-auto">
+        <div className="overflow-hidden rounded-3xl border border-[#eadeff] bg-white shadow-[0_20px_45px_rgba(76,29,149,0.1)]">
+          <div className="flex flex-col gap-3 border-b border-[#efe7ff] px-6 py-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3 text-[#4c1d95]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ede9fe]">
+                <Users2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7c3aed]">
+                  {pageT("teamTitle")}
+                </p>
+                <p className="text-xl font-semibold text-[#2f0f5d]">
+                  {effectiveTeam ? pageT("teamTitleWithName", { team: effectiveTeam }) : pageT("teamTitle")}
+                </p>
+              </div>
             </div>
-          ) : (
-            <TeamMembersTable
-              loading={loadingTeam}
-              rows={rows}
-              canEdit={isSuperAdmin || role === "lider"}
-              onEditGoal={saveUserGoal}
-              onOpenProfile={(u) => {
-                // 👉 Pasamos el equipo efectivo para que el modal lo muestre siempre
-                setProfileUser({ ...u, team: effectiveTeam });
-                setProfileOpen(true);
-              }}
-            />
-          )}
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ede9fe] px-5 py-2 text-sm font-semibold text-[#4c1d95] transition hover:bg-[#dcd0ff] disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={exportCsv}
+              disabled={!effectiveTeam || loadingTeam}
+            >
+              <Download className="h-4 w-4" />
+              {teamT("exportCsv")}
+            </button>
+          </div>
+          <div className="p-6">
+            {!effectiveTeam ? (
+              <div className="rounded-2xl border border-dashed border-[#d8c7ff] bg-[#faf7ff] p-6 text-sm text-[#5b21b6]">
+                {isSuperAdmin ? pageT("emptySuperadmin") : pageT("emptyMember")}
+              </div>
+            ) : (
+              <TeamMembersTable
+                loading={loadingTeam}
+                rows={rows}
+                canEdit={isSuperAdmin || role === "lider"}
+                onEditGoal={saveUserGoal}
+                onOpenProfile={(u) => {
+                  setProfileUser({ ...u, team: effectiveTeam });
+                  setProfileOpen(true);
+                }}
+              />
+            )}
+          </div>
         </div>
       </div>
 

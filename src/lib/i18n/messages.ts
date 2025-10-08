@@ -819,6 +819,10 @@ export const messages: Record<Locale, DeepRecord> = {
           progress: "Avance",
           pct: "% Cumpl.",
         },
+        labels: {
+          monthly: "Mensual",
+          visual: "Progreso visual",
+        },
         actions: {
           title: "Acciones",
           profile: "Perfil",
@@ -2464,6 +2468,10 @@ export const messages: Record<Locale, DeepRecord> = {
           progress: "Progress",
           pct: "% Compl.",
         },
+        labels: {
+          monthly: "Monthly",
+          visual: "Visual progress",
+        },
         actions: {
           title: "Actions",
           profile: "Profile",
@@ -4108,6 +4116,10 @@ export const messages: Record<Locale, DeepRecord> = {
           goal: "Meta",
           progress: "Progresso",
           pct: "% Concl.",
+        },
+        labels: {
+          monthly: "Mensal",
+          visual: "Progresso visual",
         },
         actions: {
           title: "Ações",

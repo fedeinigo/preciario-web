@@ -19,7 +19,6 @@ export default function TeamGoalCard({
   teamGoal,
   teamProgress,
   sumMembersGoal,
-  onExportCsv,
   onSaveTeamGoal,
 }: {
   year: number;
@@ -32,7 +31,6 @@ export default function TeamGoalCard({
   teamGoal: number;
   teamProgress: number;
   sumMembersGoal: number;
-  onExportCsv: () => void;
   onSaveTeamGoal: (amount: number) => Promise<void> | void;
 }) {
   const t = useTranslations("goals.team");
@@ -50,26 +48,18 @@ export default function TeamGoalCard({
     <div className="rounded-2xl border bg-white shadow-md overflow-hidden flex flex-col h-full">
       <div className="px-4 h-12 flex items-center justify-between text-white font-semibold bg-[#4c1d95]">
         <span>{t("title")}</span>
-        <div className="flex items-center gap-2">
-          {isSuperAdmin && (
-            <select
-              className="h-10 px-4 rounded-full border border-white/60 bg-white/15 text-white"
-              value={effectiveTeam}
-              onChange={(e) => onChangeTeam(e.target.value)}
-            >
-              <option className="text-black" value="">{t("selectPlaceholder")}</option>
-              {allTeams.map((t) => (
-                <option className="text-black" key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          )}
-          <button
-            className="h-9 px-4 rounded-full border border-white/30 bg-white/10 text-white hover:bg-white/20"
-            onClick={onExportCsv}
+        {isSuperAdmin && (
+          <select
+            className="h-10 px-4 rounded-full border border-white/60 bg-white/15 text-white"
+            value={effectiveTeam}
+            onChange={(e) => onChangeTeam(e.target.value)}
           >
-            {t("exportCsv")}
-          </button>
-        </div>
+            <option className="text-black" value="">{t("selectPlaceholder")}</option>
+            {allTeams.map((t) => (
+              <option className="text-black" key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       <div className="p-4 space-y-4 flex-1">
