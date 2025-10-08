@@ -13,10 +13,10 @@ export default function GoalKpi({
   hint?: string;
 }) {
   return (
-    <div className="rounded-xl border bg-gradient-to-br from-[#6d28d9] to-[#4c1d95] text-white px-4 py-3 shadow-[0_6px_18px_rgba(76,29,149,0.25)]">
-      <div className="text-[12px] opacity-90">{label}</div>
-      <div className="text-2xl font-extrabold">{value}</div>
-      {hint ? <div className="text-[11px] opacity-80 mt-1">{hint}</div> : null}
+    <div className="rounded-2xl border border-[#efe7ff] bg-white/80 px-4 py-3 shadow-[0_10px_25px_rgba(124,58,237,0.08)]">
+      <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#7c3aed]">{label}</div>
+      <div className="mt-1 text-2xl font-semibold text-[#2f0f5d]">{value}</div>
+      {hint ? <div className="mt-2 text-[11px] text-[#6d28d9]">{hint}</div> : null}
     </div>
   );
 }
