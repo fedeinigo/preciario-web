@@ -12,6 +12,8 @@ import QuarterPicker from "./components/QuarterPicker";
 import IndividualGoalCard from "./components/IndividualGoalCard";
 import TeamGoalCard from "./components/TeamGoalCard";
 import TeamMembersTable, { TeamGoalRow } from "./components/TeamMembersTable";
+import BillingSummaryCard, { UserWonDeal } from "./components/BillingSummaryCard";
+import TeamRankingCard from "./components/TeamRankingCard";
 import { Download, Users2 } from "lucide-react";
 
 type Props = {
@@ -53,6 +55,8 @@ export default function GoalsPage({
   // ---- Mi objetivo
   const [myGoal, setMyGoal] = React.useState<number>(0);
   const [myProgress, setMyProgress] = React.useState<number>(0);
+  const [myDeals, setMyDeals] = React.useState<UserWonDeal[]>([]);
+  const [loadingDeals, setLoadingDeals] = React.useState<boolean>(false);
 
   const loadMyGoal = React.useCallback(async () => {
     try {
@@ -82,10 +86,46 @@ export default function GoalsPage({
     }
   }, [currentEmail, rangeForQuarter]);
 
+  const loadMyDeals = React.useCallback(async () => {
+    setLoadingDeals(true);
+    try {
+      const params = new URLSearchParams({
+        status: "WON",
+        userEmail: currentEmail,
+        from: rangeForQuarter.from,
+        to: rangeForQuarter.to,
+        pageSize: "200",
+      });
+      const response = await fetch(`/api/proposals?${params.toString()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Failed to load deals");
+      const payload = (await response.json()) as Array<{
+        id: string;
+        companyName: string | null;
+        totalAmount: number;
+        docId?: string | null;
+        docUrl?: string | null;
+      }>;
+      setMyDeals(
+        payload.map((deal) => ({
+          id: deal.id,
+          companyName: deal.companyName,
+          totalAmount: Number(deal.totalAmount ?? 0),
+          docId: deal.docId ?? null,
+          docUrl: deal.docUrl ?? null,
+        }))
+      );
+    } catch {
+      setMyDeals([]);
+    } finally {
+      setLoadingDeals(false);
+    }
+  }, [currentEmail, rangeForQuarter]);
+
   React.useEffect(() => {
     loadMyGoal();
     loadMyProgress();
-  }, [loadMyGoal, loadMyProgress]);
+    loadMyDeals();
+  }, [loadMyGoal, loadMyProgress, loadMyDeals]);
 
   const handleSaveMyGoal = async (amount: number) => {
     const r = await fetch("/api/goals/user", {
@@ -120,6 +160,7 @@ export default function GoalsPage({
   const [teamProgress, setTeamProgress] = React.useState<number>(0);
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);
   const [loadingTeam, setLoadingTeam] = React.useState<boolean>(false);
+  const [teamDealCounts, setTeamDealCounts] = React.useState<Record<string, number>>({});
 
   const loadTeam = React.useCallback(async () => {
     if (!isSuperAdmin && !effectiveTeam) { setRows([]); setTeamGoal(0); setTeamProgress(0); return; }
@@ -149,10 +190,11 @@ export default function GoalsPage({
       if (isSuperAdmin || role === "lider") {
         loadTeam();
       }
+      loadMyDeals();
     };
     window.addEventListener("proposals:refresh", handleRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
-  }, [isSuperAdmin, role, loadMyProgress, loadTeam]);
+  }, [isSuperAdmin, role, loadMyProgress, loadTeam, loadMyDeals]);
 
   const saveUserGoal = async (userId: string, amount: number) => {
     const res = await fetch("/api/goals/user", {
@@ -187,6 +229,46 @@ export default function GoalsPage({
       toast.error(toastT("teamGoalError"));
     }
   };
+
+  const loadTeamDealCounts = React.useCallback(
+    async (members: TeamGoalRow[]) => {
+      if (!members.length) {
+        setTeamDealCounts({});
+        return;
+      }
+      const entries = await Promise.all(
+        members.map(async (member) => {
+          const email = member.email;
+          if (!email) return [member.userId, 0] as const;
+          try {
+            const params = new URLSearchParams({
+              aggregate: "sum",
+              status: "WON",
+              userEmail: email,
+              from: rangeForQuarter.from,
+              to: rangeForQuarter.to,
+            });
+            const res = await fetch(`/api/proposals?${params.toString()}`, { cache: "no-store" });
+            if (!res.ok) throw new Error("fail");
+            const data = (await res.json()) as { count?: number };
+            return [member.userId, Number(data.count ?? 0)] as const;
+          } catch {
+            return [member.userId, 0] as const;
+          }
+        })
+      );
+      setTeamDealCounts(Object.fromEntries(entries));
+    },
+    [rangeForQuarter]
+  );
+
+  React.useEffect(() => {
+    if (!effectiveTeam) {
+      setTeamDealCounts({});
+      return;
+    }
+    loadTeamDealCounts(rows);
+  }, [effectiveTeam, rows, loadTeamDealCounts]);
 
   const exportCsv = () => {
     const headers = [
@@ -260,6 +342,21 @@ export default function GoalsPage({
           teamProgress={teamProgress}
           sumMembersGoal={sumMembersGoal}
           onSaveTeamGoal={saveTeamGoal}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+        <BillingSummaryCard
+          deals={myDeals}
+          goal={myGoal}
+          progress={myProgress}
+          loading={loadingDeals}
+        />
+        <TeamRankingCard
+          rows={rows}
+          loading={loadingTeam}
+          dealCounts={teamDealCounts}
+          effectiveTeam={effectiveTeam}
         />
       </div>
 
