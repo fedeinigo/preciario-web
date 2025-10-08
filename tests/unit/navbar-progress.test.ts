@@ -7,8 +7,8 @@ import { loadNavbarProgress } from "../../src/app/components/navbar/load-progres
 const sampleRange = { from: "2024-01-01", to: "2024-03-31" } as const;
 
 const createTrackingFetcher = (value: number) => {
-  const calls: Array<{ userEmail: string; from: string; to: string }> = [];
-  const fn = async (params: { userEmail: string; from: string; to: string }) => {
+  const calls: Array<{ email: string; year: number; quarter: number }> = [];
+  const fn = async (params: { email: string; year: number; quarter: number }) => {
     calls.push(params);
     return value;
   };
@@ -24,7 +24,7 @@ test("loadNavbarProgress delegates to the aggregate helper", async () => {
 
   assert.equal(total, 4200);
   assert.deepEqual(calls, [
-    { userEmail: "user@example.com", from: sampleRange.from, to: sampleRange.to },
+    { email: "user@example.com", year: 2024, quarter: 1 },
   ]);
 });
 

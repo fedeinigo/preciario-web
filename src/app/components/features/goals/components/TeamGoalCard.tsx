@@ -40,6 +40,7 @@ export default function TeamGoalCard({
   const pct = teamGoal > 0 ? (teamProgress / teamGoal) * 100 : 0;
   const remaining = Math.max(0, teamGoal - teamProgress);
   const delta = sumMembersGoal - teamGoal;
+  const monthlyPct = teamGoal > 0 ? ((teamGoal / 3) / teamGoal) * 100 : 33.333;
 
   const [editOpen, setEditOpen] = React.useState(false);
 
@@ -109,6 +110,12 @@ export default function TeamGoalCard({
                   className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#c084fc] via-[#a855f7] to-[#7c3aed]"
                   style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
                 />
+                {teamGoal > 0 && (
+                  <div
+                    className="absolute top-0 bottom-0 w-[2px] bg-[#fbbf24]"
+                    style={{ left: `calc(${Math.min(100, Math.max(0, monthlyPct))}% - 1px)` }}
+                  />
+                )}
                 <div className="absolute inset-0 flex">
                   <div className="h-full w-1/3 border-r border-white/40" />
                   <div className="h-full w-1/3 border-r border-white/40" />

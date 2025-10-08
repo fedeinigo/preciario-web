@@ -26,6 +26,8 @@ model User {
   accounts      Account[]
   sessions      Session[]
   goals         QuarterlyGoal[]
+  manualDeals   ManualWonDeal[]
+  createdManualDeals ManualWonDeal[] @relation("ManualWonDealCreatedBy")
 
   // Mapache portal
   mapacheTasks               MapacheTask[]              @relation("MapacheTaskCreator")   // creadas por el usuario
@@ -156,6 +158,7 @@ model Proposal {
   externalId          String?        @unique
 
   items        ProposalItem[]
+  billing      WonDealBilling?
 
   @@index([createdAt])
   @@index([userEmail])
@@ -183,6 +186,38 @@ model ProposalItem {
 
   @@index([proposalId])
   @@index([itemId])
+}
+
+model ManualWonDeal {
+  id          String   @id @default(cuid())
+  userId      String
+  createdById String
+  companyName String
+  monthlyFee  Decimal  @db.Decimal(14, 2)
+  proposalUrl String?
+  year        Int
+  quarter     Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("ManualWonDealCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  billing   WonDealBilling?
+
+  @@index([userId, year, quarter])
+  @@index([createdAt])
+}
+
+model WonDealBilling {
+  id               String          @id @default(cuid())
+  proposalId       String?         @unique
+  manualWonDealId  String?         @unique
+  billedAmount     Decimal         @db.Decimal(14, 2) @default(0)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  proposal   Proposal?      @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  manualDeal ManualWonDeal? @relation(fields: [manualWonDealId], references: [id], onDelete: Cascade)
 }
 
 /* =========================
