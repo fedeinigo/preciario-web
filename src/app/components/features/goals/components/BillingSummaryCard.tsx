@@ -7,74 +7,60 @@ import { formatUSD } from "../../proposals/lib/format";
 
 export type UserWonDeal = {
   id: string;
-  companyName: string | null;
-  totalAmount: number;
+  type: "auto" | "manual";
+  companyName: string;
+  monthlyFee: number;
+  billedAmount: number;
+  pendingAmount: number;
+  billingPct: number;
+  link: string | null;
+  createdAt: string;
+  proposalId?: string;
+  manualDealId?: string;
   docId?: string | null;
   docUrl?: string | null;
 };
 
-type Props = {
-  deals: UserWonDeal[];
-  goal: number;
-  progress: number;
-  loading: boolean;
+type Totals = {
+  monthlyFees: number;
+  billed: number;
+  pending: number;
 };
 
-export default function BillingSummaryCard({ deals, goal, progress, loading }: Props) {
+type Props = {
+  deals: UserWonDeal[];
+  totals: Totals;
+  loading: boolean;
+  onEditBilling: (deal: UserWonDeal) => void;
+  onAddManual?: () => void;
+};
+
+export default function BillingSummaryCard({ deals, totals, loading, onEditBilling, onAddManual }: Props) {
   const t = useTranslations("goals.billing");
 
-  const groupedDeals = React.useMemo(() => {
-    const byCompany = new Map<
-      string,
-      { amount: number; count: number; autoCount: number }
-    >();
-
-    deals.forEach((deal) => {
-      const company = (deal.companyName || t("unknownCompany")).trim() || t("unknownCompany");
-      const entry = byCompany.get(company) ?? { amount: 0, count: 0, autoCount: 0 };
-      entry.amount += Number(deal.totalAmount || 0);
-      entry.count += 1;
-      if (deal.docId || deal.docUrl) entry.autoCount += 1;
-      byCompany.set(company, entry);
-    });
-
-    const raw = Array.from(byCompany.entries()).map(([company, stats]) => ({
-      company,
-      ...stats,
-    }));
-
-    raw.sort((a, b) => b.amount - a.amount);
-
-    const baseGoal = goal > 0 ? goal / Math.max(1, raw.length) : 0;
-
-    return raw.map((item) => {
-      const pending = Math.max(0, baseGoal - item.amount);
-      const pct = baseGoal > 0 ? (item.amount / baseGoal) * 100 : 0;
-      return {
-        company: item.company,
-        amount: item.amount,
-        count: item.count,
-        auto: item.autoCount >= item.count / 2,
-        pending,
-        pct,
-      };
-    });
-  }, [deals, goal, t]);
-
-  const totalPending = Math.max(0, goal - progress);
-  const companiesCount = groupedDeals.length;
+  const sortedDeals = React.useMemo(() => {
+    return [...deals].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [deals]);
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-[#eadeff] bg-gradient-to-br from-white via-white to-[#f4f0ff] p-6 shadow-[0_24px_60px_rgba(79,29,149,0.12)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7c3aed]">
-            {t("title")}
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7c3aed]">{t("title")}</p>
           <h3 className="mt-1 text-2xl font-semibold text-[#2f0f5d]">
-            {t("subtitle", { count: companiesCount })}
+            {t("subtitle", { count: deals.length })}
           </h3>
         </div>
+        {onAddManual && (
+          <button
+            className="inline-flex items-center justify-center rounded-full border border-[#c4b5fd] bg-white px-4 py-2 text-sm font-semibold text-[#4c1d95] shadow-sm transition hover:border-[#a78bfa] hover:text-[#3c0d7a]"
+            onClick={onAddManual}
+          >
+            {t("manualCta")}
+          </button>
+        )}
       </div>
 
       <div className="mt-6 flex-1 space-y-4 overflow-y-auto pr-1">
@@ -82,46 +68,49 @@ export default function BillingSummaryCard({ deals, goal, progress, loading }: P
           <div className="rounded-3xl border border-dashed border-[#d8c7ff] bg-[#faf7ff] p-6 text-sm text-[#5b21b6]">
             {t("loading")}
           </div>
-        ) : groupedDeals.length === 0 ? (
+        ) : sortedDeals.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-[#d8c7ff] bg-[#faf7ff] p-6 text-sm text-[#5b21b6]">
             {t("empty")}
           </div>
         ) : (
-          groupedDeals.map((item) => (
+          sortedDeals.map((deal) => (
             <div
-              key={item.company}
+              key={deal.id}
               className="rounded-3xl border border-[#efe7ff] bg-white px-5 py-4 shadow-[0_12px_30px_rgba(124,58,237,0.08)]"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-base font-semibold text-[#2f0f5d]">{item.company}</p>
+                  <p className="text-base font-semibold text-[#2f0f5d]">{deal.companyName}</p>
                   <p className="text-xs font-medium uppercase tracking-wide text-[#7c3aed]">
-                    {t("dealCount", { count: item.count })}
+                    {deal.type === "auto" ? t("autoLabel") : t("manualLabel")}
                   </p>
                 </div>
-                <span
-                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                    item.auto
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-[#fee2e2] text-[#b91c1c]"
-                  }`}
+                <button
+                  className="rounded-full border border-[#d8c7ff] px-3 py-1 text-xs font-semibold text-[#6d28d9] transition hover:bg-[#f4edff]"
+                  onClick={() => onEditBilling(deal)}
                 >
-                  {item.auto ? t("autoLabel") : t("manualLabel")}
-                </span>
+                  {t("editBilling")}
+                </button>
               </div>
 
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-[#7c3aed]">
-                    {t("facturadoLabel")}
+                    {t("monthlyFee")}
                   </p>
-                  <p className="text-lg font-semibold text-[#047857]">{formatUSD(item.amount)}</p>
+                  <p className="text-lg font-semibold text-[#4c1d95]">{formatUSD(deal.monthlyFee)}</p>
+                </div>
+                <div className="text-left sm:text-center">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#047857]">
+                    {t("billed")}
+                  </p>
+                  <p className="text-lg font-semibold text-[#047857]">{formatUSD(deal.billedAmount)}</p>
                 </div>
                 <div className="text-left sm:text-right">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#a16207]">
-                    {t("pendingLabel")}
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#b45309]">
+                    {t("pending")}
                   </p>
-                  <p className="text-lg font-semibold text-[#b45309]">{formatUSD(item.pending)}</p>
+                  <p className="text-lg font-semibold text-[#b45309]">{formatUSD(deal.pendingAmount)}</p>
                 </div>
               </div>
 
@@ -129,11 +118,21 @@ export default function BillingSummaryCard({ deals, goal, progress, loading }: P
                 <div className="relative h-2 w-full overflow-hidden rounded-full bg-[#ede9fe]">
                   <div
                     className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#c084fc] via-[#a855f7] to-[#7c3aed]"
-                    style={{ width: `${Math.min(100, Math.max(0, item.pct))}%` }}
+                    style={{ width: `${Math.min(100, Math.max(0, deal.billingPct))}%` }}
                   />
                 </div>
-                <div className="mt-1 text-right text-xs font-semibold text-[#6d28d9]">
-                  {Math.max(0, item.pct).toFixed(0)}%
+                <div className="mt-1 flex flex-wrap items-center justify-between text-xs font-semibold text-[#6d28d9]">
+                  <span>{deal.billingPct.toFixed(0)}%</span>
+                  {deal.link && (
+                    <a
+                      href={deal.link}
+                      className="text-[#4c1d95] underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {t("viewProposal")}
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -144,15 +143,21 @@ export default function BillingSummaryCard({ deals, goal, progress, loading }: P
       <div className="mt-6 grid grid-cols-1 gap-4 rounded-3xl border border-[#efe7ff] bg-white px-5 py-4 text-sm font-semibold text-[#5b21b6] shadow-[0_12px_30px_rgba(124,58,237,0.08)]">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wide text-[#7c3aed]">
-            {t("totalFacturado")}
+            {t("totalMonthly")}
           </span>
-          <span className="text-lg text-[#047857]">{formatUSD(progress)}</span>
+          <span className="text-lg text-[#4c1d95]">{formatUSD(totals.monthlyFees)}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wide text-[#a16207]">
+          <span className="text-xs font-semibold uppercase tracking-wide text-[#047857]">
+            {t("totalBilled")}
+          </span>
+          <span className="text-lg text-[#047857]">{formatUSD(totals.billed)}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wide text-[#b45309]">
             {t("totalPending")}
           </span>
-          <span className="text-lg text-[#b45309]">{formatUSD(totalPending)}</span>
+          <span className="text-lg text-[#b45309]">{formatUSD(totals.pending)}</span>
         </div>
       </div>
     </div>

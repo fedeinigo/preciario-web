@@ -15,6 +15,7 @@ import TeamMembersTable, { TeamGoalRow } from "./components/TeamMembersTable";
 import BillingSummaryCard, { UserWonDeal } from "./components/BillingSummaryCard";
 import TeamRankingCard from "./components/TeamRankingCard";
 import { Download, Users2 } from "lucide-react";
+import ManualWonDialog from "./components/ManualWonDialog";
 
 type Props = {
   role: AppRole;
@@ -33,6 +34,7 @@ export default function GoalsPage({
   const toastT = useTranslations("goals.toast");
   const csvT = useTranslations("goals.csv");
   const teamT = useTranslations("goals.team");
+  const billingT = useTranslations("goals.billing");
 
   const { users: adminUsers } = useAdminUsers({
     isSuperAdmin,
@@ -56,7 +58,15 @@ export default function GoalsPage({
   const [myGoal, setMyGoal] = React.useState<number>(0);
   const [myProgress, setMyProgress] = React.useState<number>(0);
   const [myDeals, setMyDeals] = React.useState<UserWonDeal[]>([]);
+  const [myTotals, setMyTotals] = React.useState<{ monthlyFees: number; billed: number; pending: number }>({
+    monthlyFees: 0,
+    billed: 0,
+    pending: 0,
+  });
   const [loadingDeals, setLoadingDeals] = React.useState<boolean>(false);
+  const [manualDialogTarget, setManualDialogTarget] = React.useState<
+    { userId?: string; email?: string | null; name?: string | null } | null
+  >(null);
 
   const loadMyGoal = React.useCallback(async () => {
     try {
@@ -68,64 +78,55 @@ export default function GoalsPage({
     }
   }, [year, quarter]);
 
-  const loadMyProgress = React.useCallback(async () => {
-    try {
-      const params = new URLSearchParams({
-        aggregate: "sum",
-        status: "WON",
-        userEmail: currentEmail,
-        from: rangeForQuarter.from,
-        to: rangeForQuarter.to,
-      });
-      const response = await fetch(`/api/proposals?${params.toString()}`, { cache: "no-store" });
-      if (!response.ok) throw new Error("Failed to load progress");
-      const payload = (await response.json()) as { totalAmount?: number };
-      setMyProgress(Number(payload.totalAmount ?? 0));
-    } catch {
-      setMyProgress(0);
-    }
-  }, [currentEmail, rangeForQuarter]);
-
-  const loadMyDeals = React.useCallback(async () => {
+  const loadMyWins = React.useCallback(async () => {
     setLoadingDeals(true);
     try {
-      const params = new URLSearchParams({
-        status: "WON",
-        userEmail: currentEmail,
-        from: rangeForQuarter.from,
-        to: rangeForQuarter.to,
-        pageSize: "200",
-      });
-      const response = await fetch(`/api/proposals?${params.toString()}`, { cache: "no-store" });
-      if (!response.ok) throw new Error("Failed to load deals");
-      const payload = (await response.json()) as Array<{
-        id: string;
-        companyName: string | null;
-        totalAmount: number;
-        docId?: string | null;
-        docUrl?: string | null;
-      }>;
-      setMyDeals(
-        payload.map((deal) => ({
-          id: deal.id,
-          companyName: deal.companyName,
-          totalAmount: Number(deal.totalAmount ?? 0),
-          docId: deal.docId ?? null,
-          docUrl: deal.docUrl ?? null,
-        }))
+      const params = new URLSearchParams({ year: String(year), quarter: String(quarter) });
+      const response = await fetch(`/api/goals/wins?${params.toString()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Failed to load wins");
+      const payload = (await response.json()) as {
+        progress?: number;
+        deals?: Array<UserWonDeal>;
+        totals?: { monthlyFees?: number; billed?: number; pending?: number };
+      };
+      const normalizedDeals = (payload.deals ?? []).map((deal) => ({
+        ...deal,
+        monthlyFee: Number(deal.monthlyFee ?? 0),
+        billedAmount: Number(deal.billedAmount ?? 0),
+        pendingAmount: Number(deal.pendingAmount ?? 0),
+        billingPct: Number.isFinite(deal.billingPct) ? deal.billingPct : 0,
+      }));
+      setMyProgress(Number(payload.progress ?? 0));
+      setMyDeals(normalizedDeals);
+      const totals = normalizedDeals.reduce(
+        (acc, deal) => {
+          acc.monthlyFees += Number(deal.monthlyFee ?? 0);
+          acc.billed += Number(deal.billedAmount ?? 0);
+          acc.pending += Number(deal.pendingAmount ?? Math.max(0, deal.monthlyFee - deal.billedAmount));
+          return acc;
+        },
+        { monthlyFees: 0, billed: 0, pending: 0 }
       );
+      setMyTotals({
+        monthlyFees: Number.isFinite(payload.totals?.monthlyFees ?? NaN)
+          ? Number(payload.totals?.monthlyFees)
+          : totals.monthlyFees,
+        billed: Number.isFinite(payload.totals?.billed ?? NaN) ? Number(payload.totals?.billed) : totals.billed,
+        pending: Number.isFinite(payload.totals?.pending ?? NaN) ? Number(payload.totals?.pending) : totals.pending,
+      });
     } catch {
+      setMyProgress(0);
       setMyDeals([]);
+      setMyTotals({ monthlyFees: 0, billed: 0, pending: 0 });
     } finally {
       setLoadingDeals(false);
     }
-  }, [currentEmail, rangeForQuarter]);
+  }, [quarter, year]);
 
   React.useEffect(() => {
     loadMyGoal();
-    loadMyProgress();
-    loadMyDeals();
-  }, [loadMyGoal, loadMyProgress, loadMyDeals]);
+    loadMyWins();
+  }, [loadMyGoal, loadMyWins]);
 
   const handleSaveMyGoal = async (amount: number) => {
     const r = await fetch("/api/goals/user", {
@@ -136,11 +137,12 @@ export default function GoalsPage({
     if (!r.ok) return toast.error(toastT("myGoalError"));
     toast.success(toastT("myGoalSaved"));
     setMyGoal(amount);
+    await loadMyWins();
   };
 
   // ---- Equipo (visibles para TODOS). Para superadmin: ocultar equipos vacíos.
   const teams = React.useMemo(() => {
-    if (!isSuperAdmin) return [] as string[];
+    if (!isSuperAdmin && role !== "admin") return [] as string[];
     const counts = new Map<string, number>();
     adminUsers.forEach((u) => {
       const t = (u.team || "").trim();
@@ -151,20 +153,32 @@ export default function GoalsPage({
       .filter(([, count]) => count > 0)
       .map(([name]) => name)
       .sort((a, b) => a.localeCompare(b));
-  }, [adminUsers, isSuperAdmin]);
+  }, [adminUsers, isSuperAdmin, role]);
 
   const [teamFilter, setTeamFilter] = React.useState<string>("");
-  const effectiveTeam = isSuperAdmin ? teamFilter : (leaderTeam ?? "");
+  const effectiveTeam = (isSuperAdmin || role === "admin") ? teamFilter : (leaderTeam ?? "");
 
   const [teamGoal, setTeamGoal] = React.useState<number>(0);
   const [teamProgress, setTeamProgress] = React.useState<number>(0);
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);
   const [loadingTeam, setLoadingTeam] = React.useState<boolean>(false);
   const [teamDealCounts, setTeamDealCounts] = React.useState<Record<string, number>>({});
+  const canAddManual = isSuperAdmin || role === "lider" || role === "admin";
 
   const loadTeam = React.useCallback(async () => {
-    if (!isSuperAdmin && !effectiveTeam) { setRows([]); setTeamGoal(0); setTeamProgress(0); return; }
-    if (isSuperAdmin && !effectiveTeam) { setRows([]); setTeamGoal(0); setTeamProgress(0); return; }
+    const canSelectTeam = isSuperAdmin || role === "admin";
+    if (!canSelectTeam && !effectiveTeam) {
+      setRows([]);
+      setTeamGoal(0);
+      setTeamProgress(0);
+      return;
+    }
+    if (canSelectTeam && !effectiveTeam) {
+      setRows([]);
+      setTeamGoal(0);
+      setTeamProgress(0);
+      return;
+    }
     setLoadingTeam(true);
     try {
       const r = await fetch(
@@ -180,21 +194,109 @@ export default function GoalsPage({
     } finally {
       setLoadingTeam(false);
     }
-  }, [effectiveTeam, isSuperAdmin, year, quarter]);
+  }, [effectiveTeam, isSuperAdmin, role, year, quarter]);
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
 
   React.useEffect(() => {
     const handleRefresh = () => {
-      loadMyProgress();
-      if (isSuperAdmin || role === "lider") {
+      loadMyWins();
+      if (isSuperAdmin || role === "lider" || role === "admin") {
         loadTeam();
       }
-      loadMyDeals();
+      loadMyWins();
     };
     window.addEventListener("proposals:refresh", handleRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
-  }, [isSuperAdmin, role, loadMyProgress, loadTeam, loadMyDeals]);
+  }, [isSuperAdmin, role, loadMyWins, loadTeam]);
+
+  const handleManualWon = React.useCallback(
+    async (payload: { companyName: string; monthlyFee: number; proposalUrl?: string | null; userId?: string }) => {
+      const body: Record<string, unknown> = {
+        companyName: payload.companyName,
+        monthlyFee: payload.monthlyFee,
+        proposalUrl: payload.proposalUrl ?? undefined,
+        year,
+        quarter,
+      };
+      if (payload.userId) body.userId = payload.userId;
+      const res = await fetch("/api/goals/wins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("failed");
+      toast.success(toastT("manualWonSaved"));
+      await loadMyWins();
+      if (isSuperAdmin || role === "lider" || role === "admin") {
+        await loadTeam();
+      }
+    },
+    [year, quarter, loadMyWins, isSuperAdmin, role, loadTeam, toastT]
+  );
+
+  const handleUpdateBilling = React.useCallback(
+    async (deal: UserWonDeal, billedAmount: number) => {
+      const payload: Record<string, unknown> = { billedAmount };
+      if (deal.proposalId) payload.proposalId = deal.proposalId;
+      if (deal.manualDealId) payload.manualDealId = deal.manualDealId;
+      const res = await fetch("/api/goals/wins", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("failed");
+      const data = (await res.json()) as { billedAmount?: number };
+      const billed = Number(data.billedAmount ?? billedAmount);
+      setMyDeals((prev) => {
+        const updated = prev.map((item) =>
+          item.id === deal.id
+            ? {
+                ...item,
+                billedAmount: billed,
+                pendingAmount: Math.max(0, item.monthlyFee - billed),
+                billingPct: item.monthlyFee > 0 ? (billed / item.monthlyFee) * 100 : 0,
+              }
+            : item
+        );
+        const totals = updated.reduce(
+          (acc, item) => {
+            acc.monthlyFees += item.monthlyFee;
+            acc.billed += item.billedAmount;
+            acc.pending += item.pendingAmount;
+            return acc;
+          },
+          { monthlyFees: 0, billed: 0, pending: 0 }
+        );
+        setMyTotals(totals);
+        return updated;
+      });
+    },
+    []
+  );
+
+  const openBillingEditor = React.useCallback(
+    async (deal: UserWonDeal) => {
+      const current = Number.isFinite(deal.billedAmount) ? deal.billedAmount : 0;
+      const input = window.prompt(
+        billingT("editBillingPrompt", { company: deal.companyName }),
+        String(current)
+      );
+      if (input === null) return;
+      const next = Number(input);
+      if (!Number.isFinite(next) || next < 0) {
+        toast.error(billingT("invalidAmount"));
+        return;
+      }
+      try {
+        await handleUpdateBilling(deal, next);
+        toast.success(toastT("billingSaved"));
+      } catch {
+        toast.error(toastT("billingError"));
+      }
+    },
+    [billingT, handleUpdateBilling, toastT]
+  );
 
   const saveUserGoal = async (userId: string, amount: number) => {
     const res = await fetch("/api/goals/user", {
@@ -238,20 +340,17 @@ export default function GoalsPage({
       }
       const entries = await Promise.all(
         members.map(async (member) => {
-          const email = member.email;
-          if (!email) return [member.userId, 0] as const;
           try {
             const params = new URLSearchParams({
-              aggregate: "sum",
-              status: "WON",
-              userEmail: email,
-              from: rangeForQuarter.from,
-              to: rangeForQuarter.to,
+              year: String(year),
+              quarter: String(quarter),
+              userId: member.userId,
             });
-            const res = await fetch(`/api/proposals?${params.toString()}`, { cache: "no-store" });
+            const res = await fetch(`/api/goals/wins?${params.toString()}`, { cache: "no-store" });
             if (!res.ok) throw new Error("fail");
-            const data = (await res.json()) as { count?: number };
-            return [member.userId, Number(data.count ?? 0)] as const;
+            const data = (await res.json()) as { deals?: unknown[] };
+            const count = Array.isArray(data.deals) ? data.deals.length : 0;
+            return [member.userId, count] as const;
           } catch {
             return [member.userId, 0] as const;
           }
@@ -259,7 +358,7 @@ export default function GoalsPage({
       );
       setTeamDealCounts(Object.fromEntries(entries));
     },
-    [rangeForQuarter]
+    [quarter, year]
   );
 
   React.useEffect(() => {
@@ -323,17 +422,16 @@ export default function GoalsPage({
       {/* 2 tarjetas */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
         <IndividualGoalCard
-          year={year}
-          quarter={quarter}
           range={rangeForQuarter}
           myGoal={myGoal}
           myProgress={myProgress}
           onSave={handleSaveMyGoal}
+          onAddManual={canAddManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
         />
         <TeamGoalCard
           year={year}
           quarter={quarter}
-          isSuperAdmin={isSuperAdmin}
+          isSuperAdmin={isSuperAdmin || role === "admin"}
           role={role}
           allTeams={teams}
           effectiveTeam={effectiveTeam}
@@ -348,9 +446,10 @@ export default function GoalsPage({
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         <BillingSummaryCard
           deals={myDeals}
-          goal={myGoal}
-          progress={myProgress}
+          totals={myTotals}
           loading={loadingDeals}
+          onEditBilling={openBillingEditor}
+          onAddManual={canAddManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
         />
         <TeamRankingCard
           rows={rows}
@@ -395,12 +494,16 @@ export default function GoalsPage({
               <TeamMembersTable
                 loading={loadingTeam}
                 rows={rows}
-                canEdit={isSuperAdmin || role === "lider"}
+                canEdit={isSuperAdmin || role === "lider" || role === "admin"}
+                canAddManual={canAddManual}
                 onEditGoal={saveUserGoal}
                 onOpenProfile={(u) => {
                   setProfileUser({ ...u, team: effectiveTeam });
                   setProfileOpen(true);
                 }}
+                onAddManual={(u) =>
+                  setManualDialogTarget({ userId: u.id, email: u.email, name: u.name })
+                }
               />
             )}
           </div>
@@ -413,6 +516,21 @@ export default function GoalsPage({
           onClose={() => setProfileOpen(false)}
           viewer={{ role, team: leaderTeam }}
           targetUser={profileUser}
+        />
+      )}
+      {manualDialogTarget && (
+        <ManualWonDialog
+          open={!!manualDialogTarget}
+          onClose={() => setManualDialogTarget(null)}
+          target={manualDialogTarget}
+          onSubmit={async (values) => {
+            try {
+              await handleManualWon(values);
+            } catch (err) {
+              toast.error(toastT("manualWonError"));
+              throw err;
+            }
+          }}
         />
       )}
     </div>

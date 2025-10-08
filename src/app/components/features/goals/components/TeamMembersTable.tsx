@@ -21,18 +21,23 @@ export default function TeamMembersTable({
   loading,
   rows,
   canEdit,
+  canAddManual,
   onEditGoal,
   onOpenProfile,
+  onAddManual,
 }: {
   loading: boolean;
   rows: TeamGoalRow[];
   canEdit: boolean;
+  canAddManual: boolean;
   onEditGoal: (userId: string, amount: number) => Promise<boolean> | boolean;
   onOpenProfile: (u: { id: string; email: string | null; name: string | null }) => void;
+  onAddManual: (u: { id: string; email: string | null; name: string | null }) => void;
 }) {
   const t = useTranslations("goals.table");
   const headersT = useTranslations("goals.table.headers");
   const actionsT = useTranslations("goals.table.actions");
+  const billingT = useTranslations("goals.billing");
   const labelsT = useTranslations("goals.table.labels");
   const toastT = useTranslations("goals.toast");
   const [editing, setEditing] = React.useState<string | null>(null);
@@ -246,6 +251,14 @@ export default function TeamMembersTable({
                       >
                         {actionsT("profile")}
                       </button>
+                      {canAddManual && (
+                        <button
+                          className="rounded-full px-4 py-2 text-[#6d28d9] transition hover:bg-[#f4edff]"
+                          onClick={() => onAddManual({ id: r.userId, email: r.email, name: r.name })}
+                        >
+                          {billingT("manualCta")}
+                        </button>
+                      )}
                       <button
                         className="rounded-full px-4 py-2 text-[#6d28d9] transition hover:bg-[#f4edff]"
                         onClick={() => {

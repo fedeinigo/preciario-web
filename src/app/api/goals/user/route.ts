@@ -46,7 +46,7 @@ export async function GET(req: Request) {
     if (!target) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     const myRole = me.role;
-    if (myRole === DbRole.superadmin) {
+    if (myRole === DbRole.superadmin || myRole === DbRole.admin) {
       targetUserId = target.id;
     } else if (myRole === DbRole.lider) {
       if (!!me.team && me.team === target.team) {
@@ -108,7 +108,7 @@ export async function PUT(req: Request) {
   let targetUserId: string = viewerId;
 
   // Permitir que superadmin/líder editen objetivos de otro usuario (si es de su equipo).
-  if (body.userId && (viewerRole === "superadmin" || viewerRole === "lider")) {
+  if (body.userId && (viewerRole === "superadmin" || viewerRole === "lider" || viewerRole === "admin")) {
     const target = await prisma.user.findUnique({
       where: { id: body.userId },
       select: { id: true, team: true },
