@@ -1834,8 +1834,11 @@ export default function MapachePortalClient({
     () =>
       bootstrapTeam.map((user) => ({
         id: String(user.id),
-        name: user.name ?? null,
-        email: user.email ?? null,
+        name: typeof user.name === "string" ? user.name : null,
+        email:
+          typeof user.email === "string" && user.email.trim()
+            ? user.email
+            : "",
       })),
     [bootstrapTeam],
   );
