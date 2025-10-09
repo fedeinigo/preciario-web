@@ -27,3 +27,14 @@ Estas variables son utilizadas por la aplicación. Los nuevos flags se introduce
 - **Producción:** `https://preciario.wisecx.com`
 
 Asegúrate de registrar estos dominios en Google Cloud OAuth y de actualizar `NEXTAUTH_URL`/`AUTH_URL` según el entorno donde se despliegue la app.
+
+## Migraciones de base de datos
+
+Cada vez que se incorporen nuevas tablas o relaciones en Prisma (por ejemplo, `ManualWonDeal` y `WonDealBilling` para el registro manual de wins), aplica las migraciones antes de levantar el servidor local:
+
+```bash
+npx prisma migrate deploy
+# o, si estás trabajando en desarrollo, `npx prisma migrate dev`
+```
+
+Si este paso se omite, el API devolverá errores `P2021` indicando que las tablas aún no existen en la base de datos local.
