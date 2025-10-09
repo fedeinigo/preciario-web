@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import type { AppRole } from "@/constants/teams";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
 import { useTranslations } from "@/app/LanguageProvider";
+import { normalizeProfileText } from "@/app/components/navbar/profile-format";
 
 export default function NavUserButton() {
   const { data: session, status } = useSession();
@@ -38,8 +39,7 @@ export default function NavUserButton() {
 
   if (!isAuthed) return null;
 
-  const name = session?.user?.name ?? fallbacksT("name");
-  const team = (session?.user?.team as string | null) ?? fallbacksT("team");
+  const name = normalizeProfileText(session?.user?.name) || fallbacksT("name");
 
   return (
     <>
@@ -48,7 +48,7 @@ export default function NavUserButton() {
         className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
         title={profileT("open")}
       >
-        {name} — {team}
+        {name}
       </button>
       <button
         onClick={() => signOut()}
