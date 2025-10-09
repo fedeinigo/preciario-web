@@ -25,6 +25,36 @@ import {
 } from "./lib/proposals-response";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 
+const THOUSAND_SCALING_SKUS = ["minutos de telefonia - entrantes", "minutos de telefonia - salientes"] as const;
+
+const normalizeKey = (value: string | undefined) =>
+  (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const shouldScaleSkuQuantity = (sku: string, name?: string) => {
+  const normalizedSku = normalizeKey(sku);
+  const normalizedName = normalizeKey(name);
+  return THOUSAND_SCALING_SKUS.some(
+    (needle) => normalizedSku.includes(needle) || normalizedName.includes(needle),
+  );
+};
+
+const getDisplayedSkuQuantity = (sku: string, name: string | undefined, quantity: number) => {
+  if (shouldScaleSkuQuantity(sku, name)) {
+    const scaledValue = Math.round(quantity / 1000);
+    return {
+      value: scaledValue,
+      display: `${scaledValue.toLocaleString()} (* 1000)`,
+    };
+  }
+  return {
+    value: quantity,
+    display: quantity.toLocaleString(),
+  };
+};
+
 function GradientShell({ children }: { children: React.ReactNode }) {
   return (
     <section className="relative overflow-hidden rounded-3xl border border-brand-primary/10 bg-white p-6 text-slate-900 shadow-[0_28px_72px_rgba(60,3,140,0.12)]">
@@ -359,7 +389,7 @@ function DonutChart({
   );
 }
 
-type HorizontalBarDatum = { name: string; value: number; helper?: string };
+type HorizontalBarDatum = { name: string; value: number; helper?: string; display?: string };
 
 function HorizontalBarList({
   data,
@@ -388,7 +418,9 @@ function HorizontalBarList({
                 <p className="font-semibold text-slate-600">{item.name}</p>
                 {item.helper ? <p className="text-[11px] uppercase tracking-wide text-slate-400">{item.helper}</p> : null}
               </div>
-              <span className="text-sm font-semibold text-brand-primary">{formatValue(item.value)}</span>
+              <span className="text-sm font-semibold text-brand-primary">
+                {item.display ?? formatValue(item.value)}
+              </span>
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
               <div
@@ -822,15 +854,23 @@ export default function Stats({
   }, [byCountry, byCountryFull, chartsOthersLabel, showAll]);
 
   const skuChartData = useMemo(() => {
-    const items = bySku.slice(0, 6).map(([sku, info]) => ({
-      name: info.name || sku,
-      helper: sku,
-      value: info.qty,
-    }));
+    const items = bySku.slice(0, 6).map(([sku, info]) => {
+      const { value, display } = getDisplayedSkuQuantity(sku, info.name, info.qty);
+      return {
+        name: info.name || sku,
+        helper: sku,
+        value,
+        display,
+      };
+    });
     if (!showAll && bySkuFull.length > 6) {
       const remaining = bySkuFull.slice(6).reduce((acc, [, info]) => acc + info.qty, 0);
       if (remaining > 0) {
-        items.push({ name: chartsOthersLabel, value: remaining, helper: "" });
+        items.push({
+          name: chartsOthersLabel,
+          value: remaining,
+          helper: "",
+        });
       }
     }
     return items;
@@ -1244,13 +1284,16 @@ export default function Stats({
                 <TableSkeleton rows={3} cols={3} />
               ) : (
                 <tbody className="divide-y divide-slate-200">
-                  {bySku.map(([sku, info]) => (
-                    <tr key={sku}>
-                      <td className="px-5 py-3 font-mono text-sm text-slate-500">{sku}</td>
-                      <td className="px-5 py-3 text-slate-600">{info.name}</td>
-                      <td className="px-5 py-3 text-right text-brand-primary font-semibold">{info.qty}</td>
-                    </tr>
-                  ))}
+                  {bySku.map(([sku, info]) => {
+                    const { display } = getDisplayedSkuQuantity(sku, info.name, info.qty);
+                    return (
+                      <tr key={sku}>
+                        <td className="px-5 py-3 font-mono text-sm text-slate-500">{sku}</td>
+                        <td className="px-5 py-3 text-slate-600">{info.name}</td>
+                        <td className="px-5 py-3 text-right text-brand-primary font-semibold">{display}</td>
+                      </tr>
+                    );
+                  })}
                   {!loading && bySku.length === 0 && (
                     <tr>
                       <td className="px-5 py-3 text-center text-sm text-slate-500" colSpan={3}>

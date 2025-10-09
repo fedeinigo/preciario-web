@@ -9,7 +9,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
-import { LayoutGrid, Clock, BarChart2, Users, Users2, Target } from "lucide-react";
+import { LayoutGrid, Clock, BarChart2, Users, Users2, Target, Wand2 } from "lucide-react";
 import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { locales } from "@/lib/i18n/config";
@@ -17,8 +17,8 @@ import type { AppRole } from "@/constants/teams";
 import { isMapachePath } from "@/lib/routing";
 import {
   MAPACHE_PORTAL_DEFAULT_SECTION,
-  MAPACHE_PORTAL_NAVIGATE_EVENT,
   MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
+  MAPACHE_PORTAL_READY_EVENT,
   type MapachePortalSection,
   isMapachePortalSection,
 } from "@/app/mapache-portal/section-events";
@@ -34,6 +34,15 @@ type AnyRole =
   | "usuario"
   | string
   | undefined;
+
+type ViewTransition = {
+  ready: Promise<void>;
+  finished: Promise<void>;
+};
+
+type DocumentWithViewTransition = Document & {
+  startViewTransition?: (callback: () => void) => ViewTransition;
+};
 
 const APP_ROLES: readonly AppRole[] = [
   "superadmin",
@@ -169,6 +178,141 @@ export default function Navbar() {
   const [profileOpen, setProfileOpen] = React.useState(false);
   const [mapacheSection, setMapacheSection] =
     React.useState<MapachePortalSection>(MAPACHE_PORTAL_DEFAULT_SECTION);
+  const [mapacheTransitionVisible, setMapacheTransitionVisible] =
+    React.useState(false);
+  const [mapacheTransitionOpaque, setMapacheTransitionOpaque] =
+    React.useState(false);
+  const mapacheTransitionStartedRef = React.useRef(false);
+  const mapacheTransitionOriginRef = React.useRef<string | null>(null);
+  const mapacheHideTimeoutRef = React.useRef<number | null>(null);
+  const mapacheFallbackTimeoutRef = React.useRef<number | null>(null);
+
+  const clearMapacheHideTimeout = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (mapacheHideTimeoutRef.current !== null) {
+      window.clearTimeout(mapacheHideTimeoutRef.current);
+      mapacheHideTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearMapacheFallbackTimeout = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (mapacheFallbackTimeoutRef.current !== null) {
+      window.clearTimeout(mapacheFallbackTimeoutRef.current);
+      mapacheFallbackTimeoutRef.current = null;
+    }
+  }, []);
+
+  const hideMapacheTransition = React.useCallback(() => {
+    if (typeof window === "undefined") {
+      setMapacheTransitionOpaque(false);
+      setMapacheTransitionVisible(false);
+      mapacheTransitionStartedRef.current = false;
+      mapacheTransitionOriginRef.current = null;
+      return;
+    }
+    clearMapacheFallbackTimeout();
+    clearMapacheHideTimeout();
+    setMapacheTransitionOpaque(false);
+    mapacheHideTimeoutRef.current = window.setTimeout(() => {
+      setMapacheTransitionVisible(false);
+      mapacheTransitionStartedRef.current = false;
+      mapacheTransitionOriginRef.current = null;
+      mapacheHideTimeoutRef.current = null;
+    }, 240);
+  }, [clearMapacheFallbackTimeout, clearMapacheHideTimeout]);
+
+  const scheduleMapacheFallback = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    clearMapacheFallbackTimeout();
+    mapacheFallbackTimeoutRef.current = window.setTimeout(() => {
+      hideMapacheTransition();
+    }, 15000);
+  }, [clearMapacheFallbackTimeout, hideMapacheTransition]);
+
+  const beginMapacheTransition = React.useCallback(() => {
+    if (mapacheTransitionStartedRef.current) return;
+    mapacheTransitionStartedRef.current = true;
+    mapacheTransitionOriginRef.current = pathname ?? null;
+
+    const targetPath = "/mapache-portal/tasks";
+
+    if (typeof router.prefetch === "function") {
+      try {
+        void router.prefetch(targetPath);
+      } catch {
+        // ignore prefetch errors
+      }
+    }
+
+    const navigate = () => {
+      router.push(targetPath);
+    };
+
+    if (typeof window === "undefined") {
+      navigate();
+      return;
+    }
+
+    const showOverlay = (makeOpaqueImmediately = false) => {
+      setMapacheTransitionVisible(true);
+      if (makeOpaqueImmediately) {
+        setMapacheTransitionOpaque(true);
+        return;
+      }
+      setMapacheTransitionOpaque(false);
+      requestAnimationFrame(() => {
+        setMapacheTransitionOpaque(true);
+      });
+    };
+
+    const doc = document as DocumentWithViewTransition;
+
+    if (doc?.startViewTransition) {
+      try {
+        const transition = doc.startViewTransition(() => {
+          navigate();
+        });
+        showOverlay();
+        scheduleMapacheFallback();
+        transition.ready
+          .then(() => {
+            setMapacheTransitionOpaque(true);
+          })
+          .catch(() => {
+            setMapacheTransitionOpaque(true);
+          });
+        return;
+      } catch {
+        // fall through to manual animation
+      }
+    }
+
+    showOverlay();
+    scheduleMapacheFallback();
+    window.setTimeout(() => {
+      navigate();
+    }, 120);
+  }, [pathname, router, scheduleMapacheFallback]);
+
+  const handleMapacheLinkClick = React.useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement>) => {
+      if (
+        event.defaultPrevented ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        event.button !== 0
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      beginMapacheTransition();
+    },
+    [beginMapacheTransition],
+  );
 
   const viewerProfile = React.useMemo(
     () => ({
@@ -230,8 +374,47 @@ export default function Navbar() {
   React.useEffect(() => {
     if (!isMapachePortal) {
       setMapacheSection(MAPACHE_PORTAL_DEFAULT_SECTION);
+      return;
     }
-  }, [isMapachePortal]);
+    if (pathname.startsWith("/mapache-portal/metrics")) {
+      setMapacheSection("metrics");
+    } else {
+      setMapacheSection("tasks");
+    }
+  }, [isMapachePortal, pathname]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleReady = () => {
+      hideMapacheTransition();
+    };
+    window.addEventListener(
+      MAPACHE_PORTAL_READY_EVENT,
+      handleReady as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        MAPACHE_PORTAL_READY_EVENT,
+        handleReady as EventListener,
+      );
+      clearMapacheHideTimeout();
+      clearMapacheFallbackTimeout();
+    };
+  }, [
+    hideMapacheTransition,
+    clearMapacheHideTimeout,
+    clearMapacheFallbackTimeout,
+  ]);
+
+  React.useEffect(() => {
+    if (!mapacheTransitionVisible) return;
+    if (!mapacheTransitionStartedRef.current) return;
+    if (!pathname) return;
+    if (pathname === mapacheTransitionOriginRef.current) return;
+    if (!pathname.startsWith("/mapache-portal")) {
+      hideMapacheTransition();
+    }
+  }, [pathname, mapacheTransitionVisible, hideMapacheTransition]);
 
   function setTab(t: Tab) {
     setActiveTab(t);
@@ -244,16 +427,16 @@ export default function Navbar() {
   const handleMapacheSectionChange = React.useCallback(
     (next: MapachePortalSection) => {
       setMapacheSection(next);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent<MapachePortalSection>(
-            MAPACHE_PORTAL_NAVIGATE_EVENT,
-            { detail: next },
-          ),
-        );
+      if (!isMapachePortal) return;
+      const target =
+        next === "metrics"
+          ? "/mapache-portal/metrics"
+          : "/mapache-portal/tasks";
+      if (pathname !== target) {
+        router.push(target);
       }
     },
-    [],
+    [isMapachePortal, pathname, router],
   );
 
   if (isPartnerPortal) {
@@ -386,8 +569,9 @@ export default function Navbar() {
           )}
           {showMapacheLink && (
             <Link
-              href="/mapache-portal"
+              href="/mapache-portal/tasks"
               className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+              onClick={handleMapacheLinkClick}
             >
               {profileT("mapachePortal")}
             </Link>
@@ -417,6 +601,53 @@ export default function Navbar() {
           )}
         </div>
       </div>
+
+      {mapacheTransitionVisible ? (
+        <>
+          <div
+            aria-hidden="true"
+            className={`fixed inset-0 z-[60] overflow-hidden bg-gradient-to-br from-[#020617]/85 via-[#00010a]/95 to-[#020617]/85 backdrop-blur-xl transition-opacity duration-400 ease-out ${
+              mapacheTransitionOpaque ? "opacity-100" : "opacity-0"
+            } pointer-events-auto`}
+          >
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute -inset-[35%] animate-[spin_18s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,rgba(15,118,254,0.08),transparent,rgba(59,130,246,0.16),transparent)] opacity-60" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(148,163,184,0.18),rgba(2,6,23,0.92))]" />
+            </div>
+            <div className="relative z-10 flex h-full flex-col items-center justify-center gap-6 text-white">
+              <div className="relative flex items-center justify-center">
+                <span className="absolute h-32 w-32 rounded-full bg-white/10 blur-3xl" />
+                <span className="absolute h-24 w-24 rounded-full border border-white/20" />
+                <span className="absolute h-24 w-24 rounded-full border border-white/10 animate-ping" />
+                <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white/15 text-white/90 shadow-[0_0_30px_rgba(59,130,246,0.35)] backdrop-blur-lg">
+                  <Wand2 className="h-8 w-8 drop-shadow-[0_6px_16px_rgba(148,163,184,0.45)]" />
+                </span>
+              </div>
+              <div className="text-center">
+                <p className="text-[11px] uppercase tracking-[0.6em] text-white/60">
+                  Portal Mapache
+                </p>
+                <p className="mt-2 text-lg font-semibold text-white">
+                  Preparando tablero inteligente...
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-white/70">
+                <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-white/70" aria-hidden="true" />
+                <span>Sincronizando tareas y metricas del equipo</span>
+              </div>
+            </div>
+          </div>
+          <div
+            className={`fixed inset-0 z-[60] bg-gradient-to-br from-[#0f172a]/80 via-[#020617]/95 to-[#00010a]/90 backdrop-blur-md transition-opacity duration-300 ease-out ${
+              mapacheTransitionOpaque ? "opacity-100" : "opacity-0"
+            } pointer-events-auto cursor-wait`}
+          >
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-12 w-12 rounded-full border-2 border-white/30 border-t-transparent animate-spin" />
+            </div>
+          </div>
+        </>
+      ) : null}
 
       <UserProfileModal
         open={showAuthActions && profileOpen}

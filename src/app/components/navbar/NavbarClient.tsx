@@ -37,7 +37,7 @@ import type { AppRole } from "@/constants/teams";
 import { isMapachePath } from "@/lib/routing";
 import {
   MAPACHE_PORTAL_DEFAULT_SECTION,
-  MAPACHE_PORTAL_NAVIGATE_EVENT,
+  MAPACHE_PORTAL_READY_EVENT,
   MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
   type MapachePortalSection,
   isMapachePortalSection,
@@ -212,21 +212,70 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const [mapacheTransitionOpaque, setMapacheTransitionOpaque] =
     React.useState(false);
   const mapacheTransitionStartedRef = React.useRef(false);
+  const mapacheTransitionOriginRef = React.useRef<string | null>(null);
+  const mapacheHideTimeoutRef = React.useRef<number | null>(null);
+  const mapacheFallbackTimeoutRef = React.useRef<number | null>(null);
+
+  const clearMapacheHideTimeout = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (mapacheHideTimeoutRef.current !== null) {
+      window.clearTimeout(mapacheHideTimeoutRef.current);
+      mapacheHideTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearMapacheFallbackTimeout = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (mapacheFallbackTimeoutRef.current !== null) {
+      window.clearTimeout(mapacheFallbackTimeoutRef.current);
+      mapacheFallbackTimeoutRef.current = null;
+    }
+  }, []);
+
+  const hideMapacheTransition = React.useCallback(() => {
+    if (typeof window === "undefined") {
+      setMapacheTransitionOpaque(false);
+      setMapacheTransitionVisible(false);
+      mapacheTransitionStartedRef.current = false;
+      mapacheTransitionOriginRef.current = null;
+      return;
+    }
+    clearMapacheFallbackTimeout();
+    clearMapacheHideTimeout();
+    setMapacheTransitionOpaque(false);
+    mapacheHideTimeoutRef.current = window.setTimeout(() => {
+      setMapacheTransitionVisible(false);
+      mapacheTransitionStartedRef.current = false;
+      mapacheTransitionOriginRef.current = null;
+      mapacheHideTimeoutRef.current = null;
+    }, 240);
+  }, [clearMapacheFallbackTimeout, clearMapacheHideTimeout]);
+
+  const scheduleMapacheFallback = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    clearMapacheFallbackTimeout();
+    mapacheFallbackTimeoutRef.current = window.setTimeout(() => {
+      hideMapacheTransition();
+    }, 15000);
+  }, [clearMapacheFallbackTimeout, hideMapacheTransition]);
 
   const beginMapacheTransition = React.useCallback(() => {
     if (mapacheTransitionStartedRef.current) return;
     mapacheTransitionStartedRef.current = true;
+    mapacheTransitionOriginRef.current = pathname ?? null;
+
+    const targetPath = "/mapache-portal/tasks";
 
     if (typeof router.prefetch === "function") {
       try {
-        void router.prefetch("/mapache-portal");
+        void router.prefetch(targetPath);
       } catch {
         // ignore prefetch errors and proceed with navigation
       }
     }
 
     const navigate = () => {
-      router.push("/mapache-portal");
+      router.push(targetPath);
     };
 
     if (typeof window === "undefined") {
@@ -253,22 +302,14 @@ export default function NavbarClient({ session }: NavbarClientProps) {
         const transition = doc.startViewTransition(() => {
           navigate();
         });
-        setMapacheTransitionVisible(true);
-        setMapacheTransitionOpaque(false);
+        showOverlay();
+        scheduleMapacheFallback();
         transition.ready
           .then(() => {
             setMapacheTransitionOpaque(true);
           })
           .catch(() => {
             setMapacheTransitionOpaque(true);
-          });
-        transition.finished
-          .finally(() => {
-            setMapacheTransitionOpaque(false);
-            window.setTimeout(() => {
-              setMapacheTransitionVisible(false);
-              mapacheTransitionStartedRef.current = false;
-            }, 200);
           });
         return;
       } catch {
@@ -277,22 +318,11 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     }
 
     showOverlay();
+    scheduleMapacheFallback();
     window.setTimeout(() => {
       navigate();
-    }, 220);
-    if (typeof window === "undefined") {
-      router.push("/mapache-portal");
-      return;
-    }
-
-    setMapacheTransitionVisible(true);
-    requestAnimationFrame(() => {
-      setMapacheTransitionOpaque(true);
-    });
-    window.setTimeout(() => {
-      router.push("/mapache-portal");
-    }, 240);
-  }, [router]);
+    }, 120);
+  }, [pathname, router, scheduleMapacheFallback]);
 
   const handleMapacheLinkClick = React.useCallback(
     (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -351,28 +381,47 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   React.useEffect(() => {
     if (!isMapachePortal) {
       setMapacheSection(MAPACHE_PORTAL_DEFAULT_SECTION);
+      return;
     }
-  }, [isMapachePortal]);
+    if (pathname?.startsWith("/mapache-portal/metrics")) {
+      setMapacheSection("metrics");
+    } else {
+      setMapacheSection("tasks");
+    }
+  }, [isMapachePortal, pathname]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleReady = () => {
+      hideMapacheTransition();
+    };
+    window.addEventListener(
+      MAPACHE_PORTAL_READY_EVENT,
+      handleReady as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        MAPACHE_PORTAL_READY_EVENT,
+        handleReady as EventListener,
+      );
+      clearMapacheHideTimeout();
+      clearMapacheFallbackTimeout();
+    };
+  }, [
+    hideMapacheTransition,
+    clearMapacheHideTimeout,
+    clearMapacheFallbackTimeout,
+  ]);
 
   React.useEffect(() => {
     if (!mapacheTransitionVisible) return;
-    if (typeof window === "undefined") return;
-    if (!pathname?.startsWith("/mapache-portal")) return;
-
-    const fadeTimeout = window.setTimeout(() => {
-      setMapacheTransitionOpaque(false);
-    }, 150);
-
-    const hideTimeout = window.setTimeout(() => {
-      setMapacheTransitionVisible(false);
-      mapacheTransitionStartedRef.current = false;
-    }, 420);
-
-    return () => {
-      window.clearTimeout(fadeTimeout);
-      window.clearTimeout(hideTimeout);
-    };
-  }, [mapacheTransitionVisible, pathname]);
+    if (!mapacheTransitionStartedRef.current) return;
+    if (!pathname) return;
+    if (pathname === mapacheTransitionOriginRef.current) return;
+    if (!pathname.startsWith("/mapache-portal")) {
+      hideMapacheTransition();
+    }
+  }, [pathname, mapacheTransitionVisible, hideMapacheTransition]);
 
   function setTab(t: Tab) {
     setActiveTab(t);
@@ -385,16 +434,16 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const handleMapacheSectionChange = React.useCallback(
     (next: MapachePortalSection) => {
       setMapacheSection(next);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent<MapachePortalSection>(
-            MAPACHE_PORTAL_NAVIGATE_EVENT,
-            { detail: next },
-          ),
-        );
+      if (!isMapachePortal) return;
+      const target =
+        next === "metrics"
+          ? "/mapache-portal/metrics"
+          : "/mapache-portal/tasks";
+      if (pathname !== target) {
+        router.push(target);
       }
     },
-    [],
+    [isMapachePortal, pathname, router],
   );
 
   const now = new Date();
@@ -583,7 +632,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
           )}
           {showMapacheLink && (
             <Link
-              href="/mapache-portal"
+              href="/mapache-portal/tasks"
               className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
               onClick={handleMapacheLinkClick}
             >

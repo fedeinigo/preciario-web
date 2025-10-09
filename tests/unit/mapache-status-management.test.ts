@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import "./setup-module-alias";
+import "./setup";
+
 import test from "node:test";
 
 import {
