@@ -154,7 +154,6 @@ export default function Navbar() {
   const role = (session?.user?.role as AnyRole) ?? "usuario";
   const appRole = toAppRole(role);
   const rawTeam = (session?.user?.team as string | null) ?? null;
-  const team = normalizeProfileText(rawTeam) || fallbacksT("team");
   const name = normalizeProfileText(session?.user?.name) || fallbacksT("name");
   const canSeeUsers = ADMIN_ROLES.has(appRole);
   const canOpenMapachePortal = rawTeam === "Mapaches" || ADMIN_ROLES.has(appRole);

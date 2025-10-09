@@ -1239,7 +1239,7 @@ export default function MapachePortalClient({
     () => searchParams.toString(),
     [searchParams],
   );
-  const lastSyncedQueryRef = React.useRef(
+  const lastSyncedQueryRef = React.useRef<string | null>(
     normalizeQueryString(searchParamsString),
   );
   const t = useTranslations("mapachePortal");
