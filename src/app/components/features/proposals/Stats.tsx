@@ -870,6 +870,7 @@ export default function Stats({
           name: chartsOthersLabel,
           value: remaining,
           helper: "",
+          display: remaining.toLocaleString(),
         });
       }
     }
