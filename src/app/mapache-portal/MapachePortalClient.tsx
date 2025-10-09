@@ -1885,6 +1885,7 @@ export default function MapachePortalClient({
     mapacheTeamMemberIds,
     tasks,
     statusKeys,
+    formatTaskAssigneeLabel,
   });
 
   const tasksByStatus = React.useMemo(() => {
