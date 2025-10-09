@@ -820,9 +820,10 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
                   <button
                     type="button"
                     onClick={() => setColumnsMenuOpen(false)}
+                    aria-label={messages.columnManagerCloseLabel}
                     className="text-white/50 transition hover:text-white"
                   >
-                    Ã—
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </div>
                 <div className="mb-3 flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.2em] text-white/40">
