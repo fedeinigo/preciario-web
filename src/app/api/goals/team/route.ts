@@ -34,13 +34,14 @@ export async function GET(req: Request) {
 
   const isSuper = me?.role === DbRole.superadmin;
   const isLeader = me?.role === DbRole.lider;
+  const isAdmin = me?.role === DbRole.admin;
 
   // equipo efectivo
   let team: string | null = teamParam;
-  if (isLeader && !isSuper) {
+  if (isLeader && !isSuper && !isAdmin) {
     team = me?.team ?? null; // líder: siempre su propio equipo
   }
-  if (!isSuper && !isLeader) {
+  if (!isSuper && !isLeader && !isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (!team) {
@@ -67,6 +68,7 @@ export async function GET(req: Request) {
   const progress = await prisma.proposal.groupBy({
     by: ["userId"],
     _sum: { totalAmount: true },
+    _count: { _all: true },
     where: {
       userId: { in: members.map((m) => m.id) },
       status: "WON",
@@ -75,11 +77,32 @@ export async function GET(req: Request) {
     },
   });
   const progByUser = new Map(progress.map((p) => [p.userId, Number(p._sum.totalAmount ?? 0)]));
+  const proposalCountByUser = new Map(progress.map((p) => [p.userId, Number(p._count?._all ?? 0)]));
+
+  const manualProgress = await prisma.manualWonDeal.groupBy({
+    by: ["userId"],
+    _sum: { monthlyFee: true },
+    _count: { _all: true },
+    where: {
+      userId: { in: members.map((m) => m.id) },
+      year,
+      quarter,
+    },
+  });
+  const manualByUser = new Map(
+    manualProgress.map((p) => [p.userId, Number(p._sum.monthlyFee ?? 0)])
+  );
+  const manualCountByUser = new Map(
+    manualProgress.map((p) => [p.userId, Number(p._count?._all ?? 0)])
+  );
 
   const rows = members.map((m) => {
     const userGoal = goalByUser.get(m.id) ?? 0;
-    const userProg = progByUser.get(m.id) ?? 0;
-    const pct = userGoal > 0 ? Math.min(100, (userProg / userGoal) * 100) : 0;
+    const userProg = (progByUser.get(m.id) ?? 0) + (manualByUser.get(m.id) ?? 0);
+    const pct = userGoal > 0 ? (userProg / userGoal) * 100 : 0;
+    const proposalsCount = proposalCountByUser.get(m.id) ?? 0;
+    const manualCount = manualCountByUser.get(m.id) ?? 0;
+    const dealsCount = proposalsCount + manualCount;
     return {
       userId: m.id,
       email: m.email,
@@ -87,6 +110,7 @@ export async function GET(req: Request) {
       goal: userGoal,
       progress: userProg,
       pct,
+      dealsCount,
     };
   });
 

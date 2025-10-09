@@ -1,0 +1,7 @@
+{
+  "name": "@floating-ui/react",
+  "version": "0.1.0-local",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "MIT"
+}

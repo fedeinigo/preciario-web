@@ -161,3 +161,36 @@ export async function fetchActiveUsersCount(
 
   return count;
 }
+
+export async function fetchWonProposalsTotal(
+  params: { userEmail: string; from: string; to: string },
+  init?: RequestInit,
+): Promise<number> {
+  const baseInit: RequestInit = { ...(init ?? {}), cache: init?.cache ?? "no-store" };
+  const searchParams = new URLSearchParams({
+    aggregate: "sum",
+    status: "WON",
+    userEmail: params.userEmail,
+    from: params.from,
+    to: params.to,
+  });
+
+  const response = await fetch(`/api/proposals?${searchParams.toString()}`, baseInit);
+
+  if (!response.ok) {
+    const error = new Error("Failed to fetch won proposals total") as FetchError;
+    error.status = response.status;
+    throw error;
+  }
+
+  const payload = (await response.json()) as unknown;
+  const total = isRecord(payload)
+    ? toNumber(payload.totalAmount ?? payload.total ?? payload.sum ?? payload.value)
+    : undefined;
+
+  if (typeof total !== "number") {
+    throw new Error("Invalid response for won proposals aggregate");
+  }
+
+  return total;
+}

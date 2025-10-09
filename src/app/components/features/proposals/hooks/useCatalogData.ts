@@ -59,24 +59,43 @@ function hydrateLocaleFromStorage(locale: Locale) {
   popularityCache.set(locale, entry.popularity ?? {});
 }
 
-function persistLocale(locale: Locale) {
+function clearAllLocalesExcept(locale: Locale) {
+  for (const key of Array.from(itemsCache.keys())) {
+    if (key !== locale) {
+      itemsCache.delete(key);
+    }
+  }
+
+  for (const key of Array.from(popularityCache.keys())) {
+    if (key !== locale) {
+      popularityCache.delete(key);
+    }
+  }
+
   if (typeof window === "undefined") return;
   const store = readStorage();
+  const retained = store[locale];
+  if (retained) {
+    writeStorage({ [locale]: retained });
+  } else if (Object.keys(store).length > 0) {
+    writeStorage({});
+  }
+}
+
+function persistLocale(locale: Locale) {
+  if (typeof window === "undefined") return;
   const items = itemsCache.get(locale);
   if (!items) {
-    if (store[locale]) {
-      delete store[locale];
-      writeStorage(store);
-    }
+    writeStorage({});
     return;
   }
   const popularity = popularityCache.get(locale) ?? {};
-  store[locale] = {
+  const entry = {
     items: sanitizeItemsForStorage(items),
     popularity: { ...popularity },
     timestamp: Date.now(),
   };
-  writeStorage(store);
+  writeStorage({ [locale]: entry });
 }
 
 function invalidateLocale(locale: Locale) {
@@ -102,8 +121,12 @@ function clonePopularity(data: Record<string, number>): Record<string, number> {
 export type CatalogState = {
   items: UIItem[];
   setItems: React.Dispatch<React.SetStateAction<UIItem[]>>;
+  mutateItems: (updater: React.SetStateAction<UIItem[]>) => void;
   popularity: Record<string, number>;
   setPopularity: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  mutatePopularity: (
+    updater: React.SetStateAction<Record<string, number>>
+  ) => void;
   loading: boolean;
   error: ProposalError | null;
   refresh: () => Promise<void>;
@@ -142,6 +165,14 @@ export function useCatalogData(
     [locale]
   );
 
+  const mutateItems = React.useCallback(
+    (updater: React.SetStateAction<UIItem[]>) => {
+      clearAllLocalesExcept(locale);
+      setItems(updater);
+    },
+    [locale, setItems]
+  );
+
   const setPopularity = React.useCallback<
     React.Dispatch<React.SetStateAction<Record<string, number>>>
   >(
@@ -158,6 +189,14 @@ export function useCatalogData(
       });
     },
     [locale]
+  );
+
+  const mutatePopularity = React.useCallback(
+    (updater: React.SetStateAction<Record<string, number>>) => {
+      clearAllLocalesExcept(locale);
+      setPopularity(updater);
+    },
+    [locale, setPopularity]
   );
 
   const handleError = React.useCallback(
@@ -246,8 +285,10 @@ export function useCatalogData(
   return {
     items,
     setItems,
+    mutateItems,
     popularity,
     setPopularity,
+    mutatePopularity,
     loading,
     error,
     refresh,

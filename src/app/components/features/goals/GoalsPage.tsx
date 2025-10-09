@@ -12,13 +12,26 @@ import QuarterPicker from "./components/QuarterPicker";
 import IndividualGoalCard from "./components/IndividualGoalCard";
 import TeamGoalCard from "./components/TeamGoalCard";
 import TeamMembersTable, { TeamGoalRow } from "./components/TeamMembersTable";
-import { Users2 } from "lucide-react";
+import BillingSummaryCard, { UserWonDeal } from "./components/BillingSummaryCard";
+import TeamRankingCard from "./components/TeamRankingCard";
+import { Download, Users2 } from "lucide-react";
+import ManualWonDialog from "./components/ManualWonDialog";
 
 type Props = {
   role: AppRole;
   currentEmail: string;
   leaderTeam: string | null;
   isSuperAdmin: boolean;
+};
+
+type TeamMemberResponse = {
+  userId?: string | number;
+  email?: string | null;
+  name?: string | null;
+  goal?: number | string;
+  progress?: number | string;
+  pct?: number | string;
+  dealsCount?: number | string;
 };
 
 export default function GoalsPage({
@@ -30,6 +43,8 @@ export default function GoalsPage({
   const pageT = useTranslations("goals.page");
   const toastT = useTranslations("goals.toast");
   const csvT = useTranslations("goals.csv");
+  const teamT = useTranslations("goals.team");
+  const billingT = useTranslations("goals.billing");
 
   const { users: adminUsers } = useAdminUsers({
     isSuperAdmin,
@@ -52,6 +67,17 @@ export default function GoalsPage({
   // ---- Mi objetivo
   const [myGoal, setMyGoal] = React.useState<number>(0);
   const [myProgress, setMyProgress] = React.useState<number>(0);
+  const [myDeals, setMyDeals] = React.useState<UserWonDeal[]>([]);
+  const [myTotals, setMyTotals] = React.useState<{ monthlyFees: number; billed: number; pending: number }>({
+    monthlyFees: 0,
+    billed: 0,
+    pending: 0,
+  });
+  const [loadingDeals, setLoadingDeals] = React.useState<boolean>(false);
+  const [manualDialogTarget, setManualDialogTarget] = React.useState<
+    { userId?: string; email?: string | null; name?: string | null } | null
+  >(null);
+  const closeManualDialog = React.useCallback(() => setManualDialogTarget(null), []);
 
   const loadMyGoal = React.useCallback(async () => {
     try {
@@ -63,28 +89,55 @@ export default function GoalsPage({
     }
   }, [year, quarter]);
 
-  const loadMyProgress = React.useCallback(async () => {
+  const loadMyWins = React.useCallback(async () => {
+    setLoadingDeals(true);
     try {
-      const params = new URLSearchParams({
-        aggregate: "sum",
-        status: "WON",
-        userEmail: currentEmail,
-        from: rangeForQuarter.from,
-        to: rangeForQuarter.to,
+      const params = new URLSearchParams({ year: String(year), quarter: String(quarter) });
+      const response = await fetch(`/api/goals/wins?${params.toString()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("Failed to load wins");
+      const payload = (await response.json()) as {
+        progress?: number;
+        deals?: Array<UserWonDeal>;
+        totals?: { monthlyFees?: number; billed?: number; pending?: number };
+      };
+      const normalizedDeals = (payload.deals ?? []).map((deal) => ({
+        ...deal,
+        monthlyFee: Number(deal.monthlyFee ?? 0),
+        billedAmount: Number(deal.billedAmount ?? 0),
+        pendingAmount: Number(deal.pendingAmount ?? 0),
+        billingPct: Number.isFinite(deal.billingPct) ? deal.billingPct : 0,
+      }));
+      setMyProgress(Number(payload.progress ?? 0));
+      setMyDeals(normalizedDeals);
+      const totals = normalizedDeals.reduce(
+        (acc, deal) => {
+          acc.monthlyFees += Number(deal.monthlyFee ?? 0);
+          acc.billed += Number(deal.billedAmount ?? 0);
+          acc.pending += Number(deal.pendingAmount ?? Math.max(0, deal.monthlyFee - deal.billedAmount));
+          return acc;
+        },
+        { monthlyFees: 0, billed: 0, pending: 0 }
+      );
+      setMyTotals({
+        monthlyFees: Number.isFinite(payload.totals?.monthlyFees ?? NaN)
+          ? Number(payload.totals?.monthlyFees)
+          : totals.monthlyFees,
+        billed: Number.isFinite(payload.totals?.billed ?? NaN) ? Number(payload.totals?.billed) : totals.billed,
+        pending: Number.isFinite(payload.totals?.pending ?? NaN) ? Number(payload.totals?.pending) : totals.pending,
       });
-      const response = await fetch(`/api/proposals?${params.toString()}`, { cache: "no-store" });
-      if (!response.ok) throw new Error("Failed to load progress");
-      const payload = (await response.json()) as { totalAmount?: number };
-      setMyProgress(Number(payload.totalAmount ?? 0));
     } catch {
       setMyProgress(0);
+      setMyDeals([]);
+      setMyTotals({ monthlyFees: 0, billed: 0, pending: 0 });
+    } finally {
+      setLoadingDeals(false);
     }
-  }, [currentEmail, rangeForQuarter]);
+  }, [quarter, year]);
 
   React.useEffect(() => {
     loadMyGoal();
-    loadMyProgress();
-  }, [loadMyGoal, loadMyProgress]);
+    loadMyWins();
+  }, [loadMyGoal, loadMyWins]);
 
   const handleSaveMyGoal = async (amount: number) => {
     const r = await fetch("/api/goals/user", {
@@ -95,11 +148,12 @@ export default function GoalsPage({
     if (!r.ok) return toast.error(toastT("myGoalError"));
     toast.success(toastT("myGoalSaved"));
     setMyGoal(amount);
+    await loadMyWins();
   };
 
   // ---- Equipo (visibles para TODOS). Para superadmin: ocultar equipos vacíos.
   const teams = React.useMemo(() => {
-    if (!isSuperAdmin) return [] as string[];
+    if (!isSuperAdmin && role !== "admin") return [] as string[];
     const counts = new Map<string, number>();
     adminUsers.forEach((u) => {
       const t = (u.team || "").trim();
@@ -110,19 +164,31 @@ export default function GoalsPage({
       .filter(([, count]) => count > 0)
       .map(([name]) => name)
       .sort((a, b) => a.localeCompare(b));
-  }, [adminUsers, isSuperAdmin]);
+  }, [adminUsers, isSuperAdmin, role]);
 
   const [teamFilter, setTeamFilter] = React.useState<string>("");
-  const effectiveTeam = isSuperAdmin ? teamFilter : (leaderTeam ?? "");
+  const effectiveTeam = (isSuperAdmin || role === "admin") ? teamFilter : (leaderTeam ?? "");
 
   const [teamGoal, setTeamGoal] = React.useState<number>(0);
   const [teamProgress, setTeamProgress] = React.useState<number>(0);
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);
   const [loadingTeam, setLoadingTeam] = React.useState<boolean>(false);
+  const canAddManual = isSuperAdmin || role === "lider" || role === "admin";
 
   const loadTeam = React.useCallback(async () => {
-    if (!isSuperAdmin && !effectiveTeam) { setRows([]); setTeamGoal(0); setTeamProgress(0); return; }
-    if (isSuperAdmin && !effectiveTeam) { setRows([]); setTeamGoal(0); setTeamProgress(0); return; }
+    const canSelectTeam = isSuperAdmin || role === "admin";
+    if (!canSelectTeam && !effectiveTeam) {
+      setRows([]);
+      setTeamGoal(0);
+      setTeamProgress(0);
+      return;
+    }
+    if (canSelectTeam && !effectiveTeam) {
+      setRows([]);
+      setTeamGoal(0);
+      setTeamProgress(0);
+      return;
+    }
     setLoadingTeam(true);
     try {
       const r = await fetch(
@@ -132,26 +198,151 @@ export default function GoalsPage({
       const j = await r.json();
       setTeamGoal(Number(j.teamGoal || 0));
       setTeamProgress(Number(j.teamProgress || 0));
-      setRows((j.members ?? []) as TeamGoalRow[]);
+      const members = (Array.isArray(j.members) ? j.members : []) as TeamMemberResponse[];
+      setRows(
+        members.map((member) => ({
+          userId: String(member.userId ?? ""),
+          email: member.email ?? null,
+          name: member.name ?? null,
+          goal: Number(member.goal ?? 0),
+          progress: Number(member.progress ?? 0),
+          pct: Number(member.pct ?? 0),
+          dealsCount: Number(member.dealsCount ?? 0),
+        }))
+      );
     } catch {
       setTeamGoal(0); setTeamProgress(0); setRows([]);
     } finally {
       setLoadingTeam(false);
     }
-  }, [effectiveTeam, isSuperAdmin, year, quarter]);
+  }, [effectiveTeam, isSuperAdmin, role, year, quarter]);
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
 
   React.useEffect(() => {
     const handleRefresh = () => {
-      loadMyProgress();
-      if (isSuperAdmin || role === "lider") {
+      loadMyWins();
+      if (isSuperAdmin || role === "lider" || role === "admin") {
         loadTeam();
       }
     };
     window.addEventListener("proposals:refresh", handleRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
-  }, [isSuperAdmin, role, loadMyProgress, loadTeam]);
+  }, [isSuperAdmin, role, loadMyWins, loadTeam]);
+
+  const handleManualWon = React.useCallback(
+    async (payload: { companyName: string; monthlyFee: number; proposalUrl?: string | null; userId?: string }) => {
+      const body: Record<string, unknown> = {
+        companyName: payload.companyName,
+        monthlyFee: payload.monthlyFee,
+        proposalUrl: payload.proposalUrl ?? undefined,
+        year,
+        quarter,
+      };
+      if (payload.userId) body.userId = payload.userId;
+      const res = await fetch("/api/goals/wins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => "");
+        console.error("manual-won-request failed", res.status, errorText);
+        throw new Error("manual-won-" + res.status);
+      }
+      toast.success(toastT("manualWonSaved"));
+      await loadMyWins();
+      if (isSuperAdmin || role === "lider" || role === "admin") {
+        await loadTeam();
+      }
+    },
+    [year, quarter, loadMyWins, isSuperAdmin, role, loadTeam, toastT]
+  );
+
+  const handleDeleteManualWon = React.useCallback(
+    async (deal: UserWonDeal) => {
+      if (!deal.manualDealId) return;
+      const confirmed = window.confirm(
+        billingT("deleteManualConfirm", { company: deal.companyName || billingT("unknownCompany") })
+      );
+      if (!confirmed) return;
+      try {
+        const res = await fetch(`/api/goals/wins?manualDealId=${deal.manualDealId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("fail");
+        toast.success(toastT("manualWonDeleted"));
+        await loadMyWins();
+        if (isSuperAdmin || role === "lider" || role === "admin") {
+          await loadTeam();
+        }
+      } catch {
+        toast.error(toastT("manualWonDeleteError"));
+      }
+    },
+    [billingT, toastT, loadMyWins, isSuperAdmin, role, loadTeam]
+  );
+
+  const handleUpdateBilling = React.useCallback(
+    async (deal: UserWonDeal, billedAmount: number) => {
+      const payload: Record<string, unknown> = { billedAmount };
+      if (deal.proposalId) payload.proposalId = deal.proposalId;
+      if (deal.manualDealId) payload.manualDealId = deal.manualDealId;
+      const res = await fetch("/api/goals/wins", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("failed");
+      const data = (await res.json()) as { billedAmount?: number };
+      const billed = Number(data.billedAmount ?? billedAmount);
+      setMyDeals((prev) => {
+        const updated = prev.map((item) =>
+          item.id === deal.id
+            ? {
+                ...item,
+                billedAmount: billed,
+                pendingAmount: Math.max(0, item.monthlyFee - billed),
+                billingPct: item.monthlyFee > 0 ? (billed / item.monthlyFee) * 100 : 0,
+              }
+            : item
+        );
+        const totals = updated.reduce(
+          (acc, item) => {
+            acc.monthlyFees += item.monthlyFee;
+            acc.billed += item.billedAmount;
+            acc.pending += item.pendingAmount;
+            return acc;
+          },
+          { monthlyFees: 0, billed: 0, pending: 0 }
+        );
+        setMyTotals(totals);
+        return updated;
+      });
+    },
+    []
+  );
+
+  const openBillingEditor = React.useCallback(
+    async (deal: UserWonDeal) => {
+      const current = Number.isFinite(deal.billedAmount) ? deal.billedAmount : 0;
+      const input = window.prompt(
+        billingT("editBillingPrompt", { company: deal.companyName }),
+        String(current)
+      );
+      if (input === null) return;
+      const next = Number(input);
+      if (!Number.isFinite(next) || next < 0) {
+        toast.error(billingT("invalidAmount"));
+        return;
+      }
+      try {
+        await handleUpdateBilling(deal, next);
+        toast.success(toastT("billingSaved"));
+      } catch {
+        toast.error(toastT("billingError"));
+      }
+    },
+    [billingT, handleUpdateBilling, toastT]
+  );
 
   const saveUserGoal = async (userId: string, amount: number) => {
     const res = await fetch("/api/goals/user", {
@@ -186,6 +377,7 @@ export default function GoalsPage({
       toast.error(toastT("teamGoalError"));
     }
   };
+
 
   const exportCsv = () => {
     const headers = [
@@ -225,10 +417,6 @@ export default function GoalsPage({
     borderRadius: "12px",
   };
 
-  const teamTitle = effectiveTeam
-    ? pageT("teamTitleWithName", { team: effectiveTeam })
-    : pageT("teamTitle");
-
   return (
     <div className="space-y-6" style={textureStyle}>
       {/* Header Objetivos */}
@@ -244,17 +432,16 @@ export default function GoalsPage({
       {/* 2 tarjetas */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
         <IndividualGoalCard
-          year={year}
-          quarter={quarter}
           range={rangeForQuarter}
           myGoal={myGoal}
           myProgress={myProgress}
           onSave={handleSaveMyGoal}
+          onAddManual={canAddManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
         />
         <TeamGoalCard
           year={year}
           quarter={quarter}
-          isSuperAdmin={isSuperAdmin}
+          isSuperAdmin={isSuperAdmin || role === "admin"}
           role={role}
           allTeams={teams}
           effectiveTeam={effectiveTeam}
@@ -262,35 +449,71 @@ export default function GoalsPage({
           teamGoal={teamGoal}
           teamProgress={teamProgress}
           sumMembersGoal={sumMembersGoal}
-          onExportCsv={exportCsv}
           onSaveTeamGoal={saveTeamGoal}
         />
       </div>
 
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+        <BillingSummaryCard
+          deals={myDeals}
+          totals={myTotals}
+          loading={loadingDeals}
+          goal={myGoal}
+          onEditBilling={openBillingEditor}
+          onAddManual={canAddManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
+          onDeleteDeal={handleDeleteManualWon}
+        />
+        <TeamRankingCard rows={rows} loading={loadingTeam} effectiveTeam={effectiveTeam} />
+      </div>
+
       {/* Tabla de equipo */}
-      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden max-w-6xl mx-auto">
-        <div className="px-4 h-12 flex items-center gap-2 text-white font-semibold bg-[#4c1d95]">
-          <Users2 className="h-4 w-4" />
-          {teamTitle}
-        </div>
-        <div className="p-4">
-          {!effectiveTeam ? (
-            <div className="rounded-lg border bg-white p-4 text-sm text-gray-600">
-              {isSuperAdmin ? pageT("emptySuperadmin") : pageT("emptyMember")}
+      <div className="w-full">
+        <div className="overflow-hidden rounded-3xl border border-[#eadeff] bg-white shadow-[0_20px_45px_rgba(76,29,149,0.1)]">
+          <div className="flex flex-col gap-3 border-b border-[#efe7ff] px-6 py-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3 text-[#4c1d95]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ede9fe]">
+                <Users2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7c3aed]">
+                  {pageT("teamTitle")}
+                </p>
+                <p className="text-xl font-semibold text-[#2f0f5d]">
+                  {effectiveTeam ? pageT("teamTitleWithName", { team: effectiveTeam }) : pageT("teamTitle")}
+                </p>
+              </div>
             </div>
-          ) : (
-            <TeamMembersTable
-              loading={loadingTeam}
-              rows={rows}
-              canEdit={isSuperAdmin || role === "lider"}
-              onEditGoal={saveUserGoal}
-              onOpenProfile={(u) => {
-                // 👉 Pasamos el equipo efectivo para que el modal lo muestre siempre
-                setProfileUser({ ...u, team: effectiveTeam });
-                setProfileOpen(true);
-              }}
-            />
-          )}
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#ede9fe] px-5 py-2 text-sm font-semibold text-[#4c1d95] transition hover:bg-[#dcd0ff] disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={exportCsv}
+              disabled={!effectiveTeam || loadingTeam}
+            >
+              <Download className="h-4 w-4" />
+              {teamT("exportCsv")}
+            </button>
+          </div>
+          <div className="p-6">
+            {!effectiveTeam ? (
+              <div className="rounded-2xl border border-dashed border-[#d8c7ff] bg-[#faf7ff] p-6 text-sm text-[#5b21b6]">
+                {isSuperAdmin ? pageT("emptySuperadmin") : pageT("emptyMember")}
+              </div>
+            ) : (
+              <TeamMembersTable
+                loading={loadingTeam}
+                rows={rows}
+                canEdit={isSuperAdmin || role === "lider" || role === "admin"}
+                canAddManual={canAddManual}
+                onEditGoal={saveUserGoal}
+                onOpenProfile={(u) => {
+                  setProfileUser({ ...u, team: effectiveTeam });
+                  setProfileOpen(true);
+                }}
+                onAddManual={(u) =>
+                  setManualDialogTarget({ userId: u.id, email: u.email, name: u.name })
+                }
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -300,6 +523,21 @@ export default function GoalsPage({
           onClose={() => setProfileOpen(false)}
           viewer={{ role, team: leaderTeam }}
           targetUser={profileUser}
+        />
+      )}
+      {manualDialogTarget && (
+        <ManualWonDialog
+          open={!!manualDialogTarget}
+          onClose={closeManualDialog}
+          target={manualDialogTarget}
+          onSubmit={async (values) => {
+            try {
+              await handleManualWon(values);
+            } catch (err) {
+              toast.error(toastT("manualWonError"));
+              throw err;
+            }
+          }}
         />
       )}
     </div>

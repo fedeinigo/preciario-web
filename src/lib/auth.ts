@@ -4,10 +4,10 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { Adapter } from "next-auth/adapters";
 import type { JWT } from "next-auth/jwt";
+import type { AppRole } from "@/constants/teams";
+import { appRoleFromDb } from "@/lib/roles";
 import prisma from "@/lib/prisma";
 import { isFeatureEnabled } from "@/lib/feature-flags";
-// Mantén este alias si no lo traes de otro lado
-type AppRole = "superadmin" | "lider" | "usuario";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
@@ -71,7 +71,7 @@ export const authOptions: NextAuthOptions = {
         if (dbUser) {
           token.id = dbUser.id;
           token.email = dbUser.email ?? token.email;
-          token.role = (dbUser.role ?? "usuario") as AppRole;
+          token.role = appRoleFromDb(dbUser.role);
           token.team = dbUser.team ?? null;
         }
         return token as JWT;
@@ -85,7 +85,7 @@ export const authOptions: NextAuthOptions = {
         });
         if (dbUser) {
           token.id = dbUser.id;
-          token.role = (dbUser.role ?? "usuario") as AppRole;
+          token.role = appRoleFromDb(dbUser.role);
           token.team = dbUser.team ?? null;
         }
       }

@@ -1,6 +1,6 @@
 // src/constants/teams.ts
 // Único lugar donde definimos el tipo de rol.
-export type AppRole = "superadmin" | "lider" | "usuario";
+export type AppRole = "superadmin" | "admin" | "lider" | "usuario";
 
 // Mantengo TEAMS por compatibilidad (ya no se usa para filtrar; ahora se consulta /api/teams)
 export const TEAMS: string[] = [];

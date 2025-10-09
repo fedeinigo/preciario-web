@@ -12,7 +12,7 @@ import { normalizeSearchText } from "@/lib/normalize-search-text";
 import { fetchActiveUsersCount } from "./lib/proposals-response";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 
-type Role = "superadmin" | "lider" | "usuario";
+type Role = "superadmin" | "admin" | "lider" | "usuario";
 
 type UserRow = {
   id: string;
@@ -93,7 +93,7 @@ function FilterChip({
   );
 }
 
-const ROLES: Role[] = ["usuario", "lider", "superadmin"];
+const ROLES: Role[] = ["usuario", "lider", "admin", "superadmin"];
 
 type SortKey = "email" | "name" | "role" | "team";
 type SortDir = "asc" | "desc";

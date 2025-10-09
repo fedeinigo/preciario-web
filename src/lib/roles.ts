@@ -7,6 +7,8 @@ export function appRoleFromDb(role: DbRole | null | undefined): AppRole {
   switch (role) {
     case DbRole.superadmin:
       return "superadmin";
+    case DbRole.admin:
+      return "admin";
     case DbRole.lider:
       return "lider";
     default:
@@ -20,6 +22,8 @@ export function dbRoleFromApp(role: AppRole | string | null | undefined): DbRole
   switch (role) {
     case "superadmin":
       return DbRole.superadmin;
+    case "admin":
+      return DbRole.admin;
     case "lider":
       return DbRole.lider;
     case "usuario":

@@ -82,6 +82,7 @@ const ItemsTableRow = React.memo(function ItemsTableRow({
   const translation = item.translations?.[locale];
   const displayName = translation?.name ?? item.name;
   const displayDescription = translation?.description ?? item.description;
+  const displayCategory = translation?.category ?? item.category;
 
   const handleToggle = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,7 +124,7 @@ const ItemsTableRow = React.memo(function ItemsTableRow({
           <span className="font-mono text-gray-600">{item.sku}</span>
         </td>
       )}
-      <td className="table-td">{item.category}</td>
+      <td className="table-td">{displayCategory}</td>
       <td className="table-td">
         <div className="font-medium">{displayName}</div>
         {displayDescription && (

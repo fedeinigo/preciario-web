@@ -1,4 +1,4 @@
-// src/app/components/ui/UserProfileModal.tsx
+﻿// src/app/components/ui/UserProfileModal.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
@@ -9,8 +9,8 @@ import { formatUSD } from "@/app/components/features/proposals/lib/format";
 import { q1Range, q2Range, q3Range, q4Range } from "@/app/components/features/proposals/lib/dateRanges";
 import type { AppRole } from "@/constants/teams";
 import { useTranslations } from "@/app/LanguageProvider";
-import { fetchAllProposals } from "@/app/components/features/proposals/lib/proposals-response";
 import { useAdminUsers } from "@/app/components/features/proposals/hooks/useAdminUsers";
+import ManualWonDialog from "@/app/components/features/goals/components/ManualWonDialog";
 
 type Viewer = {
   id?: string | null;
@@ -50,6 +50,7 @@ export default function UserProfileModal({
   const rolesT = useTranslations("common.roles");
   const toastT = useTranslations("goals.toast");
   const metricsT = useTranslations("goals.individual.metrics");
+  const billingT = useTranslations("goals.billing");
   // Objetivo base: si vino targetUser lo tomo, sino el viewer
   const baseTarget = useMemo<TargetUser>(() => {
     if (targetUser?.email || targetUser?.id) return targetUser;
@@ -112,9 +113,16 @@ export default function UserProfileModal({
   const canEdit =
     isSelf ||
     viewer.role === "superadmin" ||
+    viewer.role === "admin" ||
     (viewer.role === "lider" && !!viewer.team && !!resolvedTarget.team && viewer.team === resolvedTarget.team);
 
-  // Año/quarter
+  const canAddManual =
+    isSelf ||
+    viewer.role === "superadmin" ||
+    viewer.role === "admin" ||
+    (viewer.role === "lider" && !!viewer.team && !!resolvedTarget.team && viewer.team === resolvedTarget.team);
+
+  // AÃ±o/quarter
   const now = new Date();
   const [year, setYear] = useState<number>(now.getFullYear());
   const [quarter, setQuarter] = useState<1 | 2 | 3 | 4>(() => {
@@ -137,27 +145,49 @@ export default function UserProfileModal({
   // Avance (WON del usuario en el trimestre)
   const [wonAmount, setWonAmount] = useState<number>(0);
   const loadProgress = useCallback(async () => {
-    if (!resolvedTarget.email) {
+    const params = new URLSearchParams({ year: String(year), quarter: String(quarter) });
+    if (resolvedTarget.id) {
+      params.set("userId", resolvedTarget.id);
+    } else if (resolvedTarget.email) {
+      params.set("email", resolvedTarget.email);
+    } else {
       setWonAmount(0);
       return;
     }
     try {
-      const { proposals } = await fetchAllProposals();
-      const from = new Date(range.from).getTime();
-      const to = new Date(range.to).getTime();
-      const sum = proposals
-        .filter((p) => {
-          if (p.userEmail !== resolvedTarget.email) return false;
-          if ((p.status ?? "").toUpperCase() !== "WON") return false;
-          const ts = new Date(p.createdAt as string).getTime();
-          return ts >= from && ts <= to;
-        })
-        .reduce((acc, p) => acc + Number(p.totalAmount ?? 0), 0);
-      setWonAmount(sum);
+      const response = await fetch(`/api/goals/wins?${params.toString()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("fail");
+      const payload = (await response.json()) as { progress?: number };
+      setWonAmount(Number(payload.progress ?? 0));
     } catch {
       setWonAmount(0);
     }
-  }, [resolvedTarget.email, range.from, range.to]);
+  }, [resolvedTarget.id, resolvedTarget.email, year, quarter]);
+
+  const submitManualWon = useCallback(
+    async (payload: { companyName: string; monthlyFee: number; proposalUrl?: string | null; userId?: string }) => {
+      const body: Record<string, unknown> = {
+        companyName: payload.companyName,
+        monthlyFee: payload.monthlyFee,
+        proposalUrl: payload.proposalUrl ?? undefined,
+        year,
+        quarter,
+      };
+      const targetId = payload.userId ?? resolvedTarget.id;
+      if (targetId) body.userId = targetId;
+      const res = await fetch("/api/goals/wins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("failed");
+      toast.success(toastT("manualWonSaved"));
+      await loadProgress();
+    },
+    [year, quarter, resolvedTarget.id, loadProgress, toastT]
+  );
+
+  const [manualOpen, setManualOpen] = useState(false);
 
   const loadGoal = useCallback(async () => {
     setLoadingGoal(true);
@@ -167,7 +197,7 @@ export default function UserProfileModal({
         if (resolvedTarget.id) qs.push(`userId=${encodeURIComponent(resolvedTarget.id)}`);
         else if (resolvedTarget.email) qs.push(`email=${encodeURIComponent(resolvedTarget.email)}`);
       } else {
-        // también puede ir con id/email, el backend lo permite sin problema
+        // tambiÃ©n puede ir con id/email, el backend lo permite sin problema
         if (resolvedTarget.id) qs.push(`userId=${encodeURIComponent(resolvedTarget.id)}`);
       }
       const r = await fetch(`/api/goals/user?${qs.join("&")}`);
@@ -204,7 +234,7 @@ export default function UserProfileModal({
         year,
         quarter,
       };
-      // Si edito a otro, envío siempre userId resuelto
+      // Si edito a otro, envÃ­o siempre userId resuelto
       if (!isSelf && resolvedTarget.id) body.userId = resolvedTarget.id;
       const r = await fetch("/api/goals/user", {
         method: "PUT",
@@ -250,7 +280,8 @@ export default function UserProfileModal({
       onClose={onClose}
       title={profileT("title")}
       variant="inverted"
-      panelClassName="max-w-2xl"
+      panelClassName="max-w-full"
+      panelStyle={{ maxWidth: "min(100vw - 32px, 1200px)" }}
       footer={
         <div className="flex justify-between items-center w-full">
           <div className="text-[12px] text-white/80">{profileT("periodSummary", { year, quarter, from: range.from, to: range.to })}</div>
@@ -380,6 +411,18 @@ export default function UserProfileModal({
           </div>
         </div>
 
+        {canAddManual && (
+          <div className="flex justify-end">
+            <button
+              className="rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
+              onClick={() => setManualOpen(true)}
+              type="button"
+            >
+              {billingT("manualCta")}
+            </button>
+          </div>
+        )}
+
         {/* Barra de progreso */}
         <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
           <div className="h-3 w-full rounded bg-white/20 overflow-hidden" title={`${pct.toFixed(1)}%`}>
@@ -390,6 +433,27 @@ export default function UserProfileModal({
           </div>
         </div>
       </div>
+      {manualOpen && (
+        <ManualWonDialog
+          open={manualOpen}
+          onClose={() => setManualOpen(false)}
+          target={{
+            userId: resolvedTarget.id ?? undefined,
+            email: resolvedTarget.email ?? null,
+            name: resolvedTarget.name ?? null,
+          }}
+          onSubmit={async (values) => {
+            try {
+              await submitManualWon(values);
+              setManualOpen(false);
+            } catch (err) {
+              toast.error(toastT("manualWonError"));
+              throw err;
+            }
+          }}
+        />
+      )}
     </Modal>
   );
 }
+
