@@ -116,6 +116,7 @@ function MapacheSectionBtn({
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
+  const isPartnerPortal = pathname.startsWith("/partner-portal");
   const { locale, setLocale } = useLanguage();
   const t = useTranslations("navbar");
   const tabsT = useTranslations("navbar.tabs");
@@ -152,6 +153,8 @@ export default function Navbar() {
     showAuthActions && canOpenMapachePortal && isMapachePortal;
   const showMapacheLink =
     showAuthActions && canOpenMapachePortal && !isMapachePortal;
+  const showPartnerPortal =
+    showAuthActions && ADMIN_ROLES.has(appRole) && !isPartnerPortal;
 
   const readHash = (): Tab => {
     const h = (globalThis?.location?.hash || "").replace("#", "");
@@ -253,7 +256,11 @@ export default function Navbar() {
     [],
   );
 
-return (
+  if (isPartnerPortal) {
+    return null;
+  }
+
+  return (
     <nav
       role="navigation"
       aria-label={t("ariaLabel")}
@@ -271,6 +278,14 @@ return (
             className="h-9 w-auto object-contain"
             priority
           />
+          {showPartnerPortal && (
+            <Link
+              href="/partner-portal"
+              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+            >
+              Portal Partner
+            </Link>
+          )}
           {showMapacheReturn && (
             <Link
               href="/"

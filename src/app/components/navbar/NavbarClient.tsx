@@ -162,6 +162,7 @@ function readHash(): Tab {
 export default function NavbarClient({ session }: NavbarClientProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const isPartnerPortal = pathname?.startsWith("/partner-portal");
   const { locale, setLocale } = useLanguage();
   const t = useTranslations("navbar");
   const tabsT = useTranslations("navbar.tabs");
@@ -199,6 +200,8 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const canOpenMapachePortal = rawTeam === "Mapaches" || ADMIN_ROLES.has(appRole);
   const showMapacheReturn = showAuthActions && canOpenMapachePortal && isMapachePortal;
   const showMapacheLink = showAuthActions && canOpenMapachePortal && !isMapachePortal;
+  const showPartnerPortal =
+    showAuthActions && ADMIN_ROLES.has(appRole) && !isPartnerPortal;
 
   const [activeTab, setActiveTab] = React.useState<Tab>(readHash());
   const [userModal, setUserModal] = React.useState(false);
@@ -463,6 +466,10 @@ export default function NavbarClient({ session }: NavbarClientProps) {
 
   const pct = goal > 0 ? (progress / goal) * 100 : 0;
 
+  if (isPartnerPortal) {
+    return null;
+  }
+
   return (
     <nav
       role="navigation"
@@ -480,6 +487,14 @@ export default function NavbarClient({ session }: NavbarClientProps) {
             className="h-9 w-auto object-contain"
             priority
           />
+          {showPartnerPortal && (
+            <Link
+              href="/partner-portal"
+              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+            >
+              Portal Partner
+            </Link>
+          )}
           {showMapacheReturn && (
             <Link
               href="/"
