@@ -12,6 +12,8 @@ type Props = {
   title?: React.ReactNode;
   footer?: React.ReactNode;
   children: React.ReactNode;
+  /** Clases extra para el contenedor externo */
+  containerClassName?: string;
   /** Estilos extra para el panel */
   panelClassName?: string;
   /** Clase para controlar el ancho máximo del panel */
@@ -32,6 +34,7 @@ export default function Modal({
   title,
   footer,
   children,
+  containerClassName = "",
   panelClassName = "",
   panelWidthClassName = "max-w-2xl",
   panelStyle,
@@ -95,8 +98,12 @@ export default function Modal({
 
   const content = (
     <div
-      className={`fixed inset-0 z-[9999] flex items-start md:items-center justify-center overflow-y-auto p-4
-                  bg-black/50 backdrop-blur-md ${backdropClassName}`}
+      className={[
+        "fixed inset-0 z-[9999] flex items-start md:items-center justify-center overflow-y-auto p-4",
+        "bg-black/50 backdrop-blur-md",
+        backdropClassName,
+        containerClassName,
+      ].join(" ")}
       onClick={!disableCloseOnBackdrop ? onClose : undefined}
       aria-hidden="true"
     >
