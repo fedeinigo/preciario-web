@@ -115,6 +115,8 @@ const MapachePortalInsights = dynamic(
 
 const EMAIL_REGEX = /.+@.+\..+/i;
 const VIEW_MODE_STORAGE_KEY = "mapache_portal_view_mode";
+const useBrowserLayoutEffect =
+  typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
 
 function isValidEmail(value: string) {
   return EMAIL_REGEX.test(value);
@@ -1302,10 +1304,18 @@ export default function MapachePortalClient({
     filtersT,
     toastT,
   });
-  const [viewMode, setViewMode] = React.useState<"lista" | "tablero">(
-    "lista",
-  );
-  const [viewModeHydrated, setViewModeHydrated] = React.useState(false);
+  const [viewMode, setViewMode] = React.useState<
+    "lista" | "tablero" | null
+  >(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    if (stored === "lista" || stored === "tablero") {
+      return stored;
+    }
+    return "lista";
+  });
   const [insightsScope, setInsightsScope] =
     React.useState<MapachePortalInsightsScope>("filtered");
   const activeSection = React.useMemo<MapachePortalSection>(() => {
@@ -1519,21 +1529,24 @@ export default function MapachePortalClient({
     [mapacheUsers],
   );
 
-  React.useEffect(() => {
+  useBrowserLayoutEffect(() => {
+    if (viewMode !== null) return;
     if (typeof window === "undefined") return;
     const storedViewMode = window.localStorage.getItem(
       VIEW_MODE_STORAGE_KEY,
     );
     if (storedViewMode === "lista" || storedViewMode === "tablero") {
       setViewMode(storedViewMode);
+      return;
     }
-    setViewModeHydrated(true);
-  }, []);
+    setViewMode("lista");
+  }, [viewMode]);
 
   React.useEffect(() => {
-    if (typeof window === "undefined" || !viewModeHydrated) return;
+    if (viewMode === null) return;
+    if (typeof window === "undefined") return;
     window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
-  }, [viewMode, viewModeHydrated]);
+  }, [viewMode]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2001,6 +2014,7 @@ export default function MapachePortalClient({
             ? "bg-[rgb(var(--primary))] text-white shadow-soft"
             : "text-white/70 hover:bg-white/10"
         }`}
+        disabled={viewMode === null}
         aria-pressed={viewMode === "lista"}
       >
         Lista
@@ -2013,6 +2027,7 @@ export default function MapachePortalClient({
             ? "bg-[rgb(var(--primary))] text-white shadow-soft"
             : "text-white/70 hover:bg-white/10"
         }`}
+        disabled={viewMode === null}
         aria-pressed={viewMode === "tablero"}
       >
         Tablero
@@ -4695,12 +4710,16 @@ function TaskMetaChip({
             </div>
           )}
 
-      {viewMode === "lista" ? (
-        <TaskDataGrid
-          tasks={deferredFilteredTasks}
-          onOpen={openTask}
-          statusKeys={statusKeys}
-          substatusOptions={SUBSTATUS_OPTIONS}
+          {viewMode === null ? (
+            <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/70">
+              {t("loading")}
+            </div>
+          ) : viewMode === "lista" ? (
+            <TaskDataGrid
+              tasks={deferredFilteredTasks}
+              onOpen={openTask}
+              statusKeys={statusKeys}
+              substatusOptions={SUBSTATUS_OPTIONS}
           statusIndex={statusIndex}
           statusIndicatorClassNames={STATUS_INDICATOR_ACCENT_CLASSNAMES}
           unspecifiedOptionLabel={formT("unspecifiedOption")}
