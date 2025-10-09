@@ -126,7 +126,7 @@ export default function TeamGoalCard({
 
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-[#5b21b6]">
               <span className="font-semibold text-[#6d28d9]">
-                {t("completed", { pct: Math.min(100, Math.max(0, pct)).toFixed(0) })}
+                {t("completed", { pct: Math.max(0, pct).toFixed(0) })}
               </span>
               <span className="text-xs text-[#7c3aed]">
                 {t("progressTitle", { year, quarter })}

@@ -299,6 +299,10 @@ const updateBillingSchema = z.object({
   billedAmount: z.number().min(0),
 });
 
+const deleteManualSchema = z.object({
+  manualDealId: z.string().min(1),
+});
+
 export async function PATCH(req: Request) {
   const viewer = await getViewer();
   if (!viewer) {
@@ -375,4 +379,35 @@ export async function PATCH(req: Request) {
   });
 
   return NextResponse.json({ billedAmount: toCurrency(record.billedAmount) });
+}
+
+export async function DELETE(req: Request) {
+  const viewer = await getViewer();
+  if (!viewer) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const url = new URL(req.url);
+  const raw = { manualDealId: url.searchParams.get("manualDealId") };
+  const parsed = deleteManualSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Missing manualDealId" }, { status: 400 });
+  }
+
+  const { manualDealId } = parsed.data;
+  const manual = await prisma.manualWonDeal.findUnique({
+    where: { id: manualDealId },
+    select: { userId: true, user: { select: { team: true } } },
+  });
+  if (!manual) {
+    return NextResponse.json({ error: "Manual deal not found" }, { status: 404 });
+  }
+
+  if (!canManageTarget(viewer, { id: manual.userId, team: manual.user?.team ?? null })) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  await prisma.manualWonDeal.delete({ where: { id: manualDealId } });
+
+  return NextResponse.json({ ok: true }, { status: 200 });
 }

@@ -67,6 +67,7 @@ export default function GoalsPage({
   const [manualDialogTarget, setManualDialogTarget] = React.useState<
     { userId?: string; email?: string | null; name?: string | null } | null
   >(null);
+  const closeManualDialog = React.useCallback(() => setManualDialogTarget(null), []);
 
   const loadMyGoal = React.useCallback(async () => {
     try {
@@ -162,7 +163,6 @@ export default function GoalsPage({
   const [teamProgress, setTeamProgress] = React.useState<number>(0);
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);
   const [loadingTeam, setLoadingTeam] = React.useState<boolean>(false);
-  const [teamDealCounts, setTeamDealCounts] = React.useState<Record<string, number>>({});
   const canAddManual = isSuperAdmin || role === "lider" || role === "admin";
 
   const loadTeam = React.useCallback(async () => {
@@ -188,7 +188,18 @@ export default function GoalsPage({
       const j = await r.json();
       setTeamGoal(Number(j.teamGoal || 0));
       setTeamProgress(Number(j.teamProgress || 0));
-      setRows((j.members ?? []) as TeamGoalRow[]);
+      const members = Array.isArray(j.members) ? j.members : [];
+      setRows(
+        members.map((member) => ({
+          userId: String(member.userId ?? ""),
+          email: member.email ?? null,
+          name: member.name ?? null,
+          goal: Number(member.goal ?? 0),
+          progress: Number(member.progress ?? 0),
+          pct: Number(member.pct ?? 0),
+          dealsCount: Number(member.dealsCount ?? 0),
+        }))
+      );
     } catch {
       setTeamGoal(0); setTeamProgress(0); setRows([]);
     } finally {
@@ -204,7 +215,6 @@ export default function GoalsPage({
       if (isSuperAdmin || role === "lider" || role === "admin") {
         loadTeam();
       }
-      loadMyWins();
     };
     window.addEventListener("proposals:refresh", handleRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
@@ -225,7 +235,11 @@ export default function GoalsPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error("failed");
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => "");
+        console.error("manual-won-request failed", res.status, errorText);
+        throw new Error("manual-won-" + res.status);
+      }
       toast.success(toastT("manualWonSaved"));
       await loadMyWins();
       if (isSuperAdmin || role === "lider" || role === "admin") {
@@ -233,6 +247,28 @@ export default function GoalsPage({
       }
     },
     [year, quarter, loadMyWins, isSuperAdmin, role, loadTeam, toastT]
+  );
+
+  const handleDeleteManualWon = React.useCallback(
+    async (deal: UserWonDeal) => {
+      if (!deal.manualDealId) return;
+      const confirmed = window.confirm(
+        billingT("deleteManualConfirm", { company: deal.companyName || billingT("unknownCompany") })
+      );
+      if (!confirmed) return;
+      try {
+        const res = await fetch(`/api/goals/wins?manualDealId=${deal.manualDealId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("fail");
+        toast.success(toastT("manualWonDeleted"));
+        await loadMyWins();
+        if (isSuperAdmin || role === "lider" || role === "admin") {
+          await loadTeam();
+        }
+      } catch {
+        toast.error(toastT("manualWonDeleteError"));
+      }
+    },
+    [billingT, toastT, loadMyWins, isSuperAdmin, role, loadTeam]
   );
 
   const handleUpdateBilling = React.useCallback(
@@ -332,42 +368,6 @@ export default function GoalsPage({
     }
   };
 
-  const loadTeamDealCounts = React.useCallback(
-    async (members: TeamGoalRow[]) => {
-      if (!members.length) {
-        setTeamDealCounts({});
-        return;
-      }
-      const entries = await Promise.all(
-        members.map(async (member) => {
-          try {
-            const params = new URLSearchParams({
-              year: String(year),
-              quarter: String(quarter),
-              userId: member.userId,
-            });
-            const res = await fetch(`/api/goals/wins?${params.toString()}`, { cache: "no-store" });
-            if (!res.ok) throw new Error("fail");
-            const data = (await res.json()) as { deals?: unknown[] };
-            const count = Array.isArray(data.deals) ? data.deals.length : 0;
-            return [member.userId, count] as const;
-          } catch {
-            return [member.userId, 0] as const;
-          }
-        })
-      );
-      setTeamDealCounts(Object.fromEntries(entries));
-    },
-    [quarter, year]
-  );
-
-  React.useEffect(() => {
-    if (!effectiveTeam) {
-      setTeamDealCounts({});
-      return;
-    }
-    loadTeamDealCounts(rows);
-  }, [effectiveTeam, rows, loadTeamDealCounts]);
 
   const exportCsv = () => {
     const headers = [
@@ -448,19 +448,16 @@ export default function GoalsPage({
           deals={myDeals}
           totals={myTotals}
           loading={loadingDeals}
+          goal={myGoal}
           onEditBilling={openBillingEditor}
           onAddManual={canAddManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
+          onDeleteDeal={handleDeleteManualWon}
         />
-        <TeamRankingCard
-          rows={rows}
-          loading={loadingTeam}
-          dealCounts={teamDealCounts}
-          effectiveTeam={effectiveTeam}
-        />
+        <TeamRankingCard rows={rows} loading={loadingTeam} effectiveTeam={effectiveTeam} />
       </div>
 
       {/* Tabla de equipo */}
-      <div className="max-w-6xl mx-auto">
+      <div className="w-full">
         <div className="overflow-hidden rounded-3xl border border-[#eadeff] bg-white shadow-[0_20px_45px_rgba(76,29,149,0.1)]">
           <div className="flex flex-col gap-3 border-b border-[#efe7ff] px-6 py-5 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3 text-[#4c1d95]">
@@ -521,7 +518,7 @@ export default function GoalsPage({
       {manualDialogTarget && (
         <ManualWonDialog
           open={!!manualDialogTarget}
-          onClose={() => setManualDialogTarget(null)}
+          onClose={closeManualDialog}
           target={manualDialogTarget}
           onSubmit={async (values) => {
             try {

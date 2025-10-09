@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 
@@ -7,6 +7,7 @@ import {
   dropTargetForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { Loader2, Settings, Wand2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import {
   usePathname,
@@ -19,6 +20,7 @@ import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
 
+import type { MapachePortalBootstrap } from "./bootstrap-types";
 import type {
   MapacheDeliverableType,
   MapacheDirectness,
@@ -53,12 +55,11 @@ import {
   sortStatuses,
   upsertStatus,
 } from "./status-management";
-import MapachePortalFilters from "./components/MapachePortalFilters";
-import MapachePortalInsights, {
-  type MapachePortalInsightsMetrics,
-  type MapachePortalInsightsScope,
-  type MapachePortalInsightsWorkloadEntry,
-  type NeedMetricKey,
+import type {
+  MapachePortalInsightsMetrics,
+  MapachePortalInsightsScope,
+  MapachePortalInsightsWorkloadEntry,
+  NeedMetricKey,
 } from "./MapachePortalInsights";
 import {
   MAPACHE_PORTAL_DEFAULT_SECTION,
@@ -86,7 +87,37 @@ import {
   normalizeBoardList,
   type MapacheBoardConfig,
 } from "./board-types";
-import TaskDataGrid from "./components/TaskDataGrid";
+const MapachePortalFilters = dynamic(
+  () => import("./components/MapachePortalFilters"),
+  {
+    loading: () => (
+      <div className="flex h-24 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/60 text-sm text-slate-500">
+        Cargando filtros...
+      </div>
+    ),
+  },
+);
+
+const TaskDataGrid = dynamic(() => import("./components/TaskDataGrid"), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-40 place-items-center rounded-2xl border border-dashed border-slate-200 bg-white/60 text-sm text-slate-500">
+      Preparando tabla...
+    </div>
+  ),
+});
+
+const MapachePortalInsights = dynamic(
+  () => import("./MapachePortalInsights"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid h-60 place-items-center rounded-3xl border border-dashed border-violet-200 bg-white/70 text-sm text-violet-600/80">
+        Calculando metricas...
+      </div>
+    ),
+  },
+);
 
 const NEED_OPTIONS: MapacheNeedFromTeam[] = [...MAPACHE_NEEDS_FROM_TEAM];
 const DIRECTNESS_OPTIONS: MapacheDirectness[] = [...MAPACHE_DIRECTNESS];
@@ -467,7 +498,7 @@ function getDateInputValue(value: string | null | undefined): string {
 }
 
 type MapachePortalClientProps = {
-  initialTasks: MapacheTask[];
+  initialBootstrap: MapachePortalBootstrap;
   heading?: React.ReactNode;
   subheading?: React.ReactNode;
 };
@@ -540,8 +571,8 @@ type StepFieldKey = FieldErrorKey | "deliverables";
 const FORM_STEP_LABELS = [
   "Datos generales",
   "Contacto y contexto",
-  "Documentación",
-  "Integración/Entregables",
+  "DocumentaciÃ³n",
+  "IntegraciÃ³n/Entregables",
 ] as const;
 
 const FORM_STEP_FIELDS: StepFieldKey[][] = [
@@ -1169,7 +1200,7 @@ function normalizeFormState(
     if (suffix) fallbackParts.push(suffix);
   }
   if (!finalTitle && fallbackParts.length) {
-    finalTitle = fallbackParts.join(" — ");
+    finalTitle = fallbackParts.join(" â€” ");
   }
 
   if (!finalTitle) {
@@ -1435,10 +1466,18 @@ function createAssignmentSequence(
 }
 
 export default function MapachePortalClient({
-  initialTasks,
+  initialBootstrap,
   heading,
   subheading,
 }: MapachePortalClientProps) {
+  const {
+    statuses: bootstrapStatuses,
+    tasks: bootstrapTasks,
+    filterPresets: bootstrapFilterPresets,
+    boards: bootstrapBoards,
+    team: bootstrapTeam,
+    tasksMeta: bootstrapTasksMeta,
+  } = initialBootstrap;
   const { data: session } = useSession();
   const router = useRouter();
   const pathname = usePathname();
@@ -1512,11 +1551,36 @@ export default function MapachePortalClient({
     [deliverableTypeTranslations],
   );
 
-  const [statuses, setStatuses] = React.useState<MapacheStatusDetails[]>(() =>
-    deriveStatusesFromTasks(Array.isArray(initialTasks) ? initialTasks : []),
-  );
+  const bootstrapStatusList = React.useMemo(() => {
+    if (bootstrapStatuses.length > 0) {
+      return sortStatuses(
+        bootstrapStatuses.map(({ id, key, label, order }) => ({
+          id,
+          key,
+          label,
+          order,
+        })),
+      );
+    }
 
-  const statusIndex = React.useMemo(() => createStatusIndex(statuses), [statuses]);
+    if (bootstrapTasks.length === 0) {
+      return [];
+    }
+
+    const normalized = bootstrapTasks
+      .map((task) => normalizeMapacheTask(task))
+      .filter((task): task is MapacheTask => task !== null);
+    return deriveStatusesFromTasks(normalized);
+  }, [bootstrapStatuses, bootstrapTasks]);
+
+  const [statuses, setStatuses] = React.useState<MapacheStatusDetails[]>(() => [
+    ...bootstrapStatusList,
+  ]);
+
+  const statusIndex = React.useMemo(
+    () => createStatusIndex(statuses),
+    [statuses],
+  );
 
   const statusKeys = React.useMemo(
     () => statusIndex.ordered.map((status) => status.key),
@@ -1555,22 +1619,44 @@ export default function MapachePortalClient({
       deleting: actionsT("deleting"),
       exportCsv: "Exportar CSV",
       density: "Densidad",
-      densityComfortable: "Cómoda",
+      densityComfortable: "CÃ³moda",
       densityCompact: "Compacta",
       densitySpacious: "Amplia",
       columns: "Columnas",
       columnManagerTitle: "Columnas visibles",
-      virtualization: "Virtualización",
+      virtualization: "VirtualizaciÃ³n",
       virtualizationHint:
-        "Activa la virtualización para mejorar el rendimiento con listados extensos.",
-      rowsPerPage: "Filas por página",
-      page: "Página",
+        "Activa la virtualizaciÃ³n para mejorar el rendimiento con listados extensos.",
+      rowsPerPage: "Filas por pÃ¡gina",
+      page: "PÃ¡gina",
       of: "de",
     }),
     [actionsT, filtersT, formT],
   );
 
+  const [tasks, setTasks] = React.useState<MapacheTask[]>(() => {
+    if (!Array.isArray(bootstrapTasks) || bootstrapTasks.length === 0) {
+      return [];
+    }
+    const initialIndex =
+      bootstrapStatusList.length > 0
+        ? createStatusIndex(bootstrapStatusList)
+        : undefined;
+    return bootstrapTasks
+      .map((task) => normalizeMapacheTask(task, initialIndex))
+      .filter((task): task is MapacheTask => task !== null);
+  });
+
+  const shouldFetchStatusesOnMount = React.useMemo(
+    () => bootstrapStatuses.length === 0,
+    [bootstrapStatuses.length],
+  );
+
   React.useEffect(() => {
+    if (!shouldFetchStatusesOnMount) {
+      return;
+    }
+
     const abortController = new AbortController();
     let cancelled = false;
 
@@ -1605,11 +1691,7 @@ export default function MapachePortalClient({
       cancelled = true;
       abortController.abort();
     };
-  }, []);
-
-  const [tasks, setTasks] = React.useState<MapacheTask[]>(() =>
-    Array.isArray(initialTasks) ? initialTasks : [],
-  );
+  }, [shouldFetchStatusesOnMount]);
 
   React.useEffect(() => {
     setTasks((prev) =>
@@ -1641,6 +1723,11 @@ export default function MapachePortalClient({
       }),
     );
   }, [statusIndex]);
+  const [tasksMeta, setTasksMeta] = React.useState(bootstrapTasksMeta);
+  const [tasksCursor, setTasksCursor] = React.useState<string | null>(
+    bootstrapTasksMeta.nextCursor ?? null,
+  );
+  const shouldInitialFetchTasks = bootstrapTasks.length === 0;
   const [activeFilter, setActiveFilter] = React.useState<TaskFilterState>(
     () => createDefaultTaskFilterState(),
   );
@@ -1648,7 +1735,16 @@ export default function MapachePortalClient({
     () => createDefaultFiltersState(),
   );
   const [filtersHydrated, setFiltersHydrated] = React.useState(false);
-  const [filterPresets, setFilterPresets] = React.useState<MapacheFilterPreset[]>([]);
+  const bootstrapPresetList = React.useMemo(
+    () =>
+      bootstrapFilterPresets
+        .map((preset) => normalizeFilterPreset(preset, statusKeys))
+        .filter((preset): preset is MapacheFilterPreset => preset !== null),
+    [bootstrapFilterPresets, statusKeys],
+  );
+  const [filterPresets, setFilterPresets] = React.useState<MapacheFilterPreset[]>(
+    () => [...bootstrapPresetList],
+  );
   const [filterPresetsLoading, setFilterPresetsLoading] = React.useState(false);
   const [savingFilterPreset, setSavingFilterPreset] = React.useState(false);
   const [selectedPresetId, setSelectedPresetId] = React.useState<string | null>(
@@ -1665,6 +1761,8 @@ export default function MapachePortalClient({
     React.useState<MapachePortalInsightsScope>("filtered");
   const [activeSection, setActiveSection] =
     React.useState<MapachePortalSection>(MAPACHE_PORTAL_DEFAULT_SECTION);
+  const isTasksSection = activeSection === "tasks";
+  const isMetricsSection = activeSection === "metrics";
 
   const [assignmentRatios, setAssignmentRatios] = React.useState<AssignmentRatios>({});
   const [ratiosLoaded, setRatiosLoaded] = React.useState(false);
@@ -1677,7 +1775,14 @@ export default function MapachePortalClient({
   >(
     "assignment",
   );
-  const [boards, setBoards] = React.useState<MapacheBoardConfig[]>([]);
+  const bootstrapBoardList = React.useMemo(
+    () => normalizeBoardList(bootstrapBoards, statusIndex),
+    [bootstrapBoards, statusIndex],
+  );
+  const [boards, setBoards] = React.useState<MapacheBoardConfig[]>(() => [
+    ...bootstrapBoardList,
+  ]);
+  const shouldInitialFetchBoards = bootstrapBoards.length === 0;
   const [boardsLoading, setBoardsLoading] = React.useState(false);
   const [boardsError, setBoardsError] = React.useState<string | null>(null);
   const [activeBoardId, setActiveBoardId] = React.useState<string | null>(null);
@@ -1725,7 +1830,18 @@ export default function MapachePortalClient({
   const [formErrors, setFormErrors] = React.useState<FormErrors>({});
   const [submitting, setSubmitting] = React.useState(false);
 
-  const [mapacheUsers, setMapacheUsers] = React.useState<MapacheUser[]>([]);
+  const bootstrapUsers = React.useMemo(
+    () =>
+      bootstrapTeam.map((user) => ({
+        id: String(user.id),
+        name: user.name ?? null,
+        email: user.email ?? null,
+      })),
+    [bootstrapTeam],
+  );
+  const [mapacheUsers, setMapacheUsers] = React.useState<MapacheUser[]>(() => [
+    ...bootstrapUsers,
+  ]);
   const [assigneesLoading, setAssigneesLoading] = React.useState(false);
   const [assigneesError, setAssigneesError] = React.useState<string | null>(
     null,
@@ -1900,8 +2016,9 @@ export default function MapachePortalClient({
   );
 
   React.useEffect(() => {
+    if (!shouldInitialFetchBoards) return;
     void loadBoards();
-  }, [loadBoards]);
+  }, [loadBoards, shouldInitialFetchBoards]);
 
   React.useEffect(() => {
     if (boards.length === 0) {
@@ -2034,43 +2151,143 @@ export default function MapachePortalClient({
     return null;
   }, [session?.user?.email]);
 
+  const tasksRequestRef = React.useRef<Promise<void> | null>(null);
+
   const loadTasks = React.useCallback(
-    async ({ silent = false }: { silent?: boolean } = {}) => {
+    async (
+      {
+        silent = false,
+        force = false,
+        cursor = null,
+        append = false,
+      }: {
+        silent?: boolean;
+        force?: boolean;
+        cursor?: string | null;
+        append?: boolean;
+      } = {},
+    ) => {
       if (!silent) {
         setLoading(true);
       }
-      setFetchError(null);
-      try {
-        const response = await fetch("/api/mapache/tasks", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          cache: "no-store",
-        });
 
-        if (!response.ok) {
-          throw new Error(`Request failed with status ${response.status}`);
+      if (!force && tasksRequestRef.current) {
+        try {
+          await tasksRequestRef.current;
+        } finally {
+          if (!silent) {
+            setLoading(false);
+          }
         }
-
-        const payload = await response.json();
-        const currentStatusIndex = statusIndexRef.current;
-        const nextTasks = Array.isArray(payload)
-          ? payload
-              .map((task) => normalizeMapacheTask(task, currentStatusIndex))
-              .filter((task): task is MapacheTask => task !== null)
-          : [];
-        setTasks(nextTasks);
-      } catch (error) {
-        setFetchError((error as Error).message);
-        toast.error(toastT("loadError"));
-      } finally {
-        if (!silent) {
-          setLoading(false);
-        }
+        return;
       }
+
+      setFetchError(null);
+      const params = new URLSearchParams();
+      if (typeof tasksMeta.limit === "number" && Number.isFinite(tasksMeta.limit)) {
+        params.set("limit", String(tasksMeta.limit));
+      }
+
+      const targetCursor = cursor ?? (append ? tasksCursor : null);
+      if (targetCursor) {
+        params.set("cursor", targetCursor);
+      }
+
+      const url =
+        params.size > 0 ? `/api/mapache/tasks?${params.toString()}` : "/api/mapache/tasks";
+
+      const request = (async () => {
+        try {
+          const response = await fetch(url, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            cache: "no-store",
+          });
+
+          if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+          }
+
+          const payload = await response.json();
+          const currentStatusIndex = statusIndexRef.current;
+          const rawTasks: unknown[] = Array.isArray(payload?.tasks)
+            ? payload.tasks
+            : Array.isArray(payload)
+              ? (payload as unknown[])
+              : [];
+          const nextTasks = rawTasks
+            .map((task) => normalizeMapacheTask(task, currentStatusIndex))
+            .filter((task): task is MapacheTask => task !== null);
+
+          setTasks((prev) => (append ? [...prev, ...nextTasks] : nextTasks));
+
+          let total = tasksMeta.total;
+          let limitValue = tasksMeta.limit;
+          let count = append ? tasksMeta.count + nextTasks.length : nextTasks.length;
+          let nextCursorValue: string | null = append ? tasksCursor : null;
+          let hasMoreValue = append ? tasksMeta.hasMore : false;
+
+          const metaCandidate =
+            payload && typeof payload === "object" && !Array.isArray(payload)
+              ? (payload as Record<string, unknown>).meta
+              : null;
+
+          if (
+            metaCandidate &&
+            typeof metaCandidate === "object" &&
+            metaCandidate !== null &&
+            !Array.isArray(metaCandidate)
+          ) {
+            const record = metaCandidate as Record<string, unknown>;
+            if (typeof record.total === "number" && Number.isFinite(record.total)) {
+              total = record.total;
+            }
+            if (typeof record.limit === "number" && Number.isFinite(record.limit)) {
+              limitValue = record.limit;
+            }
+            if (typeof record.count === "number" && Number.isFinite(record.count)) {
+              count = record.count;
+            }
+            if (typeof record.nextCursor === "string") {
+              nextCursorValue = record.nextCursor;
+            } else {
+              nextCursorValue = null;
+            }
+            if (typeof record.hasMore === "boolean") {
+              hasMoreValue = record.hasMore;
+            } else {
+              hasMoreValue = Boolean(nextCursorValue);
+            }
+          } else {
+            nextCursorValue = null;
+            hasMoreValue = false;
+          }
+
+          setTasksMeta({
+            total,
+            count,
+            limit: limitValue,
+            hasMore: hasMoreValue,
+            nextCursor: nextCursorValue,
+          });
+          setTasksCursor(nextCursorValue);
+        } catch (error) {
+          setFetchError((error as Error).message);
+          toast.error(toastT("loadError"));
+        } finally {
+          tasksRequestRef.current = null;
+          if (!silent) {
+            setLoading(false);
+          }
+        }
+      })();
+
+      tasksRequestRef.current = request;
+      await request;
     },
-    [statusIndexRef, toastT],
+    [tasksMeta, tasksCursor, statusIndexRef, toastT],
   );
 
   const fetchFilterPresetsFromApi = React.useCallback(async () => {
@@ -2153,6 +2370,10 @@ export default function MapachePortalClient({
   }, [activeFilter, advancedFilters, filtersHydrated]);
 
   React.useEffect(() => {
+    if (bootstrapPresetList.length > 0) {
+      return;
+    }
+
     let cancelled = false;
 
     async function loadPresets() {
@@ -2177,7 +2398,7 @@ export default function MapachePortalClient({
     return () => {
       cancelled = true;
     };
-  }, [fetchFilterPresetsFromApi, toastT]);
+  }, [bootstrapPresetList.length, fetchFilterPresetsFromApi, toastT]);
 
   React.useEffect(() => {
     setSelectedPresetId((prev) => {
@@ -2402,12 +2623,9 @@ export default function MapachePortalClient({
   }, [assignmentRatios, ratiosLoaded]);
 
   React.useEffect(() => {
-    loadTasks();
-  }, [loadTasks]);
-
-  React.useEffect(() => {
-    setTasks(Array.isArray(initialTasks) ? initialTasks : []);
-  }, [initialTasks]);
+    if (!shouldInitialFetchTasks) return;
+    void loadTasks();
+  }, [loadTasks, shouldInitialFetchTasks]);
 
   React.useEffect(() => {
     setAssignmentRatios((prev) => {
@@ -2435,6 +2653,12 @@ export default function MapachePortalClient({
   }, [mapacheUsers]);
 
   React.useEffect(() => {
+    if (bootstrapUsers.length > 0) {
+      setAssigneesError(null);
+      setAssigneesLoading(false);
+      return;
+    }
+
     let cancelled = false;
     async function fetchAssignees() {
       setAssigneesLoading(true);
@@ -2481,12 +2705,12 @@ export default function MapachePortalClient({
       }
     }
 
-    fetchAssignees();
+    void fetchAssignees();
 
     return () => {
       cancelled = true;
     };
-  }, [assigneesErrorMessage]);
+  }, [assigneesErrorMessage, bootstrapUsers.length]);
 
   const baseFilteredTasks = React.useMemo(() => {
     return tasks.filter((task) => {
@@ -2847,23 +3071,25 @@ export default function MapachePortalClient({
     [assigneeLabelMap, mapacheTeamMemberIds, statusKeys],
   );
 
-  const filteredInsightsMetrics = React.useMemo(
-    () => computeInsights(deferredFilteredTasks),
-    [computeInsights, deferredFilteredTasks],
-  );
+  const [insightsMetrics, setInsightsMetrics] = React.useState(() => ({
+    filtered: computeInsights([]),
+    all: computeInsights([]),
+  }));
+  const insightsHydratedRef = React.useRef(false);
 
-  const allInsightsMetrics = React.useMemo(
-    () => computeInsights(tasks),
-    [computeInsights, tasks],
-  );
+  React.useEffect(() => {
+    const alreadyHydrated = insightsHydratedRef.current;
+    if (!isMetricsSection && !alreadyHydrated) {
+      return;
+    }
 
-  const insightsMetrics = React.useMemo(
-    () => ({
-      filtered: filteredInsightsMetrics,
-      all: allInsightsMetrics,
-    }),
-    [allInsightsMetrics, filteredInsightsMetrics],
-  );
+    const nextInsights = {
+      filtered: computeInsights(deferredFilteredTasks),
+      all: computeInsights(tasks),
+    };
+    insightsHydratedRef.current = true;
+    setInsightsMetrics(nextInsights);
+  }, [computeInsights, deferredFilteredTasks, isMetricsSection, tasks]);
 
   const activeBoard = React.useMemo(() => {
     if (!activeBoardId) return null;
@@ -3568,7 +3794,7 @@ export default function MapachePortalClient({
         }
       }
 
-      await loadTasks({ silent: true });
+      await loadTasks({ silent: true, force: true });
       toast.success(toastT("autoAssignSuccess"));
     } catch (error) {
       console.error(error);
@@ -3732,7 +3958,7 @@ export default function MapachePortalClient({
 
   const selectedTaskPresentationDateLabel = React.useMemo(() => {
     if (!selectedTask?.presentationDate) {
-      return "—";
+      return "â€”";
     }
     const parsed = new Date(selectedTask.presentationDate);
     if (Number.isNaN(parsed.getTime())) {
@@ -3843,7 +4069,7 @@ export default function MapachePortalClient({
         }
       }
 
-      await loadTasks({ silent: true });
+      await loadTasks({ silent: true, force: true });
 
       window.dispatchEvent(
         new CustomEvent("mapache_task_created", {
@@ -3877,7 +4103,7 @@ export default function MapachePortalClient({
   const modalFooter = (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="text-xs uppercase tracking-[0.2em] text-white/70">
-        Estado inicial: {formState.status} / {formState.substatus} · Origen: {" "}
+        Estado inicial: {formState.status} / {formState.substatus} Â· Origen: {" "}
         {formState.origin}
       </div>
       <div className="flex gap-2">
@@ -3960,7 +4186,7 @@ export default function MapachePortalClient({
           throw new Error(`Request failed with status ${response.status}`);
         }
 
-        await loadTasks({ silent: true });
+        await loadTasks({ silent: true, force: true });
         toast.success(toastT("updateSuccess"));
       } catch (error) {
         console.error(error);
@@ -4131,7 +4357,7 @@ export default function MapachePortalClient({
           prev.map((item) => (item.id === updatedTask.id ? updatedTask : item)),
         );
       } else {
-        await loadTasks({ silent: true });
+        await loadTasks({ silent: true, force: true });
       }
 
       toast.success(toastT("updateSuccess"));
@@ -4437,7 +4663,7 @@ function TaskMetaChip({
 
     const statusSummary = React.useMemo(() => {
       if (statuses.length === 0) return "";
-      return statuses.map((status) => formatStatus(status)).join(" • ");
+      return statuses.map((status) => formatStatus(status)).join(" â€¢ ");
     }, [formatStatus, statuses]);
 
     const statusBadges = React.useMemo(
@@ -4536,7 +4762,7 @@ function TaskMetaChip({
           ))}
           {tasks.length === 0 ? (
             <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-white/10 p-3 text-xs text-white/40">
-              Soltá señales acá
+              Solta senales aqui
             </div>
           ) : null}
         </div>
@@ -4554,9 +4780,6 @@ function TaskMetaChip({
       </section>
     );
   };
-
-  const isTasksSection = activeSection === "tasks";
-  const isMetricsSection = activeSection === "metrics";
 
   const renderLoadingMessage = () =>
     !loading ? null : (
@@ -4778,7 +5001,7 @@ function TaskMetaChip({
                                   disabled={index === 0 || reorderingBoards}
                                   title={boardsT("list.reorderHint")}
                                 >
-                                  ↑
+                                  â†‘
                                 </button>
                                 <button
                                   type="button"
@@ -4787,7 +5010,7 @@ function TaskMetaChip({
                                   disabled={index === boards.length - 1 || reorderingBoards}
                                   title={boardsT("list.reorderHint")}
                                 >
-                                  ↓
+                                  â†“
                                 </button>
                               </div>
                             </div>
@@ -5487,7 +5710,7 @@ function TaskMetaChip({
                       ))}
                     </select>
                     {assigneesLoading ? (
-                      <span className="text-xs text-white/60">Cargando…</span>
+                      <span className="text-xs text-white/60">Cargandoâ€¦</span>
                     ) : null}
                     {assigneesError ? (
                       <span className="text-xs text-rose-300">
@@ -5549,7 +5772,7 @@ function TaskMetaChip({
                     ) : null}
                   </label>
                   <label className="flex flex-col gap-1 text-sm md:col-span-1">
-                    <span className="text-white/80">Fecha de presentación</span>
+                    <span className="text-white/80">Fecha de presentaciÃ³n</span>
                     <input
                       type="date"
                       value={formState.presentationDate}
@@ -5588,7 +5811,7 @@ function TaskMetaChip({
                     value={formState.clientWebsiteUrls.join("\n")}
                     onChange={(event) => handleWebsiteUrlsChange(event.target.value)}
                     className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                    placeholder="Una URL por línea"
+                    placeholder="Una URL por lÃ­nea"
                   />
                   {formErrors.clientWebsiteUrls ? (
                     <span className="text-xs text-rose-300">
@@ -5617,10 +5840,10 @@ function TaskMetaChip({
 
             {currentStep === 2 ? (
               <section className="grid gap-4">
-                <h2 className="text-lg font-semibold text-white">Documentación</h2>
+                <h2 className="text-lg font-semibold text-white">DocumentaciÃ³n</h2>
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="flex flex-col gap-1 text-sm">
-                    <span className="text-white/80">Tipo de gestión</span>
+                    <span className="text-white/80">Tipo de gestiÃ³n</span>
                     <input
                       type="text"
                       value={formState.managementType}
@@ -5653,7 +5876,7 @@ function TaskMetaChip({
                     ) : null}
                   </label>
                   <label className="flex flex-col gap-1 text-sm">
-                    <span className="text-white/80">Extensión de docs</span>
+                    <span className="text-white/80">ExtensiÃ³n de docs</span>
                     <input
                       type="text"
                       value={formState.docsLengthApprox}
@@ -5694,7 +5917,7 @@ function TaskMetaChip({
 
             {currentStep === 3 ? (
               <section className="grid gap-4">
-                <h2 className="text-lg font-semibold text-white">Integración/Entregables</h2>
+                <h2 className="text-lg font-semibold text-white">IntegraciÃ³n/Entregables</h2>
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="flex flex-col gap-1 text-sm">
                     <span className="text-white/80">Tipo</span>
@@ -5739,7 +5962,7 @@ function TaskMetaChip({
                     </select>
                   </label>
                   <label className="flex flex-col gap-1 text-sm md:col-span-2">
-                    <span className="text-white/80">Nombre de la integración</span>
+                    <span className="text-white/80">Nombre de la integraciÃ³n</span>
                     <input
                       type="text"
                       value={formState.integrationName}
@@ -5755,7 +5978,7 @@ function TaskMetaChip({
                     ) : null}
                   </label>
                   <label className="flex flex-col gap-1 text-sm md:col-span-2">
-                    <span className="text-white/80">Documentación</span>
+                    <span className="text-white/80">DocumentaciÃ³n</span>
                     <input
                       type="url"
                       value={formState.integrationDocsUrl}
@@ -5777,7 +6000,7 @@ function TaskMetaChip({
                   <div className="grid gap-4">
                     {formState.deliverables.length === 0 ? (
                       <p className="text-sm text-white/60">
-                        Podés agregar entregables después desde la tarea.
+                        PodÃ©s agregar entregables despuÃ©s desde la tarea.
                       </p>
                     ) : null}
                     {formState.deliverables.map((deliverable, index) => {
@@ -5808,7 +6031,7 @@ function TaskMetaChip({
                             </select>
                           </label>
                           <label className="flex flex-col gap-1 text-sm">
-                            <span className="text-white/80">Título</span>
+                            <span className="text-white/80">TÃ­tulo</span>
                             <input
                               type="text"
                               value={deliverable.title}
@@ -6078,8 +6301,8 @@ function TaskMetaChip({
             }}
           >
             <CollapsibleSection
-              title="Resumen de la señal"
-              description="Información clave para entender rápidamente el estado actual."
+              title="Resumen de la seÃ±al"
+              description="InformaciÃ³n clave para entender rÃ¡pidamente el estado actual."
             >
               {selectedTaskSummaryMeta ? (
                 <div className="flex flex-col gap-3">
@@ -6122,7 +6345,7 @@ function TaskMetaChip({
                       </span>
                     </TaskMetaChip>
                     <TaskMetaChip
-                      label="Presentación"
+                      label="PresentaciÃ³n"
                       tone={selectedTaskSummaryMeta.presentationMeta.tone}
                     >
                       <span className="flex min-w-0 items-center gap-2">
@@ -6183,10 +6406,10 @@ function TaskMetaChip({
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="font-semibold text-white/80">Email solicitante</span>
-                  <span>{selectedTask.requesterEmail ?? "—"}</span>
+                  <span>{selectedTask.requesterEmail ?? "â€”"}</span>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="font-semibold text-white/80">Fecha de presentación</span>
+                  <span className="font-semibold text-white/80">Fecha de presentaciÃ³n</span>
                   <span>{selectedTaskPresentationDateLabel}</span>
                 </div>
                 <div className="flex flex-col gap-1">
@@ -6201,7 +6424,7 @@ function TaskMetaChip({
                       {selectedTask.pipedriveDealUrl}
                     </a>
                   ) : (
-                    <span>—</span>
+                    <span>â€”</span>
                   )}
                 </div>
               </div>
@@ -6210,7 +6433,7 @@ function TaskMetaChip({
             <div className="grid gap-4">
               <CollapsibleSection
                 title="Datos generales"
-                description="Actualizá los campos principales de la señal."
+                description="ActualizÃ¡ los campos principales de la seÃ±al."
               >
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="flex flex-col gap-1 text-sm">
@@ -6373,7 +6596,7 @@ function TaskMetaChip({
 
               <CollapsibleSection
                 title="Contacto y contexto"
-                description="Información de seguimiento y contexto comercial."
+                description="InformaciÃ³n de seguimiento y contexto comercial."
               >
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="flex flex-col gap-1 text-sm">
@@ -6415,7 +6638,7 @@ function TaskMetaChip({
                     ) : null}
                   </label>
                   <label className="flex flex-col gap-1 text-sm">
-                    <span className="text-white/80">Fecha de presentación</span>
+                    <span className="text-white/80">Fecha de presentaciÃ³n</span>
                     <input
                       type="date"
                       value={selectedTaskFormState.presentationDate}
@@ -6463,7 +6686,7 @@ function TaskMetaChip({
                         handleSelectedTaskWebsiteUrlsChange(event.target.value)
                       }
                       className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
-                      placeholder="Una URL por línea"
+                      placeholder="Una URL por lÃ­nea"
                     />
                     {selectedTaskFormErrors.clientWebsiteUrls ? (
                       <span className="text-xs text-rose-300">
@@ -6491,12 +6714,12 @@ function TaskMetaChip({
               </CollapsibleSection>
 
               <CollapsibleSection
-                title="Documentación"
+                title="DocumentaciÃ³n"
                 description="Datos para dimensionar el esfuerzo del equipo."
               >
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="flex flex-col gap-1 text-sm">
-                    <span className="text-white/80">Tipo de gestión</span>
+                    <span className="text-white/80">Tipo de gestiÃ³n</span>
                     <input
                       type="text"
                       value={selectedTaskFormState.managementType}
@@ -6535,7 +6758,7 @@ function TaskMetaChip({
                     ) : null}
                   </label>
                   <label className="flex flex-col gap-1 text-sm">
-                    <span className="text-white/80">Extensión de docs</span>
+                    <span className="text-white/80">ExtensiÃ³n de docs</span>
                     <input
                       type="text"
                       value={selectedTaskFormState.docsLengthApprox}
@@ -6577,8 +6800,8 @@ function TaskMetaChip({
               </CollapsibleSection>
 
               <CollapsibleSection
-                title="Integración y entregables"
-                description="Configurá la integración y administrá los entregables."
+                title="IntegraciÃ³n y entregables"
+                description="ConfigurÃ¡ la integraciÃ³n y administrÃ¡ los entregables."
               >
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="flex flex-col gap-1 text-sm">
@@ -6624,7 +6847,7 @@ function TaskMetaChip({
                     </select>
                   </label>
                   <label className="flex flex-col gap-1 text-sm md:col-span-2">
-                    <span className="text-white/80">Nombre de la integración</span>
+                    <span className="text-white/80">Nombre de la integraciÃ³n</span>
                     <input
                       type="text"
                       value={selectedTaskFormState.integrationName}
@@ -6643,7 +6866,7 @@ function TaskMetaChip({
                     ) : null}
                   </label>
                   <label className="flex flex-col gap-1 text-sm md:col-span-2">
-                    <span className="text-white/80">Documentación</span>
+                    <span className="text-white/80">DocumentaciÃ³n</span>
                     <input
                       type="url"
                       value={selectedTaskFormState.integrationDocsUrl}
@@ -6666,7 +6889,7 @@ function TaskMetaChip({
                 <div className="mt-4 grid gap-4">
                   {selectedTaskFormState.deliverables.length === 0 ? (
                     <p className="text-sm text-white/60">
-                      Podés agregar entregables para compartir el material actualizado.
+                      PodÃ©s agregar entregables para compartir el material actualizado.
                     </p>
                   ) : null}
                   {selectedTaskFormState.deliverables.map((deliverable, index) => {
@@ -6698,7 +6921,7 @@ function TaskMetaChip({
                           </select>
                         </label>
                         <label className="flex flex-col gap-1 text-sm">
-                          <span className="text-white/80">Título</span>
+                          <span className="text-white/80">TÃ­tulo</span>
                           <input
                             type="text"
                             value={deliverable.title}
@@ -6805,3 +7028,4 @@ function TaskMetaChip({
     </section>
   );
 }
+

@@ -9,13 +9,12 @@ import type { TeamGoalRow } from "./TeamMembersTable";
 type Props = {
   rows: TeamGoalRow[];
   loading: boolean;
-  dealCounts: Record<string, number>;
   effectiveTeam: string;
 };
 
 type Mode = "deals" | "amount";
 
-export default function TeamRankingCard({ rows, loading, dealCounts, effectiveTeam }: Props) {
+export default function TeamRankingCard({ rows, loading, effectiveTeam }: Props) {
   const t = useTranslations("goals.ranking");
   const [mode, setMode] = React.useState<Mode>("amount");
 
@@ -26,7 +25,7 @@ export default function TeamRankingCard({ rows, loading, dealCounts, effectiveTe
   const ranked = React.useMemo(() => {
     const withStats = rows.map((row) => ({
       ...row,
-      deals: dealCounts[row.userId] ?? 0,
+      deals: row.dealsCount ?? 0,
     }));
 
     withStats.sort((a, b) => {
@@ -37,7 +36,7 @@ export default function TeamRankingCard({ rows, loading, dealCounts, effectiveTe
     });
 
     return withStats;
-  }, [rows, dealCounts, mode]);
+  }, [rows, mode]);
 
   const displayName = (row: TeamGoalRow) => row.name || row.email || row.userId;
 

@@ -31,11 +31,21 @@ type Props = {
   deals: UserWonDeal[];
   totals: Totals;
   loading: boolean;
+  goal: number;
   onEditBilling: (deal: UserWonDeal) => void;
   onAddManual?: () => void;
+  onDeleteDeal?: (deal: UserWonDeal) => void;
 };
 
-export default function BillingSummaryCard({ deals, totals, loading, onEditBilling, onAddManual }: Props) {
+export default function BillingSummaryCard({
+  deals,
+  totals,
+  loading,
+  goal,
+  onEditBilling,
+  onAddManual,
+  onDeleteDeal,
+}: Props) {
   const t = useTranslations("goals.billing");
 
   const sortedDeals = React.useMemo(() => {
@@ -43,6 +53,16 @@ export default function BillingSummaryCard({ deals, totals, loading, onEditBilli
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }, [deals]);
+
+  const percentLabel = React.useCallback((value: number) => {
+    if (!Number.isFinite(value)) return "0%";
+    return `${value.toFixed(1)}%`;
+  }, []);
+
+  const totalFees = totals.monthlyFees;
+  const billedPct = totalFees > 0 ? (totals.billed / totalFees) * 100 : 0;
+  const pendingPct = totalFees > 0 ? (totals.pending / totalFees) * 100 : 0;
+  const goalPct = goal > 0 ? (totalFees / goal) * 100 : 0;
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-[#eadeff] bg-gradient-to-br from-white via-white to-[#f4f0ff] p-6 shadow-[0_24px_60px_rgba(79,29,149,0.12)]">
@@ -79,18 +99,28 @@ export default function BillingSummaryCard({ deals, totals, loading, onEditBilli
               className="rounded-3xl border border-[#efe7ff] bg-white px-5 py-4 shadow-[0_12px_30px_rgba(124,58,237,0.08)]"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-base font-semibold text-[#2f0f5d]">{deal.companyName}</p>
                   <p className="text-xs font-medium uppercase tracking-wide text-[#7c3aed]">
                     {deal.type === "auto" ? t("autoLabel") : t("manualLabel")}
                   </p>
                 </div>
-                <button
-                  className="rounded-full border border-[#d8c7ff] px-3 py-1 text-xs font-semibold text-[#6d28d9] transition hover:bg-[#f4edff]"
-                  onClick={() => onEditBilling(deal)}
-                >
-                  {t("editBilling")}
-                </button>
+                <div className="flex items-center gap-2">
+                  {deal.type === "manual" && onDeleteDeal && (
+                    <button
+                      className="rounded-full border border-[#fda4af] px-3 py-1 text-xs font-semibold text-[#be123c] transition hover:bg-[#ffe4e6]"
+                      onClick={() => onDeleteDeal(deal)}
+                    >
+                      {t("deleteManual")}
+                    </button>
+                  )}
+                  <button
+                    className="rounded-full border border-[#d8c7ff] px-3 py-1 text-xs font-semibold text-[#6d28d9] transition hover:bg-[#f4edff]"
+                    onClick={() => onEditBilling(deal)}
+                  >
+                    {t("editBilling")}
+                  </button>
+                </div>
               </div>
 
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -145,19 +175,34 @@ export default function BillingSummaryCard({ deals, totals, loading, onEditBilli
           <span className="text-xs font-semibold uppercase tracking-wide text-[#7c3aed]">
             {t("totalMonthly")}
           </span>
-          <span className="text-lg text-[#4c1d95]">{formatUSD(totals.monthlyFees)}</span>
+          <span className="text-lg text-[#4c1d95]">
+            {formatUSD(totals.monthlyFees)}
+            <span className="ml-2 text-xs font-semibold text-[#7c3aed]/70">
+              ({percentLabel(goalPct)})
+            </span>
+          </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wide text-[#047857]">
             {t("totalBilled")}
           </span>
-          <span className="text-lg text-[#047857]">{formatUSD(totals.billed)}</span>
+          <span className="text-lg text-[#047857]">
+            {formatUSD(totals.billed)}
+            <span className="ml-2 text-xs font-semibold text-[#047857]/70">
+              ({percentLabel(billedPct)})
+            </span>
+          </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wide text-[#b45309]">
             {t("totalPending")}
           </span>
-          <span className="text-lg text-[#b45309]">{formatUSD(totals.pending)}</span>
+          <span className="text-lg text-[#b45309]">
+            {formatUSD(totals.pending)}
+            <span className="ml-2 text-xs font-semibold text-[#b45309]/70">
+              ({percentLabel(pendingPct)})
+            </span>
+          </span>
         </div>
       </div>
     </div>

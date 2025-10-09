@@ -1,7 +1,8 @@
-// src/app/components/features/goals/components/TeamMembersTable.tsx
+﻿// src/app/components/features/goals/components/TeamMembersTable.tsx
 "use client";
 
 import React from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "@/app/components/ui/toast";
 import { formatUSD } from "../../proposals/lib/format";
 import { useTranslations } from "@/app/LanguageProvider";
@@ -13,6 +14,7 @@ export type TeamGoalRow = {
   goal: number;
   progress: number;
   pct: number; // puede superar 100
+  dealsCount?: number;
 };
 
 type SortKey = "user" | "goal" | "progress" | "pct";
@@ -92,11 +94,21 @@ export default function TeamMembersTable({
     return arr;
   }, [rows, sortKey, sortAsc]);
 
-  const Arrow = ({ active }: { active: boolean }) => (
+  const Arrow = ({
+    active,
+    direction,
+  }: {
+    active: boolean;
+    direction: "asc" | "desc";
+  }) => (
     <span
-      className={`ml-1 inline-block text-[10px] transition-transform ${active ? "opacity-100" : "opacity-40"}`}
+      className={`ml-1 inline-flex h-3 w-3 items-center justify-center text-[10px] transition ${active ? "opacity-100" : "opacity-40"}`}
     >
-      {sortAsc ? "▲" : "▼"}
+      {direction === "asc" ? (
+        <ChevronUp className="h-3 w-3" aria-hidden="true" />
+      ) : (
+        <ChevronDown className="h-3 w-3" aria-hidden="true" />
+      )}
     </span>
   );
 
@@ -116,15 +128,15 @@ export default function TeamMembersTable({
 
     return (
       <div className="flex w-full flex-col gap-1">
-        <div className="relative h-2 w-full rounded-full bg-[#f3e8ff]">
+        <div className="relative h-2 w-full overflow-hidden rounded-full bg-[#f3e8ff]">
           <div
             className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#c084fc] via-[#a855f7] to-[#6d28d9]"
             style={{ width: `${baseWidth}%` }}
           />
           {overflow > 0 && (
             <div
-              className="absolute left-[100%] top-0 h-full rounded-r-full bg-[#ede9fe]"
-              style={{ width: `${Math.min(overflow, 80)}%` }}
+              className="absolute top-0 h-full rounded-r-full bg-[#ede9fe]"
+              style={{ left: "calc(100% - 12px)", width: "12px" }}
             >
               <div className="h-full w-full rounded-r-full bg-[length:8px_8px] [background-image:repeating-linear-gradient(45deg,rgba(109,40,217,0.65)_0,rgba(109,40,217,0.65)_4px,rgba(109,40,217,0.2)_4px,rgba(109,40,217,0.2)_8px)]" />
             </div>
@@ -146,28 +158,32 @@ export default function TeamMembersTable({
           className="flex items-center gap-1 text-left"
           onClick={() => handleSort("user")}
         >
-          {headersT("user")} <Arrow active={sortKey === "user"} />
+          {headersT("user")}{" "}
+          <Arrow active={sortKey === "user"} direction={sortAsc ? "asc" : "desc"} />
         </button>
         <button
           type="button"
           className="flex items-center justify-end gap-1 text-right"
           onClick={() => handleSort("goal")}
         >
-          {headersT("goal")} <Arrow active={sortKey === "goal"} />
+          {headersT("goal")}{" "}
+          <Arrow active={sortKey === "goal"} direction={sortAsc ? "asc" : "desc"} />
         </button>
         <button
           type="button"
           className="flex items-center justify-end gap-1 text-right"
           onClick={() => handleSort("progress")}
         >
-          {headersT("progress")} <Arrow active={sortKey === "progress"} />
+          {headersT("progress")}{" "}
+          <Arrow active={sortKey === "progress"} direction={sortAsc ? "asc" : "desc"} />
         </button>
         <button
           type="button"
           className="flex items-center justify-end gap-1 text-right"
           onClick={() => handleSort("pct")}
         >
-          {headersT("pct")} <Arrow active={sortKey === "pct"} />
+          {headersT("pct")}{" "}
+          <Arrow active={sortKey === "pct"} direction={sortAsc ? "asc" : "desc"} />
         </button>
         <div className="text-right">{labelsT("visual")}</div>
         <div className="text-right">{actionsT("title")}</div>
@@ -285,3 +301,5 @@ export default function TeamMembersTable({
     </div>
   );
 }
+
+

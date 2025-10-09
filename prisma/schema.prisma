@@ -164,6 +164,8 @@ model Proposal {
   @@index([userEmail])
   @@index([status])
   @@index([deletedAt])
+  @@index([status, deletedAt, createdAt], name: "proposal_status_deletedAt_createdAt_idx")
+  @@index([userEmail, deletedAt, createdAt], name: "proposal_userEmail_deletedAt_createdAt_idx")
   @@index([pipedriveDealId])
   @@index([createdChannel])
   @@index([createdByExternalId])
@@ -205,6 +207,7 @@ model ManualWonDeal {
   billing   WonDealBilling?
 
   @@index([userId, year, quarter])
+  @@index([userId, year, quarter, createdAt], name: "manualWonDeal_user_year_quarter_createdAt_idx")
   @@index([createdAt])
 }
 
@@ -336,6 +339,9 @@ model MapacheTask {
   @@index([clientName])
   @@index([origin])
   @@index([statusId])
+  @@index([substatus])
+  @@index([presentationDate])
+  @@index([createdAt])
 }
 
 model MapacheTaskDeliverable {

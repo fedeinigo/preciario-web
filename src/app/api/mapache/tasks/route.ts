@@ -1,5 +1,6 @@
 // src/app/api/mapache/tasks/route.ts
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 
 import { requireApiSession } from "@/app/api/_utils/require-auth";
 import prisma from "@/lib/prisma";
@@ -21,6 +22,10 @@ import type {
   MapacheIntegrationOwner,
   MapacheIntegrationType,
 } from "./access";
+import {
+  makeTaskCursor,
+  parseTaskCursor,
+} from "../../../mapache-portal/task-pagination";
 
 type DeliverableInput = {
   title: string;
@@ -304,19 +309,82 @@ const mapacheTask = (
   prisma as unknown as { mapacheTask: MapacheTaskDelegate }
 ).mapacheTask;
 
-export async function GET() {
+type MapacheTaskRow = Prisma.MapacheTaskGetPayload<{
+  select: typeof taskSelect;
+}>;
+
+const DEFAULT_TASK_LIMIT = 200;
+const MAX_TASK_LIMIT = 500;
+
+export async function GET(request: Request) {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
   const { response: accessResponse } = ensureMapacheAccess(session);
   if (accessResponse) return accessResponse;
 
-  const tasks = (await mapacheTask.findMany({
-    orderBy: { createdAt: "desc" },
-    select: taskSelect,
-  })) as unknown[];
+  const url = new URL(request.url);
+  const searchParams = url.searchParams;
 
-  return NextResponse.json(tasks);
+  const limitParam = searchParams.get("limit");
+  let limit = DEFAULT_TASK_LIMIT;
+  if (limitParam) {
+    const parsed = Number.parseInt(limitParam, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      limit = Math.min(parsed, MAX_TASK_LIMIT);
+    }
+  }
+
+  const cursorParam = searchParams.get("cursor");
+  const parsedCursor = parseTaskCursor(cursorParam);
+  let cursorDate: Date | null = null;
+  let cursorId: string | null = null;
+  if (parsedCursor) {
+    const date = new Date(parsedCursor.createdAt);
+    if (!Number.isNaN(date.getTime())) {
+      cursorDate = date;
+      cursorId = parsedCursor.id;
+    }
+  }
+
+  const where: Prisma.MapacheTaskWhereInput = {};
+  if (cursorDate && cursorId) {
+    where.OR = [
+      { createdAt: { lt: cursorDate } },
+      {
+        createdAt: cursorDate,
+        id: { lt: cursorId },
+      },
+    ];
+  }
+
+  const [taskResults, totalTasks] = await Promise.all([
+    mapacheTask.findMany({
+      where,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit,
+      select: taskSelect,
+    }) as Promise<MapacheTaskRow[]>,
+    prisma.mapacheTask.count(),
+  ]);
+
+  const tasks = taskResults as unknown[];
+  const lastTask = taskResults[taskResults.length - 1] ?? null;
+  const hasMore = taskResults.length === limit;
+  const nextCursor =
+    hasMore && lastTask
+      ? makeTaskCursor(lastTask.createdAt.toISOString(), lastTask.id)
+      : null;
+
+  return NextResponse.json({
+    tasks,
+    meta: {
+      total: totalTasks,
+      count: taskResults.length,
+      limit,
+      nextCursor,
+    },
+  });
 }
 
 export async function POST(req: Request) {

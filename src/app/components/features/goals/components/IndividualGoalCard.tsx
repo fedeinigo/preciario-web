@@ -112,7 +112,7 @@ export default function IndividualGoalCard({
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-[#5b21b6]">
           <span className="font-semibold text-[#6d28d9]">
-            {t("completed", { pct: Math.min(100, normalizedPct).toFixed(0) })}
+            {t("completed", { pct: normalizedPct.toFixed(0) })}
           </span>
           <span className="text-xs text-[#7c3aed]">
             {t("period", { from: range.from, to: range.to })}

@@ -1,4 +1,4 @@
-// src/app/components/ui/UserProfileModal.tsx
+﻿// src/app/components/ui/UserProfileModal.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
@@ -122,7 +122,7 @@ export default function UserProfileModal({
     viewer.role === "admin" ||
     (viewer.role === "lider" && !!viewer.team && !!resolvedTarget.team && viewer.team === resolvedTarget.team);
 
-  // Año/quarter
+  // AÃ±o/quarter
   const now = new Date();
   const [year, setYear] = useState<number>(now.getFullYear());
   const [quarter, setQuarter] = useState<1 | 2 | 3 | 4>(() => {
@@ -197,7 +197,7 @@ export default function UserProfileModal({
         if (resolvedTarget.id) qs.push(`userId=${encodeURIComponent(resolvedTarget.id)}`);
         else if (resolvedTarget.email) qs.push(`email=${encodeURIComponent(resolvedTarget.email)}`);
       } else {
-        // también puede ir con id/email, el backend lo permite sin problema
+        // tambiÃ©n puede ir con id/email, el backend lo permite sin problema
         if (resolvedTarget.id) qs.push(`userId=${encodeURIComponent(resolvedTarget.id)}`);
       }
       const r = await fetch(`/api/goals/user?${qs.join("&")}`);
@@ -234,7 +234,7 @@ export default function UserProfileModal({
         year,
         quarter,
       };
-      // Si edito a otro, envío siempre userId resuelto
+      // Si edito a otro, envÃ­o siempre userId resuelto
       if (!isSelf && resolvedTarget.id) body.userId = resolvedTarget.id;
       const r = await fetch("/api/goals/user", {
         method: "PUT",
@@ -456,3 +456,4 @@ export default function UserProfileModal({
     </Modal>
   );
 }
+
