@@ -145,6 +145,31 @@ const VIRTUALIZATION_AUTO_THRESHOLD = 80;
 const DENSITY_STORAGE_KEY = "mapache_portal_density";
 const VIRTUALIZATION_STORAGE_KEY = "mapache_portal_virtualization";
 
+function readStoredDensity(): DensityOption | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const stored = window.localStorage.getItem(DENSITY_STORAGE_KEY);
+  if (stored && isDensityOption(stored)) {
+    return stored;
+  }
+  return null;
+}
+
+function resolveVirtualizationPreference(shouldEnable: boolean) {
+  if (typeof window === "undefined") {
+    return { value: shouldEnable, locked: false } as const;
+  }
+  const stored = window.localStorage.getItem(VIRTUALIZATION_STORAGE_KEY);
+  if (stored === "on") {
+    return { value: true, locked: true } as const;
+  }
+  if (stored === "off") {
+    return { value: false, locked: true } as const;
+  }
+  return { value: shouldEnable, locked: false } as const;
+}
+
 function isDensityOption(value: string): value is DensityOption {
   return value === "compact" || value === "comfortable" || value === "spacious";
 }
@@ -188,51 +213,36 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
   >(null);
   const [pageSize, setPageSize] = React.useState(PAGE_SIZE_OPTIONS[0] ?? 25);
   const [pageIndex, setPageIndex] = React.useState(0);
-  const [density, setDensity] = React.useState<DensityOption>("comfortable");
-  const [densityHydrated, setDensityHydrated] = React.useState(false);
+  const [density, setDensity] = React.useState<DensityOption>(() => {
+    return readStoredDensity() ?? "comfortable";
+  });
   const shouldEnableVirtualization =
     tasks.length > VIRTUALIZATION_AUTO_THRESHOLD;
+  const virtualizationInitialPreferenceRef = React.useRef<
+    ReturnType<typeof resolveVirtualizationPreference> | null
+  >(null);
+  if (virtualizationInitialPreferenceRef.current === null) {
+    virtualizationInitialPreferenceRef.current =
+      resolveVirtualizationPreference(shouldEnableVirtualization);
+  }
   const [virtualizationEnabled, setVirtualizationEnabled] = React.useState(
-    shouldEnableVirtualization,
+    virtualizationInitialPreferenceRef.current.value,
   );
-  const [virtualizationHydrated, setVirtualizationHydrated] =
-    React.useState(false);
-  const virtualizationPreferenceLockedRef = React.useRef(false);
+  const virtualizationPreferenceLockedRef = React.useRef(
+    virtualizationInitialPreferenceRef.current.locked,
+  );
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(DENSITY_STORAGE_KEY);
-    if (stored && isDensityOption(stored)) {
-      setDensity(stored);
-    }
-    setDensityHydrated(true);
-  }, []);
-  React.useEffect(() => {
-    if (typeof window === "undefined" || !densityHydrated) return;
     window.localStorage.setItem(DENSITY_STORAGE_KEY, density);
-  }, [density, densityHydrated]);
+  }, [density]);
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(VIRTUALIZATION_STORAGE_KEY);
-    if (stored === "on") {
-      virtualizationPreferenceLockedRef.current = true;
-      setVirtualizationEnabled(true);
-    } else if (stored === "off") {
-      virtualizationPreferenceLockedRef.current = true;
-      setVirtualizationEnabled(false);
-    }
-    setVirtualizationHydrated(true);
-  }, []);
-  React.useEffect(() => {
-    if (typeof window === "undefined" || !virtualizationHydrated) return;
     window.localStorage.setItem(
       VIRTUALIZATION_STORAGE_KEY,
       virtualizationEnabled ? "on" : "off",
     );
-  }, [virtualizationEnabled, virtualizationHydrated]);
+  }, [virtualizationEnabled]);
   React.useEffect(() => {
-    if (!virtualizationHydrated) {
-      return;
-    }
     if (virtualizationPreferenceLockedRef.current) {
       if (!shouldEnableVirtualization) {
         virtualizationPreferenceLockedRef.current = false;
@@ -243,11 +253,7 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
     if (virtualizationEnabled !== shouldEnableVirtualization) {
       setVirtualizationEnabled(shouldEnableVirtualization);
     }
-  }, [
-    shouldEnableVirtualization,
-    virtualizationEnabled,
-    virtualizationHydrated,
-  ]);
+  }, [shouldEnableVirtualization, virtualizationEnabled]);
   const handleVirtualizationToggle = React.useCallback((next: boolean) => {
     virtualizationPreferenceLockedRef.current = true;
     setVirtualizationEnabled(next);
