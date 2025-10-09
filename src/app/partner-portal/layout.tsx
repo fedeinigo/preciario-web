@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Analytics } from "@vercel/analytics/react";
 
 const navLinks = [
@@ -18,9 +19,14 @@ export default function PartnerPortalLayout({
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-6 px-4 py-4">
           <Link href="/partner-portal" className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-sm font-semibold uppercase tracking-widest text-white">
-              SP
-            </div>
+            <Image
+              src="/wcx_logo_negro.png"
+              alt="WCX logo"
+              width={180}
+              height={32}
+              className="h-8 w-auto"
+              priority
+            />
             <span className="text-xl font-semibold text-slate-900">
               SaaSPlatform
             </span>

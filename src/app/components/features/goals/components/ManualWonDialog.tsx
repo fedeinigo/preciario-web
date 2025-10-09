@@ -33,6 +33,12 @@ export default function ManualWonDialog({ open, onClose, target, onSubmit }: Pro
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  const handleClose = React.useCallback(() => {
+    if (!submitting) {
+      onClose();
+    }
+  }, [submitting, onClose]);
+
   React.useEffect(() => {
     if (!open) {
       setCompanyName("");
@@ -76,9 +82,7 @@ export default function ManualWonDialog({ open, onClose, target, onSubmit }: Pro
       <button
         type="button"
         className="rounded-full border border-[#d8c7ff] px-4 py-2 text-sm font-semibold text-[#6d28d9] transition hover:bg-[#f4edff]"
-        onClick={() => {
-          if (!submitting) onClose();
-        }}
+        onClick={handleClose}
         disabled={submitting}
       >
         {t("cancel")}
@@ -99,9 +103,7 @@ export default function ManualWonDialog({ open, onClose, target, onSubmit }: Pro
   return (
     <Modal
       open={open}
-      onClose={() => {
-        if (!submitting) onClose();
-      }}
+      onClose={handleClose}
       title={t("title")}
       footer={footer}
       disableCloseOnBackdrop={submitting}
