@@ -280,7 +280,8 @@ export default function UserProfileModal({
       onClose={onClose}
       title={profileT("title")}
       variant="inverted"
-      panelClassName="max-w-2xl"
+      panelClassName="max-w-full"
+      panelWidthClassName="max-w-none"
       footer={
         <div className="flex justify-between items-center w-full">
           <div className="text-[12px] text-white/80">{profileT("periodSummary", { year, quarter, from: range.from, to: range.to })}</div>

@@ -135,6 +135,9 @@ export default function TeamMembersTable({
     );
   };
 
+  const actionButtonBase =
+    "inline-flex w-full md:w-auto items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white";
+
   return (
     <div className="space-y-4">
       <div className="hidden rounded-2xl bg-[#f5f0ff] px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#6d28d9] md:grid md:grid-cols-[minmax(0,2.3fr),minmax(0,1.1fr),minmax(0,1.1fr),minmax(0,0.9fr),minmax(0,1.4fr),minmax(0,1.1fr)] md:items-center">
@@ -227,17 +230,17 @@ export default function TeamMembersTable({
                   <ProgressChip pct={r.pct} />
                 </div>
 
-                <div className="flex flex-wrap items-center justify-end gap-2 text-sm font-semibold text-[#6d28d9]">
+                <div className="flex flex-col items-stretch gap-2 text-sm font-semibold text-[#6d28d9] md:flex-row md:flex-wrap md:justify-end">
                   {isEditing ? (
                     <>
                       <button
-                        className="rounded-full border border-[#d8c7ff] px-4 py-2 text-[#6d28d9] transition hover:bg-[#f4edff]"
+                        className={`${actionButtonBase} border border-[#d8c7ff] bg-white text-[#6d28d9] shadow-sm hover:bg-[#f4edff] focus:ring-[#c4b5fd]`}
                         onClick={cancelEdit}
                       >
                         {actionsT("cancel")}
                       </button>
                       <button
-                        className="rounded-full bg-gradient-to-r from-[#7c3aed] to-[#4c1d95] px-4 py-2 text-white shadow-sm transition hover:brightness-105"
+                        className={`${actionButtonBase} bg-gradient-to-r from-[#7c3aed] via-[#6d28d9] to-[#4c1d95] text-white shadow-md hover:brightness-110 focus:ring-[#7c3aed]`}
                         onClick={() => saveEdit(r.userId)}
                       >
                         {actionsT("save")}
@@ -246,21 +249,21 @@ export default function TeamMembersTable({
                   ) : (
                     <>
                       <button
-                        className="rounded-full px-4 py-2 text-[#6d28d9] transition hover:bg-[#f4edff]"
+                        className={`${actionButtonBase} border border-[#d8c7ff] bg-white text-[#6d28d9] shadow-sm hover:bg-[#f4edff] focus:ring-[#c4b5fd]`}
                         onClick={() => onOpenProfile({ id: r.userId, email: r.email, name: r.name })}
                       >
                         {actionsT("profile")}
                       </button>
                       {canAddManual && (
                         <button
-                          className="rounded-full px-4 py-2 text-[#6d28d9] transition hover:bg-[#f4edff]"
+                          className={`${actionButtonBase} bg-gradient-to-r from-[#8b5cf6] via-[#7c3aed] to-[#5b21b6] text-white shadow-md hover:brightness-110 focus:ring-[#7c3aed]`}
                           onClick={() => onAddManual({ id: r.userId, email: r.email, name: r.name })}
                         >
                           {billingT("manualCta")}
                         </button>
                       )}
                       <button
-                        className="rounded-full px-4 py-2 text-[#6d28d9] transition hover:bg-[#f4edff]"
+                        className={`${actionButtonBase} border border-[#c084fc] bg-[#f5f0ff] text-[#4c1d95] shadow-sm hover:bg-[#ede9fe] focus:ring-[#c4b5fd]`}
                         onClick={() => {
                           if (!canEdit) {
                             toast.info(toastT("restrictedEdit"));

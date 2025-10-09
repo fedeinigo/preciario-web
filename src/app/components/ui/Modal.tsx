@@ -2,6 +2,8 @@
 "use client";
 
 import React from "react";
+
+type PanelStyle = React.CSSProperties;
 import { createPortal } from "react-dom";
 
 type Props = {
@@ -12,6 +14,10 @@ type Props = {
   children: React.ReactNode;
   /** Estilos extra para el panel */
   panelClassName?: string;
+  /** Clase para controlar el ancho máximo del panel */
+  panelWidthClassName?: string;
+  /** Estilos en línea extra para el panel */
+  panelStyle?: PanelStyle;
   /** Estilos extra para el backdrop */
   backdropClassName?: string;
   /** Variante del panel */
@@ -27,6 +33,8 @@ export default function Modal({
   footer,
   children,
   panelClassName = "",
+  panelWidthClassName = "max-w-2xl",
+  panelStyle,
   backdropClassName = "",
   variant = "default",
   disableCloseOnBackdrop = false,
@@ -95,12 +103,14 @@ export default function Modal({
       <div
         ref={panelRef}
         className={[
-          "w-full max-w-2xl max-h-[calc(100vh-2rem)] rounded-xl shadow-2xl overflow-hidden border flex flex-col min-h-0",
+          "w-full max-h-[calc(100vh-2rem)] rounded-xl shadow-2xl overflow-hidden border flex flex-col min-h-0",
+          panelWidthClassName,
           isInverted
             ? "bg-[rgb(var(--primary))] text-white border-white/10"
             : "bg-white text-gray-900 border-gray-200",
           panelClassName,
         ].join(" ")}
+        style={panelStyle}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
