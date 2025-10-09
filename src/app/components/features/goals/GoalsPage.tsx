@@ -24,6 +24,16 @@ type Props = {
   isSuperAdmin: boolean;
 };
 
+type TeamMemberResponse = {
+  userId?: string | number;
+  email?: string | null;
+  name?: string | null;
+  goal?: number | string;
+  progress?: number | string;
+  pct?: number | string;
+  dealsCount?: number | string;
+};
+
 export default function GoalsPage({
   role,
   currentEmail,
@@ -188,7 +198,7 @@ export default function GoalsPage({
       const j = await r.json();
       setTeamGoal(Number(j.teamGoal || 0));
       setTeamProgress(Number(j.teamProgress || 0));
-      const members = Array.isArray(j.members) ? j.members : [];
+      const members = (Array.isArray(j.members) ? j.members : []) as TeamMemberResponse[];
       setRows(
         members.map((member) => ({
           userId: String(member.userId ?? ""),

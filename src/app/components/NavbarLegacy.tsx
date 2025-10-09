@@ -145,7 +145,6 @@ export default function Navbar() {
   const rawTeam = (session?.user?.team as string | null) ?? null;
   const team = rawTeam ?? fallbacksT("team");
   const name = session?.user?.name ?? fallbacksT("name");
-  const email = session?.user?.email ?? fallbacksT("email");
   const canSeeUsers = ADMIN_ROLES.has(appRole);
   const canOpenMapachePortal = rawTeam === "Mapaches" || ADMIN_ROLES.has(appRole);
   const showMapacheReturn =
