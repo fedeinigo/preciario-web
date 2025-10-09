@@ -9,12 +9,7 @@ import {
 import { Loader2, Settings, Wand2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
-import {
-  usePathname,
-  useRouter,
-  useSearchParams,
-  type ReadonlyURLSearchParams,
-} from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
@@ -35,13 +30,6 @@ import type {
   MapacheTaskSubstatus,
 } from "./types";
 import {
-  MAPACHE_DELIVERABLE_TYPES,
-  MAPACHE_DIRECTNESS,
-  MAPACHE_INTEGRATION_OWNERS,
-  MAPACHE_INTEGRATION_TYPES,
-  MAPACHE_NEEDS_FROM_TEAM,
-  MAPACHE_SIGNAL_ORIGINS,
-  MAPACHE_TASK_SUBSTATUSES,
   createStatusIndex,
   normalizeMapacheStatus,
   normalizeMapacheTask,
@@ -53,38 +41,46 @@ import {
   sortStatuses,
   upsertStatus,
 } from "./status-management";
-import type {
-  MapachePortalInsightsMetrics,
-  MapachePortalInsightsScope,
-  MapachePortalInsightsWorkloadEntry,
-  NeedMetricKey,
-} from "./MapachePortalInsights";
 import {
   MAPACHE_PORTAL_DEFAULT_SECTION,
   MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
   type MapachePortalSection,
 } from "./section-events";
-import {
-  DATE_INPUT_REGEX,
-  areAdvancedFiltersEqual,
-  areTaskFiltersEqual,
-  createDefaultFiltersState,
-  createDefaultTaskFilterState,
-  type AdvancedFiltersState,
-  type TaskFilterState,
-} from "./filters";
-import {
-  createFiltersSnapshotPayload,
-  parseStoredFiltersSnapshot,
-} from "./filter-storage";
 import { useTasksQuery } from "./hooks/useTasksQuery";
 import { useFilterPresets } from "./hooks/useFilterPresets";
 import { useBoardManager } from "./hooks/useBoardManager";
+import { DATE_INPUT_REGEX } from "./filters";
+import { createFilterQueryString } from "./utils/filter-query";
 import {
-  createFilterQueryString,
-  normalizeQueryString,
-  parseQueryParamList,
-} from "./utils/filter-query";
+  DIRECTNESS_OPTIONS,
+  DELIVERABLE_TYPES,
+  INTEGRATION_OWNERS,
+  INTEGRATION_TYPE_OPTIONS,
+  INTEGRATION_TYPES,
+  NEED_OPTIONS,
+  ORIGIN_OPTIONS,
+  SUBSTATUS_OPTIONS,
+  TASKS_PAGE_SIZE,
+  MS_IN_DAY,
+} from "./constants";
+import type { MapachePortalInsightsScope } from "./MapachePortalInsights";
+import { useMapacheFilters } from "./hooks/useMapacheFilters";
+import { useInsightsMetrics } from "./hooks/useInsightsMetrics";
+import { useAssignmentRatios } from "./hooks/useAssignmentRatios";
+import {
+  formatAssigneeOption,
+  formatTaskAssigneeLabel,
+  getTaskAssigneeEmail,
+  getTaskAssigneeId,
+} from "./utils/task-assignees";
+import {
+  formatPercentage,
+  normalizeAssignmentWeights,
+  parsePercentageInput,
+  ratioToPercentageInput,
+  type AssignmentWeight,
+} from "./utils/assignment";
+import type { MapacheUser } from "./user-types";
 const MapachePortalFilters = dynamic(
   () => import("./components/MapachePortalFilters"),
   {
@@ -117,112 +113,10 @@ const MapachePortalInsights = dynamic(
   },
 );
 
-const NEED_OPTIONS: MapacheNeedFromTeam[] = [...MAPACHE_NEEDS_FROM_TEAM];
-const DIRECTNESS_OPTIONS: MapacheDirectness[] = [...MAPACHE_DIRECTNESS];
-const INTEGRATION_TYPE_OPTIONS: MapacheIntegrationType[] = [
-  ...MAPACHE_INTEGRATION_TYPES,
-];
-const INTEGRATION_TYPES: (MapacheIntegrationType | "")[] = [
-  "",
-  ...MAPACHE_INTEGRATION_TYPES,
-];
-const INTEGRATION_OWNERS: (MapacheIntegrationOwner | "")[] = [
-  "",
-  ...MAPACHE_INTEGRATION_OWNERS,
-];
-const DELIVERABLE_TYPES: MapacheDeliverableType[] = [...MAPACHE_DELIVERABLE_TYPES];
-const ORIGIN_OPTIONS: MapacheSignalOrigin[] = [...MAPACHE_SIGNAL_ORIGINS];
-const NEED_METRIC_KEYS: NeedMetricKey[] = [...NEED_OPTIONS, "NONE"];
-const SUBSTATUS_OPTIONS: MapacheTaskSubstatus[] = [...MAPACHE_TASK_SUBSTATUSES];
-const MS_IN_DAY = 86_400_000;
-const TASKS_PAGE_SIZE = 100;
-
-type SegmentAccumulator = {
-  key: string;
-  label: string;
-  type: "assignee" | "team";
-  statusTotals: Record<MapacheTaskStatus, number>;
-  substatusTotals: Record<MapacheTaskSubstatus, number>;
-  needTotals: Record<NeedMetricKey, number>;
-  total: number;
-};
-function resolveStateAction<S>(
-  action: React.SetStateAction<S>,
-  prev: S,
-): S {
-  return typeof action === "function"
-    ? (action as (state: S) => S)(prev)
-    : action;
-}
-
-function extractFiltersFromSearchParams(
-  searchParams: ReadonlyURLSearchParams,
-): Record<string, unknown> | null {
-  let hasAny = false;
-  const snapshot: Record<string, unknown> = {};
-
-  const status = searchParams.get("status");
-  if (status !== null) {
-    snapshot.status = status;
-    hasAny = true;
-  }
-
-  const owner = searchParams.get("owner");
-  if (owner !== null) {
-    snapshot.owner = owner;
-    hasAny = true;
-  }
-
-  const needs = parseQueryParamList(searchParams.getAll("needs"));
-  if (needs.length > 0) {
-    snapshot.needs = needs;
-    hasAny = true;
-  }
-
-  const directness = parseQueryParamList(searchParams.getAll("directness"));
-  if (directness.length > 0) {
-    snapshot.directness = directness;
-    hasAny = true;
-  }
-
-  const integration = parseQueryParamList(searchParams.getAll("integration"));
-  if (integration.length > 0) {
-    snapshot.integration = integration;
-    hasAny = true;
-  }
-
-  const origins = parseQueryParamList(searchParams.getAll("origins"));
-  if (origins.length > 0) {
-    snapshot.origins = origins;
-    hasAny = true;
-  }
-
-  const assignees = parseQueryParamList(searchParams.getAll("assignees"));
-  if (assignees.length > 0) {
-    snapshot.assignees = assignees;
-    hasAny = true;
-  }
-
-  const presentationFrom =
-    searchParams.get("presentationFrom") ??
-    searchParams.get("presentation_from");
-  if (presentationFrom !== null) {
-    snapshot.presentationFrom = presentationFrom;
-    hasAny = true;
-  }
-
-  const presentationTo =
-    searchParams.get("presentationTo") ?? searchParams.get("presentation_to");
-  if (presentationTo !== null) {
-    snapshot.presentationTo = presentationTo;
-    hasAny = true;
-  }
-
-  return hasAny ? snapshot : null;
-}
-
 const EMAIL_REGEX = /.+@.+\..+/i;
 const VIEW_MODE_STORAGE_KEY = "mapache_portal_view_mode";
+const useBrowserLayoutEffect =
+  typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
 
 function isValidEmail(value: string) {
   return EMAIL_REGEX.test(value);
@@ -400,19 +294,6 @@ type ValidationMessages = {
   deliverableUrlRequired: string;
 };
 
-type MapacheUser = {
-  id: string;
-  name: string | null;
-  email: string;
-};
-
-type AssignmentRatios = Record<string, number>;
-
-type AssignmentWeight = { userId: string; weight: number };
-
-const FILTERS_STORAGE_KEY = "mapache_portal_filters";
-const ASSIGNMENT_STORAGE_KEY = "mapache_assignment_ratios";
-
 const STATUS_BADGE_CLASSNAMES: Record<
   "unassigned" | "assigned" | "in_progress" | "completed",
   string
@@ -501,37 +382,6 @@ function deriveStatusesFromTasks(tasks: MapacheTask[]): MapacheStatusDetails[] {
   });
 
   return Array.from(byKey.values()).sort((a, b) => a.order - b.order);
-}
-
-function getTaskAssigneeId(task: MapacheTask): string | null {
-  if (typeof task.assigneeId === "string") {
-    const trimmed = task.assigneeId.trim();
-    return trimmed ? trimmed : null;
-  }
-  return null;
-}
-
-function getTaskAssigneeEmail(task: MapacheTask): string | null {
-  const email = task.assignee?.email;
-  if (typeof email === "string") {
-    const trimmed = email.trim().toLowerCase();
-    return trimmed ? trimmed : null;
-  }
-  return null;
-}
-
-function formatTaskAssigneeLabel(task: MapacheTask): string {
-  const name = task.assignee?.name;
-  if (typeof name === "string") {
-    const trimmed = name.trim();
-    if (trimmed) return trimmed;
-  }
-  const email = task.assignee?.email;
-  if (typeof email === "string") {
-    const trimmed = email.trim();
-    if (trimmed) return trimmed;
-  }
-  return getTaskAssigneeId(task) ?? "";
 }
 
 function getSubstatusKey(
@@ -1117,68 +967,6 @@ function normalizeFormState(
   return { payload, deliverables: normalizedDeliverables, errors };
 }
 
-function formatAssigneeOption(user: MapacheUser) {
-  const name = user.name?.trim();
-  return name && name.length > 0 ? name : user.email;
-}
-
-function roundToTwoDecimals(value: number) {
-  return Math.round(value * 100) / 100;
-}
-
-function formatPercentage(value: number): string {
-  if (!Number.isFinite(value)) return "";
-  const rounded = roundToTwoDecimals(value);
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
-}
-
-function ratioToPercentageInput(ratio: number): string {
-  return formatPercentage(ratio * 100);
-}
-
-function parsePercentageInput(value: string): number | null {
-  if (typeof value !== "string") return null;
-  const normalized = value.replace(",", ".").trim();
-  if (!normalized) return null;
-  const parsed = Number.parseFloat(normalized);
-  if (!Number.isFinite(parsed) || parsed < 0) return null;
-  return parsed;
-}
-
-function normalizeAssignmentWeights(
-  ratios: AssignmentRatios,
-  users: MapacheUser[],
-): AssignmentWeight[] {
-  if (users.length === 0) return [];
-  const entries = users.map((user) => ({
-    userId: user.id,
-    weight:
-      typeof ratios[user.id] === "number" && Number.isFinite(ratios[user.id])
-        ? ratios[user.id]
-        : 0,
-  }));
-
-  const positive = entries.filter((entry) => entry.weight > 0);
-  if (positive.length === 0) {
-    const equalWeight = 1 / users.length;
-    return users.map((user) => ({ userId: user.id, weight: equalWeight }));
-  }
-
-  const total = positive.reduce((sum, entry) => sum + entry.weight, 0);
-  if (total <= 0) {
-    const equalWeight = 1 / positive.length;
-    return positive.map((entry) => ({
-      userId: entry.userId,
-      weight: equalWeight,
-    }));
-  }
-
-  return positive.map((entry) => ({
-    userId: entry.userId,
-    weight: entry.weight / total,
-  }));
-}
-
 function createAssignmentSequence(
   count: number,
   weights: AssignmentWeight[],
@@ -1238,9 +1026,6 @@ export default function MapachePortalClient({
   const searchParamsString = React.useMemo(
     () => searchParams.toString(),
     [searchParams],
-  );
-  const lastSyncedQueryRef = React.useRef<string | null>(
-    normalizeQueryString(searchParamsString),
   );
   const t = useTranslations("mapachePortal");
   const statusT = useTranslations("mapachePortal.statuses");
@@ -1481,26 +1266,26 @@ export default function MapachePortalClient({
       }),
     );
   }, [statusIndex]);
-  const [activeFilter, setActiveFilter] = React.useState<TaskFilterState>(
-    () => createDefaultTaskFilterState(),
-  );
-  const [advancedFilters, setAdvancedFilters] = React.useState<AdvancedFiltersState>(
-    () => createDefaultFiltersState(),
-  );
-  const updateActiveFilter = React.useCallback(
-    (value: React.SetStateAction<TaskFilterState>) => {
-      setActiveFilter((prev) => resolveStateAction(value, prev));
+  const replaceUrl = React.useCallback(
+    (url: string, options: { scroll: boolean }) => {
+      router.replace(url, options);
     },
-    [],
+    [router],
   );
 
-  const updateAdvancedFilters = React.useCallback(
-    (value: React.SetStateAction<AdvancedFiltersState>) => {
-      setAdvancedFilters((prev) => resolveStateAction(value, prev));
-    },
-    [],
-  );
-  const [filtersHydrated, setFiltersHydrated] = React.useState(false);
+  const {
+    activeFilter,
+    advancedFilters,
+    filtersHydrated,
+    updateActiveFilter,
+    updateAdvancedFilters,
+  } = useMapacheFilters({
+    pathname,
+    replaceUrl,
+    searchParams,
+    searchParamsString,
+    statusKeys,
+  });
   const {
     filterPresets,
     filterPresetsLoading,
@@ -1519,10 +1304,18 @@ export default function MapachePortalClient({
     filtersT,
     toastT,
   });
-  const [viewMode, setViewMode] = React.useState<"lista" | "tablero">(
-    "lista",
-  );
-  const [viewModeHydrated, setViewModeHydrated] = React.useState(false);
+  const [viewMode, setViewMode] = React.useState<
+    "lista" | "tablero" | null
+  >(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    if (stored === "lista" || stored === "tablero") {
+      return stored;
+    }
+    return "lista";
+  });
   const [insightsScope, setInsightsScope] =
     React.useState<MapachePortalInsightsScope>("filtered");
   const activeSection = React.useMemo<MapachePortalSection>(() => {
@@ -1534,8 +1327,6 @@ export default function MapachePortalClient({
   const isTasksSection = activeSection === "tasks";
   const isMetricsSection = activeSection === "metrics";
 
-  const [assignmentRatios, setAssignmentRatios] = React.useState<AssignmentRatios>({});
-  const [ratiosLoaded, setRatiosLoaded] = React.useState(false);
   const [showSettingsModal, setShowSettingsModal] = React.useState(false);
   const [assignmentDraft, setAssignmentDraft] = React.useState<Record<string, string>>({});
   const [autoAssigning, setAutoAssigning] = React.useState(false);
@@ -1625,6 +1416,9 @@ export default function MapachePortalClient({
   const [mapacheUsers, setMapacheUsers] = React.useState<MapacheUser[]>(() => [
     ...bootstrapUsers,
   ]);
+  const { assignmentRatios, setAssignmentRatios } = useAssignmentRatios({
+    mapacheUsers,
+  });
   const [assigneesLoading, setAssigneesLoading] = React.useState(false);
   const [assigneesError, setAssigneesError] = React.useState<string | null>(
     null,
@@ -1735,21 +1529,24 @@ export default function MapachePortalClient({
     [mapacheUsers],
   );
 
-  React.useEffect(() => {
+  useBrowserLayoutEffect(() => {
+    if (viewMode !== null) return;
     if (typeof window === "undefined") return;
     const storedViewMode = window.localStorage.getItem(
       VIEW_MODE_STORAGE_KEY,
     );
     if (storedViewMode === "lista" || storedViewMode === "tablero") {
       setViewMode(storedViewMode);
+      return;
     }
-    setViewModeHydrated(true);
-  }, []);
+    setViewMode("lista");
+  }, [viewMode]);
 
   React.useEffect(() => {
-    if (typeof window === "undefined" || !viewModeHydrated) return;
+    if (viewMode === null) return;
+    if (typeof window === "undefined") return;
     window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
-  }, [viewMode, viewModeHydrated]);
+  }, [viewMode]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1840,67 +1637,6 @@ export default function MapachePortalClient({
     };
   }, [bootstrapTasks, bootstrapTasksMeta, tasksPageLimit]);
 
-  React.useEffect(() => {
-    if (filtersHydrated) {
-      return;
-    }
-    let hydratedFromUrl = false;
-    let nextTaskFilter = createDefaultTaskFilterState();
-    let nextAdvancedFilter = createDefaultFiltersState();
-
-    const snapshotFromUrl = extractFiltersFromSearchParams(searchParams);
-    if (snapshotFromUrl) {
-      const parsed = parseStoredFiltersSnapshot(snapshotFromUrl, statusKeys);
-      nextTaskFilter = parsed.activeFilter;
-      nextAdvancedFilter = parsed.advancedFilters;
-      hydratedFromUrl = true;
-    } else if (typeof window !== "undefined") {
-      try {
-        const storedRaw = window.localStorage.getItem(FILTERS_STORAGE_KEY);
-        if (storedRaw) {
-          const stored = JSON.parse(storedRaw) as unknown;
-          const parsed = parseStoredFiltersSnapshot(stored, statusKeys);
-          nextTaskFilter = parsed.activeFilter;
-          nextAdvancedFilter = parsed.advancedFilters;
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    }
-
-    updateActiveFilter(nextTaskFilter);
-    updateAdvancedFilters(nextAdvancedFilter);
-    if (hydratedFromUrl) {
-      lastSyncedQueryRef.current = normalizeQueryString(searchParamsString);
-    } else {
-      lastSyncedQueryRef.current = null;
-    }
-    setFiltersHydrated(true);
-  }, [
-    filtersHydrated,
-    searchParams,
-    searchParamsString,
-    statusKeys,
-    updateActiveFilter,
-    updateAdvancedFilters,
-  ]);
-
-  React.useEffect(() => {
-    if (!filtersHydrated || typeof window === "undefined") return;
-    try {
-      const snapshot = createFiltersSnapshotPayload(
-        activeFilter,
-        advancedFilters,
-      );
-      window.localStorage.setItem(
-        FILTERS_STORAGE_KEY,
-        JSON.stringify(snapshot),
-      );
-    } catch (error) {
-      console.error(error);
-    }
-  }, [activeFilter, advancedFilters, filtersHydrated]);
-
   const {
     query: tasksQuery,
     tasks: serializedTasks,
@@ -1945,151 +1681,6 @@ export default function MapachePortalClient({
       return nextTasks;
     });
   }, [serializedTasks, statusIndex]);
-
-
-  React.useEffect(() => {
-    if (!filtersHydrated) return;
-    const desiredQuery = createFilterQueryString(
-      searchParams,
-      activeFilter,
-      advancedFilters,
-    );
-    const normalizedDesired = normalizeQueryString(desiredQuery);
-    const normalizedCurrent = normalizeQueryString(searchParamsString);
-
-    if (normalizedDesired === normalizedCurrent) {
-      lastSyncedQueryRef.current = normalizedCurrent;
-      return;
-    }
-    if (normalizedDesired === lastSyncedQueryRef.current) {
-      return;
-    }
-
-    lastSyncedQueryRef.current = normalizedDesired;
-    const nextUrl = normalizedDesired
-      ? `${pathname}?${normalizedDesired}`
-      : pathname;
-    router.replace(nextUrl, { scroll: false });
-  }, [
-    activeFilter,
-    advancedFilters,
-    filtersHydrated,
-    pathname,
-    router,
-    searchParams,
-    searchParamsString,
-  ]);
-
-  React.useEffect(() => {
-    if (!filtersHydrated) return;
-    const normalizedCurrent = normalizeQueryString(searchParamsString);
-    if (normalizedCurrent === lastSyncedQueryRef.current) {
-      return;
-    }
-
-    const snapshotFromUrl = extractFiltersFromSearchParams(searchParams);
-    if (!snapshotFromUrl) {
-      const defaultTaskFilter = createDefaultTaskFilterState();
-      const defaultAdvancedFilters = createDefaultFiltersState();
-      if (!areTaskFiltersEqual(activeFilter, defaultTaskFilter)) {
-        updateActiveFilter(defaultTaskFilter);
-      }
-      if (!areAdvancedFiltersEqual(advancedFilters, defaultAdvancedFilters)) {
-        updateAdvancedFilters(defaultAdvancedFilters);
-      }
-      lastSyncedQueryRef.current = normalizedCurrent;
-      return;
-    }
-
-    const parsed = parseStoredFiltersSnapshot(snapshotFromUrl, statusKeys);
-    if (!areTaskFiltersEqual(parsed.activeFilter, activeFilter)) {
-      updateActiveFilter(parsed.activeFilter);
-    }
-    if (!areAdvancedFiltersEqual(parsed.advancedFilters, advancedFilters)) {
-      updateAdvancedFilters(parsed.advancedFilters);
-    }
-    lastSyncedQueryRef.current = normalizedCurrent;
-  }, [
-    activeFilter,
-    advancedFilters,
-    filtersHydrated,
-    searchParams,
-    searchParamsString,
-    statusKeys,
-    updateActiveFilter,
-    updateAdvancedFilters,
-  ]);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const stored = window.localStorage.getItem(ASSIGNMENT_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as unknown;
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          const entries = Object.entries(parsed).filter(
-            (entry): entry is [string, number] => {
-              const value = entry[1];
-              return typeof value === "number" && Number.isFinite(value) && value > 0;
-            },
-          );
-          if (entries.length > 0) {
-            const total = entries.reduce((sum, [, value]) => sum + value, 0);
-            if (total > 0) {
-              setAssignmentRatios(
-                Object.fromEntries(
-                  entries.map(([id, value]) => [id, value / total] as const),
-                ),
-              );
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setRatiosLoaded(true);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    if (!ratiosLoaded) return;
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        ASSIGNMENT_STORAGE_KEY,
-        JSON.stringify(assignmentRatios),
-      );
-    } catch (error) {
-      console.error(error);
-    }
-  }, [assignmentRatios, ratiosLoaded]);
-
-  React.useEffect(() => {
-    setAssignmentRatios((prev) => {
-      if (mapacheUsers.length === 0) return prev;
-      const allowed = new Set(mapacheUsers.map((user) => user.id));
-      const entries = Object.entries(prev).filter(([id, value]) => {
-        return (
-          allowed.has(id) && typeof value === "number" && Number.isFinite(value)
-        );
-      });
-      if (entries.length === Object.keys(prev).length) {
-        return prev;
-      }
-      if (entries.length === 0) {
-        return {};
-      }
-      const total = entries.reduce((sum, [, value]) => sum + value, 0);
-      if (total <= 0) {
-        return {};
-      }
-      return Object.fromEntries(
-        entries.map(([id, value]) => [id, value / total] as const),
-      );
-    });
-  }, [mapacheUsers]);
-
   React.useEffect(() => {
     if (bootstrapUsers.length > 0) {
       setAssigneesError(null);
@@ -2287,247 +1878,15 @@ export default function MapachePortalClient({
   const deferredFilteredTasks = React.useDeferredValue(filteredTasks);
   const filtersPending = deferredFilteredTasks !== filteredTasks;
 
-  const computeInsights = React.useCallback(
-    (source: MapacheTask[]): MapachePortalInsightsMetrics => {
-      const statusTotals: Record<MapacheTaskStatus, number> = {};
-      statusKeys.forEach((status) => {
-        statusTotals[status] = 0;
-      });
-      const substatusTotals: Record<MapacheTaskSubstatus, number> = {
-        BACKLOG: 0,
-        WAITING_CLIENT: 0,
-        BLOCKED: 0,
-      };
-      const needTotals = NEED_METRIC_KEYS.reduce(
-        (acc, key) => {
-          acc[key] = 0;
-          return acc;
-        },
-        {} as Record<NeedMetricKey, number>,
-      );
-
-      const createSegmentAccumulator = (
-        key: string,
-        label: string,
-        type: "assignee" | "team",
-      ): SegmentAccumulator => ({
-        key,
-        label,
-        type,
-        statusTotals: statusKeys.reduce((acc, status) => {
-          acc[status] = 0;
-          return acc;
-        }, {} as Record<MapacheTaskStatus, number>),
-        substatusTotals: {
-          BACKLOG: 0,
-          WAITING_CLIENT: 0,
-          BLOCKED: 0,
-        },
-        needTotals: NEED_METRIC_KEYS.reduce((segmentAcc, segmentKey) => {
-          segmentAcc[segmentKey] = 0;
-          return segmentAcc;
-        }, {} as Record<NeedMetricKey, number>),
-        total: 0,
-      });
-
-      const assigneeSegments = new Map<string, SegmentAccumulator>();
-      const teamSegments = new Map<string, SegmentAccumulator>();
-
-      const workloadMap = new Map<string, MapachePortalInsightsWorkloadEntry>();
-      const upcomingMap = new Map<string, { date: Date; value: number }>();
-      let dueSoonCount = 0;
-      let overdueCount = 0;
-
-      const today = new Date();
-      const startOfToday = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate(),
-      );
-
-      source.forEach((task) => {
-        statusTotals[task.status] = (statusTotals[task.status] ?? 0) + 1;
-        substatusTotals[task.substatus] =
-          (substatusTotals[task.substatus] ?? 0) + 1;
-
-        const needKey: NeedMetricKey = task.needFromTeam
-          ? (NEED_OPTIONS.includes(task.needFromTeam)
-              ? task.needFromTeam
-              : "NONE")
-          : "NONE";
-        needTotals[needKey] = (needTotals[needKey] ?? 0) + 1;
-
-        const assigneeId = getTaskAssigneeId(task);
-        const workloadKey = assigneeId ?? "__unassigned__";
-        const teamKey: "team:mapache" | "team:external" | "team:unassigned" =
-          assigneeId === null
-            ? "team:unassigned"
-            : mapacheTeamMemberIds.has(assigneeId)
-              ? "team:mapache"
-              : "team:external";
-        const existingWorkload = workloadMap.get(workloadKey);
-        if (existingWorkload) {
-          existingWorkload.value += 1;
-        } else {
-          const label =
-            assigneeId === null
-              ? null
-              : assigneeLabelMap.get(assigneeId) ||
-                formatTaskAssigneeLabel(task) ||
-                assigneeId;
-
-          workloadMap.set(workloadKey, {
-            key: workloadKey,
-            label,
-            value: 1,
-            isUnassigned: assigneeId === null,
-            teamKey,
-          });
-        }
-
-        const assigneeKey = assigneeId ?? "__unassigned__";
-        const assigneeLabel =
-          assigneeId === null
-            ? "__unassigned__"
-            : assigneeLabelMap.get(assigneeId) ||
-              formatTaskAssigneeLabel(task) ||
-              assigneeId;
-
-        const assigneeSegment =
-          assigneeSegments.get(assigneeKey) ??
-          (() => {
-            const segment = createSegmentAccumulator(
-              assigneeKey,
-              assigneeLabel,
-              "assignee",
-            );
-            assigneeSegments.set(assigneeKey, segment);
-            return segment;
-          })();
-        assigneeSegment.total += 1;
-        assigneeSegment.statusTotals[task.status] =
-          (assigneeSegment.statusTotals[task.status] ?? 0) + 1;
-        assigneeSegment.substatusTotals[task.substatus] =
-          (assigneeSegment.substatusTotals[task.substatus] ?? 0) + 1;
-        assigneeSegment.needTotals[needKey] =
-          (assigneeSegment.needTotals[needKey] ?? 0) + 1;
-
-        const teamSegment =
-          teamSegments.get(teamKey) ??
-          (() => {
-            const segment = createSegmentAccumulator(teamKey, teamKey, "team");
-            teamSegments.set(teamKey, segment);
-            return segment;
-          })();
-        teamSegment.total += 1;
-        teamSegment.statusTotals[task.status] =
-          (teamSegment.statusTotals[task.status] ?? 0) + 1;
-        teamSegment.substatusTotals[task.substatus] =
-          (teamSegment.substatusTotals[task.substatus] ?? 0) + 1;
-        teamSegment.needTotals[needKey] =
-          (teamSegment.needTotals[needKey] ?? 0) + 1;
-
-        if (task.presentationDate) {
-          const parsed = new Date(task.presentationDate);
-          if (!Number.isNaN(parsed.getTime())) {
-            const normalized = new Date(
-              parsed.getFullYear(),
-              parsed.getMonth(),
-              parsed.getDate(),
-            );
-            const diffDays = Math.round(
-              (normalized.getTime() - startOfToday.getTime()) / MS_IN_DAY,
-            );
-            if (diffDays < 0) {
-              overdueCount += 1;
-            } else if (diffDays <= 7) {
-              dueSoonCount += 1;
-            }
-
-            const bucketKey = normalized.toISOString();
-            const bucket = upcomingMap.get(bucketKey);
-            if (bucket) {
-              bucket.value += 1;
-            } else {
-              upcomingMap.set(bucketKey, { date: normalized, value: 1 });
-            }
-          }
-        }
-      });
-
-      const workload = Array.from(workloadMap.values())
-        .sort((a, b) => {
-          if (b.value !== a.value) return b.value - a.value;
-          const labelA = a.label ?? "";
-          const labelB = b.label ?? "";
-          return labelA.localeCompare(labelB, "es", { sensitivity: "base" });
-        })
-        .slice(0, 12);
-
-      const upcomingDue = Array.from(upcomingMap.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([key, { date, value }]) => ({
-          key,
-          date: date.toISOString(),
-          value,
-        }))
-        .slice(0, 12);
-
-      const serializeSegments = (entries: SegmentAccumulator[]) =>
-        entries
-          .map((entry) => ({
-            key: entry.key,
-            label: entry.label,
-            type: entry.type,
-            total: entry.total,
-            statusTotals: { ...entry.statusTotals },
-            substatusTotals: { ...entry.substatusTotals },
-            needTotals: { ...entry.needTotals },
-          }))
-          .sort((a, b) => {
-            if (b.total !== a.total) return b.total - a.total;
-            return a.label.localeCompare(b.label, "es", { sensitivity: "base" });
-          });
-
-      const segments = {
-        assignee: serializeSegments(Array.from(assigneeSegments.values())),
-        team: serializeSegments(Array.from(teamSegments.values())),
-      };
-
-      return {
-        total: source.length,
-        dueSoonCount,
-        overdueCount,
-        statusTotals,
-        substatusTotals,
-        needTotals,
-        workload,
-        upcomingDue,
-        segments,
-      };
-    },
-    [assigneeLabelMap, mapacheTeamMemberIds, statusKeys],
-  );
-
-  const [insightsMetrics, setInsightsMetrics] = React.useState(() => ({
-    filtered: computeInsights([]),
-    all: computeInsights([]),
-  }));
-  const insightsHydratedRef = React.useRef(false);
-
-  React.useEffect(() => {
-    const alreadyHydrated = insightsHydratedRef.current;
-    if (!isMetricsSection && !alreadyHydrated) {
-      return;
-    }
-
-    const nextInsights = {
-      filtered: computeInsights(deferredFilteredTasks),
-      all: computeInsights(tasks),
-    };
-    insightsHydratedRef.current = true;
-    setInsightsMetrics(nextInsights);
-  }, [computeInsights, deferredFilteredTasks, isMetricsSection, tasks]);
+  const { insightsMetrics } = useInsightsMetrics({
+    assigneeLabelMap,
+    deferredFilteredTasks,
+    isMetricsSection,
+    mapacheTeamMemberIds,
+    tasks,
+    statusKeys,
+    formatTaskAssigneeLabel,
+  });
 
   const tasksByStatus = React.useMemo(() => {
     const buckets = new Map<MapacheTaskStatus, MapacheTask[]>();
@@ -2655,6 +2014,7 @@ export default function MapachePortalClient({
             ? "bg-[rgb(var(--primary))] text-white shadow-soft"
             : "text-white/70 hover:bg-white/10"
         }`}
+        disabled={viewMode === null}
         aria-pressed={viewMode === "lista"}
       >
         Lista
@@ -2667,6 +2027,7 @@ export default function MapachePortalClient({
             ? "bg-[rgb(var(--primary))] text-white shadow-soft"
             : "text-white/70 hover:bg-white/10"
         }`}
+        disabled={viewMode === null}
         aria-pressed={viewMode === "tablero"}
       >
         Tablero
@@ -2804,7 +2165,7 @@ export default function MapachePortalClient({
       ),
     );
     setShowSettingsModal(false);
-  }, [assignmentDraft, mapacheUsers]);
+  }, [assignmentDraft, mapacheUsers, setAssignmentRatios]);
 
   const handleStatusCreate = React.useCallback(async () => {
     const { errors, payload } = validateStatusFormState(
@@ -5349,12 +4710,16 @@ function TaskMetaChip({
             </div>
           )}
 
-      {viewMode === "lista" ? (
-        <TaskDataGrid
-          tasks={deferredFilteredTasks}
-          onOpen={openTask}
-          statusKeys={statusKeys}
-          substatusOptions={SUBSTATUS_OPTIONS}
+          {viewMode === null ? (
+            <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/70">
+              {t("loading")}
+            </div>
+          ) : viewMode === "lista" ? (
+            <TaskDataGrid
+              tasks={deferredFilteredTasks}
+              onOpen={openTask}
+              statusKeys={statusKeys}
+              substatusOptions={SUBSTATUS_OPTIONS}
           statusIndex={statusIndex}
           statusIndicatorClassNames={STATUS_INDICATOR_ACCENT_CLASSNAMES}
           unspecifiedOptionLabel={formT("unspecifiedOption")}
