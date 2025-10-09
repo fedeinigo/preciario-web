@@ -29,6 +29,7 @@ import {
   q4Range,
 } from "@/app/components/features/proposals/lib/dateRanges";
 import { loadNavbarProgress } from "@/app/components/navbar/load-progress";
+import { normalizeProfileText } from "@/app/components/navbar/profile-format";
 import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { locales } from "@/lib/i18n/config";
@@ -190,8 +191,8 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const role = (session?.user?.role as AnyRole) ?? "usuario";
   const appRole = toAppRole(role);
   const rawTeam = (session?.user?.team as string | null) ?? null;
-  const team = rawTeam ?? fallbacksT("team");
-  const name = session?.user?.name ?? fallbacksT("name");
+  const team = normalizeProfileText(rawTeam) || fallbacksT("team");
+  const name = normalizeProfileText(session?.user?.name) || fallbacksT("name");
   const email = session?.user?.email ?? fallbacksT("email");
   const currentEmail = session?.user?.email ?? "";
   const canSeeUsers = ADMIN_ROLES.has(appRole);

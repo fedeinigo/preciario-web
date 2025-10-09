@@ -22,6 +22,7 @@ import {
   type MapachePortalSection,
   isMapachePortalSection,
 } from "@/app/mapache-portal/section-events";
+import { normalizeProfileText } from "@/app/components/navbar/profile-format";
 
 
 type Tab = "generator" | "history" | "stats" | "users" | "teams" | "goals";
@@ -143,8 +144,8 @@ export default function Navbar() {
   const role = (session?.user?.role as AnyRole) ?? "usuario";
   const appRole = toAppRole(role);
   const rawTeam = (session?.user?.team as string | null) ?? null;
-  const team = rawTeam ?? fallbacksT("team");
-  const name = session?.user?.name ?? fallbacksT("name");
+  const team = normalizeProfileText(rawTeam) || fallbacksT("team");
+  const name = normalizeProfileText(session?.user?.name) || fallbacksT("name");
   const canSeeUsers = ADMIN_ROLES.has(appRole);
   const canOpenMapachePortal = rawTeam === "Mapaches" || ADMIN_ROLES.has(appRole);
   const showMapacheReturn =
