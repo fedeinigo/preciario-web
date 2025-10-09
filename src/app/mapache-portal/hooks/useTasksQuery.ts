@@ -56,7 +56,13 @@ export function useTasksQuery({
   );
   const query = useInfiniteQuery<FetchTasksResponse, Error>({
     queryKey: ["mapache-portal", "tasks", filtersKey],
-    queryFn: async ({ pageParam, signal }) => {
+    queryFn: async ({
+      pageParam,
+      signal,
+    }: {
+      pageParam?: unknown;
+      signal?: AbortSignal;
+    }) => {
       const url = buildTasksUrl(
         filtersKey,
         typeof pageParam === "string" ? pageParam : null,
@@ -64,41 +70,55 @@ export function useTasksQuery({
       return fetchTasks(url, signal);
     },
     initialPageParam: null,
-    getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
+    getNextPageParam: (lastPage: FetchTasksResponse) =>
+      lastPage.meta.nextCursor ?? undefined,
     enabled,
     retry: 2,
     retryDelay: 2000,
     staleTime: 30_000,
-    onError: (error) => {
-      const message =
-        error?.message?.trim() || "No se pudieron cargar las tareas.";
-      const now = Date.now();
-      const last = lastErrorRef.current;
-      if (!last || last.message !== message || now - last.at > 5000) {
-        toast.error(message);
-        lastErrorRef.current = { message, at: now };
-      }
-    },
     initialData: initialPage
       ? {
           pages: [initialPage],
           pageParams: [null],
         }
       : undefined,
-  });
+  }) as {
+    data: {
+      pages: FetchTasksResponse[];
+      pageParams: unknown[];
+    } | undefined;
+    isError: boolean;
+    error: Error | null;
+    isLoading: boolean;
+    isFetching: boolean;
+    isFetchingNextPage: boolean;
+    fetchNextPage: () => Promise<unknown>;
+    refetch: (options?: { cancelRefetch?: boolean }) => Promise<unknown>;
+  };
 
   React.useEffect(() => {
-    if (!query.isError) {
+    if (!query.error) {
       lastErrorRef.current = null;
+      return;
     }
-  }, [query.isError]);
 
-  const pages = React.useMemo(
+    const message =
+      query.error.message?.trim() || "No se pudieron cargar las tareas.";
+    const now = Date.now();
+    const last = lastErrorRef.current;
+
+    if (!last || last.message !== message || now - last.at > 5000) {
+      toast.error(message);
+      lastErrorRef.current = { message, at: now };
+    }
+  }, [query.error]);
+
+  const pages = React.useMemo<FetchTasksResponse[]>(
     () => query.data?.pages ?? [],
     [query.data],
   );
 
-  const tasks = React.useMemo(
+  const tasks = React.useMemo<SerializedMapacheTask[]>(
     () => pages.flatMap((page) => page.tasks),
     [pages],
   );
