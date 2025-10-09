@@ -366,7 +366,7 @@ return (
               className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
               title={profileT("open")}
             >
-              {name} Ã¢â‚¬â€ {team}
+              {name}
             </button>
           )}
           {showMapacheLink && (
