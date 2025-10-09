@@ -93,7 +93,10 @@ export function useTasksQuery({
     }
   }, [query.isError]);
 
-  const pages = query.data?.pages ?? [];
+  const pages = React.useMemo(
+    () => query.data?.pages ?? [],
+    [query.data],
+  );
 
   const tasks = React.useMemo(
     () => pages.flatMap((page) => page.tasks),
