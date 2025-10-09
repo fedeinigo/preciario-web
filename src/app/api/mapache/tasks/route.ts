@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 
 import {
   ensureMapacheAccess,
+  normalizeMapacheStatusKey,
   parseDeliverableType,
   parseDirectness,
   parseIntegrationOwner,
@@ -218,6 +219,23 @@ function parsePresentationDate(
   return date;
 }
 
+function parseQueryParamList(values: string[]): string[] {
+  if (values.length === 0) return [];
+  const seen = new Set<string>();
+  values.forEach((value) => {
+    value
+      .split(",")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+      .forEach((item) => {
+        if (!seen.has(item)) {
+          seen.add(item);
+        }
+      });
+  });
+  return Array.from(seen);
+}
+
 function parseDeliverables(
   value: unknown,
 ): DeliverableInput[] | NextResponse {
@@ -320,7 +338,7 @@ export async function GET(request: Request) {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
-  const { response: accessResponse } = ensureMapacheAccess(session);
+  const { response: accessResponse, userId } = ensureMapacheAccess(session);
   if (accessResponse) return accessResponse;
 
   const url = new URL(request.url);
@@ -347,16 +365,126 @@ export async function GET(request: Request) {
     }
   }
 
-  const where: Prisma.MapacheTaskWhereInput = {};
-  if (cursorDate && cursorId) {
-    where.OR = [
-      { createdAt: { lt: cursorDate } },
-      {
-        createdAt: cursorDate,
-        id: { lt: cursorId },
-      },
-    ];
+  const filterConditions: Prisma.MapacheTaskWhereInput[] = [];
+
+  const statusParam = searchParams.get("status");
+  if (statusParam) {
+    const normalizedStatus = normalizeMapacheStatusKey(statusParam);
+    if (normalizedStatus && normalizedStatus !== "ALL") {
+      filterConditions.push({
+        status: { is: { key: normalizedStatus } },
+      });
+    }
   }
+
+  const ownerParam = searchParams.get("owner");
+  if (ownerParam) {
+    const normalizedOwner = ownerParam.trim().toLowerCase();
+    if (normalizedOwner === "mine" && userId) {
+      filterConditions.push({ assigneeId: userId });
+    } else if (normalizedOwner === "unassigned") {
+      filterConditions.push({ assigneeId: null });
+    }
+  }
+
+  const needsParam = parseQueryParamList(searchParams.getAll("needs"));
+  if (needsParam.length > 0) {
+    const allowedNeeds = needsParam
+      .map((value) => parseNeedFromTeam(value))
+      .filter(
+        (value): value is NonNullable<ReturnType<typeof parseNeedFromTeam>> =>
+          value !== null,
+      );
+    if (allowedNeeds.length > 0) {
+      filterConditions.push({ needFromTeam: { in: allowedNeeds } });
+    }
+  }
+
+  const directnessParam = parseQueryParamList(searchParams.getAll("directness"));
+  if (directnessParam.length > 0) {
+    const allowedDirectness = directnessParam
+      .map((value) => parseDirectness(value))
+      .filter(
+        (value): value is NonNullable<ReturnType<typeof parseDirectness>> =>
+          value !== null,
+      );
+    if (allowedDirectness.length > 0) {
+      filterConditions.push({ directness: { in: allowedDirectness } });
+    }
+  }
+
+  const integrationParam = parseQueryParamList(
+    searchParams.getAll("integration"),
+  );
+  if (integrationParam.length > 0) {
+    const allowedIntegration = integrationParam
+      .map((value) => parseIntegrationType(value))
+      .filter(
+        (value): value is NonNullable<ReturnType<typeof parseIntegrationType>> =>
+          value !== null,
+      );
+    if (allowedIntegration.length > 0) {
+      filterConditions.push({ integrationType: { in: allowedIntegration } });
+    }
+  }
+
+  const originsParam = parseQueryParamList(searchParams.getAll("origins"));
+  if (originsParam.length > 0) {
+    const allowedOrigins = originsParam
+      .map((value) => parseOrigin(value))
+      .filter(
+        (value): value is NonNullable<ReturnType<typeof parseOrigin>> =>
+          value !== null,
+      );
+    if (allowedOrigins.length > 0) {
+      filterConditions.push({ origin: { in: allowedOrigins } });
+    }
+  }
+
+  const assigneesParam = parseQueryParamList(searchParams.getAll("assignees"));
+  if (assigneesParam.length > 0) {
+    filterConditions.push({ assigneeId: { in: assigneesParam } });
+  }
+
+  const presentationFrom =
+    searchParams.get("presentationFrom") ??
+    searchParams.get("presentation_from");
+  if (presentationFrom) {
+    const fromDate = new Date(presentationFrom);
+    if (!Number.isNaN(fromDate.getTime())) {
+      filterConditions.push({
+        presentationDate: { gte: fromDate },
+      });
+    }
+  }
+
+  const presentationTo =
+    searchParams.get("presentationTo") ?? searchParams.get("presentation_to");
+  if (presentationTo) {
+    const toDate = new Date(presentationTo);
+    if (!Number.isNaN(toDate.getTime())) {
+      filterConditions.push({
+        presentationDate: { lte: toDate },
+      });
+    }
+  }
+
+  const cursorConditions: Prisma.MapacheTaskWhereInput[] =
+    cursorDate && cursorId
+      ? [
+          {
+            OR: [
+              { createdAt: { lt: cursorDate } },
+              { createdAt: cursorDate, id: { lt: cursorId } },
+            ],
+          },
+        ]
+      : [];
+
+  const where: Prisma.MapacheTaskWhereInput =
+    filterConditions.length > 0 || cursorConditions.length > 0
+      ? { AND: [...filterConditions, ...cursorConditions] }
+      : {};
 
   const [taskResults, totalTasks] = await Promise.all([
     mapacheTask.findMany({
@@ -365,7 +493,7 @@ export async function GET(request: Request) {
       take: limit,
       select: taskSelect,
     }) as Promise<MapacheTaskRow[]>,
-    prisma.mapacheTask.count(),
+    prisma.mapacheTask.count({ where: filterConditions.length > 0 ? { AND: filterConditions } : undefined }),
   ]);
 
   const tasks = taskResults as unknown[];

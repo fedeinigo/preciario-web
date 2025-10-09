@@ -1,10 +1,18 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 
 import { createColumnHelper } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { VirtualItem } from "@tanstack/react-virtual";
+import {
+  ArrowUpDown,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  X,
+} from "lucide-react";
 
 import type {
   MapacheStatusIndex,
@@ -34,11 +42,16 @@ type TaskDataGridMessages = {
   densitySpacious: string;
   columns: string;
   columnManagerTitle: string;
+  columnManagerCloseLabel: string;
+  columnVisibilityLabel: string;
+  emptyState: string;
   virtualization: string;
   virtualizationHint: string;
   rowsPerPage: string;
   page: string;
   of: string;
+  previousPage: string;
+  nextPage: string;
 };
 
 type TaskDataGridProps = {
@@ -129,6 +142,12 @@ const DENSITY_CONFIG: Record<
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const VIRTUALIZATION_AUTO_THRESHOLD = 80;
+const DENSITY_STORAGE_KEY = "mapache_portal_density";
+const VIRTUALIZATION_STORAGE_KEY = "mapache_portal_virtualization";
+
+function isDensityOption(value: string): value is DensityOption {
+  return value === "compact" || value === "comfortable" || value === "spacious";
+}
 
 function toCsvValue(value: string) {
   if (value.includes(",") || value.includes("\"") || value.includes("\n")) {
@@ -170,13 +189,50 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
   const [pageSize, setPageSize] = React.useState(PAGE_SIZE_OPTIONS[0] ?? 25);
   const [pageIndex, setPageIndex] = React.useState(0);
   const [density, setDensity] = React.useState<DensityOption>("comfortable");
+  const [densityHydrated, setDensityHydrated] = React.useState(false);
   const shouldEnableVirtualization =
     tasks.length > VIRTUALIZATION_AUTO_THRESHOLD;
   const [virtualizationEnabled, setVirtualizationEnabled] = React.useState(
     shouldEnableVirtualization,
   );
+  const [virtualizationHydrated, setVirtualizationHydrated] =
+    React.useState(false);
   const virtualizationPreferenceLockedRef = React.useRef(false);
   React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(DENSITY_STORAGE_KEY);
+    if (stored && isDensityOption(stored)) {
+      setDensity(stored);
+    }
+    setDensityHydrated(true);
+  }, []);
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !densityHydrated) return;
+    window.localStorage.setItem(DENSITY_STORAGE_KEY, density);
+  }, [density, densityHydrated]);
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(VIRTUALIZATION_STORAGE_KEY);
+    if (stored === "on") {
+      virtualizationPreferenceLockedRef.current = true;
+      setVirtualizationEnabled(true);
+    } else if (stored === "off") {
+      virtualizationPreferenceLockedRef.current = true;
+      setVirtualizationEnabled(false);
+    }
+    setVirtualizationHydrated(true);
+  }, []);
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !virtualizationHydrated) return;
+    window.localStorage.setItem(
+      VIRTUALIZATION_STORAGE_KEY,
+      virtualizationEnabled ? "on" : "off",
+    );
+  }, [virtualizationEnabled, virtualizationHydrated]);
+  React.useEffect(() => {
+    if (!virtualizationHydrated) {
+      return;
+    }
     if (virtualizationPreferenceLockedRef.current) {
       if (!shouldEnableVirtualization) {
         virtualizationPreferenceLockedRef.current = false;
@@ -187,7 +243,11 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
     if (virtualizationEnabled !== shouldEnableVirtualization) {
       setVirtualizationEnabled(shouldEnableVirtualization);
     }
-  }, [shouldEnableVirtualization, virtualizationEnabled]);
+  }, [
+    shouldEnableVirtualization,
+    virtualizationEnabled,
+    virtualizationHydrated,
+  ]);
   const handleVirtualizationToggle = React.useCallback((next: boolean) => {
     virtualizationPreferenceLockedRef.current = true;
     setVirtualizationEnabled(next);
@@ -760,9 +820,10 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
                   <button
                     type="button"
                     onClick={() => setColumnsMenuOpen(false)}
+                    aria-label={messages.columnManagerCloseLabel}
                     className="text-white/50 transition hover:text-white"
                   >
-                    ×
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </div>
                 <div className="mb-3 flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.2em] text-white/40">
@@ -794,6 +855,7 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
                           type="checkbox"
                           className="h-4 w-4 rounded border border-white/30 bg-slate-900 text-[rgb(var(--primary))] focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--primary))]/60"
                           checked={checked}
+                          aria-label={`${messages.columnVisibilityLabel} ${column.meta.label}`}
                           onChange={(event) =>
                             setVisibleColumns((prev) => ({
                               ...prev,
@@ -830,6 +892,7 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
             type="checkbox"
             className="h-4 w-4 rounded border border-white/30 bg-slate-900 text-[rgb(var(--primary))] focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--primary))]/60"
             checked={virtualizationEnabled}
+            aria-label={messages.virtualization}
             onChange={(event) =>
               handleVirtualizationToggle(event.target.checked)
             }
@@ -852,6 +915,16 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
                 return (
                   <th
                     key={column.id}
+                    scope="col"
+                    aria-sort={
+                      (
+                        column.enableSorting
+                          ? isSorted
+                            ? (isDesc ? "descending" : "ascending")
+                            : "none"
+                          : undefined
+                      ) as React.AriaAttributes["aria-sort"]
+                    }
                     className={`px-4 py-3 font-semibold ${
                       column.meta.align === "right" ? "text-right" : "text-left"
                     }`}
@@ -863,8 +936,16 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
                         className="inline-flex items-center gap-2 text-white/70 transition hover:text-white"
                       >
                         <span>{column.meta.label}</span>
-                        <span className="text-[10px]">
-                          {isSorted ? (isDesc ? "↓" : "↑") : ""}
+                        <span aria-hidden="true" className="inline-flex items-center">
+                          {isSorted ? (
+                            isDesc ? (
+                              <ChevronDown className="h-3 w-3" />
+                            ) : (
+                              <ChevronUp className="h-3 w-3" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="h-3 w-3" />
+                          )}
                         </span>
                       </button>
                     ) : (
@@ -930,7 +1011,7 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
                   colSpan={activeColumns.length}
                   className="px-4 py-6 text-center text-sm text-white/60"
                 >
-                  —
+                  {messages.emptyState}
                 </td>
               </tr>
             )}
@@ -968,8 +1049,10 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
                 onClick={() => setPageIndex((index) => Math.max(0, index - 1))}
                 disabled={pageIndex === 0}
                 className="rounded-full border border-white/20 px-3 py-1 text-xs text-white/70 transition hover:border-white/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={messages.previousPage}
               >
-                ←
+                <ChevronLeft aria-hidden="true" className="h-4 w-4" />
+                <span className="sr-only">{messages.previousPage}</span>
               </button>
               <button
                 type="button"
@@ -978,8 +1061,10 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
                 }
                 disabled={pageIndex + 1 >= pageCount}
                 className="rounded-full border border-white/20 px-3 py-1 text-xs text-white/70 transition hover:border-white/40 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={messages.nextPage}
               >
-                →
+                <ChevronRight aria-hidden="true" className="h-4 w-4" />
+                <span className="sr-only">{messages.nextPage}</span>
               </button>
             </div>
           </div>
@@ -990,3 +1075,8 @@ const TaskDataGrid = React.memo(function TaskDataGrid({
 });
 
 export default TaskDataGrid;
+
+
+
+
+

@@ -27,9 +27,7 @@ export default function PartnerPortalLayout({
               className="h-8 w-auto"
               priority
             />
-            <span className="text-xl font-semibold text-slate-900">
-              SaaSPlatform
-            </span>
+            
           </Link>
           <nav
             aria-label="Partner portal primary"

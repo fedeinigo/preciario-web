@@ -134,29 +134,27 @@ export async function loadMapachePortalBootstrap(options?: {
 
   const statusKeys = await loadStatusKeys();
 
-  const [tasksRaw, totalTasks, presetsRaw, boardsRaw, team] = await Promise.all([
-    prisma.mapacheTask.findMany({
-      orderBy: { createdAt: "desc" },
-      take: taskLimit,
-      select: taskSelect,
-    }),
-    prisma.mapacheTask.count(),
-    prisma.mapacheFilterPreset.findMany({
-      orderBy: [{ name: "asc" }, { createdAt: "desc" }],
-      include: {
-        createdBy: { select: { id: true, name: true, email: true } },
-      },
-    }),
-    prisma.mapacheBoard.findMany({
-      orderBy: { position: "asc" },
-      include: { columns: { orderBy: { position: "asc" } } },
-    }),
-    prisma.user.findMany({
-      where: { team: MAPACHE_TEAM },
-      orderBy: [{ name: "asc" }, { email: "asc" }],
-      select: { id: true, name: true, email: true },
-    }),
-  ]);
+  const tasksRaw = await prisma.mapacheTask.findMany({
+    orderBy: { createdAt: "desc" },
+    take: taskLimit,
+    select: taskSelect,
+  });
+  const totalTasks = await prisma.mapacheTask.count();
+  const presetsRaw = await prisma.mapacheFilterPreset.findMany({
+    orderBy: [{ name: "asc" }, { createdAt: "desc" }],
+    include: {
+      createdBy: { select: { id: true, name: true, email: true } },
+    },
+  });
+  const boardsRaw = await prisma.mapacheBoard.findMany({
+    orderBy: { position: "asc" },
+    include: { columns: { orderBy: { position: "asc" } } },
+  });
+  const team = await prisma.user.findMany({
+    where: { team: MAPACHE_TEAM },
+    orderBy: [{ name: "asc" }, { email: "asc" }],
+    select: { id: true, name: true, email: true },
+  });
 
   const tasks = tasksRaw.map(serializeTask);
 
