@@ -2,6 +2,8 @@
 "use client";
 
 import React from "react";
+
+type PanelStyle = React.CSSProperties;
 import { createPortal } from "react-dom";
 
 type Props = {
@@ -12,6 +14,8 @@ type Props = {
   children: React.ReactNode;
   /** Estilos extra para el panel */
   panelClassName?: string;
+  /** Estilos en línea extra para el panel */
+  panelStyle?: PanelStyle;
   /** Estilos extra para el backdrop */
   backdropClassName?: string;
   /** Variante del panel */
@@ -27,6 +31,7 @@ export default function Modal({
   footer,
   children,
   panelClassName = "",
+  panelStyle,
   backdropClassName = "",
   variant = "default",
   disableCloseOnBackdrop = false,
@@ -101,6 +106,7 @@ export default function Modal({
             : "bg-white text-gray-900 border-gray-200",
           panelClassName,
         ].join(" ")}
+        style={panelStyle}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
