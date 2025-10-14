@@ -1399,6 +1399,34 @@ export default function MapachePortalClient({
     () => createDefaultFormState(),
   );
   const [formErrors, setFormErrors] = React.useState<FormErrors>({});
+
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === "production") {
+      return;
+    }
+    if (typeof window === "undefined") {
+      return;
+    }
+    const testApi = ((window as unknown as Record<string, unknown>).__MAPACHE_PORTAL_TEST ?? {}) as {
+      setCurrentStep?: (step: number) => void;
+      setFormField?: (field: keyof FormState, value: FormState[keyof FormState]) => void;
+      getFormState?: () => FormState;
+    };
+    testApi.setCurrentStep = (step: number) => {
+      setCurrentStep(step);
+    };
+    testApi.setFormField = (field, value) => {
+      setFormState((prev) => ({ ...prev, [field]: value }));
+    };
+    testApi.getFormState = () => formState;
+    (window as unknown as Record<string, unknown>).__MAPACHE_PORTAL_TEST = testApi;
+    return () => {
+      const current = (window as unknown as Record<string, unknown>).__MAPACHE_PORTAL_TEST;
+      if (current === testApi) {
+        delete (window as unknown as Record<string, unknown>).__MAPACHE_PORTAL_TEST;
+      }
+    };
+  }, [formState]);
   const [submitting, setSubmitting] = React.useState(false);
 
   const bootstrapUsers = React.useMemo(
@@ -2906,6 +2934,35 @@ export default function MapachePortalClient({
     toastT,
     validationMessages,
   ]);
+
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === "production") {
+      return;
+    }
+    if (typeof window === "undefined") {
+      return;
+    }
+    const testApi = ((window as unknown as Record<string, unknown>).__MAPACHE_PORTAL_TEST ?? {}) as {
+      setSelectedTaskField?: (
+        field: keyof FormState,
+        value: FormState[keyof FormState],
+      ) => void;
+      getSelectedTaskState?: () => FormState;
+      submitSelectedTask?: () => void;
+      closeSelectedTask?: () => void;
+    };
+    testApi.setSelectedTaskField = (field, value) => {
+      setSelectedTaskFormState((prev) => ({ ...prev, [field]: value }));
+    };
+    testApi.getSelectedTaskState = () => selectedTaskFormState;
+    testApi.submitSelectedTask = () => {
+      void submitSelectedTask();
+    };
+    testApi.closeSelectedTask = () => {
+      closeTask();
+    };
+    (window as unknown as Record<string, unknown>).__MAPACHE_PORTAL_TEST = testApi;
+  }, [closeTask, selectedTaskFormState, submitSelectedTask]);
 
 type TaskBoardCardProps = {
   task: MapacheTask;
