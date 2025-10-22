@@ -413,6 +413,8 @@ export default function Navbar() {
         switch (next) {
           case "generator":
             return "/mapache-portal/generator";
+          case "tasks":
+            return "/mapache-portal/tasks";
           case "metrics":
             return "/mapache-portal/metrics";
           default:
