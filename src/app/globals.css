@@ -265,15 +265,15 @@ html.mapache-theme body .hover\:bg-white\/25:hover {
 }
 
 html.mapache-theme body .bg-rose-500,
-html.mapache-theme body .bg-[rgb(var(--primary))] {
+html.mapache-theme body .bg-\[rgb\(var\(--primary\)\)\] {
   background-color: rgb(var(--primary)) !important;
   color: rgb(var(--primary-ink)) !important;
   box-shadow: 0 12px 25px rgba(79, 70, 229, 0.25);
 }
 
-html.mapache-theme body .bg-[rgb(var(--primary))] .text-white,
+html.mapache-theme body .bg-\[rgb\(var\(--primary\)\)\] .text-white,
 html.mapache-theme body .bg-rose-500 .text-white,
-html.mapache-theme body .bg-[rgb(var(--primary))].text-white,
+html.mapache-theme body .bg-\[rgb\(var\(--primary\)\)\].text-white,
 html.mapache-theme body .bg-rose-500.text-white {
   color: rgb(var(--primary-ink)) !important;
 }
@@ -289,93 +289,6 @@ html.mapache-theme body .\!bg-slate-950\/85 {
 html.mapache-theme body .text-white\/80 strong,
 html.mapache-theme body .text-white strong {
   color: rgb(var(--ink)) !important;
-}
-
-.mapache-modal-surface {
-  color: rgb(51 65 85);
-}
-
-.mapache-modal-surface h2,
-.mapache-modal-surface h3,
-.mapache-modal-surface h4 {
-  color: rgb(30 41 59);
-}
-
-.mapache-modal-surface .bg-white\/5,
-.mapache-modal-surface .bg-white\/10,
-.mapache-modal-surface .bg-white\/15,
-.mapache-modal-surface .bg-white\/20,
-.mapache-modal-surface .bg-white\/25,
-.mapache-modal-surface .bg-white\/30 {
-  background-color: rgba(248, 250, 255, 0.95) !important;
-  border-color: rgba(203, 213, 225, 0.85) !important;
-  box-shadow: inset 0 0 0 1px rgba(203, 213, 225, 0.35);
-}
-
-.mapache-modal-surface .bg-black\/20,
-.mapache-modal-surface .bg-slate-950\/60,
-.mapache-modal-surface .bg-slate-950\/80 {
-  background-color: #fff !important;
-}
-
-.mapache-modal-surface .border-white\/10,
-.mapache-modal-surface .border-white\/15,
-.mapache-modal-surface .border-white\/20,
-.mapache-modal-surface .border-white\/25,
-.mapache-modal-surface .border-white\/30,
-.mapache-modal-surface .border-white\/40,
-.mapache-modal-surface .border-white\/60 {
-  border-color: rgba(203, 213, 225, 0.9) !important;
-}
-
-.mapache-modal-surface .text-white,
-.mapache-modal-surface .text-white\/90 {
-  color: rgb(30 41 59) !important;
-}
-
-.mapache-modal-surface .text-white\/80 {
-  color: rgb(51 65 85) !important;
-}
-
-.mapache-modal-surface .text-white\/70,
-.mapache-modal-surface .text-white\/60,
-.mapache-modal-surface .text-white\/55,
-.mapache-modal-surface .text-white\/50,
-.mapache-modal-surface .text-white\/40,
-.mapache-modal-surface .text-white\/30 {
-  color: rgb(94 108 132) !important;
-}
-
-.mapache-modal-surface .placeholder\:text-white\/40::placeholder,
-.mapache-modal-surface .placeholder\:text-white\/40::-moz-placeholder {
-  color: rgba(100, 116, 139, 0.85) !important;
-}
-
-.mapache-modal-surface :is(input, select, textarea) {
-  background-color: #fff !important;
-  border-color: rgba(203, 213, 225, 1) !important;
-  color: rgb(30 41 59) !important;
-  border-radius: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  box-shadow: none !important;
-}
-
-.mapache-modal-surface :is(input, select, textarea):focus {
-  border-color: rgb(var(--primary)) !important;
-  box-shadow: 0 0 0 3px rgba(var(--primary), 0.18) !important;
-}
-
-.mapache-modal-surface .hover\:bg-white\/10:hover,
-.mapache-modal-surface .hover\:bg-white\/20:hover,
-.mapache-modal-surface .hover\:bg-white\/25:hover {
-  background-color: rgba(226, 232, 240, 0.45) !important;
-  color: rgb(30 41 59) !important;
-}
-
-.mapache-modal-surface .focus-visible\:ring-white\/30,
-.mapache-modal-surface .focus-visible\:ring-white\/40,
-.mapache-modal-surface .focus-visible\:ring-white\/60 {
-  --tw-ring-color: rgba(79, 70, 229, 0.2) !important;
 }
 
 /* ================================
