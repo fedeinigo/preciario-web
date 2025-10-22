@@ -207,7 +207,7 @@ beforeEach(() => {
     status: "authenticated",
   });
   __setRouterState({
-    pathname: "/mapache-portal/tasks",
+    pathname: "/mapache-portal/generator",
     searchParams: new URLSearchParams(),
   });
   window.localStorage.clear();

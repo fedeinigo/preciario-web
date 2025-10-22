@@ -9,7 +9,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
-import { LayoutGrid, Clock, BarChart2, Users, Users2, Target, Wand2 } from "lucide-react";
+import { LayoutGrid, Clock, BarChart2, Users, Users2, Target, Loader2 } from "lucide-react";
 import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { locales } from "@/lib/i18n/config";
@@ -23,7 +23,7 @@ import {
   isMapachePortalSection,
 } from "@/app/mapache-portal/section-events";
 import { normalizeProfileText } from "@/app/components/navbar/profile-format";
-
+import PortalLauncher from "@/app/components/navbar/PortalLauncher";
 
 type Tab = "generator" | "history" | "stats" | "users" | "teams" | "goals";
 type AnyRole =
@@ -126,6 +126,7 @@ export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const isPartnerPortal = pathname.startsWith("/partner-portal");
+  const isMarketingPortal = pathname.startsWith("/marketing-portal");
   const { locale, setLocale } = useLanguage();
   const t = useTranslations("navbar");
   const tabsT = useTranslations("navbar.tabs");
@@ -148,7 +149,7 @@ export default function Navbar() {
   const isMapachePortal = isMapachePath(pathname);
 
   // Tabs/acciones solo cuando estoy autenticado
-  const showTabs = status === "authenticated" && !isMapachePortal;
+  const showTabs = status === "authenticated" && !isMapachePortal && !isMarketingPortal;
   const showAuthActions = status === "authenticated";
 
   const role = (session?.user?.role as AnyRole) ?? "usuario";
@@ -157,12 +158,8 @@ export default function Navbar() {
   const name = normalizeProfileText(session?.user?.name) || fallbacksT("name");
   const canSeeUsers = ADMIN_ROLES.has(appRole);
   const canOpenMapachePortal = rawTeam === "Mapaches" || ADMIN_ROLES.has(appRole);
-  const showMapacheReturn =
-    showAuthActions && canOpenMapachePortal && isMapachePortal;
-  const showMapacheLink =
-    showAuthActions && canOpenMapachePortal && !isMapachePortal;
-  const showPartnerPortal =
-    showAuthActions && ADMIN_ROLES.has(appRole) && !isPartnerPortal;
+  const canAccessPartnerPortal = ADMIN_ROLES.has(appRole);
+  const canAccessMarketingPortal = ADMIN_ROLES.has(appRole);
 
   const readHash = (): Tab => {
     const h = (globalThis?.location?.hash || "").replace("#", "");
@@ -234,7 +231,7 @@ export default function Navbar() {
     mapacheTransitionStartedRef.current = true;
     mapacheTransitionOriginRef.current = pathname ?? null;
 
-    const targetPath = "/mapache-portal/tasks";
+    const targetPath = "/mapache-portal/generator";
 
     if (typeof router.prefetch === "function") {
       try {
@@ -293,25 +290,6 @@ export default function Navbar() {
       navigate();
     }, 120);
   }, [pathname, router, scheduleMapacheFallback]);
-
-  const handleMapacheLinkClick = React.useCallback(
-    (event: React.MouseEvent<HTMLAnchorElement>) => {
-      if (
-        event.defaultPrevented ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.shiftKey ||
-        event.altKey ||
-        event.button !== 0
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-      beginMapacheTransition();
-    },
-    [beginMapacheTransition],
-  );
 
   const viewerProfile = React.useMemo(
     () => ({
@@ -375,6 +353,10 @@ export default function Navbar() {
       setMapacheSection(MAPACHE_PORTAL_DEFAULT_SECTION);
       return;
     }
+    if (pathname.startsWith("/mapache-portal/generator")) {
+      setMapacheSection("generator");
+      return;
+    }
     if (pathname.startsWith("/mapache-portal/metrics")) {
       setMapacheSection("metrics");
     } else {
@@ -427,10 +409,18 @@ export default function Navbar() {
     (next: MapachePortalSection) => {
       setMapacheSection(next);
       if (!isMapachePortal) return;
-      const target =
-        next === "metrics"
-          ? "/mapache-portal/metrics"
-          : "/mapache-portal/tasks";
+      const target = (() => {
+        switch (next) {
+          case "generator":
+            return "/mapache-portal/generator";
+          case "tasks":
+            return "/mapache-portal/tasks";
+          case "metrics":
+            return "/mapache-portal/metrics";
+          default:
+            return "/mapache-portal/generator";
+        }
+      })();
       if (pathname !== target) {
         router.push(target);
       }
@@ -460,33 +450,31 @@ export default function Navbar() {
             className="h-9 w-auto object-contain"
             priority
           />
-          {showPartnerPortal && (
-            <Link
-              href="/partner-portal"
-              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
-            >
-              Portal Partner
-            </Link>
-          )}
-          {showMapacheReturn && (
-            <Link
-              href="/"
-              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
-            >
-              {profileT("mapachePortalReturn")}
-            </Link>
-          )}
+          {showAuthActions ? (
+            <PortalLauncher
+              canAccessMapache={canOpenMapachePortal}
+              canAccessPartner={canAccessPartnerPortal}
+              canAccessMarketing={canAccessMarketingPortal}
+              onMapacheNavigate={beginMapacheTransition}
+            />
+          ) : null}
         </div>
 
         {/* CENTRO: tabs / secciones Mapache */}
         <div
           className={`flex-1 min-w-0 ${
-            isMapachePortal || showTabs ? "px-2" : ""
+            isMapachePortal || isMarketingPortal || showTabs ? "px-2" : ""
           }`}
         >
           {isMapachePortal ? (
             <div className="flex items-center justify-center">
               <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-1 py-1">
+                <MapacheSectionBtn
+                  id="generator"
+                  label={mapacheSectionsT("generator")}
+                  active={mapacheSection === "generator"}
+                  onClick={handleMapacheSectionChange}
+                />
                 <MapacheSectionBtn
                   id="tasks"
                   label={mapacheSectionsT("tasks")}
@@ -500,6 +488,16 @@ export default function Navbar() {
                   onClick={handleMapacheSectionChange}
                 />
               </div>
+            </div>
+          ) : isMarketingPortal ? (
+            <div className="flex items-center justify-center">
+              <Link
+                href="/marketing-portal"
+                className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15"
+                aria-current="page"
+              >
+                Generador
+              </Link>
             </div>
           ) : showTabs ? (
             <div
@@ -566,15 +564,6 @@ export default function Navbar() {
               {name}
             </button>
           )}
-          {showMapacheLink && (
-            <Link
-              href="/mapache-portal/tasks"
-              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
-              onClick={handleMapacheLinkClick}
-            >
-              {profileT("mapachePortal")}
-            </Link>
-          )}
           {showAuthActions && (
             <select
               className="rounded-md border border-white/25 bg-white/10 px-2 py-1 text-sm text-white focus:border-white focus:outline-none focus:ring-2 focus:ring-white/40"
@@ -602,50 +591,15 @@ export default function Navbar() {
       </div>
 
       {mapacheTransitionVisible ? (
-        <>
-          <div
-            aria-hidden="true"
-            className={`fixed inset-0 z-[60] overflow-hidden bg-gradient-to-br from-[#020617]/85 via-[#00010a]/95 to-[#020617]/85 backdrop-blur-xl transition-opacity duration-400 ease-out ${
-              mapacheTransitionOpaque ? "opacity-100" : "opacity-0"
-            } pointer-events-auto`}
-          >
-            <div className="pointer-events-none absolute inset-0">
-              <div className="absolute -inset-[35%] animate-[spin_18s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,rgba(15,118,254,0.08),transparent,rgba(59,130,246,0.16),transparent)] opacity-60" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(148,163,184,0.18),rgba(2,6,23,0.92))]" />
-            </div>
-            <div className="relative z-10 flex h-full flex-col items-center justify-center gap-6 text-white">
-              <div className="relative flex items-center justify-center">
-                <span className="absolute h-32 w-32 rounded-full bg-white/10 blur-3xl" />
-                <span className="absolute h-24 w-24 rounded-full border border-white/20" />
-                <span className="absolute h-24 w-24 rounded-full border border-white/10 animate-ping" />
-                <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white/15 text-white/90 shadow-[0_0_30px_rgba(59,130,246,0.35)] backdrop-blur-lg">
-                  <Wand2 className="h-8 w-8 drop-shadow-[0_6px_16px_rgba(148,163,184,0.45)]" />
-                </span>
-              </div>
-              <div className="text-center">
-                <p className="text-[11px] uppercase tracking-[0.6em] text-white/60">
-                  Portal Mapache
-                </p>
-                <p className="mt-2 text-lg font-semibold text-white">
-                  Preparando tablero inteligente...
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-white/70">
-                <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-white/70" aria-hidden="true" />
-                <span>Sincronizando tareas y metricas del equipo</span>
-              </div>
-            </div>
-          </div>
-          <div
-            className={`fixed inset-0 z-[60] bg-gradient-to-br from-[#0f172a]/80 via-[#020617]/95 to-[#00010a]/90 backdrop-blur-md transition-opacity duration-300 ease-out ${
-              mapacheTransitionOpaque ? "opacity-100" : "opacity-0"
-            } pointer-events-auto cursor-wait`}
-          >
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-12 w-12 rounded-full border-2 border-white/30 border-t-transparent animate-spin" />
-            </div>
-          </div>
-        </>
+        <div
+          aria-hidden="true"
+          className={`fixed inset-0 z-[65] flex flex-col items-center justify-center bg-slate-950/90 text-white transition-opacity duration-200 ease-out ${
+            mapacheTransitionOpaque ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <Loader2 className="h-12 w-12 animate-spin text-white/80" aria-hidden="true" />
+          <p className="mt-4 text-lg font-semibold">Ingresando al portal</p>
+        </div>
       ) : null}
 
       <UserProfileModal

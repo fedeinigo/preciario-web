@@ -13,6 +13,7 @@ export type TaskSummary = {
   dueSoon: number;
   lastUpdatedAt: string | null;
   statusBreakdown: StatusBreakdownEntry[];
+  error?: string | null;
 };
 
 export async function loadTaskSummary(options?: {
@@ -24,71 +25,85 @@ export async function loadTaskSummary(options?: {
     now.getTime() + dueSoonInDays * 24 * 60 * 60 * 1000,
   );
 
-  const [total, overdue, dueSoon, statusGroups, statuses, latestUpdate] =
-    await Promise.all([
-      prisma.mapacheTask.count(),
-      prisma.mapacheTask.count({
-        where: {
-          presentationDate: {
-            lt: now,
+  try {
+    const [total, overdue, dueSoon, statusGroups, statuses, latestUpdate] =
+      await Promise.all([
+        prisma.mapacheTask.count(),
+        prisma.mapacheTask.count({
+          where: {
+            presentationDate: {
+              lt: now,
+            },
           },
-        },
-      }),
-      prisma.mapacheTask.count({
-        where: {
-          presentationDate: {
-            gte: now,
-            lte: dueSoonLimit,
+        }),
+        prisma.mapacheTask.count({
+          where: {
+            presentationDate: {
+              gte: now,
+              lte: dueSoonLimit,
+            },
           },
-        },
-      }),
-      prisma.mapacheTask.groupBy({
-        by: ["statusId"],
-        _count: {
-          _all: true,
-        },
-      }),
-      prisma.mapacheStatus.findMany({
-        select: {
-          id: true,
-          key: true,
-          label: true,
-        },
-      }),
-      prisma.mapacheTask.findFirst({
-        orderBy: { updatedAt: "desc" },
-        select: { updatedAt: true },
-      }),
-    ]);
+        }),
+        prisma.mapacheTask.groupBy({
+          by: ["statusId"],
+          _count: {
+            _all: true,
+          },
+        }),
+        prisma.mapacheStatus.findMany({
+          select: {
+            id: true,
+            key: true,
+            label: true,
+          },
+        }),
+        prisma.mapacheTask.findFirst({
+          orderBy: { updatedAt: "desc" },
+          select: { updatedAt: true },
+        }),
+      ]);
 
-  const statusMap = new Map(
-    statuses.map((status) => [status.id, { key: status.key, label: status.label }]),
-  );
+    const statusMap = new Map(
+      statuses.map((status) => [status.id, { key: status.key, label: status.label }]),
+    );
 
-  const statusBreakdown: StatusBreakdownEntry[] = statusGroups.map((group) => {
-    const match =
-      group.statusId && statusMap.has(group.statusId)
-        ? statusMap.get(group.statusId)!
-        : null;
+    const statusBreakdown: StatusBreakdownEntry[] = statusGroups.map((group) => {
+      const match =
+        group.statusId && statusMap.has(group.statusId)
+          ? statusMap.get(group.statusId)!
+          : null;
+      return {
+        statusId: group.statusId ?? null,
+        statusKey: match?.key ?? null,
+        label: match?.label ?? null,
+        count: group._count._all,
+      };
+    });
+
+    statusBreakdown.sort((a, b) => b.count - a.count);
+
     return {
-      statusId: group.statusId ?? null,
-      statusKey: match?.key ?? null,
-      label: match?.label ?? null,
-      count: group._count._all,
+      total,
+      overdue,
+      dueSoon,
+      lastUpdatedAt: latestUpdate?.updatedAt
+        ? latestUpdate.updatedAt.toISOString()
+        : null,
+      statusBreakdown,
+      error: null,
     };
-  });
+  } catch (error) {
+    console.error("[MapachePortal] Failed to load task summary", error);
 
-  statusBreakdown.sort((a, b) => b.count - a.count);
-
-  return {
-    total,
-    overdue,
-    dueSoon,
-    lastUpdatedAt: latestUpdate?.updatedAt
-      ? latestUpdate.updatedAt.toISOString()
-      : null,
-    statusBreakdown,
-  };
+    return {
+      total: 0,
+      overdue: 0,
+      dueSoon: 0,
+      lastUpdatedAt: null,
+      statusBreakdown: [],
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
 }
 
 export type InsightsSnapshotSummary = {

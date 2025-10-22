@@ -1319,6 +1319,12 @@ export default function MapachePortalClient({
   const [insightsScope, setInsightsScope] =
     React.useState<MapachePortalInsightsScope>("filtered");
   const activeSection = React.useMemo<MapachePortalSection>(() => {
+    if (pathname?.startsWith("/mapache-portal/tasks")) {
+      return "tasks";
+    }
+    if (pathname?.startsWith("/mapache-portal/generator")) {
+      return "generator";
+    }
     if (pathname?.startsWith("/mapache-portal/metrics")) {
       return "metrics";
     }
@@ -3426,12 +3432,11 @@ function TaskMetaChip({
       <Modal
         open={showSettingsModal}
         onClose={handleCloseSettingsModal}
-        variant="inverted"
         title={settingsT("title")}
         panelClassName="w-full max-w-4xl"
         footer={settingsTab === "assignment" ? assignmentModalFooter : undefined}
       >
-        <div className="space-y-6 text-white">
+        <div className="mapache-modal-surface space-y-6">
           <div className="inline-flex items-center gap-1 rounded-full bg-white/10 p-1 text-xs text-white/60">
             <button
               type="button"
@@ -4115,14 +4120,13 @@ function TaskMetaChip({
       <Modal
         open={showForm}
         onClose={handleCloseForm}
-        variant="inverted"
         title={actionsT("add")}
         footer={modalFooter}
         panelClassName="w-full max-w-3xl"
       >
         <form
           id={createTaskFormId}
-          className="grid gap-6 text-white"
+          className="mapache-modal-surface grid gap-6"
           onSubmit={(event) => {
             event.preventDefault();
             if (submitting) {
@@ -4844,7 +4848,6 @@ function TaskMetaChip({
       <Modal
         open={selectedTask !== null}
         onClose={closeTask}
-        variant="inverted"
         disableCloseOnBackdrop={selectedTaskSubmitting}
         title={
           <div className="flex flex-col">
@@ -4882,7 +4885,7 @@ function TaskMetaChip({
         {selectedTask ? (
           <form
             id="selected-task-form"
-            className="flex flex-col gap-6"
+            className="mapache-modal-surface flex flex-col gap-6"
             onSubmit={(event) => {
               event.preventDefault();
               if (!selectedTaskSubmitting) {
@@ -5582,7 +5585,6 @@ function TaskMetaChip({
         open={pendingDeletion !== null}
         onClose={handleCancelDeleteTask}
         title={<span className="text-base font-semibold">{actionsT("delete")}</span>}
-        variant="inverted"
         disableCloseOnBackdrop={deletingTaskId === pendingDeletion}
         footer={
           <div className="flex justify-end gap-2 rounded-lg bg-white/10 px-4 py-3">
@@ -5604,10 +5606,10 @@ function TaskMetaChip({
             </button>
           </div>
         }
-        panelClassName="!bg-slate-950/95 !text-white !border-white/10 !shadow-[0_25px_60px_rgba(2,6,23,0.7)]"
-        backdropClassName="!bg-slate-950/85"
+        panelClassName="!bg-white !text-slate-900 !border-slate-200 !shadow-2xl"
+        backdropClassName="!bg-slate-900/40"
       >
-        <div className="flex flex-col gap-3 text-sm text-white/80">
+        <div className="mapache-modal-surface flex flex-col gap-3 text-sm">
           <p>{pendingDeletion ? actionsT("deleteConfirm", { id: pendingDeletion }) : null}</p>
         </div>
        </Modal>

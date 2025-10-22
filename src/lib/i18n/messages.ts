@@ -126,8 +126,34 @@ export const messages: Record<Locale, DeepRecord> = {
         email: "—",
       },
       mapachePortalSections: {
+        generator: "Generador",
         tasks: "Tareas",
         metrics: "Métricas",
+      },
+      portalSwitcher: {
+        button: "Portal",
+        title: "Selecciona un portal",
+        description: "Elige a que portal ingresar.",
+        action: "Ingresar",
+        loading: "Ingresando al portal",
+        options: {
+          direct: {
+            label: "Portal Directo",
+            description: "Generador web",
+          },
+          mapache: {
+            label: "Portal Mapache",
+            description: "Tablero del equipo Mapache",
+          },
+          partner: {
+            label: "Portal Partner",
+            description: "Recursos para partners administradores",
+          },
+          marketing: {
+            label: "Portal Marketing",
+            description: "Materiales y campanas de marketing",
+          },
+        },
       },
     },
     mapachePortal: {
@@ -1850,8 +1876,34 @@ export const messages: Record<Locale, DeepRecord> = {
         email: "—",
       },
       mapachePortalSections: {
+        generator: "Generator",
         tasks: "Tasks",
         metrics: "Metrics",
+      },
+      portalSwitcher: {
+        button: "Portal",
+        title: "Choose a portal",
+        description: "Select where you want to go.",
+        action: "Enter",
+        loading: "Entering portal",
+        options: {
+          direct: {
+            label: "Direct Portal",
+            description: "Web generator",
+          },
+          mapache: {
+            label: "Mapache Portal",
+            description: "Workspace for the Mapache team",
+          },
+          partner: {
+            label: "Partner Portal",
+            description: "Resources for partner administrators",
+          },
+          marketing: {
+            label: "Marketing Portal",
+            description: "Marketing campaigns and assets",
+          },
+        },
       },
     },
     mapachePortal: {
@@ -3568,8 +3620,34 @@ export const messages: Record<Locale, DeepRecord> = {
         email: "—",
       },
       mapachePortalSections: {
+        generator: "Gerador",
         tasks: "Tarefas",
         metrics: "Métricas",
+      },
+      portalSwitcher: {
+        button: "Portal",
+        title: "Escolha um portal",
+        description: "Selecione para onde deseja ir.",
+        action: "Entrar",
+        loading: "Entrando no portal",
+        options: {
+          direct: {
+            label: "Portal Direto",
+            description: "Gerador web",
+          },
+          mapache: {
+            label: "Portal Mapache",
+            description: "Painel da equipe Mapache",
+          },
+          partner: {
+            label: "Portal Partner",
+            description: "Recursos para administradores parceiros",
+          },
+          marketing: {
+            label: "Portal Marketing",
+            description: "Campanhas e materiais de marketing",
+          },
+        },
       },
     },
     mapachePortal: {
