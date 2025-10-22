@@ -12,6 +12,7 @@ export default async function MapachePortalTasksPage() {
   const lastUpdatedLabel = summary.lastUpdatedAt
     ? dateTimeFormatter.format(new Date(summary.lastUpdatedAt))
     : null;
+  const hasError = Boolean(summary.error);
 
   return (
     <div className="px-4 pb-10">
@@ -27,6 +28,12 @@ export default async function MapachePortalTasksPage() {
           {lastUpdatedLabel ? (
             <p className="text-xs uppercase tracking-wide text-slate-400">
               Actualizado {lastUpdatedLabel}
+            </p>
+          ) : null}
+          {hasError ? (
+            <p className="text-xs font-medium text-amber-600">
+              No pudimos conectar con la base de datos para obtener los datos
+              más recientes. Mostramos valores en blanco por ahora.
             </p>
           ) : null}
         </header>
