@@ -64,20 +64,32 @@
 
 html.mapache-theme,
 body.mapache-theme {
-  --bg: 10 10 12;
-  --paper: 24 24 27;
-  --ink: 229 231 235;
-  --muted: 148 163 184;
-  --border: 63 63 70;
-  --primary: 82 82 91;
+  --bg: 244 247 255;
+  --paper: 255 255 255;
+  --ink: 15 23 42;
+  --muted: 99 102 128;
+  --border: 223 230 241;
+  --primary: 76 29 149;
   --primary-ink: 255 255 255;
-  --primary-soft: 39 39 42;
-  --accent: 250 204 21;
-  --accent-ink: 17 17 17;
-  --brand-start-hex: #0b1120;
-  --brand-end-hex: #111827;
-  color-scheme: dark;
+  --primary-soft: 229 231 255;
+  --accent: 59 130 246;
+  --accent-ink: 15 23 42;
+  --brand-start-hex: #ede9fe;
+  --brand-end-hex: #dbeafe;
+  --mapache-surface-muted: 248 250 255;
+  --mapache-border-strong: 203 213 225;
+  --mapache-shadow-soft: 0 22px 45px rgba(15, 23, 42, 0.08);
+  --mapache-shadow-strong: 0 32px 70px rgba(15, 23, 42, 0.12);
+  color-scheme: light;
 
+  background-color: rgb(var(--bg));
+  color: rgb(var(--ink));
+}
+
+html.mapache-theme body {
+  background-image: linear-gradient(180deg, rgba(237, 233, 254, 0.65) 0%, rgba(226, 232, 240, 0.55) 35%, rgba(248, 250, 255, 1)
+      100%);
+  background-attachment: fixed;
   background-color: rgb(var(--bg));
   color: rgb(var(--ink));
 }
@@ -85,39 +97,39 @@ body.mapache-theme {
 html.mapache-theme body .card,
 body.mapache-theme .card {
   background-color: rgb(var(--paper));
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  border-color: rgb(var(--border));
+  box-shadow: var(--mapache-shadow-soft);
   color: rgb(var(--ink));
 }
 
 html.mapache-theme body .table-th,
 body.mapache-theme .table-th {
-  background: linear-gradient(90deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.6));
-  border-color: rgba(255, 255, 255, 0.08);
-  color: rgb(226, 232, 240);
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(79, 70, 229, 0.08));
+  border-color: rgba(148, 163, 184, 0.45);
+  color: rgb(51, 65, 85);
 }
 
 html.mapache-theme body .table-td,
 body.mapache-theme .table-td {
-  border-color: rgba(255, 255, 255, 0.06);
-  background-color: rgba(255, 255, 255, 0.02);
+  border-color: rgba(203, 213, 225, 0.65);
+  background-color: rgba(248, 250, 255, 0.75);
   color: inherit;
 }
 
 html.mapache-theme body .navbar,
 body.mapache-theme .navbar {
-  background: linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(15, 23, 42, 0.85));
-  color: rgb(226, 232, 240);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(226, 232, 240, 0.85));
+  color: rgb(var(--ink));
+  box-shadow: 0 18px 40px rgba(148, 163, 184, 0.18);
+  border-bottom: 1px solid rgba(203, 213, 225, 0.7);
 }
 
 html.mapache-theme body .navbar .btn,
 html.mapache-theme body .navbar .btn-ghost,
 body.mapache-theme .navbar .btn,
 body.mapache-theme .navbar .btn-ghost {
-  background-color: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(226, 232, 240, 1);
   color: rgb(var(--ink));
 }
 
@@ -125,13 +137,245 @@ html.mapache-theme body .navbar .btn:hover,
 html.mapache-theme body .navbar .btn-ghost:hover,
 body.mapache-theme .navbar .btn:hover,
 body.mapache-theme .navbar .btn-ghost:hover {
-  background-color: rgba(255, 255, 255, 0.12);
+  background-color: rgba(226, 232, 240, 0.8);
 }
 
 html.mapache-theme body .chip,
 body.mapache-theme .chip {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: rgb(226, 232, 240);
+  background-color: rgba(237, 233, 254, 0.9);
+  color: rgb(88, 28, 135);
+}
+
+html.mapache-theme body,
+body.mapache-theme {
+  --mapache-surface-strong: 255 255 255;
+}
+
+/*
+ * Mapache portal legacy class overrides
+ * -------------------------------------
+ * El portal Mapache utiliza utilidades pensadas para un modo oscuro.
+ * Los siguientes overrides reinterpretan esos estilos dentro de la
+ * nueva estética clara sin modificar los componentes de React.
+ */
+html.mapache-theme body .bg-slate-950\/60,
+html.mapache-theme body .bg-slate-950\/70,
+html.mapache-theme body .bg-slate-950\/80,
+html.mapache-theme body .bg-slate-950\/85,
+html.mapache-theme body .bg-slate-950\/95,
+html.mapache-theme body .\!bg-slate-950\/95,
+html.mapache-theme body .bg-slate-900\/70 {
+  background-color: rgb(var(--paper)) !important;
+  color: rgb(var(--ink)) !important;
+  box-shadow: var(--mapache-shadow-soft);
+}
+
+html.mapache-theme body .bg-black\/20,
+html.mapache-theme body .bg-white\/5,
+html.mapache-theme body .bg-white\/10,
+html.mapache-theme body .bg-white\/15,
+html.mapache-theme body .bg-white\/20,
+html.mapache-theme body .bg-white\/30,
+html.mapache-theme body .bg-white\/60,
+html.mapache-theme body .bg-white\/70 {
+  background-color: rgb(var(--mapache-surface-muted) / 0.75) !important;
+  color: rgb(var(--ink)) !important;
+  box-shadow: inset 0 0 0 1px rgb(var(--mapache-border-strong) / 0.25);
+}
+
+html.mapache-theme body .border-white\/10,
+html.mapache-theme body .border-white\/15,
+html.mapache-theme body .border-white\/20,
+html.mapache-theme body .border-white\/25,
+html.mapache-theme body .border-white\/30,
+html.mapache-theme body .border-white\/40,
+html.mapache-theme body .border-white\/60,
+html.mapache-theme body .\!border-white\/10 {
+  border-color: rgb(var(--mapache-border-strong)) !important;
+}
+
+html.mapache-theme body .ring-white\/30,
+html.mapache-theme body .ring-white\/40,
+html.mapache-theme body .ring-white\/60,
+html.mapache-theme body .focus\:ring-white\/40,
+html.mapache-theme body .focus\:ring-white\/60,
+html.mapache-theme body .focus-visible\:ring-white\/30,
+html.mapache-theme body .focus-visible\:ring-white\/40,
+html.mapache-theme body .focus-visible\:ring-white\/60 {
+  --tw-ring-color: rgba(79, 70, 229, 0.2) !important;
+}
+
+html.mapache-theme body .placeholder\:text-white\/40::placeholder,
+html.mapache-theme body .placeholder\:text-white\/40::-moz-placeholder {
+  color: rgba(100, 116, 139, 0.85) !important;
+}
+
+html.mapache-theme body .text-white,
+html.mapache-theme body .text-white\/90 {
+  color: rgb(var(--ink)) !important;
+}
+
+html.mapache-theme body .text-white\/80,
+html.mapache-theme body .text-white\/70 {
+  color: rgb(51, 65, 85) !important;
+}
+
+html.mapache-theme body .text-white\/60,
+html.mapache-theme body .text-white\/55,
+html.mapache-theme body .text-white\/50,
+html.mapache-theme body .text-white\/40,
+html.mapache-theme body .text-white\/30 {
+  color: rgb(100, 116, 139) !important;
+}
+
+html.mapache-theme body .text-white\/20,
+html.mapache-theme body .text-white\/15 {
+  color: rgba(148, 163, 184, 0.9) !important;
+}
+
+html.mapache-theme body .bg-rose-500\/10,
+html.mapache-theme body .bg-rose-500\/20 {
+  background-color: rgba(254, 226, 226, 0.9) !important;
+  color: rgb(190, 18, 60) !important;
+}
+
+html.mapache-theme body .text-rose-100,
+html.mapache-theme body .text-rose-100\/80,
+html.mapache-theme body .text-rose-300 {
+  color: rgb(190, 18, 60) !important;
+}
+
+html.mapache-theme body .bg-cyan-500\/10,
+html.mapache-theme body .bg-emerald-500\/10,
+html.mapache-theme body .bg-emerald-400\/10,
+html.mapache-theme body .bg-amber-400\/10,
+html.mapache-theme body .bg-emerald-400,
+html.mapache-theme body .bg-emerald-300,
+html.mapache-theme body .bg-amber-300,
+html.mapache-theme body .bg-amber-400 {
+  background-color: rgba(226, 232, 240, 0.6) !important;
+  color: rgb(30, 64, 175) !important;
+}
+
+html.mapache-theme body .hover\:bg-white\/10:hover,
+html.mapache-theme body .hover\:bg-white\/20:hover,
+html.mapache-theme body .hover\:bg-white\/25:hover {
+  background-color: rgb(var(--mapache-surface-muted) / 0.95) !important;
+  color: rgb(var(--ink)) !important;
+}
+
+html.mapache-theme body .bg-rose-500,
+html.mapache-theme body .bg-[rgb(var(--primary))] {
+  background-color: rgb(var(--primary)) !important;
+  color: rgb(var(--primary-ink)) !important;
+  box-shadow: 0 12px 25px rgba(79, 70, 229, 0.25);
+}
+
+html.mapache-theme body .bg-[rgb(var(--primary))] .text-white,
+html.mapache-theme body .bg-rose-500 .text-white,
+html.mapache-theme body .bg-[rgb(var(--primary))].text-white,
+html.mapache-theme body .bg-rose-500.text-white {
+  color: rgb(var(--primary-ink)) !important;
+}
+
+html.mapache-theme body .backdrop-blur-sm {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+html.mapache-theme body .\!bg-slate-950\/85 {
+  background-color: rgba(15, 23, 42, 0.25) !important;
+}
+
+html.mapache-theme body .text-white\/80 strong,
+html.mapache-theme body .text-white strong {
+  color: rgb(var(--ink)) !important;
+}
+
+.mapache-modal-surface {
+  color: rgb(51 65 85);
+}
+
+.mapache-modal-surface h2,
+.mapache-modal-surface h3,
+.mapache-modal-surface h4 {
+  color: rgb(30 41 59);
+}
+
+.mapache-modal-surface .bg-white\/5,
+.mapache-modal-surface .bg-white\/10,
+.mapache-modal-surface .bg-white\/15,
+.mapache-modal-surface .bg-white\/20,
+.mapache-modal-surface .bg-white\/25,
+.mapache-modal-surface .bg-white\/30 {
+  background-color: rgba(248, 250, 255, 0.95) !important;
+  border-color: rgba(203, 213, 225, 0.85) !important;
+  box-shadow: inset 0 0 0 1px rgba(203, 213, 225, 0.35);
+}
+
+.mapache-modal-surface .bg-black\/20,
+.mapache-modal-surface .bg-slate-950\/60,
+.mapache-modal-surface .bg-slate-950\/80 {
+  background-color: #fff !important;
+}
+
+.mapache-modal-surface .border-white\/10,
+.mapache-modal-surface .border-white\/15,
+.mapache-modal-surface .border-white\/20,
+.mapache-modal-surface .border-white\/25,
+.mapache-modal-surface .border-white\/30,
+.mapache-modal-surface .border-white\/40,
+.mapache-modal-surface .border-white\/60 {
+  border-color: rgba(203, 213, 225, 0.9) !important;
+}
+
+.mapache-modal-surface .text-white,
+.mapache-modal-surface .text-white\/90 {
+  color: rgb(30 41 59) !important;
+}
+
+.mapache-modal-surface .text-white\/80 {
+  color: rgb(51 65 85) !important;
+}
+
+.mapache-modal-surface .text-white\/70,
+.mapache-modal-surface .text-white\/60,
+.mapache-modal-surface .text-white\/55,
+.mapache-modal-surface .text-white\/50,
+.mapache-modal-surface .text-white\/40,
+.mapache-modal-surface .text-white\/30 {
+  color: rgb(94 108 132) !important;
+}
+
+.mapache-modal-surface .placeholder\:text-white\/40::placeholder,
+.mapache-modal-surface .placeholder\:text-white\/40::-moz-placeholder {
+  color: rgba(100, 116, 139, 0.85) !important;
+}
+
+.mapache-modal-surface :is(input, select, textarea) {
+  background-color: #fff !important;
+  border-color: rgba(203, 213, 225, 1) !important;
+  color: rgb(30 41 59) !important;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  box-shadow: none !important;
+}
+
+.mapache-modal-surface :is(input, select, textarea):focus {
+  border-color: rgb(var(--primary)) !important;
+  box-shadow: 0 0 0 3px rgba(var(--primary), 0.18) !important;
+}
+
+.mapache-modal-surface .hover\:bg-white\/10:hover,
+.mapache-modal-surface .hover\:bg-white\/20:hover,
+.mapache-modal-surface .hover\:bg-white\/25:hover {
+  background-color: rgba(226, 232, 240, 0.45) !important;
+  color: rgb(30 41 59) !important;
+}
+
+.mapache-modal-surface .focus-visible\:ring-white\/30,
+.mapache-modal-surface .focus-visible\:ring-white\/40,
+.mapache-modal-surface .focus-visible\:ring-white\/60 {
+  --tw-ring-color: rgba(79, 70, 229, 0.2) !important;
 }
 
 /* ================================

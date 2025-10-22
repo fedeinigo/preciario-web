@@ -29,7 +29,7 @@ type PortalOption = {
 
 const PORTAL_ROUTES: Record<PortalOptionId, string> = {
   direct: "/",
-  mapache: "/mapache-portal/tasks",
+  mapache: "/mapache-portal/generator",
   partner: "/partner-portal",
   marketing: "/marketing-portal",
 };

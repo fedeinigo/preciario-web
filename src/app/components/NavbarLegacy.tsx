@@ -231,7 +231,7 @@ export default function Navbar() {
     mapacheTransitionStartedRef.current = true;
     mapacheTransitionOriginRef.current = pathname ?? null;
 
-    const targetPath = "/mapache-portal/tasks";
+    const targetPath = "/mapache-portal/generator";
 
     if (typeof router.prefetch === "function") {
       try {
@@ -413,10 +413,12 @@ export default function Navbar() {
         switch (next) {
           case "generator":
             return "/mapache-portal/generator";
+          case "tasks":
+            return "/mapache-portal/tasks";
           case "metrics":
             return "/mapache-portal/metrics";
           default:
-            return "/mapache-portal/tasks";
+            return "/mapache-portal/generator";
         }
       })();
       if (pathname !== target) {
