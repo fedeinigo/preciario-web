@@ -1,5 +1,6 @@
 // src/app/api/admin/users/route.ts
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { Role as DbRole } from "@prisma/client";
 
 import { ensureSessionRole, requireApiSession } from "@/app/api/_utils/require-auth";
@@ -12,10 +13,31 @@ export async function GET() {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
-  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  const forbidden = ensureSessionRole(session, ["superadmin", "admin", "lider"]);
   if (forbidden) return forbidden;
 
+  const role = (session?.user?.role as DbRole | undefined) ?? DbRole.usuario;
+  const team = (session?.user?.team as string | null | undefined) ?? null;
+  const userId = session?.user?.id ?? null;
+
+  let where: Prisma.UserWhereInput | undefined;
+
+  if (role === DbRole.lider) {
+    if (!team && !userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!team && userId) {
+      where = { id: userId };
+    } else if (team && userId) {
+      where = { OR: [{ team }, { id: userId }] };
+    } else if (team) {
+      where = { team };
+    }
+  }
+
   const users = await prisma.user.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
