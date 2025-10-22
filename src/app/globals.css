@@ -265,15 +265,15 @@ html.mapache-theme body .hover\:bg-white\/25:hover {
 }
 
 html.mapache-theme body .bg-rose-500,
-html.mapache-theme body .bg-[rgb(var(--primary))] {
+html.mapache-theme body .bg-\[rgb\(var\(--primary\)\)\] {
   background-color: rgb(var(--primary)) !important;
   color: rgb(var(--primary-ink)) !important;
   box-shadow: 0 12px 25px rgba(79, 70, 229, 0.25);
 }
 
-html.mapache-theme body .bg-[rgb(var(--primary))] .text-white,
+html.mapache-theme body .bg-\[rgb\(var\(--primary\)\)\] .text-white,
 html.mapache-theme body .bg-rose-500 .text-white,
-html.mapache-theme body .bg-[rgb(var(--primary))].text-white,
+html.mapache-theme body .bg-\[rgb\(var\(--primary\)\)\].text-white,
 html.mapache-theme body .bg-rose-500.text-white {
   color: rgb(var(--primary-ink)) !important;
 }
