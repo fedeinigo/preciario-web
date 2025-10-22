@@ -353,6 +353,10 @@ export default function Navbar() {
       setMapacheSection(MAPACHE_PORTAL_DEFAULT_SECTION);
       return;
     }
+    if (pathname.startsWith("/mapache-portal/generator")) {
+      setMapacheSection("generator");
+      return;
+    }
     if (pathname.startsWith("/mapache-portal/metrics")) {
       setMapacheSection("metrics");
     } else {
@@ -405,10 +409,16 @@ export default function Navbar() {
     (next: MapachePortalSection) => {
       setMapacheSection(next);
       if (!isMapachePortal) return;
-      const target =
-        next === "metrics"
-          ? "/mapache-portal/metrics"
-          : "/mapache-portal/tasks";
+      const target = (() => {
+        switch (next) {
+          case "generator":
+            return "/mapache-portal/generator";
+          case "metrics":
+            return "/mapache-portal/metrics";
+          default:
+            return "/mapache-portal/tasks";
+        }
+      })();
       if (pathname !== target) {
         router.push(target);
       }
@@ -457,6 +467,12 @@ export default function Navbar() {
           {isMapachePortal ? (
             <div className="flex items-center justify-center">
               <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-1 py-1">
+                <MapacheSectionBtn
+                  id="generator"
+                  label={mapacheSectionsT("generator")}
+                  active={mapacheSection === "generator"}
+                  onClick={handleMapacheSectionChange}
+                />
                 <MapacheSectionBtn
                   id="tasks"
                   label={mapacheSectionsT("tasks")}

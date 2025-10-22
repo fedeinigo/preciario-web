@@ -1319,6 +1319,9 @@ export default function MapachePortalClient({
   const [insightsScope, setInsightsScope] =
     React.useState<MapachePortalInsightsScope>("filtered");
   const activeSection = React.useMemo<MapachePortalSection>(() => {
+    if (pathname?.startsWith("/mapache-portal/generator")) {
+      return "generator";
+    }
     if (pathname?.startsWith("/mapache-portal/metrics")) {
       return "metrics";
     }

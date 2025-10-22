@@ -126,6 +126,7 @@ export const messages: Record<Locale, DeepRecord> = {
         email: "—",
       },
       mapachePortalSections: {
+        generator: "Generador",
         tasks: "Tareas",
         metrics: "Métricas",
       },
@@ -1875,6 +1876,7 @@ export const messages: Record<Locale, DeepRecord> = {
         email: "—",
       },
       mapachePortalSections: {
+        generator: "Generator",
         tasks: "Tasks",
         metrics: "Metrics",
       },
@@ -3618,6 +3620,7 @@ export const messages: Record<Locale, DeepRecord> = {
         email: "—",
       },
       mapachePortalSections: {
+        generator: "Gerador",
         tasks: "Tarefas",
         metrics: "Métricas",
       },
