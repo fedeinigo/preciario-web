@@ -1,6 +1,6 @@
 export type MapachePortalSection = "generator" | "tasks" | "metrics";
 
-export const MAPACHE_PORTAL_DEFAULT_SECTION: MapachePortalSection = "tasks";
+export const MAPACHE_PORTAL_DEFAULT_SECTION: MapachePortalSection = "generator";
 
 export const MAPACHE_PORTAL_SECTION_CHANGED_EVENT =
   "mapache-portal:section-changed";
