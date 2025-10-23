@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createProposalRequestSchema } from "@/lib/schemas/proposals";
 import logger from "@/lib/logger";
+import { normalizeWhatsAppRows } from "@/lib/sheets/whatsapp";
 
 import { buildReplaceRequests, resolveHourlyRate, type CreateDocPayload } from "./helpers";
 
@@ -64,9 +65,11 @@ async function getConditionsText(accessToken: string, filial: string): Promise<s
   const raw = await res.text();
   let json: unknown;
   try { json = JSON.parse(raw) as unknown; } catch { return ""; }
-  const values: string[][] = Array.isArray((json as SheetsValuesResponse).values)
-    ? ((json as SheetsValuesResponse).values as string[][])
-    : [];
+  const values = normalizeWhatsAppRows(
+    Array.isArray((json as SheetsValuesResponse).values)
+      ? ((json as SheetsValuesResponse).values as string[][])
+      : []
+  );
   const needle = normalizeKey(filial);
   for (const row of values) {
     const colA = typeof row[0] === "string" ? normalizeKey(row[0]) : "";
@@ -78,16 +81,18 @@ async function getConditionsText(accessToken: string, filial: string): Promise<s
 
 async function getWhatsappRows(accessToken: string, filial: string): Promise<string[][]> {
   const sheetId = process.env.SHEETS_CONFIG_SPREADSHEET_ID;
-  const range = process.env.SHEETS_WHATSAPP_RANGE ?? "Hoja1!A10:F44";
+  const range = process.env.SHEETS_WHATSAPP_RANGE ?? "costos!A1:Z200";
   if (!sheetId) return [];
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(range)}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
   const raw = await res.text();
   let json: unknown;
   try { json = JSON.parse(raw) as unknown; } catch { return []; }
-  const values: string[][] = Array.isArray((json as SheetsValuesResponse).values)
-    ? ((json as SheetsValuesResponse).values as string[][])
-    : [];
+  const values = normalizeWhatsAppRows(
+    Array.isArray((json as SheetsValuesResponse).values)
+      ? ((json as SheetsValuesResponse).values as string[][])
+      : []
+  );
   const needle = normalizeKey(filial);
   const out: string[][] = [];
   for (const row of values) {

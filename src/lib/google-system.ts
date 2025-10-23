@@ -1,5 +1,6 @@
 // src/lib/google-system.ts
 import { prisma } from "@/lib/prisma";
+import { normalizeWhatsAppRows } from "@/lib/sheets/whatsapp";
 
 /** ===================== Tipos de entrada ===================== */
 export type SkuItemInput = { sku: string; quantity: number };
@@ -210,9 +211,11 @@ async function getConditionsText(accessToken: string, filial: string): Promise<s
   let json: unknown;
   try { json = JSON.parse(raw) as unknown; } catch { return ""; }
 
-  const values: string[][] = Array.isArray((json as SheetsValuesResponse).values)
-    ? ((json as SheetsValuesResponse).values as string[][])
-    : [];
+  const values = normalizeWhatsAppRows(
+    Array.isArray((json as SheetsValuesResponse).values)
+      ? ((json as SheetsValuesResponse).values as string[][])
+      : []
+  );
 
   const needle = normalizeKey(filial);
 
@@ -227,7 +230,7 @@ async function getConditionsText(accessToken: string, filial: string): Promise<s
 /** WhatsApp rows por FILIAL: retorna hasta 7 filas de 5 columnas (B..F) */
 async function getWhatsappRows(accessToken: string, filial: string): Promise<string[][]> {
   const sheetId = process.env.SHEETS_CONFIG_SPREADSHEET_ID;
-  const range = process.env.SHEETS_WHATSAPP_RANGE ?? "variables!A10:F44";
+  const range = process.env.SHEETS_WHATSAPP_RANGE ?? "costos!A1:Z200";
   if (!sheetId) return [];
 
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(range)}`;
@@ -237,9 +240,11 @@ async function getWhatsappRows(accessToken: string, filial: string): Promise<str
   let json: unknown;
   try { json = JSON.parse(raw) as unknown; } catch { return []; }
 
-  const values: string[][] = Array.isArray((json as SheetsValuesResponse).values)
-    ? ((json as SheetsValuesResponse).values as string[][])
-    : [];
+  const values = normalizeWhatsAppRows(
+    Array.isArray((json as SheetsValuesResponse).values)
+      ? ((json as SheetsValuesResponse).values as string[][])
+      : []
+  );
 
   const needle = normalizeKey(filial);
   const out: string[][] = [];
