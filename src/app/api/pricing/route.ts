@@ -74,13 +74,25 @@ function canon(input: unknown): string {
 /** Convierte strings tipo "$0,095790" | "1.234,56" | "1,234.56" a número */
 function parseMoney(input: unknown): number {
   if (typeof input !== "string") return Number(input) || 0;
+
+  // Quitar espacios, símbolos de moneda y cualquier texto adicional (p. ej. "USD")
   let s = input.replace(/\s+/g, "").replace(/\$/g, "");
+  s = s.replace(/[^0-9,.-]/g, "");
+
+  if (!s) return 0;
+
   if (s.includes(",") && !s.includes(".")) {
+    // Formato latino: "1.234,56" => "1234.56"
     s = s.replace(/\./g, "");
-    s = s.replace(",", ".");
+    const lastComma = s.lastIndexOf(",");
+    if (lastComma >= 0) {
+      s = `${s.slice(0, lastComma).replace(/,/g, "")}.${s.slice(lastComma + 1)}`;
+    }
   } else {
+    // Formato en-US: "1,234.56" => "1234.56"
     s = s.replace(/,/g, "");
   }
+
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
@@ -192,13 +204,15 @@ function lookupWhatsAppPriceRow(rows: string[][], subsidiary: string, destCountr
   const sub = canon(subsidiary);
   const dst = canon(destCountry);
 
-  const matchBySubsidiary = rows.find((r) => canon(r[0]) === sub && canon(r[1]) === dst);
+  const matchesDest = (row: string[]) => canon(row[1]) === dst || canon(row[0]) === dst;
+
+  const matchBySubsidiary = rows.find((r) => canon(r[0]) === sub && matchesDest(r));
   if (matchBySubsidiary) return matchBySubsidiary;
 
-  const matchByCountry = rows.find((r) => canon(r[1]) === dst);
+  const matchByCountry = rows.find(matchesDest);
   if (matchByCountry) return matchByCountry;
 
-  return rows.find((r) => canon(r[0]) === dst) ?? null;
+  return null;
 }
 
 // LEGACY: minutos salientes
