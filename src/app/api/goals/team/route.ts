@@ -37,13 +37,19 @@ export async function GET(req: Request) {
   const isAdmin = me?.role === DbRole.admin;
 
   // equipo efectivo
-  let team: string | null = teamParam;
-  if (isLeader && !isSuper && !isAdmin) {
+  const canSelectAnyTeam = isSuper || isAdmin;
+
+  let team: string | null = canSelectAnyTeam ? teamParam : me?.team ?? null;
+
+  if (isLeader && !canSelectAnyTeam) {
     team = me?.team ?? null; // líder: siempre su propio equipo
   }
-  if (!isSuper && !isLeader && !isAdmin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  if (!canSelectAnyTeam && !isLeader) {
+    // Miembros regulares: sólo pueden ver su propio equipo
+    team = me?.team ?? null;
   }
+
   if (!team) {
     return NextResponse.json({ team: null, members: [] });
   }

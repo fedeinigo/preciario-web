@@ -13,25 +13,22 @@ export default async function MapachePortalMetricsPage() {
     {
       title: "Snapshot global",
       data: summary.latestAll,
-      accent: "border-sky-200/80 bg-sky-50 text-sky-700",
     },
     {
       title: "Snapshot filtrado",
       data: summary.latestFiltered,
-      accent: "border-violet-200/80 bg-violet-50 text-violet-700",
     },
   ];
 
   return (
-    <div className="px-4 pb-10">
-      <section className="mx-auto max-w-4xl space-y-6 rounded-3xl border border-slate-200/60 bg-white p-6 shadow-sm">
-        <header className="space-y-2">
-          <h2 className="text-lg font-semibold text-slate-900">
+    <div className="px-4 pb-12">
+      <section className="mx-auto max-w-4xl space-y-8 rounded-[32px] border border-white/10 bg-white/[0.04] px-8 py-10 shadow-[0_40px_120px_rgba(2,6,23,0.55)] backdrop-blur-lg">
+        <header className="space-y-3">
+          <h2 className="text-2xl font-semibold text-white">
             Métricas en cache servidor
           </h2>
-          <p className="text-sm text-slate-600">
-            Últimas capturas persistidas desde el backend para el panel de
-            insights.
+          <p className="max-w-xl text-sm leading-relaxed text-white/70">
+            Últimas capturas persistidas desde el backend para el panel de insights y comparativas rápidas dentro del equipo.
           </p>
         </header>
 
@@ -39,50 +36,50 @@ export default async function MapachePortalMetricsPage() {
           {cards.map((card) => (
             <article
               key={card.title}
-              className={`rounded-2xl border p-4 ${card.accent}`}
+              className="rounded-2xl border border-white/12 bg-white/[0.03] p-5 text-white/80 shadow-[0_28px_90px_rgba(2,6,23,0.5)]"
             >
-              <h3 className="text-sm font-semibold uppercase tracking-wide">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-white/60">
                 {card.title}
               </h3>
               {card.data ? (
-                <dl className="mt-4 space-y-2 text-slate-800">
+                <dl className="mt-4 space-y-3 text-white">
                   <div>
-                    <dt className="text-xs uppercase tracking-wide text-slate-500">
+                    <dt className="text-xs uppercase tracking-[0.3em] text-white/55">
                       Capturado
                     </dt>
-                    <dd className="text-sm font-medium">
+                    <dd className="mt-1 text-sm font-medium text-white/80">
                       {dateTimeFormatter.format(new Date(card.data.capturedAt))}
                     </dd>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                  <div className="grid grid-cols-3 gap-3 text-center text-sm text-white/70">
                     <div>
-                      <dt className="text-xs uppercase tracking-wide text-slate-500">
+                      <dt className="text-[11px] uppercase tracking-[0.35em] text-white/55">
                         Total
                       </dt>
-                      <dd className="text-base font-semibold">
+                      <dd className="mt-1 text-xl font-semibold text-white">
                         {numberFormatter.format(card.data.total)}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs uppercase tracking-wide text-amber-500">
+                      <dt className="text-[11px] uppercase tracking-[0.35em] text-white/55">
                         En camino
                       </dt>
-                      <dd className="text-base font-semibold">
+                      <dd className="mt-1 text-xl font-semibold text-white">
                         {numberFormatter.format(card.data.dueSoonCount)}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs uppercase tracking-wide text-rose-500">
+                      <dt className="text-[11px] uppercase tracking-[0.35em] text-white/55">
                         Atraso
                       </dt>
-                      <dd className="text-base font-semibold">
+                      <dd className="mt-1 text-xl font-semibold text-white">
                         {numberFormatter.format(card.data.overdueCount)}
                       </dd>
                     </div>
                   </div>
                 </dl>
               ) : (
-                <p className="mt-4 text-sm text-slate-600">
+                <p className="mt-4 text-sm text-white/65">
                   Aún no hay snapshots persistidos para esta vista.
                 </p>
               )}
