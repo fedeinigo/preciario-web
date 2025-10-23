@@ -7,7 +7,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createProposalRequestSchema } from "@/lib/schemas/proposals";
 import logger from "@/lib/logger";
-import { normalizeWhatsAppRows } from "@/lib/sheets/whatsapp";
+import { normalizeWhatsAppRows, resolveWhatsAppCell } from "@/lib/sheets/whatsapp";
 
 import { buildReplaceRequests, resolveHourlyRate, type CreateDocPayload } from "./helpers";
 
@@ -96,11 +96,15 @@ async function getWhatsappRows(accessToken: string, country: string): Promise<st
   const needle = normalizeKey(country);
   const out: string[][] = [];
   for (const row of values) {
-    if (!Array.isArray(row) || row.length < 2) continue;
+    if (!Array.isArray(row) || row.length < 1) continue;
+    const colA = typeof row[0] === "string" ? normalizeKey(row[0]) : "";
     const colB = typeof row[1] === "string" ? normalizeKey(row[1]) : "";
-    if (colB === needle) {
+    if (colA === needle || colB === needle) {
       const slice = row.slice(1, 6).map((v) => (typeof v === "string" ? v : String(v ?? "")));
       while (slice.length < 5) slice.push("");
+      slice[2] = resolveWhatsAppCell(row, "marketing");
+      slice[3] = resolveWhatsAppCell(row, "utility");
+      slice[4] = resolveWhatsAppCell(row, "auth");
       out.push(slice);
       if (out.length >= 7) break;
     }
