@@ -64,31 +64,32 @@
 
 html.mapache-theme,
 body.mapache-theme {
-  --bg: 244 247 255;
-  --paper: 255 255 255;
-  --ink: 15 23 42;
-  --muted: 99 102 128;
-  --border: 223 230 241;
-  --primary: 76 29 149;
-  --primary-ink: 255 255 255;
-  --primary-soft: 229 231 255;
-  --accent: 59 130 246;
-  --accent-ink: 15 23 42;
-  --brand-start-hex: #ede9fe;
-  --brand-end-hex: #dbeafe;
-  --mapache-surface-muted: 248 250 255;
-  --mapache-border-strong: 203 213 225;
-  --mapache-shadow-soft: 0 22px 45px rgba(15, 23, 42, 0.08);
-  --mapache-shadow-strong: 0 32px 70px rgba(15, 23, 42, 0.12);
-  color-scheme: light;
+  --bg: 12 13 20;
+  --paper: 27 29 40;
+  --ink: 226 232 240;
+  --muted: 148 163 184;
+  --border: 56 60 74;
+  --primary: 201 214 223;
+  --primary-ink: 16 19 27;
+  --primary-soft: 88 92 110;
+  --accent: 161 161 170;
+  --accent-ink: 13 14 19;
+  --brand-start-hex: #434854;
+  --brand-end-hex: #1c1f29;
+  --mapache-surface-muted: 44 47 61;
+  --mapache-border-strong: 90 96 114;
+  --mapache-shadow-soft: 0 28px 80px rgba(5, 9, 26, 0.45);
+  --mapache-shadow-strong: 0 45px 130px rgba(2, 6, 23, 0.65);
+  color-scheme: dark;
 
   background-color: rgb(var(--bg));
   color: rgb(var(--ink));
 }
 
 html.mapache-theme body {
-  background-image: linear-gradient(180deg, rgba(237, 233, 254, 0.65) 0%, rgba(226, 232, 240, 0.55) 35%, rgba(248, 250, 255, 1)
-      100%);
+  background-image: radial-gradient(circle at 15% 18%, rgba(148, 163, 184, 0.22), transparent 55%),
+    radial-gradient(circle at 80% 0%, rgba(71, 85, 105, 0.24), transparent 62%),
+    linear-gradient(180deg, rgba(6, 8, 15, 1) 0%, rgba(2, 3, 8, 1) 100%);
   background-attachment: fixed;
   background-color: rgb(var(--bg));
   color: rgb(var(--ink));
@@ -96,67 +97,70 @@ html.mapache-theme body {
 
 html.mapache-theme body .card,
 body.mapache-theme .card {
-  background-color: rgb(var(--paper));
-  border-color: rgb(var(--border));
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border-color: rgba(255, 255, 255, 0.12);
   box-shadow: var(--mapache-shadow-soft);
   color: rgb(var(--ink));
 }
 
 html.mapache-theme body .table-th,
 body.mapache-theme .table-th {
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(79, 70, 229, 0.08));
-  border-color: rgba(148, 163, 184, 0.45);
-  color: rgb(51, 65, 85);
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(226, 232, 240, 0.92);
 }
 
 html.mapache-theme body .table-td,
 body.mapache-theme .table-td {
-  border-color: rgba(203, 213, 225, 0.65);
-  background-color: rgba(248, 250, 255, 0.75);
+  border-color: rgba(148, 163, 184, 0.22);
+  background-color: rgba(255, 255, 255, 0.02);
   color: inherit;
 }
 
 html.mapache-theme body .navbar,
 body.mapache-theme .navbar {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(226, 232, 240, 0.85));
+  background: linear-gradient(120deg, rgba(26, 29, 40, 0.92), rgba(10, 12, 20, 0.92));
   color: rgb(var(--ink));
-  box-shadow: 0 18px 40px rgba(148, 163, 184, 0.18);
-  border-bottom: 1px solid rgba(203, 213, 225, 0.7);
+  box-shadow: 0 32px 80px rgba(2, 6, 23, 0.5);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
 }
 
 html.mapache-theme body .navbar .btn,
 html.mapache-theme body .navbar .btn-ghost,
 body.mapache-theme .navbar .btn,
 body.mapache-theme .navbar .btn-ghost {
-  background-color: rgba(255, 255, 255, 0.9);
-  border-color: rgba(226, 232, 240, 1);
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  border-color: rgba(255, 255, 255, 0.16);
   color: rgb(var(--ink));
+  box-shadow: 0 10px 30px rgba(15, 18, 30, 0.3);
 }
 
 html.mapache-theme body .navbar .btn:hover,
 html.mapache-theme body .navbar .btn-ghost:hover,
 body.mapache-theme .navbar .btn:hover,
 body.mapache-theme .navbar .btn-ghost:hover {
-  background-color: rgba(226, 232, 240, 0.8);
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08));
+  border-color: rgba(255, 255, 255, 0.28);
 }
 
 html.mapache-theme body .chip,
 body.mapache-theme .chip {
-  background-color: rgba(237, 233, 254, 0.9);
-  color: rgb(88, 28, 135);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06));
+  color: rgb(var(--ink));
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 18px 45px rgba(5, 9, 26, 0.4);
 }
 
 html.mapache-theme body,
 body.mapache-theme {
-  --mapache-surface-strong: 255 255 255;
+  --mapache-surface-strong: 32 34 46;
 }
 
 /*
  * Mapache portal legacy class overrides
  * -------------------------------------
- * El portal Mapache utiliza utilidades pensadas para un modo oscuro.
- * Los siguientes overrides reinterpretan esos estilos dentro de la
- * nueva estética clara sin modificar los componentes de React.
+ * Los componentes del portal utilizan utilidades pensadas para un modo oscuro clásico.
+ * Estos overrides reinterpretan esos estilos dentro de la nueva estética monocromática.
  */
 html.mapache-theme body .bg-slate-950\/60,
 html.mapache-theme body .bg-slate-950\/70,
@@ -165,9 +169,10 @@ html.mapache-theme body .bg-slate-950\/85,
 html.mapache-theme body .bg-slate-950\/95,
 html.mapache-theme body .\!bg-slate-950\/95,
 html.mapache-theme body .bg-slate-900\/70 {
-  background-color: rgb(var(--paper)) !important;
+  background-color: rgba(15, 17, 26, 0.85) !important;
   color: rgb(var(--ink)) !important;
   box-shadow: var(--mapache-shadow-soft);
+  border: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 html.mapache-theme body .bg-black\/20,
@@ -178,9 +183,16 @@ html.mapache-theme body .bg-white\/20,
 html.mapache-theme body .bg-white\/30,
 html.mapache-theme body .bg-white\/60,
 html.mapache-theme body .bg-white\/70 {
-  background-color: rgb(var(--mapache-surface-muted) / 0.75) !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
   color: rgb(var(--ink)) !important;
-  box-shadow: inset 0 0 0 1px rgb(var(--mapache-border-strong) / 0.25);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+html.mapache-theme body .bg-white,
+body.mapache-theme .bg-white {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: rgb(var(--ink)) !important;
+  box-shadow: var(--mapache-shadow-soft);
 }
 
 html.mapache-theme body .border-white\/10,
@@ -191,7 +203,7 @@ html.mapache-theme body .border-white\/30,
 html.mapache-theme body .border-white\/40,
 html.mapache-theme body .border-white\/60,
 html.mapache-theme body .\!border-white\/10 {
-  border-color: rgb(var(--mapache-border-strong)) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
 }
 
 html.mapache-theme body .ring-white\/30,
@@ -202,22 +214,22 @@ html.mapache-theme body .focus\:ring-white\/60,
 html.mapache-theme body .focus-visible\:ring-white\/30,
 html.mapache-theme body .focus-visible\:ring-white\/40,
 html.mapache-theme body .focus-visible\:ring-white\/60 {
-  --tw-ring-color: rgba(79, 70, 229, 0.2) !important;
+  --tw-ring-color: rgba(199, 210, 224, 0.35) !important;
 }
 
 html.mapache-theme body .placeholder\:text-white\/40::placeholder,
 html.mapache-theme body .placeholder\:text-white\/40::-moz-placeholder {
-  color: rgba(100, 116, 139, 0.85) !important;
+  color: rgba(148, 163, 184, 0.7) !important;
 }
 
 html.mapache-theme body .text-white,
 html.mapache-theme body .text-white\/90 {
-  color: rgb(var(--ink)) !important;
+  color: rgba(248, 250, 252, 0.94) !important;
 }
 
 html.mapache-theme body .text-white\/80,
 html.mapache-theme body .text-white\/70 {
-  color: rgb(51, 65, 85) !important;
+  color: rgba(226, 232, 240, 0.8) !important;
 }
 
 html.mapache-theme body .text-white\/60,
@@ -225,50 +237,83 @@ html.mapache-theme body .text-white\/55,
 html.mapache-theme body .text-white\/50,
 html.mapache-theme body .text-white\/40,
 html.mapache-theme body .text-white\/30 {
-  color: rgb(100, 116, 139) !important;
+  color: rgba(199, 210, 224, 0.65) !important;
 }
 
 html.mapache-theme body .text-white\/20,
 html.mapache-theme body .text-white\/15 {
-  color: rgba(148, 163, 184, 0.9) !important;
+  color: rgba(148, 163, 184, 0.45) !important;
 }
 
-html.mapache-theme body .bg-rose-500\/10,
-html.mapache-theme body .bg-rose-500\/20 {
-  background-color: rgba(254, 226, 226, 0.9) !important;
-  color: rgb(190, 18, 60) !important;
+html.mapache-theme body .text-slate-900,
+html.mapache-theme body .text-slate-800 {
+  color: rgba(248, 250, 252, 0.92) !important;
 }
 
-html.mapache-theme body .text-rose-100,
-html.mapache-theme body .text-rose-100\/80,
-html.mapache-theme body .text-rose-300 {
-  color: rgb(190, 18, 60) !important;
+html.mapache-theme body .text-slate-700 {
+  color: rgba(226, 232, 240, 0.78) !important;
 }
 
-html.mapache-theme body .bg-cyan-500\/10,
-html.mapache-theme body .bg-emerald-500\/10,
-html.mapache-theme body .bg-emerald-400\/10,
-html.mapache-theme body .bg-amber-400\/10,
-html.mapache-theme body .bg-emerald-400,
-html.mapache-theme body .bg-emerald-300,
-html.mapache-theme body .bg-amber-300,
-html.mapache-theme body .bg-amber-400 {
-  background-color: rgba(226, 232, 240, 0.6) !important;
-  color: rgb(30, 64, 175) !important;
+html.mapache-theme body .text-slate-600 {
+  color: rgba(199, 210, 224, 0.72) !important;
+}
+
+html.mapache-theme body .text-slate-500,
+html.mapache-theme body .text-slate-400 {
+  color: rgba(148, 163, 184, 0.6) !important;
+}
+
+html.mapache-theme body .border-slate-100,
+html.mapache-theme body .border-slate-200,
+html.mapache-theme body .border-slate-200\/60,
+html.mapache-theme body .border-slate-200\/70,
+html.mapache-theme body .border-slate-200\/80,
+html.mapache-theme body .border-slate-200\/90 {
+  border-color: rgba(148, 163, 184, 0.22) !important;
+}
+
+html.mapache-theme body .divide-slate-100,
+html.mapache-theme body .divide-slate-200 {
+  --tw-divide-opacity: 1 !important;
+  border-color: rgba(148, 163, 184, 0.15) !important;
+}
+
+html.mapache-theme body .bg-slate-50,
+html.mapache-theme body .bg-slate-50\/60,
+html.mapache-theme body .bg-slate-50\/70,
+html.mapache-theme body .bg-slate-100,
+html.mapache-theme body .bg-slate-200,
+html.mapache-theme body .bg-amber-50,
+html.mapache-theme body .bg-amber-50\/70,
+html.mapache-theme body .bg-amber-50\/80,
+html.mapache-theme body .bg-rose-50,
+html.mapache-theme body .bg-sky-50,
+html.mapache-theme body .bg-violet-50 {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: rgb(var(--ink)) !important;
+}
+
+html.mapache-theme body .text-amber-600,
+html.mapache-theme body .text-amber-700,
+html.mapache-theme body .text-rose-600,
+html.mapache-theme body .text-rose-700,
+html.mapache-theme body .text-sky-700,
+html.mapache-theme body .text-violet-700 {
+  color: rgba(226, 232, 240, 0.85) !important;
 }
 
 html.mapache-theme body .hover\:bg-white\/10:hover,
 html.mapache-theme body .hover\:bg-white\/20:hover,
 html.mapache-theme body .hover\:bg-white\/25:hover {
-  background-color: rgb(var(--mapache-surface-muted) / 0.95) !important;
+  background-color: rgba(255, 255, 255, 0.12) !important;
   color: rgb(var(--ink)) !important;
 }
 
 html.mapache-theme body .bg-rose-500,
 html.mapache-theme body .bg-\[rgb\(var\(--primary\)\)\] {
-  background-color: rgb(var(--primary)) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04)) !important;
   color: rgb(var(--primary-ink)) !important;
-  box-shadow: 0 12px 25px rgba(79, 70, 229, 0.25);
+  box-shadow: var(--mapache-shadow-strong);
 }
 
 html.mapache-theme body .bg-\[rgb\(var\(--primary\)\)\] .text-white,
@@ -279,16 +324,16 @@ html.mapache-theme body .bg-rose-500.text-white {
 }
 
 html.mapache-theme body .backdrop-blur-sm {
-  background-color: rgba(255, 255, 255, 0.8) !important;
+  background-color: rgba(20, 23, 34, 0.72) !important;
 }
 
 html.mapache-theme body .\!bg-slate-950\/85 {
-  background-color: rgba(15, 23, 42, 0.25) !important;
+  background-color: rgba(12, 13, 22, 0.78) !important;
 }
 
 html.mapache-theme body .text-white\/80 strong,
 html.mapache-theme body .text-white strong {
-  color: rgb(var(--ink)) !important;
+  color: rgba(248, 250, 252, 0.94) !important;
 }
 
 /* ================================
