@@ -1,4 +1,4 @@
-type WhatsAppVariant = "marketing" | "utility" | "auth";
+export type WhatsAppVariant = "marketing" | "utility" | "auth";
 
 type VariantColumns = Partial<Record<WhatsAppVariant, number>> & { label?: string };
 
@@ -6,6 +6,12 @@ const WHATSAPP_VARIANT_MATCHERS: Record<WhatsAppVariant, (key: string) => boolea
   marketing: (key) => key.includes("MARK"),
   utility: (key) => key.includes("UTIL") || key.includes("SERVIC") || key.includes("SERVICE"),
   auth: (key) => key.includes("AUTH") || key.includes("AUTENT"),
+};
+
+const WHATSAPP_VARIANT_FALLBACK_COLUMNS: Record<WhatsAppVariant, readonly number[]> = {
+  marketing: [3, 7],
+  utility: [4, 8],
+  auth: [5, 9],
 };
 
 export function normalizeSheetKey(input: unknown): string {
@@ -33,6 +39,16 @@ function castCellValue(value: unknown): string {
   if (typeof value === "string") return value;
   if (value === null || value === undefined) return "";
   return String(value);
+}
+
+export function resolveWhatsAppCell(row: string[], variant: WhatsAppVariant): string {
+  const columns = WHATSAPP_VARIANT_FALLBACK_COLUMNS[variant];
+  for (const col of columns) {
+    if (col >= row.length) continue;
+    const cell = castCellValue(row[col]);
+    if (cell.trim()) return cell;
+  }
+  return "";
 }
 
 /**
