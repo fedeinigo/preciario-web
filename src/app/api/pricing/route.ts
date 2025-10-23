@@ -191,7 +191,14 @@ async function getSheetsClientForUser(): Promise<sheets_v4.Sheets> {
 function lookupWhatsAppPriceRow(rows: string[][], subsidiary: string, destCountry: string) {
   const sub = canon(subsidiary);
   const dst = canon(destCountry);
-  return rows.find((r) => canon(r[0]) === sub && canon(r[1]) === dst);
+
+  const matchBySubsidiary = rows.find((r) => canon(r[0]) === sub && canon(r[1]) === dst);
+  if (matchBySubsidiary) return matchBySubsidiary;
+
+  const matchByCountry = rows.find((r) => canon(r[1]) === dst);
+  if (matchByCountry) return matchByCountry;
+
+  return rows.find((r) => canon(r[0]) === dst) ?? null;
 }
 
 // LEGACY: minutos salientes
