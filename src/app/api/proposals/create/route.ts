@@ -93,7 +93,7 @@ async function getWhatsappRows(accessToken: string, country: string): Promise<st
       ? ((json as SheetsValuesResponse).values as string[][])
       : []
   );
-  const needle = normalizeKey(filial);
+  const needle = normalizeKey(country);
   const out: string[][] = [];
   for (const row of values) {
     if (!Array.isArray(row) || row.length < 2) continue;
