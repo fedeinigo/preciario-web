@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { normalizeWhatsAppRows } from "@/lib/sheets/whatsapp";
 
 /** ----------------- Tipos de dominio ----------------- */
 type LineItem = {
@@ -136,9 +137,11 @@ async function getConditionsText(accessToken: string, filial: string): Promise<s
   let json: unknown;
   try { json = JSON.parse(raw) as unknown; } catch { return ""; }
 
-  const values: string[][] = Array.isArray((json as SheetsValuesResponse).values)
-    ? ((json as SheetsValuesResponse).values as string[][])
-    : [];
+  const values = normalizeWhatsAppRows(
+    Array.isArray((json as SheetsValuesResponse).values)
+      ? ((json as SheetsValuesResponse).values as string[][])
+      : []
+  );
 
   const needle = normalizeKey(filial);
 
@@ -151,9 +154,9 @@ async function getConditionsText(accessToken: string, filial: string): Promise<s
 }
 
 /** WhatsApp rows por FILIAL: retorna hasta 7 filas de 5 columnas (B..F) */
-async function getWhatsappRows(accessToken: string, filial: string): Promise<string[][]> {
+async function getWhatsappRows(accessToken: string, country: string): Promise<string[][]> {
   const sheetId = process.env.SHEETS_CONFIG_SPREADSHEET_ID;
-  const range = process.env.SHEETS_WHATSAPP_RANGE ?? "Hoja1!A10:F44";
+  const range = process.env.SHEETS_WHATSAPP_RANGE ?? "costos!A1:Z200";
   if (!sheetId) return [];
 
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(range)}`;
@@ -164,17 +167,19 @@ async function getWhatsappRows(accessToken: string, filial: string): Promise<str
   let json: unknown;
   try { json = JSON.parse(raw) as unknown; } catch { return []; }
 
-  const values: string[][] = Array.isArray((json as SheetsValuesResponse).values)
-    ? ((json as SheetsValuesResponse).values as string[][])
-    : [];
+  const values = normalizeWhatsAppRows(
+    Array.isArray((json as SheetsValuesResponse).values)
+      ? ((json as SheetsValuesResponse).values as string[][])
+      : []
+  );
 
-  const needle = normalizeKey(filial);
+  const needle = normalizeKey(country);
   const out: string[][] = [];
 
   for (const row of values) {
     if (!Array.isArray(row) || row.length < 2) continue;
-    const colA = typeof row[0] === "string" ? normalizeKey(row[0]) : "";
-    if (colA === needle) {
+    const colB = typeof row[1] === "string" ? normalizeKey(row[1]) : "";
+    if (colB === needle) {
       const slice = row.slice(1, 6).map((v) => (typeof v === "string" ? v : String(v ?? "")));
       while (slice.length < 5) slice.push("");
       out.push(slice);
@@ -298,9 +303,10 @@ export async function POST(req: Request) {
 
     /** 2) Datos opcionales desde Sheets — normalizando claves */
     const filialKey = normalizeKey(body.subsidiary);
+    const countryKey = normalizeKey(body.country);
     const [conditionsText, whatsappRows] = await Promise.all([
       getConditionsText(accessToken, filialKey),
-      getWhatsappRows(accessToken, filialKey),
+      getWhatsappRows(accessToken, countryKey),
     ]);
 
     /** 3) Elegir template según país (Brasil usa template BR si está seteado) */
