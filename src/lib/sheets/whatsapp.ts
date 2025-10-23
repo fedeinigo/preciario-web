@@ -9,10 +9,9 @@ const WHATSAPP_VARIANT_MATCHERS: Record<WhatsAppVariant, (key: string) => boolea
 };
 
 const WHATSAPP_VARIANT_FALLBACK_COLUMNS: Record<WhatsAppVariant, readonly number[]> = {
-  // Priorizar las columnas nuevas (H/I/J => 7/8/9) y luego las históricas (D/E/F => 3/4/5)
-  marketing: [7, 3],
-  utility: [8, 4],
-  auth: [9, 5],
+  marketing: [3, 7],
+  utility: [4, 8],
+  auth: [5, 9],
 };
 
 export function normalizeSheetKey(input: unknown): string {
