@@ -97,6 +97,59 @@ function ScopeGeneratorForm() {
             ))}
           </select>
         </label>
+
+        <label className="flex flex-col gap-2 text-sm font-medium text-white/75">
+          Cantidad de documentos
+          <input
+            type="number"
+            min={0}
+            placeholder="Ej: 12"
+            className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40 transition focus:border-white/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+          />
+        </label>
+
+        <label className="flex flex-col gap-2 text-sm font-medium text-white/75">
+          Cantidad de palabras promedio
+          <input
+            type="number"
+            min={0}
+            placeholder="Ej: 450"
+            className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40 transition focus:border-white/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+          />
+        </label>
+
+        <label className="flex flex-col gap-2 text-sm font-medium text-white/75">
+          Cantidad de conversaciones
+          <input
+            type="number"
+            min={0}
+            placeholder="Ej: 30"
+            className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40 transition focus:border-white/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+          />
+        </label>
+
+        <label className="flex flex-col gap-2 text-sm font-medium text-white/75">
+          Horas de desarrollo
+          <input
+            type="number"
+            min={0}
+            placeholder="Ej: 120"
+            className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40 transition focus:border-white/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+          />
+        </label>
+
+        <label className="flex flex-col gap-2 text-sm font-medium text-white/75">
+          Fee mensual
+          <div className="flex items-center gap-2">
+            <span className="rounded-xl border border-white/12 bg-white/5 px-3 py-3 text-sm text-white/60">USD</span>
+            <input
+              type="number"
+              min={0}
+              placeholder="Ej: 2500"
+              className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/40 transition focus:border-white/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+            />
+          </div>
+        </label>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-dashed border-white/20 bg-white/5 px-6 py-5">
