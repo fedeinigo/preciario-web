@@ -1,6 +1,7 @@
 // src/app/api/pricing/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { normalizeWhatsAppRows } from "@/lib/sheets/whatsapp";
 import { google } from "googleapis";
 import type { sheets_v4 } from "googleapis";
 
@@ -238,7 +239,7 @@ export async function POST(req: NextRequest) {
     const SHEET_ID = assertEnv("GOOGLE_SHEET_ID");
 
     // Rango WhatsApp: si falta en env, usamos el default de tu .env.local
-    const WHATS_RANGE = envOr("SHEETS_WHATSAPP_RANGE", "variables!A10:F44");
+    const WHATS_RANGE = envOr("SHEETS_WHATSAPP_RANGE", "costos!A1:Z200");
 
     const body = (await req.json()) as AnyPayload;
     if (!body || typeof body !== "object" || !("kind" in body)) {
@@ -253,7 +254,7 @@ export async function POST(req: NextRequest) {
         spreadsheetId: SHEET_ID,
         range: WHATS_RANGE,
       });
-      const rows = (wres.data.values ?? []) as string[][];
+      const rows = normalizeWhatsAppRows((wres.data.values ?? []) as string[][]);
 
       if (isWhatsAppNew(body)) {
         const { subsidiary, destCountry, variant } = body;
