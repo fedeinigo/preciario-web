@@ -93,89 +93,12 @@ function pivotWhatsAppSheet(values: string[][]): string[][] {
   return output;
 }
 
-function detectVariantColumns(values: string[][]): VariantColumns {
-  const columns: VariantColumns = {};
-  const headerRows = Math.min(values.length, 3);
-
-  for (let rowIdx = 0; rowIdx < headerRows; rowIdx++) {
-    const row = values[rowIdx] ?? [];
-    for (let col = 0; col < row.length; col++) {
-      const variant = detectVariant(row[col]);
-      if (variant && columns[variant] === undefined) {
-        columns[variant] = col;
-      }
-    }
-  }
-
-  return columns;
-}
-
-function hasVariantColumn(columns: VariantColumns): boolean {
-  return (
-    columns.marketing !== undefined ||
-    columns.utility !== undefined ||
-    columns.auth !== undefined
-  );
-}
-
-function convertCountryLayout(values: string[][]): string[][] {
-  const columns = detectVariantColumns(values);
-  if (!hasVariantColumn(columns)) return [];
-
-  const output: string[][] = [];
-  const headerKeys = new Set([
-    "PAIS",
-    "PAIS DESTINO",
-    "PAIS DESTINO (USD)",
-    "PAIS DESTINO USD",
-    "COUNTRY",
-    "DESTINO",
-    "TOTAL",
-  ]);
-
-  for (const row of values) {
-    if (!Array.isArray(row) || row.length === 0) continue;
-
-    const countryCell = row[0];
-    const countryKey = normalizeSheetKey(countryCell);
-    if (!countryKey || headerKeys.has(countryKey)) continue;
-
-    const marketingCol = columns.marketing;
-    const utilityCol = columns.utility;
-    const authCol = columns.auth;
-
-    const marketing = marketingCol !== undefined ? castCellValue(row[marketingCol]) : "";
-    const utility = utilityCol !== undefined ? castCellValue(row[utilityCol]) : "";
-    const auth = authCol !== undefined ? castCellValue(row[authCol]) : "";
-
-    if (!marketing && !utility && !auth) continue;
-
-    const subsidiaryCell = row[1];
-
-    output.push([
-      castCellValue(subsidiaryCell),
-      castCellValue(countryCell),
-      "",
-      marketing,
-      utility,
-      auth,
-    ]);
-  }
-
-  return output;
-}
-
 /**
  * Normaliza la hoja de precios de WhatsApp: si proviene del formato nuevo (pivot),
  * la convierte al formato histórico (filial/país/variantes). En caso contrario retorna el input.
  */
 export function normalizeWhatsAppRows(values: string[][]): string[][] {
   const pivot = pivotWhatsAppSheet(values);
-  if (pivot.length > 0) return pivot;
-
-  const converted = convertCountryLayout(values);
-  if (converted.length > 0) return converted;
-
-  return values;
+  return pivot.length > 0 ? pivot : values;
 }
 
