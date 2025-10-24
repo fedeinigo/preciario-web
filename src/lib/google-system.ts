@@ -1,6 +1,10 @@
 // src/lib/google-system.ts
 import { prisma } from "@/lib/prisma";
-import { normalizeWhatsAppRows } from "@/lib/sheets/whatsapp";
+import {
+  detectWhatsAppVariantColumns,
+  normalizeWhatsAppRows,
+  resolveWhatsAppCell,
+} from "@/lib/sheets/whatsapp";
 
 /** ===================== Tipos de entrada ===================== */
 export type SkuItemInput = { sku: string; quantity: number };
@@ -245,16 +249,21 @@ async function getWhatsappRows(accessToken: string, country: string): Promise<st
       ? ((json as SheetsValuesResponse).values as string[][])
       : []
   );
+  const variantColumns = detectWhatsAppVariantColumns(values);
 
   const needle = normalizeKey(country);
   const out: string[][] = [];
 
   for (const row of values) {
-    if (!Array.isArray(row) || row.length < 2) continue;
+    if (!Array.isArray(row) || row.length < 1) continue;
+    const colA = typeof row[0] === "string" ? normalizeKey(row[0]) : "";
     const colB = typeof row[1] === "string" ? normalizeKey(row[1]) : "";
-    if (colB === needle) {
+    if (colA === needle || colB === needle) {
       const slice = row.slice(1, 6).map((v) => (typeof v === "string" ? v : String(v ?? "")));
       while (slice.length < 5) slice.push("");
+      slice[2] = resolveWhatsAppCell(row, "marketing", variantColumns);
+      slice[3] = resolveWhatsAppCell(row, "utility", variantColumns);
+      slice[4] = resolveWhatsAppCell(row, "auth", variantColumns);
       out.push(slice);
       if (out.length >= 7) break;
     }
