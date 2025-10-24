@@ -1,7 +1,7 @@
 export type WhatsAppVariant = "marketing" | "utility" | "auth";
 
 type VariantColumns = Partial<Record<WhatsAppVariant, number>> & { label?: string };
-type VariantColumnMap = Partial<Record<WhatsAppVariant, number[]>>;
+export type VariantColumnMap = Partial<Record<WhatsAppVariant, number[]>>;
 
 const WHATSAPP_VARIANT_MATCHERS: Record<WhatsAppVariant, (key: string) => boolean> = {
   marketing: (key) => key.includes("MARK"),
@@ -42,8 +42,43 @@ function castCellValue(value: unknown): string {
   return String(value);
 }
 
-export function resolveWhatsAppCell(row: string[], variant: WhatsAppVariant): string {
-  const columns = WHATSAPP_VARIANT_FALLBACK_COLUMNS[variant];
+export function detectWhatsAppVariantColumns(values: string[][]): VariantColumnMap {
+  const detected: VariantColumnMap = {};
+
+  const maxRowsToInspect = Math.min(values.length, 5);
+  for (let rowIdx = 0; rowIdx < maxRowsToInspect; rowIdx++) {
+    const row = values[rowIdx];
+    if (!Array.isArray(row)) continue;
+
+    for (let col = 0; col < row.length; col++) {
+      const variant = detectVariant(row[col]);
+      if (!variant) continue;
+
+      const columns = detected[variant] ?? [];
+      if (!columns.includes(col)) columns.push(col);
+      detected[variant] = columns;
+    }
+  }
+
+  for (const variant of Object.keys(WHATSAPP_VARIANT_FALLBACK_COLUMNS) as WhatsAppVariant[]) {
+    const fallback = WHATSAPP_VARIANT_FALLBACK_COLUMNS[variant];
+    const existing = detected[variant] ?? [];
+    for (const col of fallback) {
+      if (!existing.includes(col)) existing.push(col);
+    }
+    existing.sort((a, b) => a - b);
+    detected[variant] = existing;
+  }
+
+  return detected;
+}
+
+export function resolveWhatsAppCell(
+  row: string[],
+  variant: WhatsAppVariant,
+  columnsMap?: VariantColumnMap
+): string {
+  const columns = columnsMap?.[variant] ?? WHATSAPP_VARIANT_FALLBACK_COLUMNS[variant];
   for (const col of columns) {
     if (col >= row.length) continue;
     const cell = castCellValue(row[col]);
