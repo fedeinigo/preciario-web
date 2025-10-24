@@ -10,10 +10,9 @@ const WHATSAPP_VARIANT_MATCHERS: Record<WhatsAppVariant, (key: string) => boolea
 };
 
 const WHATSAPP_VARIANT_FALLBACK_COLUMNS: Record<WhatsAppVariant, readonly number[]> = {
-  // Priorizar las columnas nuevas (H/I/J => 7/8/9) y luego las históricas (D/E/F => 3/4/5)
-  marketing: [7, 3],
-  utility: [8, 4],
-  auth: [9, 5],
+  marketing: [3, 7],
+  utility: [4, 8],
+  auth: [5, 9],
 };
 
 export function normalizeSheetKey(input: unknown): string {
@@ -43,41 +42,13 @@ function castCellValue(value: unknown): string {
   return String(value);
 }
 
-export function detectWhatsAppVariantColumns(values: string[][]): VariantColumnMap {
-  const variantColumns: VariantColumnMap = {};
-  const maxRows = Math.min(values.length, 5);
-
-  for (let rowIdx = 0; rowIdx < maxRows; rowIdx++) {
-    const row = values[rowIdx];
-    if (!row) continue;
-    for (let colIdx = 0; colIdx < row.length; colIdx++) {
-      const variant = detectVariant(row[colIdx]);
-      if (!variant) continue;
-      const list = variantColumns[variant] ?? (variantColumns[variant] = []);
-      if (!list.includes(colIdx)) list.push(colIdx);
-    }
-  }
-
-  return variantColumns;
-}
-
-export function resolveWhatsAppCell(
-  row: string[],
-  variant: WhatsAppVariant,
-  variantColumns?: VariantColumnMap
-): string {
-  const dynamic = variantColumns?.[variant] ?? [];
-  const candidates = [...dynamic, ...WHATSAPP_VARIANT_FALLBACK_COLUMNS[variant]];
-  const seen = new Set<number>();
-
-  for (const col of candidates) {
-    if (col == null || col < 0 || seen.has(col)) continue;
-    seen.add(col);
+export function resolveWhatsAppCell(row: string[], variant: WhatsAppVariant): string {
+  const columns = WHATSAPP_VARIANT_FALLBACK_COLUMNS[variant];
+  for (const col of columns) {
     if (col >= row.length) continue;
     const cell = castCellValue(row[col]);
     if (cell.trim()) return cell;
   }
-
   return "";
 }
 

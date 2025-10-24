@@ -1,11 +1,7 @@
 // src/app/api/pricing/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import {
-  detectWhatsAppVariantColumns,
-  normalizeWhatsAppRows,
-  resolveWhatsAppCell,
-} from "@/lib/sheets/whatsapp";
+import { normalizeWhatsAppRows, resolveWhatsAppCell } from "@/lib/sheets/whatsapp";
 import { google } from "googleapis";
 import type { sheets_v4 } from "googleapis";
 
@@ -291,9 +287,9 @@ export async function POST(req: NextRequest) {
         const row = lookupWhatsAppPriceRow(rows, subsidiary, destCountry);
         if (!row) return bad("No price row for WhatsApp");
 
-        const pMarketing = parseMoney(resolveWhatsAppCell(row, "marketing", variantColumns));
-        const pUtility = parseMoney(resolveWhatsAppCell(row, "utility", variantColumns));
-        const pAuth = parseMoney(resolveWhatsAppCell(row, "auth", variantColumns));
+        const pMarketing = parseMoney(resolveWhatsAppCell(row, "marketing"));
+        const pUtility = parseMoney(resolveWhatsAppCell(row, "utility"));
+        const pAuth = parseMoney(resolveWhatsAppCell(row, "auth"));
 
         const unit = variant === "marketing" ? pMarketing : variant === "utility" ? pUtility : pAuth;
         const totalAmount = qty * unit;
@@ -307,9 +303,9 @@ export async function POST(req: NextRequest) {
         const row = lookupWhatsAppPriceRow(rows, subsidiary, dest);
         if (!row) return bad("No price row for WhatsApp");
 
-        const pMarketing = parseMoney(resolveWhatsAppCell(row, "marketing", variantColumns));
-        const pUtility = parseMoney(resolveWhatsAppCell(row, "utility", variantColumns));
-        const pAuth = parseMoney(resolveWhatsAppCell(row, "auth", variantColumns));
+        const pMarketing = parseMoney(resolveWhatsAppCell(row, "marketing"));
+        const pUtility = parseMoney(resolveWhatsAppCell(row, "utility"));
+        const pAuth = parseMoney(resolveWhatsAppCell(row, "auth"));
 
         const mQty = Math.max(0, Number(body.marketingQty) || 0);
         const uQty = Math.max(0, Number(body.utilityQty) || 0);

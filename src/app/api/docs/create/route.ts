@@ -2,11 +2,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import {
-  detectWhatsAppVariantColumns,
-  normalizeWhatsAppRows,
-  resolveWhatsAppCell,
-} from "@/lib/sheets/whatsapp";
+import { normalizeWhatsAppRows, resolveWhatsAppCell } from "@/lib/sheets/whatsapp";
 
 /** ----------------- Tipos de dominio ----------------- */
 type LineItem = {
@@ -188,9 +184,9 @@ async function getWhatsappRows(accessToken: string, country: string): Promise<st
     if (colA === needle || colB === needle) {
       const slice = row.slice(1, 6).map((v) => (typeof v === "string" ? v : String(v ?? "")));
       while (slice.length < 5) slice.push("");
-      slice[2] = resolveWhatsAppCell(row, "marketing", variantColumns);
-      slice[3] = resolveWhatsAppCell(row, "utility", variantColumns);
-      slice[4] = resolveWhatsAppCell(row, "auth", variantColumns);
+      slice[2] = resolveWhatsAppCell(row, "marketing");
+      slice[3] = resolveWhatsAppCell(row, "utility");
+      slice[4] = resolveWhatsAppCell(row, "auth");
       out.push(slice);
       if (out.length >= 7) break;
     }
