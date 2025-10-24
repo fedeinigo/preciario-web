@@ -276,6 +276,7 @@ export async function POST(req: NextRequest) {
         range: WHATS_RANGE,
       });
       const rows = normalizeWhatsAppRows((wres.data.values ?? []) as string[][]);
+      const variantColumns = detectWhatsAppVariantColumns(rows);
 
       if (isWhatsAppNew(body)) {
         const { subsidiary, destCountry, variant } = body;

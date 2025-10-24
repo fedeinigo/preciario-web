@@ -172,6 +172,7 @@ async function getWhatsappRows(accessToken: string, country: string): Promise<st
       ? ((json as SheetsValuesResponse).values as string[][])
       : []
   );
+  const variantColumns = detectWhatsAppVariantColumns(values);
 
   const needle = normalizeKey(country);
   const out: string[][] = [];

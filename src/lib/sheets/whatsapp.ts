@@ -1,6 +1,7 @@
 export type WhatsAppVariant = "marketing" | "utility" | "auth";
 
 type VariantColumns = Partial<Record<WhatsAppVariant, number>> & { label?: string };
+type VariantColumnMap = Partial<Record<WhatsAppVariant, number[]>>;
 
 const WHATSAPP_VARIANT_MATCHERS: Record<WhatsAppVariant, (key: string) => boolean> = {
   marketing: (key) => key.includes("MARK"),
