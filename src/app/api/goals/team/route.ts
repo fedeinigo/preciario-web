@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { quarterRange } from "@/lib/quarter";
-import { Role as DbRole } from "@prisma/client";
+import { Role as DbRole, WonDealType } from "@prisma/client";
 
 type Quarter = 1 | 2 | 3 | 4;
 
@@ -80,6 +80,7 @@ export async function GET(req: Request) {
       status: "WON",
       deletedAt: null,
       createdAt: { gte: from, lte: to },
+      OR: [{ wonType: null }, { wonType: WonDealType.NEW_CUSTOMER }],
     },
   });
   const progByUser = new Map(progress.map((p) => [p.userId, Number(p._sum.totalAmount ?? 0)]));
@@ -93,6 +94,7 @@ export async function GET(req: Request) {
       userId: { in: members.map((m) => m.id) },
       year,
       quarter,
+      wonType: WonDealType.NEW_CUSTOMER,
     },
   });
   const manualByUser = new Map(

@@ -20,6 +20,7 @@ type Props = {
     monthlyFee: number;
     proposalUrl?: string | null;
     userId?: string;
+    wonType: "NEW_CUSTOMER" | "UPSELL";
   }) => Promise<void>;
 };
 
@@ -30,6 +31,7 @@ export default function ManualWonDialog({ open, onClose, target, onSubmit }: Pro
   const [companyName, setCompanyName] = React.useState("");
   const [monthlyFee, setMonthlyFee] = React.useState<string>("0");
   const [proposalUrl, setProposalUrl] = React.useState("");
+  const [wonType, setWonType] = React.useState<"NEW_CUSTOMER" | "UPSELL">("NEW_CUSTOMER");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -44,6 +46,7 @@ export default function ManualWonDialog({ open, onClose, target, onSubmit }: Pro
       setCompanyName("");
       setMonthlyFee("0");
       setProposalUrl("");
+      setWonType("NEW_CUSTOMER");
       setError(null);
     }
   }, [open]);
@@ -67,6 +70,7 @@ export default function ManualWonDialog({ open, onClose, target, onSubmit }: Pro
         monthlyFee: feeNumber,
         proposalUrl: proposalUrl.trim() ? proposalUrl.trim() : undefined,
         userId: target?.userId,
+        wonType,
       });
       onClose();
     } catch (err) {
@@ -149,6 +153,35 @@ export default function ManualWonDialog({ open, onClose, target, onSubmit }: Pro
             disabled={submitting}
           />
         </label>
+        <div className="flex flex-col gap-2 text-sm font-semibold text-[#4c1d95]">
+          <span>{t("wonTypeLabel")}</span>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                wonType === "NEW_CUSTOMER"
+                  ? "border-[#4c1d95] bg-[#ede9fe] text-[#4c1d95]"
+                  : "border-[#d8c7ff] text-[#6d28d9] hover:border-[#c4b5fd]"
+              }`}
+              onClick={() => setWonType("NEW_CUSTOMER")}
+              disabled={submitting}
+            >
+              {t("wonTypeNew")}
+            </button>
+            <button
+              type="button"
+              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                wonType === "UPSELL"
+                  ? "border-[#b45309] bg-[#fef3c7] text-[#b45309]"
+                  : "border-[#fcd34d] text-[#b45309] hover:border-[#fbbf24]"
+              }`}
+              onClick={() => setWonType("UPSELL")}
+              disabled={submitting}
+            >
+              {t("wonTypeUpsell")}
+            </button>
+          </div>
+        </div>
         {error && <div className="text-sm font-medium text-[#b91c1c]">{error}</div>}
       </div>
     </Modal>

@@ -10,6 +10,7 @@ import {
   countryIdFromName,
   subsidiaryIdFromName,
   autoSubsidiaryForCountry,
+  getCompanyCountryOptions,
 } from "./lib/catalogs";
 import { createProposal, type CreateProposalPayload } from "./lib/storage";
 import type { UIItem } from "./lib/types";
@@ -110,6 +111,10 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
   const totalsT = useTranslations("proposals.generator.totals");
   const pipedriveExample = pipedriveT("exampleLink");
   const emptyValue = generatorT("emptyValue");
+  const countryOptions = useMemo(
+    () => getCompanyCountryOptions(locale as Locale),
+    [locale]
+  );
 
   const [companyName, setCompanyName] = useState("");
   const [country, setCountry] = useState("");
@@ -886,6 +891,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
         onCountryChange: handleCountryChange,
         subsidiary,
         emptyValue,
+        countryOptions,
         t: companyT,
       },
       toolbar: {
@@ -919,6 +925,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
       categoryFilter,
       companyName,
       companyT,
+      countryOptions,
       confirmResetT,
       country,
       emptyValue,
