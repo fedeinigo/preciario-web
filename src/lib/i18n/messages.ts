@@ -1581,6 +1581,15 @@ export const messages: Record<Locale, DeepRecord> = {
           deleteError: "No se pudo eliminar",
           deleteSuccess: "Propuesta eliminada",
         },
+        wonTypeModal: {
+          title: "Clasificar Won",
+          description: "Selecciona si el Won corresponde a un cliente nuevo o un upsell.",
+          newCustomer: "Nuevo cliente",
+          upsell: "Upsell",
+          cancel: "Cancelar",
+          confirm: "Confirmar",
+          saving: "Guardando...",
+        },
         csv: {
           fileName: "historico.csv",
           headers: {
@@ -3342,6 +3351,15 @@ export const messages: Record<Locale, DeepRecord> = {
           markOpenSuccess: "Proposal reverted to OPEN",
           deleteError: "Could not delete proposal",
           deleteSuccess: "Proposal deleted",
+        },
+        wonTypeModal: {
+          title: "Classify Won",
+          description: "Choose whether this Won is a new customer or an upsell.",
+          newCustomer: "New customer",
+          upsell: "Upsell",
+          cancel: "Cancel",
+          confirm: "Confirm",
+          saving: "Saving...",
         },
         csv: {
           fileName: "history.csv",
