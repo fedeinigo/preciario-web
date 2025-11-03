@@ -121,7 +121,7 @@ export function buildReplaceRequests({
   whatsappRows.forEach((row, rIdx) => {
     const rowNum = rIdx + 1;
     for (let c = 0; c < 5; c++) {
-      const value = row[c] ?? "";
+      const value = row[c] == null ? "" : String(row[c]);
       requests.push({
         replaceAllText: {
           containsText: { text: `<w${rowNum}c${c + 1}>`, matchCase: false },
@@ -130,6 +130,18 @@ export function buildReplaceRequests({
       });
     }
   });
+
+  const MAX_WHATSAPP_ROWS = 7;
+  for (let rowNum = whatsappRows.length + 1; rowNum <= MAX_WHATSAPP_ROWS; rowNum++) {
+    for (let c = 1; c <= 5; c++) {
+      requests.push({
+        replaceAllText: {
+          containsText: { text: `<w${rowNum}c${c}>`, matchCase: false },
+          replaceText: "",
+        },
+      });
+    }
+  }
 
   return requests;
 }

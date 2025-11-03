@@ -1,5 +1,10 @@
 // src/lib/google-system.ts
 import { prisma } from "@/lib/prisma";
+import {
+  detectWhatsAppVariantColumns,
+  normalizeWhatsAppRows,
+  resolveWhatsAppCell,
+} from "@/lib/sheets/whatsapp";
 
 /** ===================== Tipos de entrada ===================== */
 export type SkuItemInput = { sku: string; quantity: number };
@@ -210,9 +215,11 @@ async function getConditionsText(accessToken: string, filial: string): Promise<s
   let json: unknown;
   try { json = JSON.parse(raw) as unknown; } catch { return ""; }
 
-  const values: string[][] = Array.isArray((json as SheetsValuesResponse).values)
-    ? ((json as SheetsValuesResponse).values as string[][])
-    : [];
+  const values = normalizeWhatsAppRows(
+    Array.isArray((json as SheetsValuesResponse).values)
+      ? ((json as SheetsValuesResponse).values as string[][])
+      : []
+  );
 
   const needle = normalizeKey(filial);
 
@@ -224,10 +231,101 @@ async function getConditionsText(accessToken: string, filial: string): Promise<s
   return "";
 }
 
+function detectVariantFromHeader(value: unknown): "marketing" | "utility" | "auth" | null {
+  const key = normalizeKey(String(value ?? ""));
+  if (!key) return null;
+  if (key.includes("MARK")) return "marketing";
+  if (key.includes("UTIL") || key.includes("SERVIC") || key.includes("SERVICE")) return "utility";
+  if (key.includes("AUTH") || key.includes("AUTENT")) return "auth";
+  return null;
+}
+
+async function fetchSheetRange(
+  accessToken: string,
+  sheetId: string,
+  range: string
+): Promise<string[][]> {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(range)}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const raw = await res.text();
+
+  let json: unknown;
+  try {
+    json = JSON.parse(raw) as unknown;
+  } catch {
+    return [];
+  }
+
+  const rows = Array.isArray((json as SheetsValuesResponse).values)
+    ? ((json as SheetsValuesResponse).values as string[][])
+    : [];
+  return rows;
+}
+
+async function getWhatsappRowsFallback(
+  accessToken: string,
+  sheetId: string,
+  country: string
+): Promise<string[][]> {
+  const countriesRange = process.env.SHEETS_WPP_COUNTRIES ?? "";
+  const headersRange = process.env.SHEETS_WPP_HEADERS ?? "";
+  const valuesRange = process.env.SHEETS_WPP_VALUES ?? "";
+  if (!countriesRange || !headersRange || !valuesRange) return [];
+
+  const [countries, headers, values] = await Promise.all([
+    fetchSheetRange(accessToken, sheetId, countriesRange),
+    fetchSheetRange(accessToken, sheetId, headersRange),
+    fetchSheetRange(accessToken, sheetId, valuesRange),
+  ]);
+
+  if (countries.length === 0 || values.length === 0) return [];
+
+  const dst = normalizeKey(country);
+  const rowIdx = countries.findIndex((row) => normalizeKey(row[0] ?? "") === dst);
+  if (rowIdx < 0 || rowIdx >= values.length) return [];
+
+  const headerRow = headers[0] ?? [];
+  const indices: Record<"marketing" | "utility" | "auth", number> = {
+    marketing: -1,
+    utility: -1,
+    auth: -1,
+  };
+
+  for (let idx = 0; idx < headerRow.length; idx++) {
+    const variant = detectVariantFromHeader(headerRow[idx]);
+    if (variant && indices[variant] === -1) {
+      indices[variant] = idx;
+    }
+  }
+
+  const fallbackOrder: Record<"marketing" | "utility" | "auth", number[]> = {
+    marketing: [0],
+    utility: [1],
+    auth: [2],
+  };
+
+  const rowValues = values[rowIdx] ?? [];
+  for (const variant of ["marketing", "utility", "auth"] as const) {
+    if (indices[variant] >= 0) continue;
+    for (const candidate of fallbackOrder[variant]) {
+      if (candidate < rowValues.length) {
+        indices[variant] = candidate;
+        break;
+      }
+    }
+  }
+
+  const pick = (idx: number) =>
+    idx >= 0 && idx < rowValues.length ? String(rowValues[idx] ?? "") : "";
+
+  const countryLabel = countries[rowIdx]?.[0] ?? country;
+  return [[countryLabel, "0", pick(indices.marketing), pick(indices.utility), pick(indices.auth)]];
+}
+
 /** WhatsApp rows por FILIAL: retorna hasta 7 filas de 5 columnas (B..F) */
-async function getWhatsappRows(accessToken: string, filial: string): Promise<string[][]> {
+async function getWhatsappRows(accessToken: string, country: string): Promise<string[][]> {
   const sheetId = process.env.SHEETS_CONFIG_SPREADSHEET_ID;
-  const range = process.env.SHEETS_WHATSAPP_RANGE ?? "variables!A10:F44";
+  const range = process.env.SHEETS_WHATSAPP_RANGE ?? "costos!A1:Z200";
   if (!sheetId) return [];
 
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(range)}`;
@@ -237,24 +335,36 @@ async function getWhatsappRows(accessToken: string, filial: string): Promise<str
   let json: unknown;
   try { json = JSON.parse(raw) as unknown; } catch { return []; }
 
-  const values: string[][] = Array.isArray((json as SheetsValuesResponse).values)
-    ? ((json as SheetsValuesResponse).values as string[][])
-    : [];
+  const values = normalizeWhatsAppRows(
+    Array.isArray((json as SheetsValuesResponse).values)
+      ? ((json as SheetsValuesResponse).values as string[][])
+      : []
+  );
+  const variantColumns = detectWhatsAppVariantColumns(values);
 
-  const needle = normalizeKey(filial);
+  const needle = normalizeKey(country);
   const out: string[][] = [];
 
   for (const row of values) {
-    if (!Array.isArray(row) || row.length < 2) continue;
+    if (!Array.isArray(row) || row.length < 1) continue;
     const colA = typeof row[0] === "string" ? normalizeKey(row[0]) : "";
-    if (colA === needle) {
+    const colB = typeof row[1] === "string" ? normalizeKey(row[1]) : "";
+    if (colA === needle || colB === needle) {
       const slice = row.slice(1, 6).map((v) => (typeof v === "string" ? v : String(v ?? "")));
       while (slice.length < 5) slice.push("");
+      slice[1] = "0";
+      slice[2] = resolveWhatsAppCell(row, "marketing", variantColumns);
+      slice[3] = resolveWhatsAppCell(row, "utility", variantColumns);
+      slice[4] = resolveWhatsAppCell(row, "auth", variantColumns);
       out.push(slice);
       if (out.length >= 7) break;
     }
   }
-  return out;
+
+  if (out.length > 0) return out;
+
+  const fallback = await getWhatsappRowsFallback(accessToken, sheetId, country);
+  return fallback.length > 0 ? fallback : out;
 }
 
 /** ===================== LÃ³gica auxiliar ===================== */
@@ -403,9 +513,10 @@ export async function createProposalDocSystem(input: CreateProposalInput) {
 
   // 2) Datos de Sheets
   const filialKey = normalizeKey(subsidiary);
+  const countryKey = normalizeKey(input.country);
   const [conditionsText, whatsappRows] = await Promise.all([
     getConditionsText(token, filialKey),
-    getWhatsappRows(token, filialKey),
+    getWhatsappRows(token, countryKey),
   ]);
 
   // 3) Reemplazos
@@ -438,11 +549,23 @@ export async function createProposalDocSystem(input: CreateProposalInput) {
       requests.push({
         replaceAllText: {
           containsText: { text: `<w${rowNum}c${c + 1}>`, matchCase: false },
-          replaceText: row[c] ?? "",
+          replaceText: row[c] == null ? "" : String(row[c]),
         },
       });
     }
   });
+
+  const MAX_WHATSAPP_ROWS = 7;
+  for (let rowNum = whatsappRows.length + 1; rowNum <= MAX_WHATSAPP_ROWS; rowNum++) {
+    for (let c = 1; c <= 5; c++) {
+      requests.push({
+        replaceAllText: {
+          containsText: { text: `<w${rowNum}c${c}>`, matchCase: false },
+          replaceText: "",
+        },
+      });
+    }
+  }
 
   await docsBatchUpdate(docId, token, requests);
 
