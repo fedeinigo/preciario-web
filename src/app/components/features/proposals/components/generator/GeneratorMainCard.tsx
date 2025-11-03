@@ -6,6 +6,7 @@ import ItemsTable from "../ItemsTable";
 import { formatUSD } from "../../lib/format";
 import type { UIItem } from "../../lib/types";
 import type { Locale } from "@/lib/i18n/config";
+import type { CountryOption } from "../../lib/catalogs";
 
 export type TranslateFn = (
   key: string,
@@ -28,6 +29,7 @@ export interface GeneratorMainCardProps {
     onCountryChange: (value: string) => void;
     subsidiary: string;
     emptyValue: string;
+    countryOptions: CountryOption[];
     t: TranslateFn;
   };
   toolbar: {
@@ -98,6 +100,7 @@ export default function GeneratorMainCard({
         onCountryChange={company.onCountryChange}
         subsidiary={company.subsidiary}
         emptyValue={company.emptyValue}
+        countryOptions={company.countryOptions}
         t={company.t}
       />
 

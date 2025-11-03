@@ -3,7 +3,6 @@
 import * as React from "react";
 
 import Combobox from "@/app/components/ui/Combobox";
-import { COUNTRY_NAMES } from "../../lib/catalogs";
 
 interface CompanyCardProps {
   companyName: string;
@@ -12,6 +11,7 @@ interface CompanyCardProps {
   onCountryChange: (value: string) => void;
   subsidiary: string;
   emptyValue: string;
+  countryOptions: { value: string; label: string }[];
   t: (key: string, replacements?: Record<string, string | number>) => string;
 }
 
@@ -22,6 +22,7 @@ export default function CompanyCard({
   onCountryChange,
   subsidiary,
   emptyValue,
+  countryOptions,
   t,
 }: CompanyCardProps) {
   return (
@@ -41,7 +42,7 @@ export default function CompanyCard({
         <div className="rounded-md border border-[rgb(var(--primary))]/25 bg-[rgb(var(--primary-soft))]/20 p-3">
           <label className="block text-xs text-gray-700 mb-1">{t("country.label")}</label>
           <Combobox
-            options={COUNTRY_NAMES}
+            options={countryOptions}
             value={country}
             onChange={onCountryChange}
             placeholder={t("country.placeholder")}

@@ -12,8 +12,10 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "@/app/LanguageProvider";
 import { normalizeSearchText } from "@/lib/normalize-search-text";
 
+type ComboboxOption = string | { value: string; label: string };
+
 interface ComboboxProps {
-  options: string[];
+  options: ComboboxOption[];
   value: string;                   // siempre un valor válido (o "")
   onChange: (val: string) => void; // sólo se llama con valores de la lista
   placeholder?: string;
@@ -51,17 +53,28 @@ export default function Combobox({
   const optionId = (idx: number) => `${listboxId}-opt-${idx}`;
 
   const normalizedOptions = useMemo(
-    () => options.map((raw) => ({ raw, normalized: normalizeSearchText(raw) })),
+    () =>
+      options.map((option) => {
+        const rawValue = typeof option === "string" ? option : option.value;
+        const label = typeof option === "string" ? option : option.label;
+        return {
+          value: rawValue,
+          label,
+          normalized: normalizeSearchText(label),
+        };
+      }),
     [options]
   );
 
   const filtered = useMemo(() => {
     const normalizedQuery = normalizeSearchText(query.trim());
-    if (!normalizedQuery) return normalizedOptions.map(({ raw }) => raw);
-    return normalizedOptions
-      .filter(({ normalized }) => normalized.includes(normalizedQuery))
-      .map(({ raw }) => raw);
+    if (!normalizedQuery) return normalizedOptions;
+    return normalizedOptions.filter(({ normalized }) => normalized.includes(normalizedQuery));
   }, [normalizedOptions, query]);
+
+  const valueLabel = useMemo(() => {
+    return normalizedOptions.find((option) => option.value === value)?.label ?? value;
+  }, [normalizedOptions, value]);
 
   // cerrar al click exterior
   useEffect(() => {
@@ -97,10 +110,10 @@ export default function Combobox({
     return;
   }, [open]);
 
-  const displayValue = open ? query : value;
+  const displayValue = open ? query : valueLabel;
 
-  function selectOption(opt: string) {
-    onChange(opt); // sólo valores válidos
+  function selectOption(opt: (typeof normalizedOptions)[number]) {
+    onChange(opt.value); // sólo valores válidos
     setOpen(false);
     setQuery("");
     setHighlight(0);
@@ -120,7 +133,8 @@ export default function Combobox({
       setHighlight((h) => Math.max(h - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (open && filtered[highlight]) selectOption(filtered[highlight]);
+      const option = filtered[highlight];
+      if (open && option) selectOption(option);
       else setOpen(true);
     } else if (e.key === "Escape") {
       setOpen(false);
@@ -162,10 +176,10 @@ export default function Combobox({
                 const active = idx === highlight;
                 return (
                   <div
-                    key={opt}
+                    key={`${opt.value}:${opt.label}`}
                     id={optionId(idx)}
                     role="option"
-                    aria-selected={active}
+                    aria-selected={opt.value === value}
                     className={`cursor-pointer w-full text-left px-3 py-2 text-sm ${
                       active ? "bg-primarySoft/60" : "hover:bg-gray-50"
                     }`}
@@ -175,7 +189,7 @@ export default function Combobox({
                     }}
                     onMouseEnter={() => setHighlight(idx)}
                   >
-                    {opt}
+                    {opt.label}
                   </div>
                 );
               })
