@@ -32,7 +32,14 @@ export const COUNTRY_CATALOG = [
   { id: "PAIS-VEN", name: "Venezuela" },
 ];
 
-export const COUNTRY_NAMES = COUNTRY_CATALOG.map((c) => c.name);
+export type CountryOption = { value: string; label: string };
+
+export function getCompanyCountryOptions(locale: Locale = defaultLocale): CountryOption[] {
+  return COUNTRY_CATALOG.map((country) => ({
+    value: country.name,
+    label: getMessage(locale, `proposals.countries.${country.name}`, defaultLocale),
+  }));
+}
 export const countryIdFromName = (name: string) =>
   COUNTRY_CATALOG.find((c) => c.name.toLowerCase() === name.toLowerCase())?.id ??
   "PAIS-UNK";
