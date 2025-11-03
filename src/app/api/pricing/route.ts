@@ -5,6 +5,7 @@ import {
   detectWhatsAppVariantColumns,
   normalizeWhatsAppRows,
   resolveWhatsAppCell,
+  type VariantColumnMap,
 } from "@/lib/sheets/whatsapp";
 import { google } from "googleapis";
 import type { sheets_v4 } from "googleapis";
@@ -48,6 +49,7 @@ type AnyPayload =
 
 type PricingOk = { ok: true; totalQty: number; totalAmount: number; unitPrice: number };
 type PricingErr = { ok: false; error: string };
+type WhatsAppPrices = { marketing: number; utility: number; auth: number };
 
 /* ===================== Helpers ===================== */
 
@@ -219,6 +221,91 @@ function lookupWhatsAppPriceRow(rows: string[][], subsidiary: string, destCountr
   return null;
 }
 
+function resolveWhatsAppPrices(row: string[], variantColumns: VariantColumnMap): WhatsAppPrices {
+  return {
+    marketing: parseMoney(resolveWhatsAppCell(row, "marketing", variantColumns)),
+    utility: parseMoney(resolveWhatsAppCell(row, "utility", variantColumns)),
+    auth: parseMoney(resolveWhatsAppCell(row, "auth", variantColumns)),
+  };
+}
+
+function detectVariantFromHeader(value: unknown): "marketing" | "utility" | "auth" | null {
+  const key = canon(value);
+  if (!key) return null;
+  if (key.includes("MARK")) return "marketing";
+  if (key.includes("UTIL") || key.includes("SERVIC") || key.includes("SERVICE")) return "utility";
+  if (key.includes("AUTH") || key.includes("AUTENT")) return "auth";
+  return null;
+}
+
+async function lookupWhatsAppPricesByCountryRanges(
+  sheets: sheets_v4.Sheets,
+  sheetId: string,
+  destCountry: string
+): Promise<WhatsAppPrices | null> {
+  const countriesRange = envOr("SHEETS_WPP_COUNTRIES", "");
+  const headersRange = envOr("SHEETS_WPP_HEADERS", "");
+  const valuesRange = envOr("SHEETS_WPP_VALUES", "");
+
+  if (!countriesRange || !headersRange || !valuesRange) return null;
+
+  const [cres, hres, vres] = await Promise.all([
+    sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: countriesRange }),
+    sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: headersRange }),
+    sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: valuesRange }),
+  ]);
+
+  const countries = (cres.data.values ?? []) as string[][];
+  if (countries.length === 0) return null;
+
+  const dstKey = canon(destCountry);
+  const rowIdx = countries.findIndex((row) => canon(row[0]) === dstKey);
+  if (rowIdx < 0) return null;
+
+  const headers = (hres.data.values ?? []) as string[][];
+  const headerRow = headers[0] ?? [];
+  const indices: Record<"marketing" | "utility" | "auth", number> = {
+    marketing: -1,
+    utility: -1,
+    auth: -1,
+  };
+
+  for (let idx = 0; idx < headerRow.length; idx++) {
+    const variant = detectVariantFromHeader(headerRow[idx]);
+    if (variant && indices[variant] === -1) {
+      indices[variant] = idx;
+    }
+  }
+
+  const values = (vres.data.values ?? []) as string[][];
+  if (rowIdx >= values.length) return null;
+  const rowValues = values[rowIdx] ?? [];
+
+  const fallbackOrder: Record<"marketing" | "utility" | "auth", number[]> = {
+    marketing: [0],
+    utility: [1],
+    auth: [2],
+  };
+
+  for (const variant of ["marketing", "utility", "auth"] as const) {
+    if (indices[variant] >= 0) continue;
+    for (const fallbackIdx of fallbackOrder[variant]) {
+      if (fallbackIdx < rowValues.length) {
+        indices[variant] = fallbackIdx;
+        break;
+      }
+    }
+  }
+
+  const pick = (idx: number) => (idx >= 0 && idx < rowValues.length ? rowValues[idx] : "");
+
+  return {
+    marketing: parseMoney(pick(indices.marketing)),
+    utility: parseMoney(pick(indices.utility)),
+    auth: parseMoney(pick(indices.auth)),
+  };
+}
+
 // LEGACY: minutos salientes
 function findMinutesOutPriceLegacy(
   countries: string[][], headers: string[][], values: string[][], subsidiary: string, destCountry: string
@@ -288,14 +375,21 @@ export async function POST(req: NextRequest) {
         if (!subsidiary || !destCountry) return bad("Bad whatsapp payload");
         if (qty <= 0) return bad("Total qty is zero");
 
+        let prices: WhatsAppPrices | null = null;
         const row = lookupWhatsAppPriceRow(rows, subsidiary, destCountry);
-        if (!row) return bad("No price row for WhatsApp");
+        if (row) {
+          prices = resolveWhatsAppPrices(row, variantColumns);
+        } else {
+          prices = await lookupWhatsAppPricesByCountryRanges(sheets, SHEET_ID, destCountry);
+        }
+        if (!prices) return bad("No price row for WhatsApp");
 
-        const pMarketing = parseMoney(resolveWhatsAppCell(row, "marketing", variantColumns));
-        const pUtility = parseMoney(resolveWhatsAppCell(row, "utility", variantColumns));
-        const pAuth = parseMoney(resolveWhatsAppCell(row, "auth", variantColumns));
-
-        const unit = variant === "marketing" ? pMarketing : variant === "utility" ? pUtility : pAuth;
+        const unit =
+          variant === "marketing"
+            ? prices.marketing
+            : variant === "utility"
+            ? prices.utility
+            : prices.auth;
         const totalAmount = qty * unit;
         const ok: PricingOk = { ok: true, totalQty: qty, totalAmount, unitPrice: unit };
         return NextResponse.json(ok);
@@ -304,12 +398,16 @@ export async function POST(req: NextRequest) {
       if (isWhatsAppOld(body)) {
         const subsidiary = body.subsidiary;
         const dest = body.destCountry ?? body.subsidiary;
+        let prices: WhatsAppPrices | null = null;
         const row = lookupWhatsAppPriceRow(rows, subsidiary, dest);
-        if (!row) return bad("No price row for WhatsApp");
+        if (row) {
+          prices = resolveWhatsAppPrices(row, variantColumns);
+        } else {
+          prices = await lookupWhatsAppPricesByCountryRanges(sheets, SHEET_ID, dest);
+        }
+        if (!prices) return bad("No price row for WhatsApp");
 
-        const pMarketing = parseMoney(resolveWhatsAppCell(row, "marketing", variantColumns));
-        const pUtility = parseMoney(resolveWhatsAppCell(row, "utility", variantColumns));
-        const pAuth = parseMoney(resolveWhatsAppCell(row, "auth", variantColumns));
+        const { marketing: pMarketing, utility: pUtility, auth: pAuth } = prices;
 
         const mQty = Math.max(0, Number(body.marketingQty) || 0);
         const uQty = Math.max(0, Number(body.utilityQty) || 0);

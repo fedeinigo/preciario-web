@@ -11,8 +11,8 @@ const WHATSAPP_VARIANT_MATCHERS: Record<WhatsAppVariant, (key: string) => boolea
 
 const WHATSAPP_VARIANT_FALLBACK_COLUMNS: Record<WhatsAppVariant, readonly number[]> = {
   marketing: [3, 7],
-  utility: [4, 8],
-  auth: [5, 9],
+  utility: [8, 4],
+  auth: [9, 5],
 };
 
 export function normalizeSheetKey(input: unknown): string {
@@ -66,7 +66,6 @@ export function detectWhatsAppVariantColumns(values: string[][]): VariantColumnM
     for (const col of fallback) {
       if (!existing.includes(col)) existing.push(col);
     }
-    existing.sort((a, b) => a - b);
     detected[variant] = existing;
   }
 
