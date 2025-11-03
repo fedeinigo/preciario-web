@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { ProposalStatus } from "@prisma/client";
+import { ProposalStatus, WonDealType } from "@prisma/client";
 
 function getIdFromUrl(req: Request): string | null {
   try {
@@ -24,11 +24,24 @@ export async function PATCH(req: Request) {
   const id = getIdFromUrl(req);
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-  const { status } = (await req.json().catch(() => ({}))) as {
+  const { status, wonType } = (await req.json().catch(() => ({}))) as {
     status?: ProposalStatus;
+    wonType?: WonDealType | null;
   };
   if (!status || !["OPEN", "WON", "LOST"].includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+
+  let resolvedWonType: WonDealType | null = null;
+  if (status === "WON") {
+    if (!wonType) {
+      return NextResponse.json({ error: "Missing wonType" }, { status: 400 });
+    }
+    const allowedWonTypes: WonDealType[] = [WonDealType.NEW_CUSTOMER, WonDealType.UPSELL];
+    if (!allowedWonTypes.includes(wonType)) {
+      return NextResponse.json({ error: "Invalid wonType" }, { status: 400 });
+    }
+    resolvedWonType = wonType;
   }
 
   const p = await prisma.proposal.findUnique({
@@ -51,12 +64,14 @@ export async function PATCH(req: Request) {
     data: {
       status,
       wonAt: status === "WON" ? new Date() : null,
+      wonType: status === "WON" ? resolvedWonType : null,
     },
     select: {
       id: true,
       status: true,
       wonAt: true,
       updatedAt: true,
+      wonType: true,
     },
   });
 

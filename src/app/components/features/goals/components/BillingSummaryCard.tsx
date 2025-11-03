@@ -19,6 +19,7 @@ export type UserWonDeal = {
   manualDealId?: string;
   docId?: string | null;
   docUrl?: string | null;
+  wonType: "NEW_CUSTOMER" | "UPSELL";
 };
 
 type Totals = {
@@ -103,6 +104,16 @@ export default function BillingSummaryCard({
                   <p className="text-base font-semibold text-[#2f0f5d]">{deal.companyName}</p>
                   <p className="text-xs font-medium uppercase tracking-wide text-[#7c3aed]">
                     {deal.type === "auto" ? t("autoLabel") : t("manualLabel")}
+                    <span className="mx-1 text-[#c4b5fd]">·</span>
+                    <span
+                      className={
+                        deal.wonType === "UPSELL"
+                          ? "text-[#b45309]"
+                          : "text-[#2563eb]"
+                      }
+                    >
+                      {deal.wonType === "UPSELL" ? t("wonTypeUpsell") : t("wonTypeNew")}
+                    </span>
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

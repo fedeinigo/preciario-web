@@ -1,7 +1,7 @@
 // src/app/api/goals/wins/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { Role } from "@prisma/client";
+import { Role, WonDealType } from "@prisma/client";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -85,6 +85,7 @@ type DealResponse = {
   manualDealId?: string;
   docId?: string | null;
   docUrl?: string | null;
+  wonType: WonDealType;
 };
 
 function buildDealResponse(params: {
@@ -99,11 +100,13 @@ function buildDealResponse(params: {
   manualDealId?: string;
   docId?: string | null;
   docUrl?: string | null;
+  wonType?: WonDealType | null;
 }): DealResponse {
   const monthlyFee = Math.max(0, toCurrency(params.monthlyFee));
   const billedAmount = Math.max(0, toCurrency(params.billedAmount));
   const pendingAmount = Math.max(0, monthlyFee - billedAmount);
   const billingPct = monthlyFee > 0 ? (billedAmount / monthlyFee) * 100 : 0;
+  const wonType = params.wonType ?? WonDealType.NEW_CUSTOMER;
   return {
     id: params.id,
     type: params.type,
@@ -118,6 +121,7 @@ function buildDealResponse(params: {
     manualDealId: params.manualDealId,
     docId: params.docId,
     docUrl: params.docUrl,
+    wonType,
   };
 }
 
@@ -158,6 +162,7 @@ export async function GET(req: Request) {
         docId: true,
         docUrl: true,
         createdAt: true,
+        wonType: true,
         billing: { select: { billedAmount: true } },
       },
     }),
@@ -170,6 +175,7 @@ export async function GET(req: Request) {
         monthlyFee: true,
         proposalUrl: true,
         createdAt: true,
+        wonType: true,
         billing: { select: { billedAmount: true } },
       },
     }),
@@ -190,6 +196,7 @@ export async function GET(req: Request) {
         proposalId: proposal.id,
         docId: proposal.docId,
         docUrl: proposal.docUrl,
+        wonType: proposal.wonType ?? null,
       })
     );
   }
@@ -205,6 +212,7 @@ export async function GET(req: Request) {
         link: manual.proposalUrl ?? null,
         createdAt: manual.createdAt,
         manualDealId: manual.id,
+        wonType: manual.wonType,
       })
     );
   }
@@ -242,6 +250,7 @@ const createManualSchema = z.object({
   quarter: quarterSchema.optional(),
   userId: z.string().optional(),
   email: z.string().email().optional(),
+  wonType: z.enum([WonDealType.NEW_CUSTOMER, WonDealType.UPSELL]),
 });
 
 export async function POST(req: Request) {
@@ -256,7 +265,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  const { companyName, monthlyFee, proposalUrl, year, quarter, userId, email } = parsed.data;
+  const { companyName, monthlyFee, proposalUrl, year, quarter, userId, email, wonType } = parsed.data;
   const now = new Date();
   const effectiveYear = Number.isFinite(year) ? (year as number) : now.getFullYear();
   const effectiveQuarter = quarter ?? (((Math.floor(now.getMonth() / 3) + 1) as Quarter));
@@ -275,6 +284,7 @@ export async function POST(req: Request) {
       proposalUrl,
       year: effectiveYear,
       quarter: effectiveQuarter,
+      wonType,
     },
   });
 
@@ -288,6 +298,7 @@ export async function POST(req: Request) {
       link: deal.proposalUrl ?? null,
       createdAt: deal.createdAt,
       manualDealId: deal.id,
+      wonType: deal.wonType,
     }),
     { status: 201 }
   );

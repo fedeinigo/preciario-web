@@ -69,6 +69,7 @@ export type ProposalRecord = {
 
   status?: "OPEN" | "WON" | "LOST";
   wonAt?: string | Date | null;
+  wonType?: "NEW_CUSTOMER" | "UPSELL" | null;
 
   // Optional if not yet synced
   pipedriveLink?: string | null;

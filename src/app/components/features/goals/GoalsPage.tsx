@@ -100,13 +100,17 @@ export default function GoalsPage({
         deals?: Array<UserWonDeal>;
         totals?: { monthlyFees?: number; billed?: number; pending?: number };
       };
-      const normalizedDeals = (payload.deals ?? []).map((deal) => ({
-        ...deal,
-        monthlyFee: Number(deal.monthlyFee ?? 0),
-        billedAmount: Number(deal.billedAmount ?? 0),
-        pendingAmount: Number(deal.pendingAmount ?? 0),
-        billingPct: Number.isFinite(deal.billingPct) ? deal.billingPct : 0,
-      }));
+      const normalizedDeals = (payload.deals ?? []).map((deal) => {
+        const wonType: "NEW_CUSTOMER" | "UPSELL" = deal.wonType === "UPSELL" ? "UPSELL" : "NEW_CUSTOMER";
+        return {
+          ...deal,
+          monthlyFee: Number(deal.monthlyFee ?? 0),
+          billedAmount: Number(deal.billedAmount ?? 0),
+          pendingAmount: Number(deal.pendingAmount ?? 0),
+          billingPct: Number.isFinite(deal.billingPct) ? deal.billingPct : 0,
+          wonType,
+        } satisfies UserWonDeal;
+      });
       setMyProgress(Number(payload.progress ?? 0));
       setMyDeals(normalizedDeals);
       const totals = normalizedDeals.reduce(
@@ -231,13 +235,20 @@ export default function GoalsPage({
   }, [isSuperAdmin, role, loadMyWins, loadTeam]);
 
   const handleManualWon = React.useCallback(
-    async (payload: { companyName: string; monthlyFee: number; proposalUrl?: string | null; userId?: string }) => {
+    async (payload: {
+      companyName: string;
+      monthlyFee: number;
+      proposalUrl?: string | null;
+      userId?: string;
+      wonType: "NEW_CUSTOMER" | "UPSELL";
+    }) => {
       const body: Record<string, unknown> = {
         companyName: payload.companyName,
         monthlyFee: payload.monthlyFee,
         proposalUrl: payload.proposalUrl ?? undefined,
         year,
         quarter,
+        wonType: payload.wonType,
       };
       if (payload.userId) body.userId = payload.userId;
       const res = await fetch("/api/goals/wins", {

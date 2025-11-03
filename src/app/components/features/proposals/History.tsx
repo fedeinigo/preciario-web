@@ -31,6 +31,7 @@ import { useAdminUsers } from "./hooks/useAdminUsers";
 
 type SortKey = "id" | "company" | "country" | "email" | "monthly" | "created" | "status";
 type SortDir = "asc" | "desc";
+type WonType = "NEW_CUSTOMER" | "UPSELL";
 
 function QuickRanges({
   setFrom,
@@ -94,10 +95,13 @@ export default function History({
   const toastT = useTranslations("proposals.history.toast");
   const csvT = useTranslations("proposals.history.csv");
   const statusT = useTranslations("proposals.history.table.statusLabels");
+  const wonTypeModalT = useTranslations("proposals.history.wonTypeModal");
 
   const [rows, setRows] = useState<ProposalRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [remoteMeta, setRemoteMeta] = useState<ProposalsListMeta | undefined>();
+  const [wonSelection, setWonSelection] = useState<{ id: string; wonType: WonType } | null>(null);
+  const [markingWon, setMarkingWon] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -331,19 +335,43 @@ export default function History({
   const canDelete = (p: ProposalRecord) =>
     isSuperAdmin || (role === "usuario" && p.userEmail === currentEmail);
 
-  const setWon = async (id: string) => {
+  const markWon = async (id: string, wonType: WonType): Promise<boolean> => {
     const r = await fetch(`/api/proposals/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "WON" }),
+      body: JSON.stringify({ status: "WON", wonType }),
     });
     if (!r.ok) {
       const errorText = await r.text().catch(() => "");
       toast.error(errorText || toastT("markWonError"));
-      return;
+      return false;
     }
     toast.success(toastT("markWonSuccess"));
     load();
+    return true;
+  };
+
+  const openWonModal = (id: string) => {
+    setWonSelection({ id, wonType: "NEW_CUSTOMER" });
+  };
+
+  const closeWonModal = () => {
+    if (!markingWon) {
+      setWonSelection(null);
+    }
+  };
+
+  const confirmWonSelection = async () => {
+    if (!wonSelection) return;
+    setMarkingWon(true);
+    try {
+      const ok = await markWon(wonSelection.id, wonSelection.wonType);
+      if (ok) {
+        setWonSelection(null);
+      }
+    } finally {
+      setMarkingWon(false);
+    }
   };
 
   // NUEVO: revertir WON -> OPEN
@@ -560,24 +588,39 @@ export default function History({
                         {formatDateTime(p.createdAt as unknown as string)}
                       </td>
                       <td className="table-td">
-                        <span
-                          className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${
-                            p.status === "WON"
-                              ? "bg-green-100 text-green-700"
-                              : p.status === "LOST"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-gray-100 text-gray-700"
-                          }`}
-                          title={
-                            p.status === "WON"
-                              ? tableT("statusBadges.won")
-                              : p.status === "LOST"
-                              ? tableT("statusBadges.lost")
-                              : tableT("statusBadges.open")
-                          }
-                        >
-                          {translateStatus(p.status)}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span
+                            className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${
+                              p.status === "WON"
+                                ? "bg-green-100 text-green-700"
+                                : p.status === "LOST"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-gray-100 text-gray-700"
+                            }`}
+                            title={
+                              p.status === "WON"
+                                ? tableT("statusBadges.won")
+                                : p.status === "LOST"
+                                ? tableT("statusBadges.lost")
+                                : tableT("statusBadges.open")
+                            }
+                          >
+                            {translateStatus(p.status)}
+                          </span>
+                          {p.status === "WON" && (
+                            <span
+                              className={`inline-block rounded px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                                p.wonType === "UPSELL"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-blue-100 text-blue-700"
+                              }`}
+                            >
+                              {p.wonType === "UPSELL"
+                                ? tableT("wonTypeBadges.upsell")
+                                : tableT("wonTypeBadges.newCustomer")}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="table-td">
                         <div className="flex items-center gap-2 justify-end">
@@ -594,7 +637,7 @@ export default function History({
                             <button
                               className="btn-ghost !py-1 text-emerald-600"
                               title={tableT("actions.markWonTooltip")}
-                              onClick={() => setWon(p.id)}
+                              onClick={() => openWonModal(p.id)}
                             >
                               <Trophy className="h-4 w-4 mr-1" />
                               {tableT("actions.markWon")}
@@ -697,8 +740,63 @@ export default function History({
               </div>
             </div>
           )}
-        </div>
       </div>
+    </div>
+
+      <Modal
+        open={!!wonSelection}
+        onClose={closeWonModal}
+        title={wonTypeModalT("title")}
+        disableCloseOnBackdrop={markingWon}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button className="btn-ghost" onClick={closeWonModal} disabled={markingWon}>
+              {wonTypeModalT("cancel")}
+            </button>
+            <button
+              className="btn-primary"
+              onClick={confirmWonSelection}
+              disabled={markingWon}
+            >
+              {markingWon ? wonTypeModalT("saving") : wonTypeModalT("confirm")}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">{wonTypeModalT("description")}</p>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                (wonSelection?.wonType ?? "NEW_CUSTOMER") === "NEW_CUSTOMER"
+                  ? "border-emerald-500 bg-emerald-50 text-emerald-600"
+                  : "border-gray-300 text-gray-600 hover:border-emerald-400"
+              }`}
+              onClick={() =>
+                setWonSelection((prev) => (prev ? { ...prev, wonType: "NEW_CUSTOMER" } : prev))
+              }
+              disabled={markingWon}
+            >
+              {wonTypeModalT("newCustomer")}
+            </button>
+            <button
+              type="button"
+              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                wonSelection?.wonType === "UPSELL"
+                  ? "border-amber-500 bg-amber-50 text-amber-600"
+                  : "border-gray-300 text-gray-600 hover:border-amber-400"
+              }`}
+              onClick={() =>
+                setWonSelection((prev) => (prev ? { ...prev, wonType: "UPSELL" } : prev))
+              }
+              disabled={markingWon}
+            >
+              {wonTypeModalT("upsell")}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={!!confirmId}

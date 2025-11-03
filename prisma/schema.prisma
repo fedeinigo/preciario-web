@@ -143,6 +143,7 @@ model Proposal {
   // Estado comercial
   status       ProposalStatus @default(OPEN)
   wonAt        DateTime?
+  wonType      WonDealType?
   deletedAt    DateTime?
 
   // Integración Pipedrive (opcionales)
@@ -196,6 +197,7 @@ model ManualWonDeal {
   createdById String
   companyName String
   monthlyFee  Decimal  @db.Decimal(14, 2)
+  wonType     WonDealType @default(NEW_CUSTOMER)
   proposalUrl String?
   year        Int
   quarter     Int
@@ -510,4 +512,9 @@ enum MapacheDeliverableType {
   QUOTE
   SCOPE_AND_QUOTE
   OTHER
+}
+
+enum WonDealType {
+  NEW_CUSTOMER
+  UPSELL
 }

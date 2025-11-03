@@ -153,6 +153,7 @@ export async function GET(request: Request) {
       updatedAt: p.updatedAt,
       status: p.status,
       wonAt: p.wonAt,
+      wonType: p.wonType ?? null,
       items: p.items.map((pi) => ({
         sku: pi.item?.sku ?? "",
         name: pi.item?.name ?? "",
@@ -192,6 +193,7 @@ export async function GET(request: Request) {
         updatedAt: true,
         status: true,
         wonAt: true,
+        wonType: true,
         items: {
           select: {
             quantity: true,
@@ -221,6 +223,7 @@ export async function GET(request: Request) {
     updatedAt: p.updatedAt,
     status: p.status,
     wonAt: p.wonAt,
+    wonType: p.wonType ?? null,
     items: p.items.map((pi) => ({
       sku: pi.item?.sku ?? "",
       name: pi.item?.name ?? "",
@@ -286,6 +289,7 @@ export async function POST(req: Request) {
     userId: resolvedUserId,
     userEmail: resolvedUserEmail,
     status: "OPEN",
+    wonType: null,
     items: {
       create: body.items.map((it) => ({
         quantity: it.quantity,
@@ -316,6 +320,7 @@ export async function POST(req: Request) {
       updatedAt: true,
       status: true,
       wonAt: true,
+      wonType: true,
     },
   });
 
