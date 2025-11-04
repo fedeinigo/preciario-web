@@ -162,9 +162,10 @@ export default function Navbar() {
   const rawTeam = (session?.user?.team as string | null) ?? null;
   const name = normalizeProfileText(session?.user?.name) || fallbacksT("name");
   const canSeeUsers = ADMIN_ROLES.has(appRole);
-  const canOpenMapachePortal = rawTeam === "Mapaches" || ADMIN_ROLES.has(appRole);
-  const canAccessPartnerPortal = ADMIN_ROLES.has(appRole);
-  const canAccessMarketingPortal = ADMIN_ROLES.has(appRole);
+  const userPortals = session?.user?.portals ?? ["direct"];
+  const canOpenMapachePortal = userPortals.includes("mapache");
+  const canAccessPartnerPortal = userPortals.includes("partner");
+  const canAccessMarketingPortal = userPortals.includes("marketing");
 
   const readHash = (): Tab => {
     const h = (globalThis?.location?.hash || "").replace("#", "");

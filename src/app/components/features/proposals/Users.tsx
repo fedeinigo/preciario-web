@@ -11,6 +11,8 @@ import { useTranslations } from "@/app/LanguageProvider";
 import { normalizeSearchText } from "@/lib/normalize-search-text";
 import { fetchActiveUsersCount } from "./lib/proposals-response";
 import { useAdminUsers } from "./hooks/useAdminUsers";
+import type { PortalAccessId } from "@/constants/portals";
+import { MUTABLE_PORTAL_ACCESS, includeDefaultPortal } from "@/constants/portals";
 
 type Role = "superadmin" | "admin" | "lider" | "usuario";
 
@@ -23,6 +25,7 @@ type UserRow = {
   team: string | null;
   createdAt: string;
   updatedAt: string;
+   portals: PortalAccessId[];
   /** Si el backend lo devuelve, lo mostramos sutilmente. Si no existe, simplemente se oculta. */
   lastLoginAt?: string | null;
 };
@@ -110,6 +113,7 @@ export default function Users() {
   const toastT = useTranslations("admin.users.toast");
   const exportT = useTranslations("admin.users.export");
   const relativeT = useTranslations("admin.users.relative");
+  const portalsT = useTranslations("admin.users.portals");
   const rolesT = useTranslations("common.roles");
 
   // ====== data ======
@@ -249,6 +253,7 @@ export default function Users() {
           userId,
           team: "team" in changes ? changes.team ?? null : undefined,
           role: "role" in changes ? (changes.role as Role) : undefined,
+          portals: "portals" in changes ? changes.portals : undefined,
         }),
       });
 
@@ -267,6 +272,20 @@ export default function Users() {
     } finally {
       setSaving(null);
     }
+  };
+
+  const handlePortalToggle = (
+    user: UserRow,
+    portal: (typeof MUTABLE_PORTAL_ACCESS)[number],
+    enabled: boolean,
+  ) => {
+    const currentlyEnabled = user.portals.includes(portal);
+    if (enabled === currentlyEnabled) return;
+    const base = enabled
+      ? [...user.portals, portal]
+      : user.portals.filter((p) => p !== portal);
+    const next = includeDefaultPortal(base);
+    void saveUser(user.id, { portals: next });
   };
 
   // ====== mÃ©tricas para tarjetas ======
@@ -506,6 +525,7 @@ export default function Users() {
                         ["name", tableT("headers.name")],
                         ["role", tableT("headers.role")],
                         ["team", tableT("headers.team")],
+                        ["", tableT("headers.portals")],
                         ["", tableT("headers.actions")],
                       ] as Array<[SortKey | "", string]>
                     ).map(([k, label], idx) => {
@@ -623,6 +643,35 @@ export default function Users() {
                         />
                       </td>
 
+                      {/* Portales */}
+                      <td className="table-td">
+                        <div className="space-y-1 text-xs">
+                          <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                            {portalsT("directAlways")}
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            {MUTABLE_PORTAL_ACCESS.map((portal) => {
+                              const checked = u.portals.includes(portal);
+                              return (
+                                <label
+                                  key={portal}
+                                  className="inline-flex items-center gap-2 rounded px-1 py-0.5 text-[13px] font-medium text-gray-700 hover:bg-black/5"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="h-3.5 w-3.5 rounded border-gray-300 text-[rgb(var(--primary))] focus:ring-[rgb(var(--primary))]"
+                                    checked={checked}
+                                    disabled={saving === u.id}
+                                    onChange={(e) => handlePortalToggle(u, portal, e.target.checked)}
+                                  />
+                                  <span>{portalsT(portal)}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </td>
+
                       {/* Acciones */}
                       <td className="table-td">
                         <div className="relative flex justify-center">
@@ -676,7 +725,7 @@ export default function Users() {
                   ))}
                   {filteredSortedUsers.length === 0 ? (
                     <tr>
-                      <td className="table-td text-center text-gray-500" colSpan={5}>
+                      <td className="table-td text-center text-gray-500" colSpan={6}>
                         {tableT("noResults")}
                       </td>
                     </tr>

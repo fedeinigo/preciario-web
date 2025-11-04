@@ -5,9 +5,46 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { Adapter } from "next-auth/adapters";
 import type { JWT } from "next-auth/jwt";
 import type { AppRole } from "@/constants/teams";
+import { PortalKey as DbPortalKey, Role as DbRole } from "@prisma/client";
+import { includeDefaultPortal, type PortalAccessId } from "@/constants/portals";
 import { appRoleFromDb } from "@/lib/roles";
 import prisma from "@/lib/prisma";
 import { isFeatureEnabled } from "@/lib/feature-flags";
+
+const DB_PORTAL_TO_ID: Record<DbPortalKey, PortalAccessId> = {
+  [DbPortalKey.DIRECT]: "direct",
+  [DbPortalKey.MAPACHE]: "mapache",
+  [DbPortalKey.PARTNER]: "partner",
+  [DbPortalKey.MARKETING]: "marketing",
+};
+
+function resolvePortalAccess({
+  portalAccesses,
+  role,
+  team,
+}: {
+  portalAccesses: { portal: DbPortalKey }[] | null | undefined;
+  role: DbRole;
+  team: string | null | undefined;
+}): PortalAccessId[] {
+  const manual = portalAccesses ?? [];
+  if (manual.length > 0) {
+    const keys = manual.map((entry) => DB_PORTAL_TO_ID[entry.portal]);
+    return includeDefaultPortal(keys);
+  }
+
+  const fallback = new Set<PortalAccessId>(["direct"]);
+  const appRole = appRoleFromDb(role);
+  if (appRole === "superadmin" || appRole === "admin") {
+    fallback.add("mapache");
+    fallback.add("partner");
+    fallback.add("marketing");
+  } else if (team === "Mapaches") {
+    fallback.add("mapache");
+  }
+
+  return includeDefaultPortal(fallback);
+}
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
@@ -66,13 +103,29 @@ export const authOptions: NextAuthOptions = {
       if (dbUserId) {
         const dbUser = await prisma.user.findUnique({
           where: { id: dbUserId },
-          select: { id: true, role: true, team: true, email: true },
+          select: {
+            id: true,
+            role: true,
+            team: true,
+            email: true,
+            portalAccesses: {
+              select: {
+                portal: true,
+              },
+            },
+          },
         });
         if (dbUser) {
+          const appRole = appRoleFromDb(dbUser.role);
           token.id = dbUser.id;
           token.email = dbUser.email ?? token.email;
-          token.role = appRoleFromDb(dbUser.role);
+          token.role = appRole;
           token.team = dbUser.team ?? null;
+          token.portals = resolvePortalAccess({
+            portalAccesses: dbUser.portalAccesses,
+            role: dbUser.role,
+            team: dbUser.team,
+          });
         }
         return token as JWT;
       }
@@ -81,12 +134,27 @@ export const authOptions: NextAuthOptions = {
       if (token?.email) {
         const dbUser = await prisma.user.findUnique({
           where: { email: token.email as string },
-          select: { id: true, role: true, team: true },
+          select: {
+            id: true,
+            role: true,
+            team: true,
+            portalAccesses: {
+              select: {
+                portal: true,
+              },
+            },
+          },
         });
         if (dbUser) {
+          const appRole = appRoleFromDb(dbUser.role);
           token.id = dbUser.id;
-          token.role = appRoleFromDb(dbUser.role);
+          token.role = appRole;
           token.team = dbUser.team ?? null;
+          token.portals = resolvePortalAccess({
+            portalAccesses: dbUser.portalAccesses,
+            role: dbUser.role,
+            team: dbUser.team,
+          });
         }
       }
 
@@ -98,6 +166,10 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.role = (token.role as AppRole) ?? "usuario";
         session.user.team = (token.team as string | null) ?? null;
+        const portalList = Array.isArray(token.portals)
+          ? (token.portals as PortalAccessId[])
+          : [];
+        session.user.portals = includeDefaultPortal(portalList);
       }
       return session;
     },

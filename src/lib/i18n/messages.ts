@@ -585,6 +585,7 @@ export const messages: Record<Locale, DeepRecord> = {
             name: "Nombre",
             role: "Rol",
             team: "Equipo",
+            portals: "Portales",
             actions: "Acciones",
           },
           fallback: "—",
@@ -675,6 +676,14 @@ export const messages: Record<Locale, DeepRecord> = {
           rename: "Renombrar",
           delete: "Eliminar",
           unnamed: "(sin nombre)",
+          portals: {
+            title: "Acceso a portales",
+            helper:
+              "{count, plural, =0 {Este equipo no tiene integrantes para actualizar.} one {Aplicarás cambios a # integrante.} other {Aplicarás cambios a # integrantes.}}",
+            all: "Asignado a todo el equipo.",
+            partial: "{count} de {total} integrantes lo tienen.",
+            none: "Ningún integrante lo tiene asignado.",
+          },
         },
         toast: {
           createSuccess: "Equipo creado",
@@ -683,6 +692,10 @@ export const messages: Record<Locale, DeepRecord> = {
           renameError: "No se pudo renombrar el equipo",
           deleteSuccess: "Equipo eliminado",
           deleteError: "No se pudo eliminar el equipo",
+          portalsUpdated: "Accesos de {team} a {portal} actualizados.",
+          portalsError: "No se pudieron actualizar los accesos del equipo.",
+          portalsNoMembers: "Este equipo no tiene integrantes para actualizar.",
+          portalsNoChanges: "Los accesos ya estaban configurados.",
         },
         dialogs: {
           rename: {
@@ -779,6 +792,18 @@ export const messages: Record<Locale, DeepRecord> = {
           minutes: "hace {count}m",
           hours: "hace {count}h",
           days: "hace {count}d",
+        },
+        portals: {
+          directAlways: "Portal Directo habilitado de forma nativa.",
+          mapache: "Portal Mapache",
+          partner: "Portal Partner",
+          marketing: "Portal Marketing",
+        },
+        portals: {
+          directAlways: "Portal Direto habilitado automaticamente.",
+          mapache: "Portal Mapache",
+          partner: "Portal Partner",
+          marketing: "Portal Marketing",
         },
       },
     },
@@ -2360,6 +2385,7 @@ export const messages: Record<Locale, DeepRecord> = {
             name: "Name",
             role: "Role",
             team: "Team",
+            portals: "Portals",
             actions: "Actions",
           },
           fallback: "—",
@@ -2450,6 +2476,14 @@ export const messages: Record<Locale, DeepRecord> = {
           rename: "Rename",
           delete: "Delete",
           unnamed: "(no name)",
+          portals: {
+            title: "Portal access",
+            helper:
+              "{count, plural, =0 {This team has no members to update.} one {Apply changes to # member.} other {Apply changes to # members.}}",
+            all: "Everyone in the team has access.",
+            partial: "{count} of {total} members have access.",
+            none: "No member has access.",
+          },
         },
         toast: {
           createSuccess: "Team created",
@@ -2458,6 +2492,10 @@ export const messages: Record<Locale, DeepRecord> = {
           renameError: "Couldn't rename the team",
           deleteSuccess: "Team deleted",
           deleteError: "Couldn't delete the team",
+          portalsUpdated: "{portal} access updated for {team}.",
+          portalsError: "We couldn't update the team's portal access.",
+          portalsNoMembers: "This team has no members to update.",
+          portalsNoChanges: "No changes were needed.",
         },
         dialogs: {
           rename: {
@@ -2554,6 +2592,12 @@ export const messages: Record<Locale, DeepRecord> = {
           minutes: "{count}m ago",
           hours: "{count}h ago",
           days: "{count}d ago",
+        },
+        portals: {
+          directAlways: "Direct Portal is always enabled.",
+          mapache: "Mapache Portal",
+          partner: "Partner Portal",
+          marketing: "Marketing Portal",
         },
       },
     },
@@ -4133,6 +4177,7 @@ export const messages: Record<Locale, DeepRecord> = {
             name: "Nome",
             role: "Função",
             team: "Equipe",
+            portals: "Portais",
             actions: "Ações",
           },
           fallback: "—",
@@ -4223,6 +4268,14 @@ export const messages: Record<Locale, DeepRecord> = {
           rename: "Renomear",
           delete: "Excluir",
           unnamed: "(sem nome)",
+          portals: {
+            title: "Acesso aos portais",
+            helper:
+              "{count, plural, =0 {Este time não tem integrantes para atualizar.} one {Aplicará alterações a # integrante.} other {Aplicará alterações a # integrantes.}}",
+            all: "Todos da equipe têm acesso.",
+            partial: "{count} de {total} integrantes têm acesso.",
+            none: "Nenhum integrante tem acesso.",
+          },
         },
         toast: {
           createSuccess: "Equipe criada",
@@ -4231,6 +4284,10 @@ export const messages: Record<Locale, DeepRecord> = {
           renameError: "Não foi possível renomear a equipe",
           deleteSuccess: "Equipe excluída",
           deleteError: "Não foi possível excluir a equipe",
+          portalsUpdated: "Acesso ao {portal} atualizado para {team}.",
+          portalsError: "Não foi possível atualizar os acessos do time.",
+          portalsNoMembers: "Este time não tem integrantes para atualizar.",
+          portalsNoChanges: "Os acessos já estavam configurados.",
         },
         dialogs: {
           rename: {
@@ -4288,6 +4345,7 @@ export const messages: Record<Locale, DeepRecord> = {
             name: "Nome",
             role: "Função",
             team: "Equipe",
+            portals: "Portais",
             actions: "Ações",
           },
           sortTooltip: "Ordenar",
