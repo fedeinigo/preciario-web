@@ -34,6 +34,7 @@ model User {
   mapacheAssignedTasks       MapacheTask[]              @relation("MapacheTaskAssignee")  // asignadas al usuario
   mapacheDeliverablesAdded   MapacheTaskDeliverable[]   @relation("MapacheDeliverableAddedBy") // entregables subidos por el usuario
   mapacheFilterPresets       MapacheFilterPreset[]      @relation("MapacheFilterPresetCreatedBy")
+  marketingReports           MarketingReport[]
 }
 
 model Account {
@@ -430,6 +431,23 @@ model MapacheStatus {
 /* =========================
    ENUMS
 ========================= */
+model MarketingReport {
+  id           String   @id @default(cuid())
+  documentId   String   @unique
+  name         String
+  companyName  String
+  country      String?
+  segment      String?
+  url          String
+  createdAt    DateTime @default(now())
+  createdById  String
+
+  createdBy    User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([createdById, createdAt])
+  @@index([createdAt])
+}
+
 enum LanguageCode {
   es
   en
