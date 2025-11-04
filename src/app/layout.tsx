@@ -2,6 +2,8 @@
 import "./globals.css";
 import type { Metadata } from "next";
 
+import { Suspense } from "react";
+
 import Navbar from "@/app/components/Navbar";
 import ClientSessionBoundary from "@/app/ClientSessionBoundary";
 import SessionProviderWrapper from "./SessionProviderWrapper";
@@ -40,7 +42,9 @@ export default async function RootLayout({
         <body>
           <LanguageProvider>
             <SessionProviderWrapper>
-              <Navbar />
+              <Suspense fallback={null}>
+                <Navbar />
+              </Suspense>
               <main className="pt-[var(--nav-h)]">{children}</main>
             </SessionProviderWrapper>
           </LanguageProvider>
@@ -56,7 +60,9 @@ export default async function RootLayout({
       <body>
         <LanguageProvider>
           <ClientSessionBoundary session={session ?? null}>
-            <Navbar session={session} />
+            <Suspense fallback={null}>
+              <Navbar session={session} />
+            </Suspense>
             <main className="pt-[var(--nav-h)]">{children}</main>
           </ClientSessionBoundary>
         </LanguageProvider>
