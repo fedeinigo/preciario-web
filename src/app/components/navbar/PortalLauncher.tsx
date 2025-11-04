@@ -7,8 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import Modal from "@/app/components/ui/Modal";
 import { useTranslations } from "@/app/LanguageProvider";
-
-type PortalOptionId = "direct" | "mapache" | "partner" | "marketing";
+import type { PortalAccessId } from "@/constants/portals";
 
 type PortalLauncherProps = {
   canAccessMapache: boolean;
@@ -21,13 +20,13 @@ type PortalLauncherProps = {
 };
 
 type PortalOption = {
-  id: PortalOptionId;
+  id: PortalAccessId;
   label: string;
   description: string;
   href: string;
 };
 
-const PORTAL_ROUTES: Record<PortalOptionId, string> = {
+const PORTAL_ROUTES: Record<PortalAccessId, string> = {
   direct: "/",
   mapache: "/mapache-portal/generator",
   partner: "/partner-portal",

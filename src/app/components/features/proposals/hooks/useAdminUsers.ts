@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { AppRole } from "@/constants/teams";
+import type { PortalAccessId } from "@/constants/portals";
 
 export type AdminUser = {
   id: string;
@@ -13,6 +14,7 @@ export type AdminUser = {
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string | null;
+  portals: PortalAccessId[];
 };
 
 export type UseAdminUsersOptions = {

@@ -204,9 +204,10 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const email = session?.user?.email ?? fallbacksT("email");
   const currentEmail = session?.user?.email ?? "";
   const canSeeUsers = ADMIN_ROLES.has(appRole);
-  const canOpenMapachePortal = rawTeam === "Mapaches" || ADMIN_ROLES.has(appRole);
-  const canAccessPartnerPortal = ADMIN_ROLES.has(appRole);
-  const canAccessMarketingPortal = ADMIN_ROLES.has(appRole);
+  const userPortals = session?.user?.portals ?? ["direct"];
+  const canOpenMapachePortal = userPortals.includes("mapache");
+  const canAccessPartnerPortal = userPortals.includes("partner");
+  const canAccessMarketingPortal = userPortals.includes("marketing");
 
   const [activeTab, setActiveTab] = React.useState<Tab>(readHash());
   const [userModal, setUserModal] = React.useState(false);

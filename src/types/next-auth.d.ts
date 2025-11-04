@@ -1,6 +1,7 @@
 // src/types/next-auth.d.ts
 import "next-auth";
 import "next-auth/jwt";
+import type { PortalAccessId } from "@/constants/portals";
 
 type AppRole = "superadmin" | "admin" | "lider" | "usuario";
 
@@ -19,6 +20,7 @@ declare module "next-auth" {
       image?: string | null;
       role: AppRole;
       team: string | null;
+      portals: PortalAccessId[];
     };
   }
 }
@@ -31,5 +33,6 @@ declare module "next-auth/jwt" {
     accessToken?: string | null;
     refreshToken?: string | null;
     accessTokenExpires?: number | null; // epoch ms
+    portals?: PortalAccessId[];
   }
 }

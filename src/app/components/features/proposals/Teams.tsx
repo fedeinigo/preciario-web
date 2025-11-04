@@ -2,14 +2,16 @@
 "use client";
 
 import React from "react";
-import { Users, Crown, Pencil, Trash2, UserCheck } from "lucide-react";
+import { Users, Crown, Pencil, Trash2, UserCheck, Loader2 } from "lucide-react";
 import ConfirmDialog from "@/app/components/ui/ConfirmDialog";
 import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import type { AdminUser } from "./hooks/useAdminUsers";
+import { MUTABLE_PORTAL_ACCESS, includeDefaultPortal } from "@/constants/portals";
 
 type TeamRow = { id: string; name: string; emoji?: string | null };
+type PortalState = "all" | "none" | "partial";
 
 // Helper de tipado seguro para leer errores de APIs
 function extractApiError(data: unknown): string | undefined {
@@ -48,6 +50,52 @@ function TeamCardSkeleton() {
   );
 }
 
+function TeamPortalToggleRow({
+  label,
+  state,
+  disabled,
+  description,
+  onToggle,
+}: {
+  label: string;
+  state: PortalState;
+  disabled: boolean;
+  description?: string;
+  onToggle: (checked: boolean) => void;
+}) {
+  const ref = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = state === "partial";
+    }
+  }, [state]);
+
+  return (
+    <label
+      className={[
+        "flex items-start gap-2 rounded px-2 py-1 transition",
+        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-black/5",
+      ].join(" ")}
+    >
+      <input
+        ref={ref}
+        type="checkbox"
+        className="mt-1 h-4 w-4 rounded border-gray-300 text-[rgb(var(--primary))] focus:ring-[rgb(var(--primary))]"
+        checked={state === "all"}
+        disabled={disabled}
+        onChange={(event) => onToggle(event.target.checked)}
+      />
+      <div className="flex flex-col">
+        <span className="text-[13px] font-medium text-gray-700">{label}</span>
+        {description ? (
+          <span className="text-[11px] leading-tight text-gray-500">{description}</span>
+        ) : null}
+      </div>
+    </label>
+  );
+}
+
 // ---------- Componente ----------
 export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const canEdit = isSuperAdmin;
@@ -55,6 +103,7 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const teamsT = useTranslations("admin.teams");
   const toastT = useTranslations("admin.teams.toast");
   const dialogT = useTranslations("admin.teams.dialogs");
+  const portalsT = useTranslations("admin.users.portals");
 
   const [teams, setTeams] = React.useState<TeamRow[]>([]);
   const {
@@ -82,6 +131,7 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
 
   // toggle admin: mostrar también equipos vacíos
   const [showAllTeams, setShowAllTeams] = React.useState(false);
+  const [portalsSavingTeam, setPortalsSavingTeam] = React.useState<string | null>(null);
 
   const loading = loadingTeams || adminUsersLoading;
 
@@ -195,6 +245,74 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     }
   };
 
+  const handleTeamPortalToggle = React.useCallback(
+    async ({
+      teamId,
+      teamName,
+      portal,
+      members,
+      enable,
+    }: {
+      teamId: string;
+      teamName: string;
+      portal: (typeof MUTABLE_PORTAL_ACCESS)[number];
+      members: AdminUser[];
+      enable: boolean;
+    }) => {
+      if (members.length === 0) {
+        toast.info(toastT("portalsNoMembers"));
+        return;
+      }
+      setPortalsSavingTeam(teamId);
+      try {
+        let changed = false;
+        for (const member of members) {
+          const hasPortal = member.portals.includes(portal);
+          if (hasPortal === enable) continue;
+          changed = true;
+          const base = enable
+            ? [...member.portals, portal]
+            : member.portals.filter((p) => p !== portal);
+          const next = includeDefaultPortal(base);
+          const response = await fetch("/api/admin/users", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: member.id,
+              portals: next,
+            }),
+          });
+          if (!response.ok) {
+            const data: unknown = await response.json().catch(() => ({}));
+            const msg =
+              typeof data === "object" && data && "error" in data
+                ? (data as { error?: string }).error
+                : undefined;
+            throw new Error(msg ?? "Failed");
+          }
+        }
+
+        if (!changed) {
+          toast.info(toastT("portalsNoChanges"));
+        } else {
+          await reloadAdminUsers().catch(() => undefined);
+          toast.success(
+            toastT("portalsUpdated", {
+              team: teamName,
+              portal: portalsT(portal),
+            }),
+          );
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error(toastT("portalsError"));
+      } finally {
+        setPortalsSavingTeam(null);
+      }
+    },
+    [portalsT, reloadAdminUsers, toastT],
+  );
+
   // --- Agrupación ---
   type Grouped = { leaders: AdminUser[]; members: AdminUser[] };
   const grouped: Record<string, Grouped> = React.useMemo(() => {
@@ -294,6 +412,21 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
               {teamsToRender.map((t) => {
                 const g = grouped[t.name] || { leaders: [], members: [] };
                 const total = g.leaders.length + g.members.length;
+                const teamMembers: AdminUser[] = [...g.leaders, ...g.members];
+                const totalMembers = teamMembers.length;
+                const portalStates = MUTABLE_PORTAL_ACCESS.map((portal) => {
+                  const withPortal = teamMembers.filter((member) => member.portals.includes(portal)).length;
+                  let state: PortalState = "none";
+                  if (totalMembers === 0 || withPortal === 0) {
+                    state = "none";
+                  } else if (withPortal === totalMembers) {
+                    state = "all";
+                  } else {
+                    state = "partial";
+                  }
+                  return { portal, state, withPortal };
+                });
+                const togglesDisabled = !canEdit || portalsSavingTeam === t.id || totalMembers === 0;
 
                 return (
                   <div key={t.id} className="rounded-2xl border bg-white shadow-sm overflow-hidden">
@@ -340,6 +473,53 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
 
                     {/* Cuerpo */}
                     <div className="p-4">
+                      <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="text-[12px] font-semibold uppercase tracking-wide text-gray-600">
+                            {teamsT("card.portals.title")}
+                          </div>
+                          {portalsSavingTeam === t.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-[rgb(var(--primary))]" />
+                          ) : null}
+                        </div>
+                        <p className="mt-1 text-[11px] text-gray-500">
+                          {teamsT("card.portals.helper", { count: totalMembers })}
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          {portalStates.map(({ portal, state, withPortal }) => {
+                            const description =
+                              totalMembers === 0
+                                ? undefined
+                                : state === "all"
+                                  ? teamsT("card.portals.all", { total: totalMembers })
+                                  : state === "partial"
+                                    ? teamsT("card.portals.partial", {
+                                        count: withPortal,
+                                        total: totalMembers,
+                                      })
+                                    : teamsT("card.portals.none");
+                            return (
+                              <TeamPortalToggleRow
+                                key={portal}
+                                label={portalsT(portal)}
+                                state={state}
+                                disabled={togglesDisabled}
+                                description={description}
+                                onToggle={(checked) =>
+                                  handleTeamPortalToggle({
+                                    teamId: t.id,
+                                    teamName: t.name,
+                                    portal,
+                                    members: teamMembers,
+                                    enable: checked,
+                                  })
+                                }
+                              />
+                            );
+                          })}
+                        </div>
+                        <p className="mt-2 text-[11px] text-gray-500">{portalsT("directAlways")}</p>
+                      </div>
                       {/* Líderes */}
                       <div className="mb-3">
                         <div className="flex items-center gap-2 text-[13px] font-semibold text-gray-700">
