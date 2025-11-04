@@ -799,12 +799,6 @@ export const messages: Record<Locale, DeepRecord> = {
           partner: "Portal Partner",
           marketing: "Portal Marketing",
         },
-        portals: {
-          directAlways: "Portal Direto habilitado automaticamente.",
-          mapache: "Portal Mapache",
-          partner: "Portal Partner",
-          marketing: "Portal Marketing",
-        },
       },
     },
     goals: {
@@ -4385,6 +4379,12 @@ export const messages: Record<Locale, DeepRecord> = {
           minutes: "há {count}m",
           hours: "há {count}h",
           days: "há {count}d",
+        },
+        portals: {
+          directAlways: "Portal Direto habilitado automaticamente.",
+          mapache: "Portal Mapache",
+          partner: "Portal Partner",
+          marketing: "Portal Marketing",
         },
       },
     },

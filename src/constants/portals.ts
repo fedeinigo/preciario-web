@@ -9,11 +9,11 @@ export const ORDERED_PORTAL_ACCESS: readonly PortalAccessId[] = [
   "marketing",
 ];
 
-export const MUTABLE_PORTAL_ACCESS: readonly PortalAccessId[] = [
+export const MUTABLE_PORTAL_ACCESS = [
   "mapache",
   "partner",
   "marketing",
-];
+] as const satisfies readonly PortalAccessId[];
 
 export function includeDefaultPortal(
   portals: Iterable<PortalAccessId> | null | undefined,
