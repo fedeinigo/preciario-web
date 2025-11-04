@@ -413,7 +413,28 @@ function GeneratorSection() {
   );
 }
 
-export default function MarketingPortalPage() {
+function MarketingPortalFallback() {
+  return (
+    <main className="min-h-[calc(100vh-var(--nav-h))] bg-gradient-to-b from-[#f5f7ff] via-[#f1f2f8] to-[#eef0f7] px-4 py-16 text-slate-900 md:px-8 lg:px-12">
+      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-10">
+        <div className="flex flex-col gap-4 border-b border-white/40 pb-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-40 animate-pulse rounded-full bg-slate-200" />
+            <div className="h-4 w-64 animate-pulse rounded-full bg-slate-200" />
+          </div>
+          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+            Beta interna
+          </span>
+        </div>
+        <div className="w-full rounded-3xl bg-white/60 px-6 py-10 shadow-inner ring-1 ring-slate-100 backdrop-blur">
+          <div className="h-72 w-full animate-pulse rounded-2xl bg-slate-100" />
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function MarketingPortalContent() {
   const searchParams = useSearchParams();
   const viewParam = searchParams?.get("view");
   const activeView = viewParam === "history" ? "history" : "generator";
@@ -447,5 +468,13 @@ export default function MarketingPortalPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function MarketingPortalPage() {
+  return (
+    <React.Suspense fallback={<MarketingPortalFallback />}>
+      <MarketingPortalContent />
+    </React.Suspense>
   );
 }
