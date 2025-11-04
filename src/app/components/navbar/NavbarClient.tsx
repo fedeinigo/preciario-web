@@ -4,7 +4,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
 import {
@@ -164,7 +164,12 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const isPartnerPortal = pathname?.startsWith("/partner-portal");
+  const searchParams = useSearchParams();
   const isMarketingPortal = pathname?.startsWith("/marketing-portal");
+  const marketingView =
+    isMarketingPortal && searchParams?.get("view") === "history"
+      ? "history"
+      : "generator";
   const { locale, setLocale } = useLanguage();
   const t = useTranslations("navbar");
   const tabsT = useTranslations("navbar.tabs");
@@ -560,13 +565,30 @@ export default function NavbarClient({ session }: NavbarClientProps) {
               />
             </div>
           ) : isMarketingPortal ? (
-            <Link
-              href="/marketing-portal"
-              className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15"
-              aria-current="page"
-            >
-              Generador
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/marketing-portal"
+                className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                  marketingView === "generator"
+                    ? "bg-white text-[#3b0a69] border-transparent shadow-sm"
+                    : "border-white/25 bg-white/10 text-white hover:bg-white/15"
+                }`}
+                aria-current={marketingView === "generator" ? "page" : undefined}
+              >
+                {tabsT("generator")}
+              </Link>
+              <Link
+                href="/marketing-portal?view=history"
+                className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                  marketingView === "history"
+                    ? "bg-white text-[#3b0a69] border-transparent shadow-sm"
+                    : "border-white/25 bg-white/10 text-white hover:bg-white/15"
+                }`}
+                aria-current={marketingView === "history" ? "page" : undefined}
+              >
+                {tabsT("history")}
+              </Link>
+            </div>
           ) : showTabs ? (
             <div className="hidden w-full max-w-xl items-center justify-center gap-2 md:flex">
               <TabBtn

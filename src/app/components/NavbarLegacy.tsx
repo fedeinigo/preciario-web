@@ -6,7 +6,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
 import { LayoutGrid, Clock, BarChart2, Users, Users2, Target, Loader2 } from "lucide-react";
@@ -125,8 +125,13 @@ function MapacheSectionBtn({
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isPartnerPortal = pathname.startsWith("/partner-portal");
   const isMarketingPortal = pathname.startsWith("/marketing-portal");
+  const marketingView =
+    isMarketingPortal && searchParams?.get("view") === "history"
+      ? "history"
+      : "generator";
   const { locale, setLocale } = useLanguage();
   const t = useTranslations("navbar");
   const tabsT = useTranslations("navbar.tabs");
@@ -491,13 +496,30 @@ export default function Navbar() {
             </div>
           ) : isMarketingPortal ? (
             <div className="flex items-center justify-center">
-              <Link
-                href="/marketing-portal"
-                className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-white/15"
-                aria-current="page"
-              >
-                Generador
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/marketing-portal"
+                  className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                    marketingView === "generator"
+                      ? "bg-white text-[#3b0a69] border-transparent shadow-sm"
+                      : "border-white/25 bg-white/10 text-white hover:bg-white/15"
+                  }`}
+                  aria-current={marketingView === "generator" ? "page" : undefined}
+                >
+                  {tabsT("generator")}
+                </Link>
+                <Link
+                  href="/marketing-portal?view=history"
+                  className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                    marketingView === "history"
+                      ? "bg-white text-[#3b0a69] border-transparent shadow-sm"
+                      : "border-white/25 bg-white/10 text-white hover:bg-white/15"
+                  }`}
+                  aria-current={marketingView === "history" ? "page" : undefined}
+                >
+                  {tabsT("history")}
+                </Link>
+              </div>
             </div>
           ) : showTabs ? (
             <div
