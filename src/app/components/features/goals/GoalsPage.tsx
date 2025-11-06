@@ -68,6 +68,7 @@ export default function GoalsPage({
   const [myGoal, setMyGoal] = React.useState<number>(0);
   const [myProgress, setMyProgress] = React.useState<number>(0);
   const [myDeals, setMyDeals] = React.useState<UserWonDeal[]>([]);
+  const [myMonthlyProgress, setMyMonthlyProgress] = React.useState<number>(0);
   const [myTotals, setMyTotals] = React.useState<{ monthlyFees: number; billed: number; pending: number }>({
     monthlyFees: 0,
     billed: 0,
@@ -113,6 +114,17 @@ export default function GoalsPage({
       });
       setMyProgress(Number(payload.progress ?? 0));
       setMyDeals(normalizedDeals);
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth();
+      const currentYear = currentDate.getFullYear();
+      const monthlyProgress = normalizedDeals.reduce((acc, deal) => {
+        const createdAt = new Date(deal.createdAt);
+        if (!Number.isNaN(createdAt.getTime()) && createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear) {
+          return acc + Number(deal.monthlyFee ?? 0);
+        }
+        return acc;
+      }, 0);
+      setMyMonthlyProgress(monthlyProgress);
       const totals = normalizedDeals.reduce(
         (acc, deal) => {
           acc.monthlyFees += Number(deal.monthlyFee ?? 0);
@@ -132,6 +144,7 @@ export default function GoalsPage({
     } catch {
       setMyProgress(0);
       setMyDeals([]);
+      setMyMonthlyProgress(0);
       setMyTotals({ monthlyFees: 0, billed: 0, pending: 0 });
     } finally {
       setLoadingDeals(false);
@@ -326,6 +339,17 @@ export default function GoalsPage({
           { monthlyFees: 0, billed: 0, pending: 0 }
         );
         setMyTotals(totals);
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+        const monthlyTotal = updated.reduce((acc, item) => {
+          const createdAt = new Date(item.createdAt);
+          if (!Number.isNaN(createdAt.getTime()) && createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear) {
+            return acc + item.monthlyFee;
+          }
+          return acc;
+        }, 0);
+        setMyMonthlyProgress(monthlyTotal);
         return updated;
       });
     },
@@ -446,6 +470,7 @@ export default function GoalsPage({
           range={rangeForQuarter}
           myGoal={myGoal}
           myProgress={myProgress}
+          monthlyProgress={myMonthlyProgress}
           onSave={handleSaveMyGoal}
           onAddManual={canAddManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
         />
