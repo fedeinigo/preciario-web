@@ -1,4 +1,4 @@
-﻿import PipedriveCard from "./PipedriveCard";
+import PipedriveCard, { type PipedriveSyncMode } from "./PipedriveCard";
 import CompanyCard from "./CompanyCard";
 import CatalogToolbar from "./CatalogToolbar";
 
@@ -20,6 +20,8 @@ export interface GeneratorMainCardProps {
     dealId: string;
     example: string;
     onChange: (value: string) => void;
+    mode: PipedriveSyncMode;
+    onModeChange: (mode: PipedriveSyncMode) => void;
     t: TranslateFn;
   };
   company: {
@@ -89,7 +91,9 @@ export default function GeneratorMainCard({
         value={pipedrive.value}
         dealId={pipedrive.dealId}
         example={pipedrive.example}
+        mode={pipedrive.mode}
         onChange={pipedrive.onChange}
+        onModeChange={pipedrive.onModeChange}
         t={pipedrive.t}
       />
 
