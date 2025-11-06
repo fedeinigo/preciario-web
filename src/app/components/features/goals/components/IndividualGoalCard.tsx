@@ -11,12 +11,14 @@ export default function IndividualGoalCard({
   range,
   myGoal,
   myProgress,
+  monthlyProgress,
   onSave,
   onAddManual,
 }: {
   range: { from: string; to: string };
   myGoal: number;
   myProgress: number;
+  monthlyProgress: number;
   onSave: (amount: number) => Promise<void> | void;
   onAddManual?: () => void;
 }) {
@@ -28,14 +30,16 @@ export default function IndividualGoalCard({
   const pct = myGoal > 0 ? (myProgress / myGoal) * 100 : 0;
   const remaining = Math.max(0, myGoal - myProgress);
   const monthlyGoal = myGoal / 3;
-  const monthlyPct = myGoal > 0 ? (monthlyGoal / myGoal) * 100 : 33.333;
+  const normalizedPct = Number.isFinite(pct) ? Math.max(0, pct) : 0;
+  const barPct = Math.min(100, normalizedPct);
+  const monthlyPct = monthlyGoal > 0 ? (monthlyProgress / monthlyGoal) * 100 : 0;
+  const normalizedMonthlyPct = Number.isFinite(monthlyPct) ? Math.max(0, monthlyPct) : 0;
+  const monthlyBarPct = Math.min(100, normalizedMonthlyPct);
+  const monthlyRemaining = Math.max(0, monthlyGoal - monthlyProgress);
 
   const [open, setOpen] = React.useState(false);
   const [tmp, setTmp] = React.useState<number>(myGoal);
   React.useEffect(() => setTmp(myGoal), [myGoal]);
-
-  const normalizedPct = Number.isFinite(pct) ? Math.max(0, pct) : 0;
-  const barPct = Math.min(100, normalizedPct);
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden rounded-3xl border border-[#eadeff] bg-gradient-to-br from-white via-white to-[#f7f2ff] p-6 shadow-[0_24px_60px_rgba(79,29,149,0.12)]">
@@ -85,38 +89,44 @@ export default function IndividualGoalCard({
           </div>
         </div>
 
-        <div className="mt-5">
-          <div className="relative h-3 w-full overflow-hidden rounded-full bg-[#ede9fe]">
-            <div
-              className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#c084fc] via-[#a855f7] to-[#7c3aed]"
-              style={{ width: `${barPct}%` }}
-            />
-            {myGoal > 0 && (
+        <div className="mt-5 space-y-5">
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-[#7c3aed]">
+              <span>{t("quarterlyBarLabel")}</span>
+              <span>{t("completed", { pct: normalizedPct.toFixed(0) })}</span>
+            </div>
+            <div className="relative mt-2 h-3 w-full overflow-hidden rounded-full bg-[#ede9fe]">
               <div
-                className="absolute top-0 bottom-0 w-[2px] bg-[#fbbf24]"
-                style={{ left: `calc(${Math.min(100, Math.max(0, monthlyPct))}% - 1px)` }}
+                className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#c084fc] via-[#a855f7] to-[#7c3aed]"
+                style={{ width: `${barPct}%` }}
               />
-            )}
-            <div className="absolute inset-0 flex">
-              <div className="h-full w-1/3 border-r border-white/40" />
-              <div className="h-full w-1/3 border-r border-white/40" />
-              <div className="h-full w-1/3" />
             </div>
           </div>
-          <div className="mt-2 flex justify-between text-xs font-semibold uppercase tracking-wide text-[#7c3aed]">
-            <span>{t("monthLabel", { month: 1 })}</span>
-            <span>{t("monthLabel", { month: 2 })}</span>
-            <span>{t("monthLabel", { month: 3 })}</span>
+
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-[#7c3aed]">
+              <span>{t("monthlyBarLabel")}</span>
+              <span>{t("monthlyCompleted", { pct: normalizedMonthlyPct.toFixed(0) })}</span>
+            </div>
+            <div className="relative mt-2 h-2 w-full overflow-hidden rounded-full bg-[#ede9fe]">
+              <div
+                className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#34d399] via-[#10b981] to-[#047857]"
+                style={{ width: `${monthlyBarPct}%` }}
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-[#5b21b6]">
+              <span className="text-[#047857]">
+                {t("monthlyProgressLabel")}: {formatUSD(monthlyProgress)}
+              </span>
+              <span className="text-[#b45309]">
+                {t("monthlyRemainingLabel")}: {formatUSD(monthlyRemaining)}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-[#5b21b6]">
-          <span className="font-semibold text-[#6d28d9]">
-            {t("completed", { pct: normalizedPct.toFixed(0) })}
-          </span>
-          <span className="text-xs text-[#7c3aed]">
-            {t("period", { from: range.from, to: range.to })}
-          </span>
+        <div className="mt-4 flex justify-end text-xs text-[#7c3aed]">
+          <span>{t("period", { from: range.from, to: range.to })}</span>
         </div>
       </div>
 
