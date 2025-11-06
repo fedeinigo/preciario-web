@@ -1,7 +1,14 @@
 // src/app/components/features/proposals/Stats.tsx
 "use client";
 
-import React, { useMemo, useState, useEffect, useCallback, useId } from "react";
+import React, {
+  useMemo,
+  useState,
+  useEffect,
+  useCallback,
+  useId,
+} from "react";
+import { X } from "lucide-react";
 import type { ProposalRecord } from "@/lib/types";
 import type { AppRole } from "@/constants/teams";
 import { countryIdFromName } from "./lib/catalogs";
@@ -172,6 +179,28 @@ function ChartEmpty({ message }: { message: string }) {
   );
 }
 
+function useMeasure<T extends HTMLElement>() {
+  const ref = React.useRef<T | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  React.useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      setSize({ width, height });
+    });
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, size] as const;
+}
+
 type MonthlyPerformancePoint = { label: string; proposals: number; amount: number };
 
 function SparkAreaChart({
@@ -185,119 +214,296 @@ function SparkAreaChart({
 }) {
   const gradientId = useId();
   const lineGradientId = useId();
-  const width = 640;
-  const height = 240;
-  const paddingX = 40;
-  const paddingY = 28;
-  const innerWidth = width - paddingX * 2;
-  const innerHeight = height - paddingY * 2;
+  const focusLineId = useId();
+  const [containerRef, size] = useMeasure<HTMLDivElement>();
+  const width = size.width ? Math.max(size.width, 320) : 640;
+  const height = 260;
+  const paddingX = 56;
+  const paddingY = 36;
+  const innerWidth = Math.max(width - paddingX * 2, 0);
+  const innerHeight = Math.max(height - paddingY * 2, 0);
 
   const amountMax = Math.max(...data.map((item) => item.amount), 1);
   const countMax = Math.max(...data.map((item) => item.proposals), 1);
   const step = data.length > 1 ? innerWidth / (data.length - 1) : 0;
 
-  const amountPoints = data.map((item, index) => {
-    const x = paddingX + index * step;
-    const y =
-      paddingY + innerHeight - (amountMax === 0 ? 0 : (item.amount / amountMax) * innerHeight);
-    return { ...item, x, y };
-  });
+  const amountFormatter = useMemo(
+    () => new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }),
+    [],
+  );
+  const proposalsFormatter = useMemo(
+    () => new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }),
+    [],
+  );
 
-  const linePoints = data.map((item, index) => {
-    const x = paddingX + index * step;
-    const y =
-      paddingY + innerHeight - (countMax === 0 ? 0 : (item.proposals / countMax) * innerHeight);
-    return { ...item, x, y };
-  });
+  const getX = useCallback(
+    (index: number) => {
+      if (data.length <= 1) {
+        return paddingX + innerWidth / 2;
+      }
+      return paddingX + index * step;
+    },
+    [data.length, innerWidth, paddingX, step],
+  );
 
-  if (amountPoints.length === 0) {
+  const getAmountY = useCallback(
+    (value: number) => {
+      if (amountMax === 0) return paddingY + innerHeight;
+      return paddingY + innerHeight - (value / amountMax) * innerHeight;
+    },
+    [amountMax, innerHeight, paddingY],
+  );
+
+  const getCountY = useCallback(
+    (value: number) => {
+      if (countMax === 0) return paddingY + innerHeight;
+      return paddingY + innerHeight - (value / countMax) * innerHeight;
+    },
+    [countMax, innerHeight, paddingY],
+  );
+
+  const amountPoints = useMemo(
+    () =>
+      data.map((item, index) => ({
+        ...item,
+        x: getX(index),
+        y: getAmountY(item.amount),
+      })),
+    [data, getAmountY, getX],
+  );
+
+  const linePoints = useMemo(
+    () =>
+      data.map((item, index) => ({
+        ...item,
+        x: getX(index),
+        y: getCountY(item.proposals),
+      })),
+    [data, getCountY, getX],
+  );
+
+  const axisY = paddingY + innerHeight;
+  const labelStep = Math.max(1, Math.ceil(data.length / 6));
+
+  const areaPath = useMemo(() => {
+    if (amountPoints.length === 0) return "";
+    return amountPoints
+      .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+      .join(" ");
+  }, [amountPoints]);
+
+  const closedAreaPath = useMemo(() => {
+    if (amountPoints.length === 0) return "";
+    const first = amountPoints[0];
+    const last = amountPoints[amountPoints.length - 1];
+    return `${areaPath} L ${last?.x ?? paddingX} ${axisY} L ${first?.x ?? paddingX} ${axisY} Z`;
+  }, [amountPoints, areaPath, axisY, paddingX]);
+
+  const linePath = useMemo(() => {
+    if (linePoints.length === 0) return "";
+    return linePoints
+      .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+      .join(" ");
+  }, [linePoints]);
+
+  const yTicks = useMemo(() => {
+    if (amountMax <= 0) return [];
+    const stepValue = Math.max(1, Math.ceil(amountMax / 4));
+    return Array.from({ length: 5 }, (_, index) => stepValue * index);
+  }, [amountMax]);
+
+  type TooltipState = {
+    datum: MonthlyPerformancePoint;
+    x: number;
+    amountY: number;
+    countY: number;
+  };
+
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+
+  const handlePointerMove = useCallback(
+    (event: React.PointerEvent<SVGRectElement>) => {
+      if (data.length === 0) return;
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const offsetX = event.clientX - bounds.left;
+      const clamped = Math.max(0, Math.min(innerWidth, offsetX));
+      const rawIndex = step === 0 ? 0 : clamped / step;
+      const index = Math.round(rawIndex);
+      const point = amountPoints[index];
+      const linePoint = linePoints[index];
+      if (!point || !linePoint) return;
+      setTooltip({
+        datum: data[index],
+        x: point.x,
+        amountY: point.y,
+        countY: linePoint.y,
+      });
+    },
+    [amountPoints, data, innerWidth, linePoints, step],
+  );
+
+  const handlePointerLeave = useCallback(() => setTooltip(null), []);
+
+  if (data.length === 0) {
     return null;
   }
 
-  const areaPath = amountPoints
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
-  const closedAreaPath = `${areaPath} L ${amountPoints.at(-1)?.x ?? paddingX} ${height - paddingY} L ${
-    amountPoints[0]?.x ?? paddingX
-  } ${height - paddingY} Z`;
-
-  const linePath = linePoints
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
-
-  const axisY = height - paddingY;
-  const labelStep = Math.max(1, Math.ceil(data.length / 6));
-
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-[240px] w-full">
-      <defs>
-        <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#7C3AED" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="#6366F1" stopOpacity="0.05" />
-        </linearGradient>
-        <linearGradient id={lineGradientId} x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stopColor="#22D3EE" />
-          <stop offset="100%" stopColor="#6366F1" />
-        </linearGradient>
-      </defs>
-      <g>
-        <line
-          x1={paddingX}
-          y1={paddingY}
-          x2={paddingX}
-          y2={axisY}
-          stroke="#E2E8F0"
-          strokeDasharray="4 6"
-          strokeLinecap="round"
-        />
-        <line
-          x1={paddingX}
-          y1={axisY}
-          x2={width - paddingX}
-          y2={axisY}
-          stroke="#E2E8F0"
-          strokeDasharray="4 6"
-          strokeLinecap="round"
-        />
-        <path d={closedAreaPath} fill={`url(#${gradientId})`} stroke="none" />
-        <path d={linePath} fill="none" stroke={`url(#${lineGradientId})`} strokeWidth={2.5} strokeLinecap="round" />
-        {linePoints.map((point, index) => (
-          <circle
-            key={`line-${index}`}
-            cx={point.x}
-            cy={point.y}
-            r={3.2}
-            fill="#22D3EE"
-            stroke="#ffffff"
-            strokeWidth={1.4}
+    <div ref={containerRef} className="relative h-[260px] w-full">
+      <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="h-full w-full">
+        <defs>
+          <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#7C3AED" stopOpacity="0.45" />
+            <stop offset="100%" stopColor="#6366F1" stopOpacity="0.05" />
+          </linearGradient>
+          <linearGradient id={lineGradientId} x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="#22D3EE" />
+            <stop offset="100%" stopColor="#6366F1" />
+          </linearGradient>
+        </defs>
+        <g>
+          {yTicks.map((tick) => {
+            const y = getAmountY(tick);
+            return (
+              <g key={`tick-${tick}`}>
+                <line
+                  x1={paddingX}
+                  x2={width - paddingX}
+                  y1={y}
+                  y2={y}
+                  stroke="#E2E8F0"
+                  strokeDasharray="4 6"
+                  strokeLinecap="round"
+                  opacity={tick === 0 ? 0.6 : 0.35}
+                />
+                <text
+                  x={paddingX - 10}
+                  y={y - 4}
+                  textAnchor="end"
+                  className="fill-slate-400 text-[10px]"
+                >
+                  {amountFormatter.format(tick)}
+                </text>
+              </g>
+            );
+          })}
+          <line
+            x1={paddingX}
+            y1={paddingY}
+            x2={paddingX}
+            y2={axisY}
+            stroke="#CBD5F5"
+            strokeDasharray="4 6"
+            strokeLinecap="round"
+            opacity={0.6}
           />
-        ))}
-        {amountPoints.map((point, index) =>
-          index % labelStep === 0 || index === amountPoints.length - 1 ? (
-            <text
-              key={`label-${index}`}
-              x={point.x}
-              y={axisY + 18}
-              textAnchor="middle"
-              className="fill-slate-400 text-[11px] capitalize"
-            >
-              {point.label}
-            </text>
-          ) : null,
-        )}
-      </g>
-      <text x={paddingX} y={paddingY - 10} className="fill-slate-400 text-[11px] uppercase tracking-wide">
-        {amountLabel}
-      </text>
-      <text
-        x={width - paddingX}
-        y={paddingY - 10}
-        textAnchor="end"
-        className="fill-slate-400 text-[11px] uppercase tracking-wide"
-      >
-        {countLabel}
-      </text>
-    </svg>
+          <line
+            x1={paddingX}
+            y1={axisY}
+            x2={width - paddingX}
+            y2={axisY}
+            stroke="#CBD5F5"
+            strokeDasharray="4 6"
+            strokeLinecap="round"
+            opacity={0.6}
+          />
+          <path d={closedAreaPath} fill={`url(#${gradientId})`} stroke="none" />
+          <path d={linePath} fill="none" stroke={`url(#${lineGradientId})`} strokeWidth={2.5} strokeLinecap="round" />
+          {linePoints.map((point, index) => (
+            <circle
+              key={`line-${index}`}
+              cx={point.x}
+              cy={point.y}
+              r={3.2}
+              fill="#22D3EE"
+              stroke="#ffffff"
+              strokeWidth={1.4}
+            />
+          ))}
+          {amountPoints.map((point, index) =>
+            index % labelStep === 0 || index === amountPoints.length - 1 ? (
+              <text
+                key={`label-${index}`}
+                x={point.x}
+                y={axisY + 18}
+                textAnchor="middle"
+                className="fill-slate-400 text-[11px] capitalize"
+              >
+                {point.label}
+              </text>
+            ) : null,
+          )}
+          {tooltip ? (
+            <g id={focusLineId} aria-hidden="true">
+              <line
+                x1={tooltip.x}
+                x2={tooltip.x}
+                y1={paddingY - 8}
+                y2={axisY}
+                stroke="#7C3AED"
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+              />
+              <circle cx={tooltip.x} cy={tooltip.amountY} r={5} fill="#7C3AED" stroke="#ffffff" strokeWidth={1.5} />
+              <circle cx={tooltip.x} cy={tooltip.countY} r={4} fill="#22D3EE" stroke="#ffffff" strokeWidth={1.2} />
+            </g>
+          ) : null}
+          <rect
+            x={paddingX}
+            y={paddingY}
+            width={innerWidth}
+            height={innerHeight}
+            fill="transparent"
+            onPointerMove={handlePointerMove}
+            onPointerEnter={handlePointerMove}
+            onPointerLeave={handlePointerLeave}
+          />
+        </g>
+        <text x={paddingX} y={paddingY - 14} className="fill-slate-400 text-[11px] uppercase tracking-wide">
+          {amountLabel}
+        </text>
+        <text
+          x={width - paddingX}
+          y={paddingY - 14}
+          textAnchor="end"
+          className="fill-slate-400 text-[11px] uppercase tracking-wide"
+        >
+          {countLabel}
+        </text>
+      </svg>
+      {tooltip ? (
+        <div
+          className="pointer-events-none absolute rounded-2xl border border-white/70 bg-white/95 px-4 py-3 text-xs text-slate-600 shadow-xl backdrop-blur"
+          style={{
+            left: Math.max(16, Math.min(width - 200, tooltip.x - 100)),
+            top: Math.max(16, Math.min(height - 120, Math.min(tooltip.amountY, tooltip.countY) - 110)),
+            width: 200,
+          }}
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            {tooltip.datum.label}
+          </p>
+          <div className="mt-2 space-y-1 text-sm">
+            <p className="flex items-center justify-between gap-2 text-slate-600">
+              <span className="inline-flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+                <span className="h-2 w-2 rounded-full bg-[#7C3AED]" aria-hidden="true" />
+                {amountLabel}
+              </span>
+              <span className="font-semibold text-brand-primary">{formatUSD(tooltip.datum.amount)}</span>
+            </p>
+            <p className="flex items-center justify-between gap-2 text-slate-600">
+              <span className="inline-flex items-center gap-2 text-xs uppercase tracking-wide text-slate-400">
+                <span className="h-2 w-2 rounded-full bg-[#22D3EE]" aria-hidden="true" />
+                {countLabel}
+              </span>
+              <span className="font-semibold text-brand-primary">
+                {proposalsFormatter.format(tooltip.datum.proposals)}
+              </span>
+            </p>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -407,22 +613,32 @@ function HorizontalBarList({
   const max = Math.max(...data.map((item) => item.value), 1);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {data.map((item, index) => {
         const percent = max === 0 ? 0 : (item.value / max) * 100;
         const color = chartPalette[index % chartPalette.length];
         return (
-          <div key={item.name} className="space-y-2">
-            <div className="flex items-baseline justify-between text-sm">
-              <div>
-                <p className="font-semibold text-slate-600">{item.name}</p>
-                {item.helper ? <p className="text-[11px] uppercase tracking-wide text-slate-400">{item.helper}</p> : null}
+          <div
+            key={item.name}
+            className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-[0_12px_36px_rgba(60,3,140,0.08)]"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-3">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-primary/10 text-xs font-semibold text-brand-primary">
+                  {index + 1}
+                </span>
+                <div>
+                  <p className="font-semibold text-slate-600">{item.name}</p>
+                  {item.helper ? (
+                    <p className="text-[11px] uppercase tracking-wide text-slate-400">{item.helper}</p>
+                  ) : null}
+                </div>
               </div>
               <span className="text-sm font-semibold text-brand-primary">
                 {item.display ?? formatValue(item.value)}
               </span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
               <div
                 className="h-full rounded-full"
                 style={{
@@ -440,9 +656,13 @@ function HorizontalBarList({
 
 /** Pastillas de rango rápido */
 function QuickRanges({
+  from,
+  to,
   setFrom,
   setTo,
 }: {
+  from: string;
+  to: string;
   setFrom: (v: string) => void;
   setTo: (v: string) => void;
 }) {
@@ -460,14 +680,23 @@ function QuickRanges({
   ];
 
   const baseClass =
-    "inline-flex items-center rounded-full border border-brand-primary/20 bg-brand-primary/5 px-3 py-1 text-xs font-medium text-brand-primary transition hover:border-brand-primary/40 hover:bg-brand-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40";
+    "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40";
+
+  const isRangeActive = useCallback(
+    (range: { from: string; to: string }) => from === range.from && to === range.to,
+    [from, to],
+  );
 
   return (
     <div className="flex flex-wrap gap-2">
       {quarters.map((q) => (
         <button
           key={q.label}
-          className={baseClass}
+          className={`${baseClass} ${
+            isRangeActive(q.get())
+              ? "border-brand-primary bg-brand-primary text-white shadow-sm"
+              : "border-brand-primary/20 bg-brand-primary/5 text-brand-primary hover:border-brand-primary/40 hover:bg-brand-primary/10"
+          }`}
           onClick={() => apply(q.get())}
           title={t("quarterTooltip")}
           type="button"
@@ -476,28 +705,44 @@ function QuickRanges({
         </button>
       ))}
       <button
-        className={baseClass}
+        className={`${baseClass} ${
+          isRangeActive(currentMonthRange())
+            ? "border-brand-primary bg-brand-primary text-white shadow-sm"
+            : "border-brand-primary/20 bg-brand-primary/5 text-brand-primary hover:border-brand-primary/40 hover:bg-brand-primary/10"
+        }`}
         onClick={() => apply(currentMonthRange())}
         type="button"
       >
         {t("currentMonth")}
       </button>
       <button
-        className={baseClass}
+        className={`${baseClass} ${
+          isRangeActive(prevMonthRange())
+            ? "border-brand-primary bg-brand-primary text-white shadow-sm"
+            : "border-brand-primary/20 bg-brand-primary/5 text-brand-primary hover:border-brand-primary/40 hover:bg-brand-primary/10"
+        }`}
         onClick={() => apply(prevMonthRange())}
         type="button"
       >
         {t("previousMonth")}
       </button>
       <button
-        className={baseClass}
+        className={`${baseClass} ${
+          isRangeActive(currentWeekRange())
+            ? "border-brand-primary bg-brand-primary text-white shadow-sm"
+            : "border-brand-primary/20 bg-brand-primary/5 text-brand-primary hover:border-brand-primary/40 hover:bg-brand-primary/10"
+        }`}
         onClick={() => apply(currentWeekRange())}
         type="button"
       >
         {t("currentWeek")}
       </button>
       <button
-        className={baseClass}
+        className={`${baseClass} ${
+          isRangeActive(prevWeekRange())
+            ? "border-brand-primary bg-brand-primary text-white shadow-sm"
+            : "border-brand-primary/20 bg-brand-primary/5 text-brand-primary hover:border-brand-primary/40 hover:bg-brand-primary/10"
+        }`}
         onClick={() => apply(prevWeekRange())}
         type="button"
       >
@@ -512,6 +757,7 @@ type ProposalForStats = ProposalRecord & {
 };
 type OrderKey = "createdAt" | "totalAmount";
 type OrderDir = "asc" | "desc";
+type ActiveFilterChip = { id: string; label: string; onClear: () => void };
 
 export default function Stats({
   role,
@@ -936,6 +1182,108 @@ export default function Stats({
   const pillSelectClass =
     "rounded-full border border-brand-primary/20 bg-white px-3 py-1 text-xs font-medium text-brand-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 disabled:cursor-not-allowed disabled:opacity-60";
 
+  const dateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }),
+    [],
+  );
+  const summaryPercentFormatter = useMemo(
+    () => new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }),
+    [],
+  );
+
+  const activeFilters = useMemo<ActiveFilterChip[]>(() => {
+    const chips: ActiveFilterChip[] = [];
+    const safeFormat = (value: string) => {
+      if (!value) return null;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return value;
+      }
+      return dateFormatter.format(date);
+    };
+    if (from || to) {
+      const formattedFrom = safeFormat(from);
+      const formattedTo = safeFormat(to);
+      const parts: string[] = [];
+      if (from && formattedFrom) {
+        parts.push(`${filtersT("from")}: ${formattedFrom}`);
+      }
+      if (to && formattedTo) {
+        parts.push(`${filtersT("to")}: ${formattedTo}`);
+      }
+      if (parts.length) {
+        chips.push({
+          id: "range",
+          label: parts.join(" · "),
+          onClear: () => {
+            setFrom("");
+            setTo("");
+          },
+        });
+      }
+    }
+    if (teamFilter) {
+      chips.push({
+        id: "team",
+        label: `${filtersT("team.label")}: ${teamFilter}`,
+        onClear: () => setTeamFilter(""),
+      });
+    }
+    if (countryFilter) {
+      chips.push({
+        id: "country",
+        label: `${filtersT("country.label")}: ${countryFilter}`,
+        onClear: () => setCountryFilter(""),
+      });
+    }
+    if (userFilter) {
+      chips.push({
+        id: "user",
+        label: `${filtersT("user.label")}: ${userFilter}`,
+        onClear: () => setUserFilter(""),
+      });
+    }
+    if (orderKey !== "createdAt" || orderDir !== "desc") {
+      const orderLabel = `${filtersT("orderBy.label")}: ${
+        orderKey === "createdAt"
+          ? filtersT("orderBy.createdAt")
+          : filtersT("orderBy.totalAmount")
+      } · ${orderDir === "desc" ? filtersT("direction.desc") : filtersT("direction.asc")}`;
+      chips.push({
+        id: "order",
+        label: orderLabel,
+        onClear: () => {
+          setOrderKey("createdAt");
+          setOrderDir("desc");
+        },
+      });
+    }
+    return chips;
+  }, [
+    countryFilter,
+    dateFormatter,
+    filtersT,
+    from,
+    orderDir,
+    orderKey,
+    teamFilter,
+    to,
+    userFilter,
+  ]);
+
+  const filtersSummaryText = useMemo(() => {
+    const filteredValue = subset.length.toLocaleString();
+    const totalValue = all.length.toLocaleString();
+    const percentValue = summaryPercentFormatter.format(
+      all.length ? (subset.length / all.length) * 100 : 0,
+    );
+    return filtersT("summary", {
+      filtered: filteredValue,
+      total: totalValue,
+      percent: percentValue,
+    });
+  }, [all.length, filtersT, subset.length, summaryPercentFormatter]);
+
   return (
     <div className="p-4">
       <GradientShell>
@@ -946,7 +1294,38 @@ export default function Stats({
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_18px_48px_rgba(60,3,140,0.12)]">
           <div className="flex flex-col gap-4">
             <div>
-              <QuickRanges setFrom={setFrom} setTo={setTo} />
+              <QuickRanges from={from} to={to} setFrom={setFrom} setTo={setTo} />
+            </div>
+            <div className="rounded-2xl border border-brand-primary/20 bg-brand-primary/5 px-4 py-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
+                  {filtersT("active.title")}
+                </p>
+                <p className="text-xs text-slate-500" aria-live="polite">
+                  {filtersSummaryText}
+                </p>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {activeFilters.length ? (
+                  activeFilters.map((filter) => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={filter.onClear}
+                      className="group inline-flex items-center gap-2 rounded-full border border-brand-primary/30 bg-white px-3 py-1 text-xs font-medium text-brand-primary transition hover:border-brand-primary/60 hover:bg-brand-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
+                      aria-label={`${filtersT("active.clear")} ${filter.label}`}
+                    >
+                      <span>{filter.label}</span>
+                      <X
+                        className="h-3.5 w-3.5 text-brand-primary/60 transition group-hover:text-brand-primary"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  ))
+                ) : (
+                  <span className="text-xs text-slate-500">{filtersT("active.none")}</span>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div>
