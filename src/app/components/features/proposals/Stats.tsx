@@ -1,7 +1,8 @@
 // src/app/components/features/proposals/Stats.tsx
 "use client";
 
-import React, { useMemo, useState, useEffect, useCallback, useId } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
+import { X } from "lucide-react";
 import type { ProposalRecord } from "@/lib/types";
 import type { AppRole } from "@/constants/teams";
 import { countryIdFromName } from "./lib/catalogs";
@@ -172,223 +173,6 @@ function ChartEmpty({ message }: { message: string }) {
   );
 }
 
-type MonthlyPerformancePoint = { label: string; proposals: number; amount: number };
-
-function SparkAreaChart({
-  data,
-  countLabel,
-  amountLabel,
-}: {
-  data: MonthlyPerformancePoint[];
-  countLabel: string;
-  amountLabel: string;
-}) {
-  const gradientId = useId();
-  const lineGradientId = useId();
-  const width = 640;
-  const height = 240;
-  const paddingX = 40;
-  const paddingY = 28;
-  const innerWidth = width - paddingX * 2;
-  const innerHeight = height - paddingY * 2;
-
-  const amountMax = Math.max(...data.map((item) => item.amount), 1);
-  const countMax = Math.max(...data.map((item) => item.proposals), 1);
-  const step = data.length > 1 ? innerWidth / (data.length - 1) : 0;
-
-  const amountPoints = data.map((item, index) => {
-    const x = paddingX + index * step;
-    const y =
-      paddingY + innerHeight - (amountMax === 0 ? 0 : (item.amount / amountMax) * innerHeight);
-    return { ...item, x, y };
-  });
-
-  const linePoints = data.map((item, index) => {
-    const x = paddingX + index * step;
-    const y =
-      paddingY + innerHeight - (countMax === 0 ? 0 : (item.proposals / countMax) * innerHeight);
-    return { ...item, x, y };
-  });
-
-  if (amountPoints.length === 0) {
-    return null;
-  }
-
-  const areaPath = amountPoints
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
-  const closedAreaPath = `${areaPath} L ${amountPoints.at(-1)?.x ?? paddingX} ${height - paddingY} L ${
-    amountPoints[0]?.x ?? paddingX
-  } ${height - paddingY} Z`;
-
-  const linePath = linePoints
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
-
-  const axisY = height - paddingY;
-  const labelStep = Math.max(1, Math.ceil(data.length / 6));
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-[240px] w-full">
-      <defs>
-        <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#7C3AED" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="#6366F1" stopOpacity="0.05" />
-        </linearGradient>
-        <linearGradient id={lineGradientId} x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stopColor="#22D3EE" />
-          <stop offset="100%" stopColor="#6366F1" />
-        </linearGradient>
-      </defs>
-      <g>
-        <line
-          x1={paddingX}
-          y1={paddingY}
-          x2={paddingX}
-          y2={axisY}
-          stroke="#E2E8F0"
-          strokeDasharray="4 6"
-          strokeLinecap="round"
-        />
-        <line
-          x1={paddingX}
-          y1={axisY}
-          x2={width - paddingX}
-          y2={axisY}
-          stroke="#E2E8F0"
-          strokeDasharray="4 6"
-          strokeLinecap="round"
-        />
-        <path d={closedAreaPath} fill={`url(#${gradientId})`} stroke="none" />
-        <path d={linePath} fill="none" stroke={`url(#${lineGradientId})`} strokeWidth={2.5} strokeLinecap="round" />
-        {linePoints.map((point, index) => (
-          <circle
-            key={`line-${index}`}
-            cx={point.x}
-            cy={point.y}
-            r={3.2}
-            fill="#22D3EE"
-            stroke="#ffffff"
-            strokeWidth={1.4}
-          />
-        ))}
-        {amountPoints.map((point, index) =>
-          index % labelStep === 0 || index === amountPoints.length - 1 ? (
-            <text
-              key={`label-${index}`}
-              x={point.x}
-              y={axisY + 18}
-              textAnchor="middle"
-              className="fill-slate-400 text-[11px] capitalize"
-            >
-              {point.label}
-            </text>
-          ) : null,
-        )}
-      </g>
-      <text x={paddingX} y={paddingY - 10} className="fill-slate-400 text-[11px] uppercase tracking-wide">
-        {amountLabel}
-      </text>
-      <text
-        x={width - paddingX}
-        y={paddingY - 10}
-        textAnchor="end"
-        className="fill-slate-400 text-[11px] uppercase tracking-wide"
-      >
-        {countLabel}
-      </text>
-    </svg>
-  );
-}
-
-type DonutDatum = { name: string; value: number; color: string };
-
-function DonutChart({
-  data,
-  total,
-  emptyMessage,
-}: {
-  data: DonutDatum[];
-  total: number;
-  emptyMessage: string;
-}) {
-  if (!data.length || total === 0) {
-    return <ChartEmpty message={emptyMessage} />;
-  }
-
-  const radius = 70;
-  const strokeWidth = 18;
-  const circumference = 2 * Math.PI * radius;
-  let accumulated = 0;
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 sm:flex-row sm:items-stretch">
-      <svg
-        width={(radius + strokeWidth) * 2}
-        height={(radius + strokeWidth) * 2}
-        viewBox={`0 0 ${(radius + strokeWidth) * 2} ${(radius + strokeWidth) * 2}`}
-        className="w-40 shrink-0"
-      >
-        <g transform={`translate(${radius + strokeWidth}, ${radius + strokeWidth})`}>
-          <circle
-            r={radius}
-            fill="none"
-            stroke="#E2E8F0"
-            strokeWidth={strokeWidth}
-            strokeDasharray={`${circumference} ${circumference}`}
-            strokeLinecap="round"
-          />
-          {data.map((item) => {
-            const dash = (item.value / total) * circumference;
-            const dashOffset = accumulated;
-            accumulated += dash;
-            return (
-              <circle
-                key={item.name}
-                r={radius}
-                fill="none"
-                stroke={item.color}
-                strokeWidth={strokeWidth}
-                strokeDasharray={`${dash} ${circumference}`}
-                strokeDashoffset={-dashOffset}
-                strokeLinecap="round"
-              />
-            );
-          })}
-          <text
-            textAnchor="middle"
-            dominantBaseline="central"
-            className="fill-brand-primary text-lg font-semibold"
-          >
-            {total.toLocaleString()}
-          </text>
-        </g>
-      </svg>
-      <div className="flex flex-1 flex-col justify-center gap-3 text-sm">
-        {data.map((item) => {
-          const percent = total ? (item.value / total) * 100 : 0;
-          return (
-            <div key={item.name} className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50/80 px-4 py-3">
-              <div className="flex items-center gap-3">
-                <span
-                  className="h-3 w-3 rounded-full"
-                  style={{ background: item.color }}
-                  aria-hidden="true"
-                />
-                <span className="text-slate-600">{item.name}</span>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-brand-primary">{item.value.toLocaleString()}</p>
-                <p className="text-xs text-slate-400">{percent.toFixed(1)}%</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 type HorizontalBarDatum = { name: string; value: number; helper?: string; display?: string };
 
 function HorizontalBarList({
@@ -407,22 +191,32 @@ function HorizontalBarList({
   const max = Math.max(...data.map((item) => item.value), 1);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {data.map((item, index) => {
         const percent = max === 0 ? 0 : (item.value / max) * 100;
         const color = chartPalette[index % chartPalette.length];
         return (
-          <div key={item.name} className="space-y-2">
-            <div className="flex items-baseline justify-between text-sm">
-              <div>
-                <p className="font-semibold text-slate-600">{item.name}</p>
-                {item.helper ? <p className="text-[11px] uppercase tracking-wide text-slate-400">{item.helper}</p> : null}
+          <div
+            key={item.name}
+            className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-[0_12px_36px_rgba(60,3,140,0.08)]"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-3">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-primary/10 text-xs font-semibold text-brand-primary">
+                  {index + 1}
+                </span>
+                <div>
+                  <p className="font-semibold text-slate-600">{item.name}</p>
+                  {item.helper ? (
+                    <p className="text-[11px] uppercase tracking-wide text-slate-400">{item.helper}</p>
+                  ) : null}
+                </div>
               </div>
               <span className="text-sm font-semibold text-brand-primary">
                 {item.display ?? formatValue(item.value)}
               </span>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
               <div
                 className="h-full rounded-full"
                 style={{
@@ -440,9 +234,13 @@ function HorizontalBarList({
 
 /** Pastillas de rango rápido */
 function QuickRanges({
+  from,
+  to,
   setFrom,
   setTo,
 }: {
+  from: string;
+  to: string;
   setFrom: (v: string) => void;
   setTo: (v: string) => void;
 }) {
@@ -460,14 +258,23 @@ function QuickRanges({
   ];
 
   const baseClass =
-    "inline-flex items-center rounded-full border border-brand-primary/20 bg-brand-primary/5 px-3 py-1 text-xs font-medium text-brand-primary transition hover:border-brand-primary/40 hover:bg-brand-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40";
+    "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40";
+
+  const isRangeActive = useCallback(
+    (range: { from: string; to: string }) => from === range.from && to === range.to,
+    [from, to],
+  );
 
   return (
     <div className="flex flex-wrap gap-2">
       {quarters.map((q) => (
         <button
           key={q.label}
-          className={baseClass}
+          className={`${baseClass} ${
+            isRangeActive(q.get())
+              ? "border-brand-primary bg-brand-primary text-white shadow-sm"
+              : "border-brand-primary/20 bg-brand-primary/5 text-brand-primary hover:border-brand-primary/40 hover:bg-brand-primary/10"
+          }`}
           onClick={() => apply(q.get())}
           title={t("quarterTooltip")}
           type="button"
@@ -476,28 +283,44 @@ function QuickRanges({
         </button>
       ))}
       <button
-        className={baseClass}
+        className={`${baseClass} ${
+          isRangeActive(currentMonthRange())
+            ? "border-brand-primary bg-brand-primary text-white shadow-sm"
+            : "border-brand-primary/20 bg-brand-primary/5 text-brand-primary hover:border-brand-primary/40 hover:bg-brand-primary/10"
+        }`}
         onClick={() => apply(currentMonthRange())}
         type="button"
       >
         {t("currentMonth")}
       </button>
       <button
-        className={baseClass}
+        className={`${baseClass} ${
+          isRangeActive(prevMonthRange())
+            ? "border-brand-primary bg-brand-primary text-white shadow-sm"
+            : "border-brand-primary/20 bg-brand-primary/5 text-brand-primary hover:border-brand-primary/40 hover:bg-brand-primary/10"
+        }`}
         onClick={() => apply(prevMonthRange())}
         type="button"
       >
         {t("previousMonth")}
       </button>
       <button
-        className={baseClass}
+        className={`${baseClass} ${
+          isRangeActive(currentWeekRange())
+            ? "border-brand-primary bg-brand-primary text-white shadow-sm"
+            : "border-brand-primary/20 bg-brand-primary/5 text-brand-primary hover:border-brand-primary/40 hover:bg-brand-primary/10"
+        }`}
         onClick={() => apply(currentWeekRange())}
         type="button"
       >
         {t("currentWeek")}
       </button>
       <button
-        className={baseClass}
+        className={`${baseClass} ${
+          isRangeActive(prevWeekRange())
+            ? "border-brand-primary bg-brand-primary text-white shadow-sm"
+            : "border-brand-primary/20 bg-brand-primary/5 text-brand-primary hover:border-brand-primary/40 hover:bg-brand-primary/10"
+        }`}
         onClick={() => apply(prevWeekRange())}
         type="button"
       >
@@ -512,6 +335,7 @@ type ProposalForStats = ProposalRecord & {
 };
 type OrderKey = "createdAt" | "totalAmount";
 type OrderDir = "asc" | "desc";
+type ActiveFilterChip = { id: string; label: string; onClear: () => void };
 
 export default function Stats({
   role,
@@ -750,94 +574,8 @@ export default function Stats({
     [byUserFull, topN, showAll]
   );
 
-  const monthlyPerformance = useMemo(() => {
-    const bucket = new Map<string, MonthlyPerformancePoint>();
-    subset.forEach((proposal) => {
-      const createdAt = new Date(proposal.createdAt as unknown as string);
-      if (Number.isNaN(createdAt.getTime())) {
-        return;
-      }
-      const key = `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, "0")}`;
-      const label = createdAt.toLocaleDateString(undefined, {
-        month: "short",
-        year: "2-digit",
-      });
-      const current = bucket.get(key) ?? { label, proposals: 0, amount: 0 };
-      current.proposals += 1;
-      current.amount += Number(proposal.totalAmount) || 0;
-      bucket.set(key, current);
-    });
-    return Array.from(bucket.entries())
-      .sort(([keyA], [keyB]) => (keyA < keyB ? -1 : 1))
-      .map(([, value]) => value);
-  }, [subset]);
-
-  const monthlyTrends = useMemo(() => {
-    if (monthlyPerformance.length < 2) {
-      return { count: null, amount: null, latestLabel: null };
-    }
-    const last = monthlyPerformance[monthlyPerformance.length - 1];
-    const prev = monthlyPerformance[monthlyPerformance.length - 2];
-    const computeTrend = (current: number, previous: number) => {
-      if (previous === 0) return current === 0 ? 0 : 100;
-      return ((current - previous) / previous) * 100;
-    };
-    return {
-      count: computeTrend(last.proposals, prev.proposals),
-      amount: computeTrend(last.amount, prev.amount),
-      latestLabel: last.label,
-    };
-  }, [monthlyPerformance]);
-
-  const latestMonthly = monthlyPerformance.length
-    ? monthlyPerformance[monthlyPerformance.length - 1]
-    : null;
-
   const chartsEmptyLabel = chartsT("empty");
   const chartsOthersLabel = chartsT("others");
-  const chartsUnknownStatus = chartsT("statusDistribution.unknown");
-
-  const statusDistribution = useMemo(() => {
-    const map = new Map<string, number>();
-    subset.forEach((proposal) => {
-      const raw = String(proposal.status || "").trim();
-      const label = raw ? raw : chartsUnknownStatus;
-      map.set(label, (map.get(label) ?? 0) + 1);
-    });
-    const sorted = Array.from(map.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-    const head = sorted.slice(0, 4);
-    const tailTotal = sorted.slice(4).reduce((acc, item) => acc + item.value, 0);
-    if (tailTotal > 0) {
-      head.push({ name: chartsOthersLabel, value: tailTotal });
-    }
-    return head;
-  }, [subset, chartsOthersLabel, chartsUnknownStatus]);
-
-  const statusDonutData = useMemo(() => {
-    return statusDistribution.map((item, index) => ({
-      ...item,
-      color: chartPalette[index % chartPalette.length],
-    }));
-  }, [statusDistribution]);
-
-  const formatTrend = useCallback(
-    (value: number | null) => {
-      if (value === null || Number.isNaN(value) || !Number.isFinite(value)) {
-        return chartsT("trend.unavailable");
-      }
-      if (value > 0) {
-        return chartsT("trend.positive", { value: value.toFixed(1) });
-      }
-      if (value < 0) {
-        return chartsT("trend.negative", { value: Math.abs(value).toFixed(1) });
-      }
-      return chartsT("trend.equal");
-    },
-    [chartsT],
-  );
-
   const countryChartData = useMemo(() => {
     const items = byCountry.slice(0, 6).map(([country, total]) => ({
       name: country,
@@ -936,6 +674,108 @@ export default function Stats({
   const pillSelectClass =
     "rounded-full border border-brand-primary/20 bg-white px-3 py-1 text-xs font-medium text-brand-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 disabled:cursor-not-allowed disabled:opacity-60";
 
+  const dateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }),
+    [],
+  );
+  const summaryPercentFormatter = useMemo(
+    () => new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }),
+    [],
+  );
+
+  const activeFilters = useMemo<ActiveFilterChip[]>(() => {
+    const chips: ActiveFilterChip[] = [];
+    const safeFormat = (value: string) => {
+      if (!value) return null;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return value;
+      }
+      return dateFormatter.format(date);
+    };
+    if (from || to) {
+      const formattedFrom = safeFormat(from);
+      const formattedTo = safeFormat(to);
+      const parts: string[] = [];
+      if (from && formattedFrom) {
+        parts.push(`${filtersT("from")}: ${formattedFrom}`);
+      }
+      if (to && formattedTo) {
+        parts.push(`${filtersT("to")}: ${formattedTo}`);
+      }
+      if (parts.length) {
+        chips.push({
+          id: "range",
+          label: parts.join(" · "),
+          onClear: () => {
+            setFrom("");
+            setTo("");
+          },
+        });
+      }
+    }
+    if (teamFilter) {
+      chips.push({
+        id: "team",
+        label: `${filtersT("team.label")}: ${teamFilter}`,
+        onClear: () => setTeamFilter(""),
+      });
+    }
+    if (countryFilter) {
+      chips.push({
+        id: "country",
+        label: `${filtersT("country.label")}: ${countryFilter}`,
+        onClear: () => setCountryFilter(""),
+      });
+    }
+    if (userFilter) {
+      chips.push({
+        id: "user",
+        label: `${filtersT("user.label")}: ${userFilter}`,
+        onClear: () => setUserFilter(""),
+      });
+    }
+    if (orderKey !== "createdAt" || orderDir !== "desc") {
+      const orderLabel = `${filtersT("orderBy.label")}: ${
+        orderKey === "createdAt"
+          ? filtersT("orderBy.createdAt")
+          : filtersT("orderBy.totalAmount")
+      } · ${orderDir === "desc" ? filtersT("direction.desc") : filtersT("direction.asc")}`;
+      chips.push({
+        id: "order",
+        label: orderLabel,
+        onClear: () => {
+          setOrderKey("createdAt");
+          setOrderDir("desc");
+        },
+      });
+    }
+    return chips;
+  }, [
+    countryFilter,
+    dateFormatter,
+    filtersT,
+    from,
+    orderDir,
+    orderKey,
+    teamFilter,
+    to,
+    userFilter,
+  ]);
+
+  const filtersSummaryText = useMemo(() => {
+    const filteredValue = subset.length.toLocaleString();
+    const totalValue = all.length.toLocaleString();
+    const percentValue = summaryPercentFormatter.format(
+      all.length ? (subset.length / all.length) * 100 : 0,
+    );
+    return filtersT("summary", {
+      filtered: filteredValue,
+      total: totalValue,
+      percent: percentValue,
+    });
+  }, [all.length, filtersT, subset.length, summaryPercentFormatter]);
+
   return (
     <div className="p-4">
       <GradientShell>
@@ -946,7 +786,38 @@ export default function Stats({
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_18px_48px_rgba(60,3,140,0.12)]">
           <div className="flex flex-col gap-4">
             <div>
-              <QuickRanges setFrom={setFrom} setTo={setTo} />
+              <QuickRanges from={from} to={to} setFrom={setFrom} setTo={setTo} />
+            </div>
+            <div className="rounded-2xl border border-brand-primary/20 bg-brand-primary/5 px-4 py-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
+                  {filtersT("active.title")}
+                </p>
+                <p className="text-xs text-slate-500" aria-live="polite">
+                  {filtersSummaryText}
+                </p>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {activeFilters.length ? (
+                  activeFilters.map((filter) => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={filter.onClear}
+                      className="group inline-flex items-center gap-2 rounded-full border border-brand-primary/30 bg-white px-3 py-1 text-xs font-medium text-brand-primary transition hover:border-brand-primary/60 hover:bg-brand-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
+                      aria-label={`${filtersT("active.clear")} ${filter.label}`}
+                    >
+                      <span>{filter.label}</span>
+                      <X
+                        className="h-3.5 w-3.5 text-brand-primary/60 transition group-hover:text-brand-primary"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  ))
+                ) : (
+                  <span className="text-xs text-slate-500">{filtersT("active.none")}</span>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div>
@@ -1103,93 +974,6 @@ export default function Stats({
           <GlassKpi label={kpisT("wonAmount")} value={formatUSD(wonAmount)} />
           <GlassKpi label={kpisT("winRate")} value={`${winRate.toFixed(1)}%`} />
           <GlassKpi label={kpisT("wonAverageTicket")} value={formatUSD(wonAvgTicket)} />
-        </section>
-
-        <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-          <div className="xl:col-span-7">
-            <ChartCard
-              title={chartsT("monthlyPerformance.title")}
-              description={chartsT("monthlyPerformance.description")}
-              meta={
-                monthlyPerformance.length ? (
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    {monthlyTrends.latestLabel ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-brand-primary/10 px-3 py-1 font-medium text-brand-primary">
-                        {chartsT("monthlyPerformance.latestLabel", {
-                          label: monthlyTrends.latestLabel,
-                        })}
-                      </span>
-                    ) : null}
-                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-500">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#22D3EE]" aria-hidden="true" />
-                      {chartsT("monthlyPerformance.countLabel")}
-                      <span className="font-semibold text-brand-primary">{formatTrend(monthlyTrends.count)}</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-500">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#7C3AED]" aria-hidden="true" />
-                      {chartsT("monthlyPerformance.amountLabel")}
-                      <span className="font-semibold text-brand-primary">{formatTrend(monthlyTrends.amount)}</span>
-                    </span>
-                  </div>
-                ) : null
-              }
-            >
-              {loading ? (
-                <ChartSkeleton />
-              ) : monthlyPerformance.length ? (
-                <>
-                  <SparkAreaChart
-                    data={monthlyPerformance}
-                    countLabel={chartsT("monthlyPerformance.countLabel")}
-                    amountLabel={chartsT("monthlyPerformance.amountLabel")}
-                  />
-                  {latestMonthly ? (
-                    <div className="mt-4 grid grid-cols-1 gap-3 text-sm text-slate-600 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
-                        <p className="text-xs uppercase tracking-wide text-slate-400">
-                          {chartsT("monthlyPerformance.countLabel")}
-                        </p>
-                        <p className="mt-1 text-lg font-semibold text-brand-primary">
-                          {latestMonthly.proposals.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
-                        <p className="text-xs uppercase tracking-wide text-slate-400">
-                          {chartsT("monthlyPerformance.amountLabel")}
-                        </p>
-                        <p className="mt-1 text-lg font-semibold text-brand-primary">
-                          {formatUSD(latestMonthly.amount)}
-                        </p>
-                      </div>
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                <ChartEmpty message={chartsEmptyLabel} />
-              )}
-            </ChartCard>
-          </div>
-          <div className="xl:col-span-5">
-            <ChartCard
-              title={chartsT("statusDistribution.title")}
-              description={chartsT("statusDistribution.description")}
-              meta={
-                subset.length ? (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-brand-primary/10 px-3 py-1 text-xs font-medium text-brand-primary">
-                    {chartsT("statusDistribution.totalLabel", { total: subset.length.toLocaleString() })}
-                  </span>
-                ) : null
-              }
-            >
-              {loading ? (
-                <ChartSkeleton />
-              ) : statusDonutData.length ? (
-                <DonutChart data={statusDonutData} total={subset.length} emptyMessage={chartsEmptyLabel} />
-              ) : (
-                <ChartEmpty message={chartsEmptyLabel} />
-              )}
-            </ChartCard>
-          </div>
         </section>
 
         <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">

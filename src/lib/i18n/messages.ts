@@ -1669,6 +1669,12 @@ export const messages: Record<Locale, DeepRecord> = {
             desc: "Descendente",
             asc: "Ascendente",
           },
+          active: {
+            title: "Filtros activos",
+            none: "Sin filtros aplicados",
+            clear: "Quitar filtro",
+          },
+          summary: "Mostrando {filtered} de {total} propuestas ({percent}%)",
         },
         actions: {
           reset: "Limpiar",
@@ -3471,6 +3477,12 @@ export const messages: Record<Locale, DeepRecord> = {
             desc: "Descending",
             asc: "Ascending",
           },
+          active: {
+            title: "Active filters",
+            none: "No filters applied",
+            clear: "Remove filter",
+          },
+          summary: "Showing {filtered} of {total} proposals ({percent}%)",
         },
         actions: {
           reset: "Clear",
@@ -5268,6 +5280,12 @@ export const messages: Record<Locale, DeepRecord> = {
             desc: "Descendente",
             asc: "Ascendente",
           },
+          active: {
+            title: "Filtros ativos",
+            none: "Nenhum filtro aplicado",
+            clear: "Remover filtro",
+          },
+          summary: "Exibindo {filtered} de {total} propostas ({percent}%)",
         },
         actions: {
           reset: "Limpar",
