@@ -35,6 +35,7 @@ import {
 import GeneratorMainCard, {
   type GeneratorMainCardProps,
 } from "./components/generator/GeneratorMainCard";
+import { type PipedriveSyncMode } from "./components/generator/PipedriveCard";
 import WhatsAppCalculatorCard from "./components/generator/WhatsAppCalculatorCard";
 import GeneratorModalStack, {
   type ConfirmResetState,
@@ -122,6 +123,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
 
   const [pipedriveLink, setPipedriveLink] = useState("");
   const [pipedriveDealId, setPipedriveDealId] = useState<string>("");
+  const [pipedriveMode, setPipedriveMode] = useState<PipedriveSyncMode>("sync");
 
   const resolveProposalActionError = React.useCallback(
     (error: ProposalError) =>
@@ -162,6 +164,14 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
   const handlePipedriveChange = React.useCallback((next: string) => {
     setPipedriveLink(next);
     setPipedriveDealId(extractDealIdFromLink(next) ?? "");
+  }, []);
+
+  const handlePipedriveModeChange = React.useCallback((mode: PipedriveSyncMode) => {
+    setPipedriveMode(mode);
+    if (mode !== "sync") {
+      setPipedriveLink("");
+      setPipedriveDealId("");
+    }
   }, []);
 
   const handleCountryChange = React.useCallback((value: string) => {
@@ -402,12 +412,21 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
       toast.info(toastT("fillCompany"));
       return;
     }
-    const id = extractDealIdFromLink(pipedriveLink);
-    if (!pipedriveLink || !id) {
-      toast.error(toastT("pipedriveLinkRequired", { example: pipedriveExample }));
+    if (pipedriveMode === "create") {
+      toast.error(pipedriveT("notAvailable"));
       return;
     }
-    setPipedriveDealId(id);
+
+    if (pipedriveMode === "sync") {
+      const id = extractDealIdFromLink(pipedriveLink);
+      if (!pipedriveLink || !id) {
+        toast.error(toastT("pipedriveLinkRequired", { example: pipedriveExample }));
+        return;
+      }
+      setPipedriveDealId(id);
+    } else {
+      setPipedriveDealId("");
+    }
     setOpenSummary(true);
   }, [
     catalogLoading,
@@ -416,8 +435,10 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
     companyName,
     country,
     subsidiary,
+    pipedriveMode,
     pipedriveLink,
     pipedriveExample,
+    pipedriveT,
     setPipedriveDealId,
     setOpenSummary,
   ]);
@@ -430,6 +451,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
     setSubsidiary("");
     setPipedriveLink("");
     setPipedriveDealId("");
+    setPipedriveMode("sync");
     setSearchTerm("");
     setCategoryFilter("");
     setPage(1);
@@ -484,7 +506,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
         },
         items: requestItems,
         pipedrive:
-          pipedriveLink || pipedriveDealId
+          pipedriveMode === "sync" && (pipedriveLink || pipedriveDealId)
             ? {
                 link: pipedriveLink || undefined,
                 dealId: pipedriveDealId || undefined,
@@ -575,6 +597,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
     idToDbId,
     pipedriveDealId,
     pipedriveLink,
+    pipedriveMode,
     resolveProposalErrorMessage,
     selectedItems,
     setOpenSummary,
@@ -882,6 +905,8 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
         dealId: pipedriveDealId,
         example: pipedriveExample,
         onChange: handlePipedriveChange,
+        mode: pipedriveMode,
+        onModeChange: handlePipedriveModeChange,
         t: pipedriveT,
       },
       company: {
@@ -905,7 +930,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
         onAddItem: openCreateForm,
         onGenerate: generate,
         onReset: requestReset,
-        disabled: catalogLoading,
+        disabled: catalogLoading || pipedriveMode === "create",
         actionsT,
         filtersT,
         orderT,
@@ -935,6 +960,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
       handleCategoryChange,
       handleCountryChange,
       handlePipedriveChange,
+      handlePipedriveModeChange,
       handleSearchChange,
       handleSortChange,
       isAdmin,
@@ -944,6 +970,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
       pipedriveDealId,
       pipedriveExample,
       pipedriveLink,
+      pipedriveMode,
       pipedriveT,
       requestReset,
       searchTerm,

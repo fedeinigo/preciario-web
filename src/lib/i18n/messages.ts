@@ -1136,6 +1136,13 @@ export const messages: Record<Locale, DeepRecord> = {
         heading: "Generador de Propuestas",
         emptyValue: "—",
         pipedrive: {
+          modeLabel: "Sincronización con Pipedrive",
+          options: {
+            sync: "Sincronizar tarjeta en Pipedrive",
+            skip: "No sincronizar tarjeta en Pipedrive",
+            create: "Crear nueva tarjeta en Pipedrive",
+          },
+          notAvailable: "Funcionalidad no disponible.",
           label: "Link Pipedrive",
           placeholder: "Ej: {example}",
           description:
@@ -2927,6 +2934,13 @@ export const messages: Record<Locale, DeepRecord> = {
         heading: "Proposal generator",
         emptyValue: "—",
         pipedrive: {
+          modeLabel: "Pipedrive synchronization",
+          options: {
+            sync: "Sync deal in Pipedrive",
+            skip: "Do not sync deal in Pipedrive",
+            create: "Create new deal in Pipedrive",
+          },
+          notAvailable: "Feature not available.",
           label: "Pipedrive link",
           placeholder: "Ex: {example}",
           description:
@@ -4711,6 +4725,13 @@ export const messages: Record<Locale, DeepRecord> = {
         heading: "Gerador de Propostas",
         emptyValue: "—",
         pipedrive: {
+          modeLabel: "Sincronização com o Pipedrive",
+          options: {
+            sync: "Sincronizar negócio no Pipedrive",
+            skip: "Não sincronizar negócio no Pipedrive",
+            create: "Criar novo negócio no Pipedrive",
+          },
+          notAvailable: "Funcionalidade indisponível.",
           label: "Link do Pipedrive",
           placeholder: "Ex: {example}",
           description:
