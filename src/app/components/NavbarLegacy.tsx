@@ -9,7 +9,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
-import { LayoutGrid, Clock, BarChart2, Users, Users2, Target, Loader2 } from "lucide-react";
+import { LayoutGrid, Clock, BarChart2, Users, Users2, Target, Loader2, Settings } from "lucide-react";
 import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { locales } from "@/lib/i18n/config";
@@ -26,8 +26,16 @@ import { normalizeProfileText } from "@/app/components/navbar/profile-format";
 import PortalLauncher from "@/app/components/navbar/PortalLauncher";
 
 type Tab = "generator" | "history" | "stats" | "users" | "teams" | "goals";
+const DIRECT_PORTAL_TAB_ROUTES: Record<
+  Extract<Tab, "generator" | "history" | "stats" | "goals">,
+  string
+> = {
+  generator: "/portal/directo/generator",
+  history: "/portal/directo/history",
+  stats: "/portal/directo/stats",
+  goals: "/portal/directo/goals",
+};
 type AnyRole =
-  | "superadmin"
   | "admin"
   | "lider"
   | "comercial"
@@ -45,13 +53,12 @@ type DocumentWithViewTransition = Document & {
 };
 
 const APP_ROLES: readonly AppRole[] = [
-  "superadmin",
   "admin",
   "lider",
   "usuario",
 ];
 const APP_ROLE_SET: ReadonlySet<AppRole> = new Set<AppRole>(APP_ROLES);
-const ADMIN_ROLES: ReadonlySet<AppRole> = new Set<AppRole>(["superadmin", "admin"]);
+const ADMIN_ROLES: ReadonlySet<AppRole> = new Set<AppRole>(["admin"]);
 
 function toAppRole(role: AnyRole): AppRole {
   return typeof role === "string" && APP_ROLE_SET.has(role as AppRole)
@@ -122,12 +129,47 @@ function MapacheSectionBtn({
   );
 }
 
+function TabLink({
+  label,
+  active,
+  href,
+  Icon,
+}: {
+  label: string;
+  active: boolean;
+  href: string;
+  Icon: React.ComponentType<{ className?: string }>;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition whitespace-nowrap shrink-0 ${
+        active
+          ? "bg-white text-[#1f2937] border-transparent"
+          : "bg-transparent text-white/90 border-white/20 hover:bg-white/10"
+      }`}
+      aria-current={active ? "page" : undefined}
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </Link>
+  );
+}
+
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const isPartnerPortal = pathname.startsWith("/partner-portal");
-  const isMarketingPortal = pathname.startsWith("/marketing-portal");
+  const isHome = pathname === "/home";
+  const isPartnerPortal =
+    pathname.startsWith("/partner-portal") || pathname.startsWith("/portal/partner");
+  const isMarketingPortal =
+    pathname.startsWith("/marketing-portal") || pathname.startsWith("/portal/marketing");
+  const isDirectPortalNew = pathname.startsWith("/portal/directo");
+  const isDirectPortalLegacy = pathname.startsWith("/direct-portal");
+  const directPortalBase = isDirectPortalNew ? "/portal/directo" : "/direct-portal";
+  const isDirectPortal = isDirectPortalNew || isDirectPortalLegacy;
+  const isConfigurationsPath = pathname.startsWith(`${directPortalBase}/configuraciones`);
   const marketingView =
     isMarketingPortal && searchParams?.get("view") === "history"
       ? "history"
@@ -139,6 +181,7 @@ export default function Navbar() {
   const fallbacksT = useTranslations("navbar.fallbacks");
   const languageT = useTranslations("common.language");
   const mapacheSectionsT = useTranslations("navbar.mapachePortalSections");
+  const configurationsT = useTranslations("configurations");
 
   const handleLocaleChange = React.useCallback(
     (next: Locale) => {
@@ -154,14 +197,25 @@ export default function Navbar() {
   const isMapachePortal = isMapachePath(pathname);
 
   // Tabs/acciones solo cuando estoy autenticado
-  const showTabs = status === "authenticated" && !isMapachePortal && !isMarketingPortal;
+  const showDirectTabs = status === "authenticated" && isDirectPortal;
+  const showLegacyTabs =
+    status === "authenticated" &&
+    !isMapachePortal &&
+    !isMarketingPortal &&
+    !isDirectPortal &&
+    !isHome;
+  const showTabs = showDirectTabs || showLegacyTabs;
   const showAuthActions = status === "authenticated";
+  const showPortalSwitcher = showAuthActions && !isHome;
 
   const role = (session?.user?.role as AnyRole) ?? "usuario";
   const appRole = toAppRole(role);
   const rawTeam = (session?.user?.team as string | null) ?? null;
   const name = normalizeProfileText(session?.user?.name) || fallbacksT("name");
   const canSeeUsers = ADMIN_ROLES.has(appRole);
+  const showConfigurationsShortcut =
+    showAuthActions && canSeeUsers && isDirectPortal && !isHome;
+  const configurationsLabel = configurationsT("title");
   const userPortals = session?.user?.portals ?? ["direct"];
   const canOpenMapachePortal = userPortals.includes("mapache");
   const canAccessPartnerPortal = userPortals.includes("partner");
@@ -177,6 +231,15 @@ export default function Navbar() {
   };
 
   const [activeTab, setActiveTab] = React.useState<Tab>(readHash());
+  const activeDirectTab = React.useMemo<"generator" | "history" | "stats" | "goals">(() => {
+    if (!isDirectPortal || isConfigurationsPath) {
+      return "generator";
+    }
+    if (pathname.startsWith(`${directPortalBase}/history`)) return "history";
+    if (pathname.startsWith(`${directPortalBase}/stats`)) return "stats";
+    if (pathname.startsWith(`${directPortalBase}/goals`)) return "goals";
+    return "generator";
+  }, [directPortalBase, isConfigurationsPath, isDirectPortal, pathname]);
   const [profileOpen, setProfileOpen] = React.useState(false);
   const [mapacheSection, setMapacheSection] =
     React.useState<MapachePortalSection>(MAPACHE_PORTAL_DEFAULT_SECTION);
@@ -456,7 +519,7 @@ export default function Navbar() {
             className="h-9 w-auto object-contain"
             priority
           />
-          {showAuthActions ? (
+          {showPortalSwitcher ? (
             <PortalLauncher
               canAccessMapache={canOpenMapachePortal}
               canAccessPartner={canAccessPartnerPortal}
@@ -522,7 +585,38 @@ export default function Navbar() {
                 </Link>
               </div>
             </div>
-          ) : showTabs ? (
+          ) : showDirectTabs ? (
+            <div className="relative hidden w-full md:block">
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="pointer-events-auto flex items-center gap-2">
+                  <TabLink
+                    label={tabsT("generator")}
+                    Icon={LayoutGrid}
+                    href={DIRECT_PORTAL_TAB_ROUTES.generator}
+                    active={!isConfigurationsPath && activeDirectTab === "generator"}
+                  />
+                  <TabLink
+                    label={tabsT("history")}
+                    Icon={Clock}
+                    href={DIRECT_PORTAL_TAB_ROUTES.history}
+                    active={activeDirectTab === "history"}
+                  />
+                  <TabLink
+                    label={tabsT("stats")}
+                    Icon={BarChart2}
+                    href={DIRECT_PORTAL_TAB_ROUTES.stats}
+                    active={activeDirectTab === "stats"}
+                  />
+                  <TabLink
+                    label={tabsT("goals")}
+                    Icon={Target}
+                    href={DIRECT_PORTAL_TAB_ROUTES.goals}
+                    active={activeDirectTab === "goals"}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : showLegacyTabs ? (
             <div
               className="flex items-center gap-2 overflow-x-auto md:justify-center"
               role="tablist"
@@ -578,6 +672,20 @@ export default function Navbar() {
 
         {/* DERECHA: perfil + cerrar sesiÃƒÂ³n (autenticado) */}
         <div className="flex items-center gap-2">
+          {showConfigurationsShortcut && (
+            <Link
+              href="/portal/directo/configuraciones"
+              className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[13px] transition ${
+                isConfigurationsPath
+                  ? "border-transparent bg-white text-[#1f2937] shadow-sm"
+                  : "border-white/25 bg-white/10 text-white hover:bg-white/15"
+              }`}
+              aria-label={configurationsLabel}
+              title={configurationsLabel}
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
+          )}
           {showAuthActions && (
             <button
               onClick={() => setProfileOpen(true)}

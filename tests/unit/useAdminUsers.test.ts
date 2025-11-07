@@ -31,7 +31,7 @@ test("useAdminUsers shares cached response across consumers", async () => {
           email: "demo@example.com",
           name: "Demo",
           image: null,
-          role: "superadmin",
+          role: "admin",
           team: "Team A",
         },
       ],

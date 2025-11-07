@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
-  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  const forbidden = ensureSessionRole(session, ["admin"]);
   if (forbidden) return forbidden;
 
   const body: { label: string; url: string } = await req.json();
@@ -34,7 +34,7 @@ export async function PATCH(req: Request) {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
-  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  const forbidden = ensureSessionRole(session, ["admin"]);
   if (forbidden) return forbidden;
 
   const body: { id: string; label: string; url: string } = await req.json();
@@ -50,7 +50,7 @@ export async function DELETE(req: Request) {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
-  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  const forbidden = ensureSessionRole(session, ["admin"]);
   if (forbidden) return forbidden;
 
   const body: { id: string } = await req.json();

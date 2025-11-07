@@ -423,7 +423,7 @@ export default function Stats({
     return map;
   }, [adminUsers]);
 
-  /** Equipos visibles (con al menos 1 integrante) para el select de superadmin */
+  /** Equipos visibles (con al menos 1 integrante) para el select de admin */
   const visibleTeams: string[] = useMemo(() => {
     const counts = new Map<string, number>();
     adminUsers.forEach((u) => {

@@ -54,7 +54,7 @@ export type MapacheIntegrationType = (typeof VALID_INTEGRATION_TYPES)[number];
 export const VALID_INTEGRATION_OWNERS = ["OWN", "THIRD_PARTY"] as const;
 export type MapacheIntegrationOwner = (typeof VALID_INTEGRATION_OWNERS)[number];
 
-const MAPACHE_ADMIN_ROLES: ReadonlyArray<AppRole> = ["superadmin", "admin"];
+const MAPACHE_ADMIN_ROLES: ReadonlyArray<AppRole> = ["admin"];
 const MAPACHE_ADMIN_ROLE_SET = new Set<AppRole>(MAPACHE_ADMIN_ROLES);
 
 export const mapacheStatusSummarySelect = {

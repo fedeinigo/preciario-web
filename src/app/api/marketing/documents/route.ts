@@ -922,7 +922,7 @@ export async function GET(req: Request) {
     }
 
     const role = (session.user.role ?? "usuario") as AppRole;
-    const isAdmin = role === "admin" || role === "superadmin";
+    const isAdmin = role === "admin";
     const isLeader = role === "lider";
     const leaderTeam = sanitize(session.user.team);
 

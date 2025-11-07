@@ -83,7 +83,7 @@ export default function TeamGoalCard({
 
       {!effectiveTeam ? (
         <div className="mt-6 rounded-3xl border border-dashed border-[#d8c7ff] bg-[#faf7ff] p-6 text-sm text-[#5b21b6]">
-          {isSuperAdmin ? emptyT("superadmin") : emptyT("member")}
+          {isSuperAdmin ? emptyT("admin") : emptyT("member")}
         </div>
       ) : (
         <>

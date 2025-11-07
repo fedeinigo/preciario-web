@@ -35,7 +35,7 @@ function resolvePortalAccess({
 
   const fallback = new Set<PortalAccessId>(["direct"]);
   const appRole = appRoleFromDb(role);
-  if (appRole === "superadmin" || appRole === "admin") {
+  if (appRole === "admin") {
     fallback.add("mapache");
     fallback.add("partner");
     fallback.add("marketing");

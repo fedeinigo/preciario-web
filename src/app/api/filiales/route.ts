@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
-  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  const forbidden = ensureSessionRole(session, ["admin"]);
   if (forbidden) return forbidden;
 
   const body: { title: string } = await req.json();
@@ -44,3 +44,4 @@ export async function POST(req: Request) {
   });
   return NextResponse.json(created, { status: 201 });
 }
+

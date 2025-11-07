@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
-  const forbidden = ensureSessionRole(session, ["superadmin"], 403);
+  const forbidden = ensureSessionRole(session, ["admin"], 403);
   if (forbidden) return forbidden;
 
   // Body tipado: si falla el parseo usamos {} tipado como DebugBody

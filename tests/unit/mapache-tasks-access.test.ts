@@ -42,13 +42,3 @@ test("secureApiRoutes activo: admin accede sin importar el team", () => {
   assert.equal(result.userId, session.user?.id);
 });
 
-test("secureApiRoutes activo: superadmin accede sin importar el team", () => {
-  const session: ApiSession = {
-    user: { id: "user-3", role: "superadmin", team: null },
-    expires: new Date().toISOString(),
-  };
-
-  const result = ensureMapacheAccess(session);
-  assert.equal(result.response, null);
-  assert.equal(result.userId, session.user?.id);
-});

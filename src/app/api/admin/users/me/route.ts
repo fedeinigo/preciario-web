@@ -19,7 +19,7 @@ export async function GET() {
   return NextResponse.json({
     id: me.id,
     email: me.email,
-    role: me.role,   // enum Prisma: superadmin | lider | usuario
+    role: me.role,   // enum Prisma: admin | lider | usuario
     team: me.team,   // string | null
     name: me.name,
   });

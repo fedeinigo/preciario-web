@@ -3,6 +3,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 
 import Navbar from "@/app/components/Navbar";
 import ClientSessionBoundary from "@/app/ClientSessionBoundary";
@@ -10,7 +11,7 @@ import SessionProviderWrapper from "./SessionProviderWrapper";
 import { LanguageProvider } from "./LanguageProvider";
 import { auth } from "@/lib/auth";
 import { isFeatureEnabled } from "@/lib/feature-flags";
-import { defaultLocale } from "@/lib/i18n/config";
+import { defaultLocale, localeCookieName, normalizeLocale } from "@/lib/i18n/config";
 
 export const metadata: Metadata = {
   title: "Wise CX — Preciario",
@@ -36,14 +37,19 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = await cookies();
+  const cookieLocale = normalizeLocale(cookieStore.get(localeCookieName)?.value ?? null);
+  const initialLocale = cookieLocale ?? defaultLocale;
+  const session = await auth();
+
   if (!isFeatureEnabled("appShellRsc")) {
     return (
-      <html lang={defaultLocale}>
+      <html lang={initialLocale}>
         <body>
-          <LanguageProvider>
-            <SessionProviderWrapper>
+          <LanguageProvider initialLocale={initialLocale}>
+            <SessionProviderWrapper session={session ?? undefined}>
               <Suspense fallback={null}>
-                <Navbar />
+                <Navbar session={session} />
               </Suspense>
               <main className="pt-[var(--nav-h)]">{children}</main>
             </SessionProviderWrapper>
@@ -53,12 +59,10 @@ export default async function RootLayout({
     );
   }
 
-  const session = await auth();
-
   return (
-    <html lang={defaultLocale}>
+    <html lang={initialLocale}>
       <body>
-        <LanguageProvider>
+        <LanguageProvider initialLocale={initialLocale}>
           <ClientSessionBoundary session={session ?? null}>
             <Suspense fallback={null}>
               <Navbar session={session} />

@@ -13,7 +13,7 @@ type RoleChange = "lider" | "usuario";
 
 export async function PATCH(req: Request) {
   const session = await auth();
-  if (session?.user?.role !== "superadmin") {
+  if (session?.user?.role !== "admin") {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 

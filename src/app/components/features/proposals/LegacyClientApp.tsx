@@ -40,7 +40,7 @@ export default function ProposalsIndex() {
   const role = (session?.user?.role as AppRole | undefined) ?? "usuario";
   const currentEmail = session?.user?.email ?? "";
   const leaderTeam = (session?.user?.team as string | null) ?? null;
-  const isSuperAdmin = role === "superadmin";
+  const isSuperAdmin = role === "admin";
   const userId = (session?.user?.id as string | undefined) ?? "";
   const userEmail = currentEmail;
 

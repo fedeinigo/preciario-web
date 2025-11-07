@@ -6,7 +6,7 @@ import type { ApiSession } from "../../src/app/api/_utils/require-auth";
 import { createAuthGuards } from "../../src/app/api/_utils/require-auth";
 
 const mockSession: ApiSession = {
-  user: { id: "user-1", role: "superadmin", team: null },
+  user: { id: "user-1", role: "admin", team: null },
   expires: new Date().toISOString(),
 };
 
@@ -38,7 +38,7 @@ test("ensureSessionRole permite roles válidos y bloquea los no autorizados", ()
     isFeatureEnabledFn: () => true,
   });
 
-  const ok = guards.ensureSessionRole(mockSession, ["admin", "superadmin"]);
+  const ok = guards.ensureSessionRole(mockSession, ["admin"]);
   assert.equal(ok, null);
 
   const forbidden = guards.ensureSessionRole(mockSession, ["usuario"], 418);

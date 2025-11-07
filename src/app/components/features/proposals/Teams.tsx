@@ -367,7 +367,7 @@ export default function Teams({ isSuperAdmin }: { isSuperAdmin: boolean }) {
             )}
           </div>
 
-          {/* Gestión (solo superadmin) */}
+          {/* Gestión (solo admin) */}
           {canEdit && (
             <div className="rounded-xl border bg-white p-3 shadow-soft">
               <div className="text-sm font-semibold mb-2">{teamsT("management.title")}</div>

@@ -2,7 +2,13 @@
 
 import * as React from "react";
 
-import { defaultLocale, locales, storageKey, type Locale } from "@/lib/i18n/config";
+import {
+  defaultLocale,
+  localeCookieName,
+  normalizeLocale,
+  storageKey,
+  type Locale,
+} from "@/lib/i18n/config";
 import { formatMessage } from "@/lib/i18n/formatMessage";
 import { getMessage } from "@/lib/i18n/messages";
 
@@ -14,35 +20,41 @@ type LanguageContextValue = {
   t: (key: string, replacements?: Replacements) => string;
 };
 
-const LanguageContext = React.createContext<LanguageContextValue | undefined>(
-  undefined
-);
-
-function normalizeLocale(value: string | null): Locale | null {
-  if (!value) return null;
-  return locales.includes(value as Locale) ? (value as Locale) : null;
-}
+const LanguageContext = React.createContext<LanguageContextValue | undefined>(undefined);
 
 export function LanguageProvider({
   children,
+  initialLocale = defaultLocale,
 }: {
   children: React.ReactNode;
+  initialLocale?: Locale;
 }) {
-  const [locale, setLocaleState] = React.useState<Locale>(defaultLocale);
+  const [locale, setLocaleState] = React.useState<Locale>(initialLocale);
+  const persistLocale = React.useCallback((next: Locale) => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage?.setItem(storageKey, next);
+    } catch {}
+    try {
+      const doc = window.document;
+      if (!doc) return;
+      const expiration = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365);
+      doc.cookie = `${localeCookieName}=${next};path=/;expires=${expiration.toUTCString()}`;
+    } catch {}
+  }, []);
 
   React.useEffect(() => {
     const stored = normalizeLocale(globalThis?.localStorage?.getItem(storageKey));
     if (stored) {
       setLocaleState(stored);
+      persistLocale(stored);
     }
-  }, []);
+  }, [persistLocale]);
 
   const setLocale = React.useCallback((next: Locale) => {
     setLocaleState(next);
-    try {
-      globalThis?.localStorage?.setItem(storageKey, next);
-    } catch {}
-  }, []);
+    persistLocale(next);
+  }, [persistLocale]);
 
   React.useEffect(() => {
     try {

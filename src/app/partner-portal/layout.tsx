@@ -20,7 +20,7 @@ export default async function PartnerPortalLayout({
   const session = await auth();
   const role = (session?.user?.role as string | undefined) ?? "";
   const team = (session?.user?.team as string | undefined) ?? "";
-  const isAdmin = role === "admin" || role === "superadmin";
+  const isAdmin = role === "admin";
   const isMapache = team === "Mapaches";
   const hasSession = Boolean(session?.user);
 

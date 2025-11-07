@@ -14,13 +14,13 @@ export default function AuthLoginCard() {
     <div className="hero-bg min-h-[calc(100vh-var(--nav-h)-var(--footer-h))] w-full flex items-center justify-center px-4 py-10">
       <div className="auth-card w-full rounded-2xl border border-black/10 bg-[#2f3640] text-white shadow-xl shadow-black/20">
         {/* Header oscuro */}
-        <div className="px-8 pt-8 text-center">
+        <div className="px-10 pt-10 text-center">
           <Image
-            src="/logo.png"               // tu logo en /public/logo.png
+            src="/logo_color.png"               // tu logo en /public/logo.png
             alt="Wise CX"
             width={160}
             height={40}
-            className="auth-logo mx-auto mb-3 h-auto w-[180px] max-w-[60vw]"
+            className="auth-logo mx-auto mb-3 h-auto w-[400px] max-w-[100vw]"
             priority
           />
           <h1 className="text-xl font-extrabold">{t("title")}</h1>

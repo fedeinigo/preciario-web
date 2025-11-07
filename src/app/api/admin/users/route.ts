@@ -37,7 +37,7 @@ function portalsFromDb(
   if (portalRows.length === 0) {
     const fallback = new Set<PortalAccessId>(["direct"]);
     const appRole = appRoleFromDb(role);
-    if (appRole === "superadmin" || appRole === "admin") {
+    if (appRole === "admin") {
       fallback.add("mapache");
       fallback.add("partner");
       fallback.add("marketing");
@@ -55,7 +55,7 @@ export async function GET() {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
-  const forbidden = ensureSessionRole(session, ["superadmin", "admin", "lider"]);
+  const forbidden = ensureSessionRole(session, ["admin", "lider"]);
   if (forbidden) return forbidden;
 
   const role = (session?.user?.role as DbRole | undefined) ?? DbRole.usuario;
@@ -105,11 +105,11 @@ export async function GET() {
 }
 
 /**
- * PATCH: sólo superadmin puede modificar rol/equipo.
+ * PATCH: sólo admin puede modificar rol/equipo.
  * Body:
  * {
  *   userId: string;
- *   role?: "superadmin" | "admin" | "lider" | "usuario" | "comercial"; // "comercial" => "usuario"
+ *   role?: "admin" | "lider" | "usuario" | "comercial"; // "comercial" => "usuario"
  *   team?: string | null;  // nombre del equipo o null
  * }
  */
@@ -117,7 +117,7 @@ export async function PATCH(req: Request) {
   const session = await auth();
   const myRole = (session?.user?.role as DbRole | undefined) ?? DbRole.usuario;
 
-  if (myRole !== DbRole.superadmin) {
+  if (myRole !== DbRole.admin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

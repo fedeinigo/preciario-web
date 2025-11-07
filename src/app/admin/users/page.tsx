@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "@/app/LanguageProvider";
 import { toast } from "@/app/components/ui/toast";
 
-type Role = "superadmin" | "admin" | "lider" | "usuario";
+type Role = "admin" | "lider" | "usuario";
 
 type UserRow = {
   id: string;
@@ -20,7 +20,7 @@ type UserRow = {
 
 type TeamRow = { id: string; name: string };
 
-const ROLES: Role[] = ["usuario", "lider", "admin", "superadmin"];
+const ROLES: Role[] = ["usuario", "lider", "admin"];
 
 export default function AdminUsersPage() {
   const t = useTranslations("admin.usersLegacy");
@@ -101,7 +101,7 @@ export default function AdminUsersPage() {
     }
   };
 
-  // ===== Gestor de equipos (superadmin)
+  // ===== Gestor de equipos (admin)
   const [newTeam, setNewTeam] = useState("");
   const [renameId, setRenameId] = useState<string>("");
   const [renameName, setRenameName] = useState("");

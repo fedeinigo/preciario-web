@@ -13,6 +13,6 @@ export function normalizeRole(
   if (v === "usuario") return DbRole.usuario;
   if (v === "lider") return DbRole.lider;
   if (v === "admin") return DbRole.admin;
-  if (v === "superadmin") return DbRole.superadmin;
+  if (v === "superadmin") return DbRole.admin;
   return undefined;
 }
