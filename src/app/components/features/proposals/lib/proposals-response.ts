@@ -81,9 +81,36 @@ const mergeMeta = (
   incoming: ProposalsListMeta,
 ): ProposalsListMeta => (base ? { ...base, ...incoming } : { ...incoming });
 
-export async function fetchAllProposals(init?: RequestInit & { pageSize?: number }): Promise<ProposalsListResult> {
-  const { pageSize: requestedPageSize, ...restInit } = (init ?? {}) as RequestInit & { pageSize?: number };
-  const baseInit: RequestInit = { ...restInit, cache: restInit.cache ?? "no-store" };
+type FetchAllOptions = {
+  pageSize?: number;
+  maxPages?: number;
+  skipCache?: boolean;
+  cacheTtlMs?: number;
+  requestInit?: RequestInit;
+};
+
+type CachedResult = {
+  key: string;
+  expiresAt: number;
+  promise: Promise<ProposalsListResult>;
+};
+
+const DEFAULT_CACHE_TTL_MS = 30_000;
+let cachedResult: CachedResult | null = null;
+
+const buildCacheKey = (pageSize: number, init: RequestInit): string => {
+  const cache = typeof init.cache === "string" ? init.cache : "no-store";
+  const method = init.method ?? "GET";
+  return `${pageSize}|${cache}|${method}`;
+};
+
+export function invalidateProposalsCache(): void {
+  cachedResult = null;
+}
+
+export async function fetchAllProposals(options?: FetchAllOptions): Promise<ProposalsListResult> {
+  const { pageSize: requestedPageSize, maxPages, skipCache, cacheTtlMs, requestInit } = options ?? {};
+  const baseInit: RequestInit = { ...(requestInit ?? {}), cache: requestInit?.cache ?? "no-store" };
   const buildInit = () => ({ ...baseInit });
 
   const normalizedRequested =
@@ -91,51 +118,71 @@ export async function fetchAllProposals(init?: RequestInit & { pageSize?: number
       ? Math.floor(requestedPageSize)
       : undefined;
   const firstPageSize = normalizedRequested ?? 100;
-  const firstQuery = new URLSearchParams({ page: "1", pageSize: String(firstPageSize) });
-  const firstResponse = await fetch(`/api/proposals?${firstQuery.toString()}`, buildInit());
-  if (!firstResponse.ok) {
-    const error = new Error("Failed to fetch proposals") as FetchError;
-    error.status = firstResponse.status;
-    throw error;
+
+  const cacheKey = buildCacheKey(firstPageSize, baseInit);
+  if (!skipCache && cachedResult && cachedResult.key === cacheKey && cachedResult.expiresAt > Date.now()) {
+    return cachedResult.promise;
   }
 
-  const firstParsed = parseProposalsListResponse(await firstResponse.json());
-  let proposals = [...firstParsed.proposals];
-  let meta = firstParsed.meta;
-  let latestMetaWithTotals = hasTotals(meta) ? meta : undefined;
+  const fetchPromise = (async (): Promise<ProposalsListResult> => {
+    const firstQuery = new URLSearchParams({ page: "1", pageSize: String(firstPageSize) });
+    const firstResponse = await fetch(`/api/proposals?${firstQuery.toString()}`, buildInit());
+    if (!firstResponse.ok) {
+      const error = new Error("Failed to fetch proposals") as FetchError;
+      error.status = firstResponse.status;
+      throw error;
+    }
 
-  const totalPages = meta?.totalPages && meta.totalPages > 1 ? Math.floor(meta.totalPages) : 1;
-  if (totalPages > 1) {
-    const pageSize = meta?.pageSize && meta.pageSize > 0 ? Math.floor(meta.pageSize) : proposals.length || 20;
-    const pageNumbers = Array.from({ length: totalPages - 1 }, (_, index) => index + 2);
-    const pageResults = await Promise.all(
-      pageNumbers.map(async (page) => {
+    const firstParsed = parseProposalsListResponse(await firstResponse.json());
+    let proposals = [...firstParsed.proposals];
+    let meta = firstParsed.meta;
+    let latestMetaWithTotals = hasTotals(meta) ? meta : undefined;
+
+    const totalPages = meta?.totalPages && meta.totalPages > 1 ? Math.floor(meta.totalPages) : 1;
+    const allowedPages =
+      typeof maxPages === "number" && maxPages > 0 ? Math.min(totalPages, Math.floor(maxPages)) : totalPages;
+
+    if (allowedPages > 1) {
+      const pageSize = meta?.pageSize && meta.pageSize > 0 ? Math.floor(meta.pageSize) : proposals.length || 20;
+      for (let page = 2; page <= allowedPages; page += 1) {
         const response = await fetch(`/api/proposals?page=${page}&pageSize=${pageSize}`, buildInit());
         if (!response.ok) {
           const error = new Error("Failed to fetch proposals") as FetchError;
           error.status = response.status;
           throw error;
         }
-        return parseProposalsListResponse(await response.json());
-      }),
-    );
+        const parsed = parseProposalsListResponse(await response.json());
+        proposals = proposals.concat(parsed.proposals);
+        if (!parsed.meta) continue;
 
-    for (const parsed of pageResults) {
-      proposals = proposals.concat(parsed.proposals);
-      if (!parsed.meta) continue;
-
-      if (hasTotals(parsed.meta)) {
-        latestMetaWithTotals = mergeMeta(latestMetaWithTotals, parsed.meta);
-        meta = latestMetaWithTotals;
-      } else if (latestMetaWithTotals) {
-        meta = mergeMeta(latestMetaWithTotals, parsed.meta);
-      } else {
-        meta = mergeMeta(meta, parsed.meta);
+        if (hasTotals(parsed.meta)) {
+          latestMetaWithTotals = mergeMeta(latestMetaWithTotals, parsed.meta);
+          meta = latestMetaWithTotals;
+        } else if (latestMetaWithTotals) {
+          meta = mergeMeta(latestMetaWithTotals, parsed.meta);
+        } else {
+          meta = mergeMeta(meta, parsed.meta);
+        }
       }
     }
+
+    return { proposals, meta: latestMetaWithTotals ?? meta };
+  })();
+
+  if (!skipCache) {
+    cachedResult = {
+      key: cacheKey,
+      expiresAt: Date.now() + (cacheTtlMs && cacheTtlMs > 0 ? cacheTtlMs : DEFAULT_CACHE_TTL_MS),
+      promise: fetchPromise,
+    };
+    fetchPromise.catch(() => {
+      if (cachedResult?.promise === fetchPromise) {
+        cachedResult = null;
+      }
+    });
   }
 
-  return { proposals, meta: latestMetaWithTotals ?? meta };
+  return fetchPromise;
 }
 
 export async function fetchActiveUsersCount(

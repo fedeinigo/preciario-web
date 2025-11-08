@@ -11,6 +11,7 @@ import SessionProviderWrapper from "./SessionProviderWrapper";
 import { LanguageProvider } from "./LanguageProvider";
 import { auth } from "@/lib/auth";
 import { isFeatureEnabled } from "@/lib/feature-flags";
+import { loadMessages } from "@/lib/i18n/messages";
 import { defaultLocale, localeCookieName, normalizeLocale } from "@/lib/i18n/config";
 
 export const metadata: Metadata = {
@@ -41,12 +42,13 @@ export default async function RootLayout({
   const cookieLocale = normalizeLocale(cookieStore.get(localeCookieName)?.value ?? null);
   const initialLocale = cookieLocale ?? defaultLocale;
   const session = await auth();
+  const initialMessages = await loadMessages(initialLocale);
 
   if (!isFeatureEnabled("appShellRsc")) {
     return (
       <html lang={initialLocale}>
         <body>
-          <LanguageProvider initialLocale={initialLocale}>
+          <LanguageProvider initialLocale={initialLocale} initialMessages={initialMessages}>
             <SessionProviderWrapper session={session ?? undefined}>
               <Suspense fallback={null}>
                 <Navbar session={session} />
@@ -62,7 +64,7 @@ export default async function RootLayout({
   return (
     <html lang={initialLocale}>
       <body>
-        <LanguageProvider initialLocale={initialLocale}>
+        <LanguageProvider initialLocale={initialLocale} initialMessages={initialMessages}>
           <ClientSessionBoundary session={session ?? null}>
             <Suspense fallback={null}>
               <Navbar session={session} />

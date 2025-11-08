@@ -1,13 +1,27 @@
 "use client";
 
+import * as React from "react";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 
 import LanguageSelector from "@/app/components/LanguageSelector";
 import { useTranslations } from "@/app/LanguageProvider";
 
 export default function AuthLoginCard() {
   const t = useTranslations("auth.login");
+  const searchParams = useSearchParams();
+  const [isSigningIn, setIsSigningIn] = React.useState(false);
+
+  const handleSignIn = React.useCallback(() => {
+    if (isSigningIn) return;
+    setIsSigningIn(true);
+    const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+
+    void signIn("google", { callbackUrl }).catch(() => {
+      setIsSigningIn(false);
+    });
+  }, [isSigningIn, searchParams]);
 
   return (
     // Fondo degradado y tamaño exacto: alto de la ventana menos navbar+footer
@@ -30,8 +44,10 @@ export default function AuthLoginCard() {
         {/* Acción */}
         <div className="px-8 pt-6 pb-7">
           <button
-            onClick={() => signIn("google", { callbackUrl: "/" })}
-            className="w-full rounded-lg border border-white/15 bg-white text-[15px] font-medium text-gray-800 hover:bg-white/95 transition inline-flex items-center justify-center gap-2 px-4 py-3"
+            onClick={handleSignIn}
+            disabled={isSigningIn}
+            aria-disabled={isSigningIn}
+            className="w-full rounded-lg border border-white/15 bg-white text-[15px] font-medium text-gray-800 hover:bg-white/95 transition inline-flex items-center justify-center gap-2 px-4 py-3 disabled:cursor-not-allowed disabled:opacity-70"
           >
             <Image
               src="/google-logo.png"       // pon el archivo en /public/google-logo.png

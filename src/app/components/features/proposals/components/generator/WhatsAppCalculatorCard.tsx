@@ -2,10 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import Combobox from "@/app/components/ui/Combobox";
-import { useLanguage, useTranslations } from "@/app/LanguageProvider";
+import { useTranslations } from "@/app/LanguageProvider";
 
-import { getLocalizedCountries } from "../../lib/catalogs";
 import { formatUSD } from "../../lib/format";
 import { priceWhatsApp } from "../../lib/pricingClient";
 import type { ProposalErrorCode } from "../../lib/errors";
@@ -29,9 +27,9 @@ export default function WhatsAppCalculatorCard({
   defaultCountry,
   resolveErrorMessage,
 }: CalculatorProps) {
-  const { locale } = useLanguage();
   const t = useTranslations("proposals.generator.whatsappCalculator");
   const sharedT = useTranslations("proposals.generator");
+  const countriesT = useTranslations("proposals.countries");
 
   const [destCountry, setDestCountry] = useState(defaultCountry);
   const [quantities, setQuantities] = useState<ConversationTotals>(ZERO_TOTALS);
@@ -40,35 +38,13 @@ export default function WhatsAppCalculatorCard({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (defaultCountry && !destCountry) {
-      setDestCountry(defaultCountry);
-    }
-  }, [defaultCountry, destCountry]);
+    setDestCountry(defaultCountry);
+  }, [defaultCountry]);
 
-  const countries = useMemo<ReturnType<typeof getLocalizedCountries>>(
-    () => getLocalizedCountries(locale),
-    [locale]
-  );
-  const countryOptions = useMemo(
-    () => countries.map((country) => country.label),
-    [countries]
-  );
   const selectedCountryLabel = useMemo(() => {
-    if (!destCountry) return "";
-    return (
-      countries.find((country) => country.id === destCountry)?.label || destCountry
-    );
-  }, [countries, destCountry]);
-
-  const handleCountryChange = useCallback(
-    (label: string) => {
-      const match = countries.find((country) => country.label === label);
-      if (match) {
-        setDestCountry(match.id);
-      }
-    },
-    [countries]
-  );
+    if (!destCountry) return sharedT("emptyValue");
+    return countriesT(destCountry) || destCountry;
+  }, [destCountry, countriesT, sharedT]);
 
   const handleQuantityChange = useCallback(
     (key: keyof ConversationTotals, raw: string) => {
@@ -187,12 +163,8 @@ export default function WhatsAppCalculatorCard({
           <label className="mb-1 block text-xs text-gray-700">
             {t("fields.destination")}
           </label>
-          <Combobox
-            options={countryOptions}
-            value={selectedCountryLabel}
-            onChange={handleCountryChange}
-            placeholder={t("fields.destinationPlaceholder")}
-          />
+          <input className="input h-9 w-full" value={selectedCountryLabel} readOnly />
+          <p className="mt-1 text-[12px] text-muted">{t("fields.destinationPlaceholder")}</p>
         </div>
 
         <div className="grid grid-cols-1 gap-3">

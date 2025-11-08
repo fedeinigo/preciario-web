@@ -264,6 +264,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const canOpenMapachePortal = userPortals.includes("mapache");
   const canAccessPartnerPortal = userPortals.includes("partner");
   const canAccessMarketingPortal = userPortals.includes("marketing");
+  const canSeeUsers = isAdminRole;
 
   const directActiveTab = React.useMemo<Tab | null>(() => {
     if (navbarVariant !== "direct") {

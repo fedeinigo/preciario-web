@@ -1,7 +1,7 @@
 // src/app/components/features/proposals/History.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type { ProposalRecord } from "@/lib/types";
 import type { AppRole } from "@/constants/teams";
 import { formatUSD, formatDateTime } from "./lib/format";
@@ -23,11 +23,9 @@ import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
 import { normalizeSearchText } from "@/lib/normalize-search-text";
-import {
-  fetchAllProposals,
-  type ProposalsListMeta,
-} from "./lib/proposals-response";
+import { fetchAllProposals, invalidateProposalsCache, type ProposalsListMeta } from "./lib/proposals-response";
 import { useAdminUsers } from "./hooks/useAdminUsers";
+import { usePathname } from "next/navigation";
 
 type SortKey = "id" | "company" | "country" | "email" | "monthly" | "created" | "status";
 type SortDir = "asc" | "desc";
@@ -103,10 +101,13 @@ export default function History({
   const [wonSelection, setWonSelection] = useState<{ id: string; wonType: WonType } | null>(null);
   const [markingWon, setMarkingWon] = useState(false);
 
-  const load = async () => {
+  type LoadOptions = { skipCache?: boolean };
+  const load = useCallback(async (options?: LoadOptions) => {
     setLoading(true);
     try {
-      const { proposals, meta } = await fetchAllProposals();
+      const { proposals, meta } = await fetchAllProposals({
+        skipCache: options?.skipCache ?? false,
+      });
       setRows(proposals);
       setRemoteMeta(meta);
     } catch {
@@ -115,22 +116,26 @@ export default function History({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
+  const pathname = usePathname();
   useEffect(() => {
     load();
-    const onFocus = () => load();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, []);
+  }, [load, pathname]);
 
   useEffect(() => {
     const onRefresh = () => {
-      load();
+      invalidateProposalsCache();
+      load({ skipCache: true });
     };
     window.addEventListener("proposals:refresh", onRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", onRefresh as EventListener);
-  }, []);
+  }, [load]);
+
+  const manualRefresh = useCallback(() => {
+    invalidateProposalsCache();
+    load({ skipCache: true });
+  }, [load]);
 
   // Aux
   const { users: adminUsers } = useAdminUsers({
@@ -347,7 +352,6 @@ export default function History({
       return false;
     }
     toast.success(toastT("markWonSuccess"));
-    load();
     return true;
   };
 
@@ -368,6 +372,8 @@ export default function History({
       const ok = await markWon(wonSelection.id, wonSelection.wonType);
       if (ok) {
         setWonSelection(null);
+        invalidateProposalsCache();
+        load({ skipCache: true });
       }
     } finally {
       setMarkingWon(false);
@@ -387,7 +393,8 @@ export default function History({
       return;
     }
     toast.success(toastT("markOpenSuccess"));
-    load();
+    invalidateProposalsCache();
+    load({ skipCache: true });
   };
 
   const doDelete = async (id: string) => {
@@ -399,7 +406,8 @@ export default function History({
     }
     toast.success(toastT("deleteSuccess"));
     setConfirmId(null);
-    load();
+    invalidateProposalsCache();
+    load({ skipCache: true });
   };
 
   return (
@@ -415,7 +423,7 @@ export default function History({
             >
               {t("actions.downloadCsv")}
             </button>
-            <button className="btn-bar" onClick={load} title={t("actions.refreshTitle")}>
+            <button className="btn-bar" onClick={manualRefresh} title={t("actions.refreshTitle")}>
               {t("actions.refresh")}
             </button>
           </div>

@@ -5,7 +5,7 @@ import { useCallback, useMemo } from "react";
 import Modal from "@/app/components/ui/Modal";
 import Combobox from "@/app/components/ui/Combobox";
 
-import { useLanguage, useTranslations } from "@/app/LanguageProvider";
+import { useTranslations } from "@/app/LanguageProvider";
 import { getLocalizedCountries } from "../lib/catalogs";
 
 /** === Tipos expuestos para que Generator.tsx los importe === */
@@ -34,14 +34,17 @@ export function MinutesModal({
   error?: string;
   applying?: boolean;
 }) {
-  const { locale } = useLanguage();
   const t = useTranslations("proposals.minutesModal");
   const sharedT = useTranslations("proposals.generator");
+  const countriesT = useTranslations("proposals.countries");
   const emptyValue = sharedT("emptyValue");
   const label = t(`kinds.${kind}`);
   const countryLabel = kind === "in" ? t("fields.countryLabelInbound") : t("fields.countryLabel");
 
-  const countries = useMemo(() => getLocalizedCountries(locale), [locale]);
+  const countries = useMemo(
+    () => getLocalizedCountries((name) => countriesT(name)),
+    [countriesT]
+  );
   const countryOptions = useMemo(() => countries.map((country) => country.label), [countries]);
   const selectedCountryLabel = useMemo(() => {
     if (!form.destCountry) return "";

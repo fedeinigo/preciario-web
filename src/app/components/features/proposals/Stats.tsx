@@ -20,11 +20,9 @@ import {
   prevWeekRange,
 } from "./lib/dateRanges";
 import { useTranslations } from "@/app/LanguageProvider";
-import {
-  fetchAllProposals,
-  type ProposalsListMeta,
-} from "./lib/proposals-response";
+import { fetchAllProposals, invalidateProposalsCache, type ProposalsListMeta } from "./lib/proposals-response";
 import { useAdminUsers } from "./hooks/useAdminUsers";
+import { usePathname } from "next/navigation";
 
 const THOUSAND_SCALING_SKUS = ["minutos de telefonia - entrantes", "minutos de telefonia - salientes"] as const;
 
@@ -376,10 +374,13 @@ export default function Stats({
   const [all, setAll] = useState<ProposalForStats[]>([]);
   const [, setListMeta] = useState<ProposalsListMeta | undefined>();
 
-  const load = useCallback(async () => {
+  type LoadOptions = { skipCache?: boolean };
+  const load = useCallback(async (options?: LoadOptions) => {
     setLoading(true);
     try {
-      const { proposals, meta } = await fetchAllProposals();
+      const { proposals, meta } = await fetchAllProposals({
+        skipCache: options?.skipCache ?? false,
+      });
       setAll(proposals);
       setListMeta(meta);
     } catch (error) {
@@ -395,16 +396,15 @@ export default function Stats({
     }
   }, [toastT]);
 
+  const pathname = usePathname();
   useEffect(() => {
     load();
-    const onFocus = () => load();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [load]);
+  }, [load, pathname]);
 
   useEffect(() => {
     const onRefresh = () => {
-      load();
+      invalidateProposalsCache();
+      load({ skipCache: true });
     };
     window.addEventListener("proposals:refresh", onRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", onRefresh as EventListener);

@@ -20,7 +20,7 @@ function readBooleanFlag(value: string | undefined, defaultValue = false): boole
 
 export const featureFlags: Record<FeatureFlag, boolean> = {
   secureApiRoutes: readBooleanFlag(process.env.FEATURE_SECURE_API_ROUTES, true),
-  proposalsPagination: readBooleanFlag(process.env.FEATURE_PROPOSALS_PAGINATION),
+  proposalsPagination: readBooleanFlag(process.env.FEATURE_PROPOSALS_PAGINATION, true),
   strictOauthLinking: readBooleanFlag(process.env.FEATURE_STRICT_OAUTH_LINKING),
   appShellRsc: readBooleanFlag(process.env.FEATURE_APP_SHELL_RSC),
   proposalsClientRefactor: readBooleanFlag(process.env.FEATURE_PROPOSALS_CLIENT_REFACTOR),
