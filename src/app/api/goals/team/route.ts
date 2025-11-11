@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     select: { role: true, team: true },
   });
 
-  const isSuper = me?.role === DbRole.superadmin;
+  const isSuper = me?.role === DbRole.admin;
   const isLeader = me?.role === DbRole.lider;
   const isAdmin = me?.role === DbRole.admin;
 
@@ -146,7 +146,7 @@ export async function GET(req: Request) {
  * PUT: Actualiza el objetivo del equipo (independiente de metas individuales).
  *
  * Permisos:
- * - superadmin: cualquier equipo
+ * - admin: cualquier equipo
  * - líder: sólo su equipo
  */
 export async function PUT(req: Request) {
@@ -160,7 +160,7 @@ export async function PUT(req: Request) {
     select: { role: true, team: true },
   });
 
-  const isSuper = me?.role === DbRole.superadmin;
+  const isSuper = me?.role === DbRole.admin;
   const isLeader = me?.role === DbRole.lider;
 
   if (!isSuper && !isLeader) {

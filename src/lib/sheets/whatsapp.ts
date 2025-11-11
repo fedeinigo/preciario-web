@@ -3,6 +3,10 @@ export type WhatsAppVariant = "marketing" | "utility" | "auth";
 type VariantColumns = Partial<Record<WhatsAppVariant, number>> & { label?: string };
 export type VariantColumnMap = Partial<Record<WhatsAppVariant, number[]>>;
 
+interface SheetsValuesResponse {
+  values?: string[][];
+}
+
 const WHATSAPP_VARIANT_MATCHERS: Record<WhatsAppVariant, (key: string) => boolean> = {
   marketing: (key) => key.includes("MARK"),
   utility: (key) => key.includes("UTIL") || key.includes("SERVIC") || key.includes("SERVICE"),
@@ -22,6 +26,65 @@ export function normalizeSheetKey(input: unknown): string {
     .replace(/\s+/g, " ")
     .trim()
     .toUpperCase();
+}
+
+function pickCell(row: string[], idx: number): string {
+  if (idx < 0 || idx >= row.length) return "";
+  const value = row[idx];
+  return typeof value === "string" ? value.trim() : String(value ?? "").trim();
+}
+
+export async function fetchWhatsappCostsRows(
+  accessToken: string,
+  country: string,
+  opts?: { sheetId?: string; range?: string }
+): Promise<string[][]> {
+  const sheetId =
+    opts?.sheetId ??
+    process.env.SHEETS_WHATSAPP_SPREADSHEET_ID ??
+    process.env.SHEETS_CONFIG_SPREADSHEET_ID;
+  if (!sheetId) return [];
+
+  const range =
+    opts?.range ??
+    process.env.SHEETS_WHATSAPP_COSTS_RANGE ??
+    process.env.SHEETS_WHATSAPP_RANGE ??
+    "costos!A3:K200";
+
+  const url =
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/` +
+    `${encodeURIComponent(range)}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const raw = await res.text();
+
+  let json: SheetsValuesResponse;
+  try {
+    json = JSON.parse(raw) as SheetsValuesResponse;
+  } catch {
+    return [];
+  }
+
+  const values = Array.isArray(json.values) ? (json.values as string[][]) : [];
+  if (values.length === 0) return [];
+
+  const target = normalizeSheetKey(country);
+  if (!target) return [];
+
+  for (const row of values) {
+    if (!Array.isArray(row) || row.length === 0) continue;
+    const rawCountry = row[0];
+    if (!rawCountry) continue;
+    if (normalizeSheetKey(rawCountry) !== target) continue;
+
+    const service = pickCell(row, 10); // K
+    const marketing = pickCell(row, 7); // H
+    const utility = pickCell(row, 8); // I
+    const auth = pickCell(row, 9); // J
+
+    return [[String(rawCountry).trim() || country, service, marketing, utility, auth]];
+  }
+
+  return [];
 }
 
 function detectVariant(value: unknown): WhatsAppVariant | null {

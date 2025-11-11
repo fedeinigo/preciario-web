@@ -27,7 +27,7 @@ type PortalOption = {
 };
 
 const PORTAL_ROUTES: Record<PortalAccessId, string> = {
-  direct: "/",
+  direct: "/portal/directo",
   mapache: "/mapache-portal/generator",
   partner: "/partner-portal",
   marketing: "/marketing-portal",

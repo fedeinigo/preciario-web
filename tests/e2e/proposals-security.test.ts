@@ -21,7 +21,7 @@ test("flujo completo: sesión inválida bloquea lectura y escritura", async () =
   const { response } = await guards.requireApiSession();
   assert.equal(response, undefined);
 
-  const forbidden = guards.ensureSessionRole(session, ["admin", "superadmin"]);
+  const forbidden = guards.ensureSessionRole(session, ["admin"]);
   assert.equal(forbidden?.status, 403);
 
   secure = false;

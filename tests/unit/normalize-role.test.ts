@@ -6,7 +6,7 @@ import { normalizeRole } from "../../src/app/api/admin/users/normalize-role";
 import { Role as DbRole } from "@prisma/client";
 
 test("normalizeRole mapea los strings esperados al enum de Prisma", () => {
-  assert.equal(normalizeRole("superadmin"), DbRole.superadmin);
+  assert.equal(normalizeRole("superadmin"), DbRole.admin);
   assert.equal(normalizeRole("admin"), DbRole.admin);
   assert.equal(normalizeRole("lider"), DbRole.lider);
   assert.equal(normalizeRole("usuario"), DbRole.usuario);

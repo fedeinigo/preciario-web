@@ -75,7 +75,7 @@ export async function GET(request: Request) {
 
 export async function PATCH(req: Request) {
   const session = await auth();
-  if (session?.user?.role !== "superadmin") {
+  if (session?.user?.role !== "admin") {
     return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 403 });
   }
 
@@ -103,7 +103,7 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   const session = await auth();
-  if (session?.user?.role !== "superadmin") {
+  if (session?.user?.role !== "admin") {
     return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 403 });
   }
   const { name, replaceWith } = (await req.json()) as { name?: string; replaceWith?: string };
@@ -129,7 +129,7 @@ export async function DELETE(req: Request) {
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (session?.user?.role !== "superadmin") {
+  if (session?.user?.role !== "admin") {
     return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 403 });
   }
 

@@ -1,4 +1,4 @@
-﻿/* eslint-disable @typescript-eslint/no-unused-expressions */
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 // src/app/components/features/proposals/Users.tsx
 "use client";
 
@@ -14,7 +14,7 @@ import { useAdminUsers } from "./hooks/useAdminUsers";
 import type { PortalAccessId } from "@/constants/portals";
 import { MUTABLE_PORTAL_ACCESS, includeDefaultPortal } from "@/constants/portals";
 
-type Role = "superadmin" | "admin" | "lider" | "usuario";
+type Role = "admin" | "lider" | "usuario";
 
 type UserRow = {
   id: string;
@@ -96,7 +96,7 @@ function FilterChip({
   );
 }
 
-const ROLES: Role[] = ["usuario", "lider", "admin", "superadmin"];
+const ROLES: Role[] = ["usuario", "lider", "admin"];
 
 type SortKey = "email" | "name" | "role" | "team";
 type SortDir = "asc" | "desc";
@@ -127,7 +127,7 @@ export default function Users() {
   const loading = adminUsersLoading || loadingTeams;
   const [saving, setSaving] = useState<string | null>(null);
 
-  // para KPIs: usuarios activos por propuestas en los Ãºltimos 30 dÃ­as
+  // para KPIs: usuarios activos por propuestas en los últimos 30 días
   const [activeLast30, setActiveLast30] = useState<number>(0);
 
   const load = useCallback(
@@ -176,7 +176,7 @@ export default function Users() {
   // Listado completo de equipos
   const allTeamNames = useMemo(() => teams.map((t) => t.name), [teams]);
 
-  // Equipos NO vacÃ­os (al menos 1 usuario) â€” para selects
+  // Equipos NO vacíos (al menos 1 usuario) — para selects
   const nonEmptyTeamNames = useMemo(() => {
     const count: Record<string, number> = {};
     users.forEach((u) => {
@@ -288,9 +288,9 @@ export default function Users() {
     void saveUser(user.id, { portals: next });
   };
 
-  // ====== mÃ©tricas para tarjetas ======
+  // ====== métricas para tarjetas ======
   const total = users.length;
-  const countSuperadmin = users.filter((u) => u.role === "superadmin").length;
+  const countAdmins = users.filter((u) => u.role === "admin").length;
   const countLeaders = users.filter((u) => u.role === "lider").length;
   const countNoTeam = users.filter((u) => !u.team).length;
   const pctWithTeam = total ? ((total - countNoTeam) / total) * 100 : 0;
@@ -307,7 +307,7 @@ export default function Users() {
 
   const openHistoryForEmail = (email: string | null) => {
     if (!email) return;
-    // Deep-link simple a la pestaÃ±a de histÃ³rico con query email
+    // Deep-link simple a la pestaña de histórico con query email
     window.location.href = `/#history?email=${encodeURIComponent(email)}`;
   };
 
@@ -372,8 +372,8 @@ export default function Users() {
           <div className="kpi-value">{total}</div>
         </div>
         <div className="kpi-tile">
-          <div className="kpi-label">{kpisT("superadmins")}</div>
-          <div className="kpi-value">{countSuperadmin}</div>
+          <div className="kpi-label">{kpisT("admins")}</div>
+          <div className="kpi-value">{countAdmins}</div>
         </div>
         <div className="kpi-tile">
           <div className="kpi-label">{kpisT("leaders")}</div>
@@ -531,7 +531,7 @@ export default function Users() {
                     ).map(([k, label], idx) => {
                       const clickable = k !== "";
                       const active = k === sortKey;
-                      const dir = sortDir === "asc" ? "â–²" : "â–¼";
+                      const dir = sortDir === "asc" ? "▲" : "▼";
                       return (
                         <th
                           key={idx}
@@ -557,7 +557,7 @@ export default function Users() {
                           : "bg-[rgb(var(--primary-soft))]/40 hover:bg-white"
                       }
                     >
-                      {/* Email + avatar + acciones rÃ¡pidas */}
+                      {/* Email + avatar + acciones rápidas */}
                       <td className="table-td">
                         <div className="flex items-center gap-3">
                           <button
@@ -569,7 +569,7 @@ export default function Users() {
                           </button>
                           <div className="flex flex-col">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium">{u.email ?? "â€”"}</span>
+                              <span className="font-medium">{u.email ?? "—"}</span>
                               {u.email ? (
                                 <>
                                   <button
@@ -596,7 +596,7 @@ export default function Users() {
                                 </>
                               ) : null}
                             </div>
-                            {/* Ãšltimo login sutil si existe */}
+                            {/* Último login sutil si existe */}
                             {u.lastLoginAt ? (
                               <span className="text-[11px] text-gray-500 -mt-0.5">
                                 {tableT("lastLogin", { value: formatLastLogin(u) ?? "" })}
@@ -607,7 +607,7 @@ export default function Users() {
                       </td>
 
                       {/* Nombre */}
-                      <td className="table-td">{u.name ?? "â€”"}</td>
+                      <td className="table-td">{u.name ?? "—"}</td>
 
                       {/* Rol */}
                       <td className="table-td">
@@ -735,7 +735,7 @@ export default function Users() {
             )}
           </div>
 
-          {/* datalist con SOLO equipos no vacÃ­os (por defecto) o todos si â€œIncluir vacÃ­osâ€ */}
+          {/* datalist con SOLO equipos no vacíos (por defecto) o todos si “Incluir vacíos” */}
           <datalist id="users-teams">
             {(includeEmptyTeams ? allTeamNames : nonEmptyTeamNames).map((t) => (
               <option key={t} value={t} />
@@ -744,17 +744,18 @@ export default function Users() {
         </div>
       </div>
 
-      {/* Modal de perfil / objetivo (viewer: esta vista suele ser de admins; pasamos superadmin para ediciÃ³n) */}
+      {/* Modal de perfil / objetivo (viewer: esta vista suele ser de admins; pasamos admin para edición) */}
       {profileUser && (
         <UserProfileModal
           open={profileOpen}
           onClose={() => setProfileOpen(false)}
-          viewer={{ role: "superadmin", team: null }}
+          viewer={{ role: "admin", team: null }}
           targetUser={profileUser}
         />
       )}
     </div>
   );
 }
+
 
 

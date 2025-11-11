@@ -21,7 +21,7 @@ export async function PATCH(req: Request) {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
-  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  const forbidden = ensureSessionRole(session, ["admin"]);
   if (forbidden) return forbidden;
 
   const id = getGroupIdFromUrl(req);
@@ -44,7 +44,7 @@ export async function DELETE(req: Request) {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
-  const forbidden = ensureSessionRole(session, ["superadmin"]);
+  const forbidden = ensureSessionRole(session, ["admin"]);
   if (forbidden) return forbidden;
 
   const id = getGroupIdFromUrl(req);

@@ -85,11 +85,14 @@ export async function POST(req: Request) {
     const body = (await req.json().catch(() => ({}))) as BotBody;
 
     const allowedKeys = parseConfiguredKeys();
-    if (allowedKeys.length > 0) {
-      const providedKey = extractRequestKey(req, body);
-      if (!providedKey || !allowedKeys.includes(providedKey)) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+    if (allowedKeys.length === 0) {
+      console.error("[bot][proposals] Missing BOT_API_KEY(S) envs. Rejecting request.");
+      return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+    }
+
+    const providedKey = extractRequestKey(req, body);
+    if (!providedKey || !allowedKeys.includes(providedKey)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const companyName = (body.companyName ?? "").trim();

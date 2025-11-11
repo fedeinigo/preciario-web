@@ -15,8 +15,11 @@ import {
   Users2,
   Mail,
   Shield,
+  ShieldCheck,
   Target,
   Loader2,
+  Settings,
+  Home,
 } from "lucide-react";
 
 import Modal from "@/app/components/ui/Modal";
@@ -48,7 +51,7 @@ export type NavbarClientProps = {
   session: Session | null;
 };
 
-type Tab = "generator" | "history" | "stats" | "users" | "teams" | "goals";
+type Tab = "generator" | "history" | "stats" | "goals";
 
 type ViewTransition = {
   ready: Promise<void>;
@@ -60,7 +63,6 @@ type DocumentWithViewTransition = Document & {
 };
 
 type AnyRole =
-  | "superadmin"
   | "admin"
   | "lider"
   | "comercial"
@@ -68,14 +70,9 @@ type AnyRole =
   | string
   | undefined;
 
-const APP_ROLES: readonly AppRole[] = [
-  "superadmin",
-  "admin",
-  "lider",
-  "usuario",
-];
+const APP_ROLES: readonly AppRole[] = ["admin", "lider", "usuario"];
 const APP_ROLE_SET: ReadonlySet<AppRole> = new Set<AppRole>(APP_ROLES);
-const ADMIN_ROLES: ReadonlySet<AppRole> = new Set<AppRole>(["superadmin", "admin"]);
+const ADMIN_ROLES: ReadonlySet<AppRole> = new Set<AppRole>(["admin"]);
 
 function toAppRole(role: AnyRole): AppRole {
   return typeof role === "string" && APP_ROLE_SET.has(role as AppRole)
@@ -89,22 +86,27 @@ const LANGUAGE_LABEL_KEYS: Record<Locale, "spanish" | "english" | "portuguese"> 
   pt: "portuguese",
 };
 
+const DIRECT_PORTAL_TAB_ROUTES: Record<Tab, string> = {
+  generator: "/portal/directo/generator",
+  history: "/portal/directo/history",
+  stats: "/portal/directo/stats",
+  goals: "/portal/directo/goals",
+};
+
 function TabBtn({
-  id,
   label,
   active,
-  onClick,
+  href,
   Icon,
 }: {
-  id: Tab;
   label: string;
   active: boolean;
-  onClick: (t: Tab) => void;
+  href: string;
   Icon: React.ComponentType<{ className?: string }>;
 }) {
   return (
-    <button
-      onClick={() => onClick(id)}
+    <Link
+      href={href}
       className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition whitespace-nowrap shrink-0
         ${
           active
@@ -115,7 +117,7 @@ function TabBtn({
     >
       <Icon className="h-4 w-4" />
       {label}
-    </button>
+    </Link>
   );
 }
 
@@ -153,19 +155,18 @@ function initials(fullName: string) {
   return (i1 + i2).toUpperCase();
 }
 
-function readHash(): Tab {
-  const h = (globalThis?.location?.hash || "").replace("#", "");
-  return (["generator", "history", "stats", "users", "teams", "goals"].includes(h)
-    ? (h as Tab)
-    : "generator");
-}
-
 export default function NavbarClient({ session }: NavbarClientProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const isPartnerPortal = pathname?.startsWith("/partner-portal");
+  const normalizedPathRaw = pathname ?? "";
+  const normalizedPath =
+    normalizedPathRaw.length > 1 ? normalizedPathRaw.replace(/\/+$/, "") : normalizedPathRaw;
+  const isHomePath = normalizedPath === "/home";
+  const isPartnerPortal =
+    normalizedPath.startsWith("/partner-portal") || normalizedPath.startsWith("/portal/partner");
   const searchParams = useSearchParams();
-  const isMarketingPortal = pathname?.startsWith("/marketing-portal");
+  const isMarketingPortal =
+    normalizedPath.startsWith("/marketing-portal") || normalizedPath.startsWith("/portal/marketing");
   const marketingView =
     isMarketingPortal && searchParams?.get("view") === "history"
       ? "history"
@@ -181,6 +182,38 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const fallbacksT = useTranslations("navbar.fallbacks");
   const mapacheSectionsT = useTranslations("navbar.mapachePortalSections");
   const languageT = useTranslations("common.language");
+  const configurationsT = useTranslations("configurations");
+  const configurationsLabel = configurationsT("title");
+  const configurationNavLinks = React.useMemo<
+    Array<{
+      id: "home" | "teams" | "users";
+      href: string;
+      label: string;
+      Icon: React.ComponentType<{ className?: string }>;
+    }>
+  >(
+    () => [
+      {
+        id: "home",
+        href: "/home",
+        label: configurationsT("tabs.home"),
+        Icon: Home,
+      },
+      {
+        id: "teams",
+        href: "/configuraciones/team-management",
+        label: configurationsT("tabs.teams"),
+        Icon: Users2,
+      },
+      {
+        id: "users",
+        href: "/configuraciones/user-management",
+        label: configurationsT("tabs.users"),
+        Icon: ShieldCheck,
+      },
+    ],
+    [configurationsT],
+  );
 
   const handleLocaleChange = React.useCallback(
     (next: Locale) => {
@@ -192,9 +225,28 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   );
 
   const isMapachePortal = isMapachePath(pathname);
+  const isDirectPortalNew = normalizedPath.startsWith("/portal/directo");
+  const isDirectPortalLegacy = normalizedPath.startsWith("/direct-portal");
+  const isDirectPortal = isDirectPortalNew || isDirectPortalLegacy;
+  const isConfigurationsPath = normalizedPath.startsWith("/configuraciones");
+  type NavbarVariant = "home" | "direct" | "config" | "default";
+  const navbarVariant: NavbarVariant = isConfigurationsPath
+    ? "config"
+    : isDirectPortal
+      ? "direct"
+      : isHomePath
+        ? "home"
+        : "default";
   const status = session ? "authenticated" : "unauthenticated";
-  const showTabs = status === "authenticated" && !isMapachePortal && !isMarketingPortal;
+  const showDirectTabs = status === "authenticated" && navbarVariant === "direct";
+  const showConfigTabs = status === "authenticated" && navbarVariant === "config";
+  const showLegacyTabs =
+    status === "authenticated" &&
+    !isMapachePortal &&
+    !isMarketingPortal &&
+    navbarVariant === "default";
   const showAuthActions = status === "authenticated";
+  const showPortalSwitcher = showAuthActions && navbarVariant !== "home";
 
   const role = (session?.user?.role as AnyRole) ?? "usuario";
   const appRole = toAppRole(role);
@@ -203,13 +255,64 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const name = normalizeProfileText(session?.user?.name) || fallbacksT("name");
   const email = session?.user?.email ?? fallbacksT("email");
   const currentEmail = session?.user?.email ?? "";
-  const canSeeUsers = ADMIN_ROLES.has(appRole);
+  const isAdminRole = ADMIN_ROLES.has(appRole);
+  const showConfigurationsShortcut =
+    showAuthActions &&
+    isAdminRole &&
+    (navbarVariant === "direct" || navbarVariant === "home");
   const userPortals = session?.user?.portals ?? ["direct"];
   const canOpenMapachePortal = userPortals.includes("mapache");
   const canAccessPartnerPortal = userPortals.includes("partner");
   const canAccessMarketingPortal = userPortals.includes("marketing");
+  const canSeeUsers = isAdminRole;
 
-  const [activeTab, setActiveTab] = React.useState<Tab>(readHash());
+  const directActiveTab = React.useMemo<Tab | null>(() => {
+    if (navbarVariant !== "direct") {
+      return null;
+    }
+    const base = isDirectPortalNew ? "/portal/directo" : "/direct-portal";
+    if (normalizedPath.startsWith(`${base}/history`)) return "history";
+    if (normalizedPath.startsWith(`${base}/stats`)) return "stats";
+    if (normalizedPath.startsWith(`${base}/goals`)) return "goals";
+    return "generator";
+  }, [navbarVariant, isDirectPortalNew, normalizedPath]);
+  const readLegacyTab = React.useCallback((): Tab => {
+    const h = (globalThis?.location?.hash || "").replace("#", "");
+    return (["generator", "history", "stats", "users", "teams", "goals"].includes(h)
+      ? (h as Tab)
+      : "generator");
+  }, []);
+  const [legacyTab, setLegacyTab] = React.useState<Tab>(() => readLegacyTab());
+  React.useEffect(() => {
+    const onHash = () => setLegacyTab(readLegacyTab());
+    const onCustom = (e: Event) => setLegacyTab((e as CustomEvent).detail as Tab);
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("app:setTab", onCustom as EventListener);
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("app:setTab", onCustom as EventListener);
+    };
+  }, [readLegacyTab]);
+  const handleLegacyTabClick = React.useCallback((tab: Tab) => {
+    setLegacyTab(tab);
+    try {
+      location.hash = tab;
+    } catch {}
+    window.dispatchEvent(new CustomEvent("app:setTab", { detail: tab }));
+  }, []);
+  const configActiveTab = React.useMemo<"home" | "teams" | "users" | null>(() => {
+    if (!isConfigurationsPath) return null;
+    if (normalizedPath === "/configuraciones" || normalizedPath === "/configuraciones/") {
+      return "home";
+    }
+    if (normalizedPath.startsWith("/configuraciones/team-management")) {
+      return "teams";
+    }
+    if (normalizedPath.startsWith("/configuraciones/user-management")) {
+      return "users";
+    }
+    return "home";
+  }, [isConfigurationsPath, normalizedPath]);
   const [userModal, setUserModal] = React.useState(false);
   const [mapacheSection, setMapacheSection] =
     React.useState<MapachePortalSection>(MAPACHE_PORTAL_DEFAULT_SECTION);
@@ -331,18 +434,6 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   }, [pathname, router, scheduleMapacheFallback]);
 
   React.useEffect(() => {
-    const onHash = () => setActiveTab(readHash());
-    const onCustom = (e: Event) =>
-      setActiveTab((e as CustomEvent).detail as Tab);
-    window.addEventListener("hashchange", onHash);
-    window.addEventListener("app:setTab", onCustom as EventListener);
-    return () => {
-      window.removeEventListener("hashchange", onHash);
-      window.removeEventListener("app:setTab", onCustom as EventListener);
-    };
-  }, []);
-
-  React.useEffect(() => {
     if (!isMapachePortal) return;
 
     const handleSectionChanged = (event: Event) => {
@@ -413,14 +504,6 @@ export default function NavbarClient({ session }: NavbarClientProps) {
       hideMapacheTransition();
     }
   }, [pathname, mapacheTransitionVisible, hideMapacheTransition]);
-
-  function setTab(t: Tab) {
-    setActiveTab(t);
-    try {
-      location.hash = t;
-    } catch {}
-    window.dispatchEvent(new CustomEvent("app:setTab", { detail: t }));
-  }
 
   const handleMapacheSectionChange = React.useCallback(
     (next: MapachePortalSection) => {
@@ -533,7 +616,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
             className="h-9 w-auto object-contain"
             priority
           />
-          {showAuthActions ? (
+          {showPortalSwitcher ? (
             <PortalLauncher
               canAccessMapache={canOpenMapachePortal}
               canAccessPartner={canAccessPartnerPortal}
@@ -590,57 +673,147 @@ export default function NavbarClient({ session }: NavbarClientProps) {
                 {tabsT("history")}
               </Link>
             </div>
-          ) : showTabs ? (
-            <div className="hidden w-full max-w-xl items-center justify-center gap-2 md:flex">
-              <TabBtn
-                id="generator"
-                label={tabsT("generator")}
-                Icon={LayoutGrid}
-                active={activeTab === "generator"}
-                onClick={setTab}
-              />
-              <TabBtn
-                id="history"
-                label={tabsT("history")}
-                Icon={Clock}
-                active={activeTab === "history"}
-                onClick={setTab}
-              />
-              <TabBtn
-                id="stats"
-                label={tabsT("stats")}
-                Icon={BarChart2}
-                active={activeTab === "stats"}
-                onClick={setTab}
-              />
-              <TabBtn
-                id="goals"
-                label={tabsT("goals")}
-                Icon={Target}
-                active={activeTab === "goals"}
-                onClick={setTab}
-              />
-              <TabBtn
-                id="teams"
-                label={tabsT("teams")}
-                Icon={Users2}
-                active={activeTab === "teams"}
-                onClick={setTab}
-              />
+          ) : showDirectTabs ? (
+            <div className="relative hidden w-full md:block">
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="pointer-events-auto flex items-center gap-2">
+                  <TabBtn
+                    label={tabsT("generator")}
+                    Icon={LayoutGrid}
+                    active={!isConfigurationsPath && directActiveTab === "generator"}
+                    href={DIRECT_PORTAL_TAB_ROUTES.generator}
+                  />
+                  <TabBtn
+                    label={tabsT("history")}
+                    Icon={Clock}
+                    active={directActiveTab === "history"}
+                    href={DIRECT_PORTAL_TAB_ROUTES.history}
+                  />
+                  <TabBtn
+                    label={tabsT("stats")}
+                    Icon={BarChart2}
+                    active={directActiveTab === "stats"}
+                    href={DIRECT_PORTAL_TAB_ROUTES.stats}
+                  />
+                  <TabBtn
+                    label={tabsT("goals")}
+                    Icon={Target}
+                    active={directActiveTab === "goals"}
+                    href={DIRECT_PORTAL_TAB_ROUTES.goals}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : showConfigTabs ? (
+            <div className="relative hidden w-full md:block">
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="pointer-events-auto flex items-center gap-2">
+                  {configurationNavLinks.map(({ id, label, href, Icon }) => (
+                    <TabBtn
+                      key={id}
+                      label={label}
+                      Icon={Icon}
+                      active={configActiveTab === id}
+                      href={href}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : showLegacyTabs ? (
+            <div
+              className="flex items-center gap-2 overflow-x-auto md:justify-center"
+              role="tablist"
+              aria-label={t("tabsAriaLabel")}
+            >
+              <button
+                className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition whitespace-nowrap shrink-0 ${
+                  legacyTab === "generator"
+                    ? "bg-white text-[#1f2937] border-transparent"
+                    : "bg-transparent text-white/90 border-white/20 hover:bg-white/10"
+                }`}
+                onClick={() => handleLegacyTabClick("generator")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                {tabsT("generator")}
+              </button>
+              <button
+                className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition whitespace-nowrap shrink-0 ${
+                  legacyTab === "history"
+                    ? "bg-white text-[#1f2937] border-transparent"
+                    : "bg-transparent text-white/90 border-white/20 hover:bg-white/10"
+                }`}
+                onClick={() => handleLegacyTabClick("history")}
+              >
+                <Clock className="h-4 w-4" />
+                {tabsT("history")}
+              </button>
+              <button
+                className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition whitespace-nowrap shrink-0 ${
+                  legacyTab === "stats"
+                    ? "bg-white text-[#1f2937] border-transparent"
+                    : "bg-transparent text-white/90 border-white/20 hover:bg-white/10"
+                }`}
+                onClick={() => handleLegacyTabClick("stats")}
+              >
+                <BarChart2 className="h-4 w-4" />
+                {tabsT("stats")}
+              </button>
+              <button
+                className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition whitespace-nowrap shrink-0 ${
+                  legacyTab === "goals"
+                    ? "bg-white text-[#1f2937] border-transparent"
+                    : "bg-transparent text-white/90 border-white/20 hover:bg-white/10"
+                }`}
+                onClick={() => handleLegacyTabClick("goals")}
+              >
+                <Target className="h-4 w-4" />
+                {tabsT("goals")}
+              </button>
+              <button
+                className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition whitespace-nowrap shrink-0 ${
+                  legacyTab === "teams"
+                    ? "bg-white text-[#1f2937] border-transparent"
+                    : "bg-transparent text-white/90 border-white/20 hover:bg-white/10"
+                }`}
+                onClick={() => handleLegacyTabClick("teams")}
+              >
+                <Users2 className="h-4 w-4" />
+                {tabsT("teams")}
+              </button>
               {canSeeUsers && (
-                <TabBtn
-                  id="users"
-                  label={tabsT("users")}
-                  Icon={Users}
-                  active={activeTab === "users"}
-                  onClick={setTab}
-                />
+                <button
+                  className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition whitespace-nowrap shrink-0 ${
+                    legacyTab === "users"
+                      ? "bg-white text-[#1f2937] border-transparent"
+                      : "bg-transparent text-white/90 border-white/20 hover:bg-white/10"
+                  }`}
+                  onClick={() => handleLegacyTabClick("users")}
+                >
+                  <Users className="h-4 w-4" />
+                  {tabsT("users")}
+                </button>
               )}
             </div>
           ) : null}
         </div>
 
         <div className="flex items-center gap-2">
+          {showConfigurationsShortcut && (
+            <Link
+              href="/configuraciones"
+              className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[13px] transition
+                ${
+                  isConfigurationsPath
+                    ? "border-transparent bg-white text-[#1f2937] shadow-sm"
+                    : "border-white/25 bg-white/10 text-white hover:bg-white/15"
+                }`}
+              aria-label={configurationsLabel}
+              title={configurationsLabel}
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
+          )}
           {showAuthActions && (
             <button
               onClick={() => setUserModal(true)}

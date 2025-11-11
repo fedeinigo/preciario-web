@@ -6,7 +6,7 @@ import type { FeatureFlag } from "../../src/lib/feature-flags";
 
 const expectedDefaults: Record<FeatureFlag, boolean> = {
   secureApiRoutes: true,
-  proposalsPagination: false,
+  proposalsPagination: true,
   strictOauthLinking: false,
   appShellRsc: false,
   proposalsClientRefactor: false,

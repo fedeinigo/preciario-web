@@ -53,7 +53,7 @@ export async function PATCH(req: Request) {
   }
 
   const isOwner = p.userId && p.userId === session.user.id;
-  const isSuper = session.user.role === "superadmin";
+  const isSuper = session.user.role === "admin";
 
   if (!isOwner && !isSuper) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -95,7 +95,7 @@ export async function DELETE(req: Request) {
   }
 
   const isOwner = p.userId && p.userId === session.user.id;
-  const isSuper = session.user.role === "superadmin";
+  const isSuper = session.user.role === "admin";
 
   if (!isOwner && !isSuper) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

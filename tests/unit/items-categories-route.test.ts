@@ -7,7 +7,7 @@ import prisma from "@/lib/prisma";
 import * as authModule from "@/lib/auth";
 
 describe("POST /api/items/categories", () => {
-  it("rejects users without superadmin role", async () => {
+  it("rejects users without admin role", async () => {
     mock.method(authModule, "auth", async () => ({
       user: { role: "usuario" },
     }) as never);
@@ -31,7 +31,7 @@ describe("POST /api/items/categories", () => {
 
   it("prevents duplicates using normalized comparison", async () => {
     mock.method(authModule, "auth", async () => ({
-      user: { role: "superadmin" },
+      user: { role: "admin" },
     }) as never);
 
     const itemCategoryDelegate = prisma.itemCategory as unknown as {
@@ -85,7 +85,7 @@ describe("POST /api/items/categories", () => {
 
   it("creates a category after sanitizing spaces", async () => {
     mock.method(authModule, "auth", async () => ({
-      user: { role: "superadmin" },
+      user: { role: "admin" },
     }) as never);
 
     const itemCategoryDelegate = prisma.itemCategory as unknown as {

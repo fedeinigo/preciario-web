@@ -2,8 +2,7 @@
 import "next-auth";
 import "next-auth/jwt";
 import type { PortalAccessId } from "@/constants/portals";
-
-type AppRole = "superadmin" | "admin" | "lider" | "usuario";
+import type { AppRole } from "@/constants/teams";
 
 declare module "next-auth" {
   interface User {

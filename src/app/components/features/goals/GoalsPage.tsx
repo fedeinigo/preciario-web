@@ -168,7 +168,7 @@ export default function GoalsPage({
     await loadMyWins();
   };
 
-  // ---- Equipo (visibles para TODOS). Para superadmin: ocultar equipos vacíos.
+  // ---- Equipo (visibles para TODOS). Para admin: ocultar equipos vacíos.
   const teams = React.useMemo(() => {
     if (!isSuperAdmin && role !== "admin") return [] as string[];
     const counts = new Map<string, number>();
@@ -531,7 +531,7 @@ export default function GoalsPage({
           <div className="p-6">
             {!effectiveTeam ? (
               <div className="rounded-2xl border border-dashed border-[#d8c7ff] bg-[#faf7ff] p-6 text-sm text-[#5b21b6]">
-                {isSuperAdmin ? pageT("emptySuperadmin") : pageT("emptyMember")}
+                {isSuperAdmin ? pageT("emptyAdmin") : pageT("emptyMember")}
               </div>
             ) : (
               <TeamMembersTable

@@ -62,7 +62,7 @@ export async function DELETE(_req: Request, context: RouteContext) {
     }
 
     const role = (session.user.role ?? "usuario") as AppRole;
-    const isAdmin = role === "admin" || role === "superadmin";
+    const isAdmin = role === "admin";
     const leaderTeam = sanitize(session.user.team);
 
     const report = await prisma.marketingReport.findUnique({

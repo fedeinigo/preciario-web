@@ -5,11 +5,11 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { Role as DbRole } from "@prisma/client";
 
-// Solo superadmin
-async function ensureSuperadmin() {
+// Solo admin
+async function ensureAdmin() {
   const session = await auth();
   const myRole = (session?.user?.role as DbRole | undefined) ?? "usuario";
-  if (myRole !== "superadmin") {
+  if (myRole !== "admin") {
     return false;
   }
   return true;
@@ -35,7 +35,7 @@ export async function GET() {
  * POST { name }
  */
 export async function POST(req: Request) {
-  if (!(await ensureSuperadmin())) {
+  if (!(await ensureAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { name } = (await req.json()) as { name?: string };
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
  * PATCH { id, name }
  */
 export async function PATCH(req: Request) {
-  if (!(await ensureSuperadmin())) {
+  if (!(await ensureAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id, name } = (await req.json()) as { id?: string; name?: string };
@@ -86,7 +86,7 @@ export async function PATCH(req: Request) {
  * DELETE { id, replaceWith?: string|null }
  */
 export async function DELETE(req: Request) {
-  if (!(await ensureSuperadmin())) {
+  if (!(await ensureAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id, replaceWith } = (await req.json()) as { id?: string; replaceWith?: string | null };

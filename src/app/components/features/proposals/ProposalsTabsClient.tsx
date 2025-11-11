@@ -48,7 +48,7 @@ export default function ProposalsTabsClient({
     window.dispatchEvent(new CustomEvent("proposals:refresh"));
   }, []);
 
-  const isSuperAdmin = viewer.role === "superadmin";
+  const isSuperAdmin = viewer.role === "admin";
   const canViewSku = isSuperAdmin || viewer.role === "lider";
 
   return (

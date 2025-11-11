@@ -25,7 +25,7 @@ export async function PATCH(req: Request) {
   });
   if (!me) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
 
-  const isSuper = session.user.role === "superadmin";
+  const isSuper = session.user.role === "admin";
   if (me.team && !isSuper) {
     return NextResponse.json({ ok: false, error: "El equipo ya fue seleccionado" }, { status: 403 });
   }

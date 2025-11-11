@@ -67,7 +67,7 @@ export default function UserProfileModal({
   const [resolvedTarget, setResolvedTarget] = useState<TargetUser>(baseTarget);
 
   const { users: adminUsers } = useAdminUsers({
-    isSuperAdmin: viewer.role === "superadmin",
+    isSuperAdmin: viewer.role === "admin",
     isLeader: viewer.role === "lider",
   });
 
@@ -112,13 +112,13 @@ export default function UserProfileModal({
 
   const canEdit =
     isSelf ||
-    viewer.role === "superadmin" ||
+    viewer.role === "admin" ||
     viewer.role === "admin" ||
     (viewer.role === "lider" && !!viewer.team && !!resolvedTarget.team && viewer.team === resolvedTarget.team);
 
   const canAddManual =
     isSelf ||
-    viewer.role === "superadmin" ||
+    viewer.role === "admin" ||
     viewer.role === "admin" ||
     (viewer.role === "lider" && !!viewer.team && !!resolvedTarget.team && viewer.team === resolvedTarget.team);
 
@@ -252,7 +252,7 @@ export default function UserProfileModal({
 
   const rolesMap = useMemo(
     () => ({
-      superadmin: rolesT("superadmin"),
+      admin: rolesT("admin"),
       lider: rolesT("lider"),
       usuario: rolesT("usuario"),
     }),
@@ -317,7 +317,7 @@ export default function UserProfileModal({
               {email}
             </div>
           </div>
-          {!isSelf && (viewer.role === "superadmin" || viewer.role === "lider") && (
+          {!isSelf && (viewer.role === "admin" || viewer.role === "lider") && (
             <span className="ml-auto text-xs px-2 py-1 rounded bg-white/10 border border-white/20">
               {profileT("viewerBadge", { role: viewerRoleLabel })}
             </span>

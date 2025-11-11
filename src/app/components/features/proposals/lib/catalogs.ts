@@ -1,8 +1,5 @@
 // src/app/components/features/proposals/lib/catalogs.ts
 
-import { defaultLocale, type Locale } from "@/lib/i18n/config";
-import { getMessage } from "@/lib/i18n/messages";
-
 /** ==================== Catálogo de países de la PROPUESTA ====================
  *  País elegido al crear la propuesta. La FILIAL se determina automáticamente
  *  con COUNTRY_TO_SUBSIDIARY y se muestra como sólo-lectura.
@@ -33,11 +30,18 @@ export const COUNTRY_CATALOG = [
 ];
 
 export type CountryOption = { value: string; label: string };
+type CountryLabelResolver = (countryName: string) => string;
 
-export function getCompanyCountryOptions(locale: Locale = defaultLocale): CountryOption[] {
+function defaultCountryResolver(): CountryLabelResolver {
+  return (name) => name;
+}
+
+export function getCompanyCountryOptions(
+  translate: CountryLabelResolver = defaultCountryResolver()
+): CountryOption[] {
   return COUNTRY_CATALOG.map((country) => ({
     value: country.name,
-    label: getMessage(locale, `proposals.countries.${country.name}`, defaultLocale),
+    label: translate(country.name),
   }));
 }
 export const countryIdFromName = (name: string) =>
@@ -148,13 +152,18 @@ export type DestinationCountryId = (typeof DESTINATION_COUNTRIES)[number];
 
 export type LocalizedCountry = { id: DestinationCountryId; label: string };
 
-export function getLocalizedCountries(locale: Locale = defaultLocale): LocalizedCountry[] {
+export function getLocalizedCountries(
+  translate: CountryLabelResolver = defaultCountryResolver()
+): LocalizedCountry[] {
   return DESTINATION_COUNTRIES.map((id) => ({
     id,
-    label: getMessage(locale, `proposals.countries.${id}`, defaultLocale),
+    label: translate(id),
   }));
 }
 
-export function getCountryLabel(id: DestinationCountryId, locale: Locale = defaultLocale): string {
-  return getMessage(locale, `proposals.countries.${id}`, defaultLocale);
+export function getCountryLabel(
+  id: DestinationCountryId,
+  translate: CountryLabelResolver = defaultCountryResolver()
+): string {
+  return translate(id);
 }

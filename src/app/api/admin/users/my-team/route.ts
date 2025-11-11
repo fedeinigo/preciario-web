@@ -17,8 +17,8 @@ export async function GET() {
   const myRole = me?.role ?? DbRole.usuario;
   const myTeam = me?.team ?? null;
 
-  // superadmin puede usar esto también (devuelve vacío si no tiene team)
-  if (myRole !== DbRole.lider && myRole !== DbRole.superadmin) {
+  // admin puede usar esto también (devuelve vacío si no tiene team)
+  if (myRole !== DbRole.lider && myRole !== DbRole.admin) {
     return NextResponse.json({ team: myTeam, members: [] });
   }
 

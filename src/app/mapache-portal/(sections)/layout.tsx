@@ -39,7 +39,7 @@ export default async function MapachePortalSectionsLayout({
   const { user } = session;
   const role = user.role ?? "";
   const team = user.team ?? null;
-  const isAdmin = role === "admin" || role === "superadmin";
+  const isAdmin = role === "admin";
   const isMapache = team === "Mapaches";
 
   if (!isAdmin && !isMapache) {

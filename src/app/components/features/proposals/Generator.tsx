@@ -112,9 +112,10 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
   const totalsT = useTranslations("proposals.generator.totals");
   const pipedriveExample = pipedriveT("exampleLink");
   const emptyValue = generatorT("emptyValue");
+  const countryMessages = useTranslations("proposals.countries");
   const countryOptions = useMemo(
-    () => getCompanyCountryOptions(locale as Locale),
-    [locale]
+    () => getCompanyCountryOptions((name) => countryMessages(name)),
+    [countryMessages]
   );
 
   const [companyName, setCompanyName] = useState("");

@@ -61,7 +61,7 @@ async function resolveTarget(viewer: Viewer, opts: { userId?: string | null; ema
 
 function canManageTarget(viewer: Viewer, target: Target): boolean {
   if (viewer.id === target.id) return true;
-  if (viewer.role === Role.superadmin || viewer.role === Role.admin) return true;
+  if (viewer.role === Role.admin) return true;
   if (viewer.role === Role.lider && viewer.team && viewer.team === target.team) return true;
   return false;
 }
