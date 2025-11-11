@@ -51,7 +51,9 @@ export type NavbarClientProps = {
   session: Session | null;
 };
 
-type Tab = "generator" | "history" | "stats" | "goals";
+// ---- Tipos de tabs ----
+type DirectTab = "generator" | "history" | "stats" | "goals";
+type LegacyTab = DirectTab | "teams" | "users";
 
 type ViewTransition = {
   ready: Promise<void>;
@@ -86,7 +88,7 @@ const LANGUAGE_LABEL_KEYS: Record<Locale, "spanish" | "english" | "portuguese"> 
   pt: "portuguese",
 };
 
-const DIRECT_PORTAL_TAB_ROUTES: Record<Tab, string> = {
+const DIRECT_PORTAL_TAB_ROUTES: Record<DirectTab, string> = {
   generator: "/portal/directo/generator",
   history: "/portal/directo/history",
   stats: "/portal/directo/stats",
@@ -266,7 +268,8 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const canAccessMarketingPortal = userPortals.includes("marketing");
   const canSeeUsers = isAdminRole;
 
-  const directActiveTab = React.useMemo<Tab | null>(() => {
+  // ---- Tabs del portal directo (navegación nueva) ----
+  const directActiveTab = React.useMemo<DirectTab | null>(() => {
     if (navbarVariant !== "direct") {
       return null;
     }
@@ -276,16 +279,20 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     if (normalizedPath.startsWith(`${base}/goals`)) return "goals";
     return "generator";
   }, [navbarVariant, isDirectPortalNew, normalizedPath]);
-  const readLegacyTab = React.useCallback((): Tab => {
+
+  // ---- Tabs legacy (incluye teams/users) ----
+  const readLegacyTab = React.useCallback((): LegacyTab => {
     const h = (globalThis?.location?.hash || "").replace("#", "");
     return (["generator", "history", "stats", "users", "teams", "goals"].includes(h)
-      ? (h as Tab)
+      ? (h as LegacyTab)
       : "generator");
   }, []);
-  const [legacyTab, setLegacyTab] = React.useState<Tab>(() => readLegacyTab());
+
+  const [legacyTab, setLegacyTab] = React.useState<LegacyTab>(() => readLegacyTab());
+
   React.useEffect(() => {
     const onHash = () => setLegacyTab(readLegacyTab());
-    const onCustom = (e: Event) => setLegacyTab((e as CustomEvent).detail as Tab);
+    const onCustom = (e: Event) => setLegacyTab((e as CustomEvent).detail as LegacyTab);
     window.addEventListener("hashchange", onHash);
     window.addEventListener("app:setTab", onCustom as EventListener);
     return () => {
@@ -293,13 +300,15 @@ export default function NavbarClient({ session }: NavbarClientProps) {
       window.removeEventListener("app:setTab", onCustom as EventListener);
     };
   }, [readLegacyTab]);
-  const handleLegacyTabClick = React.useCallback((tab: Tab) => {
+
+  const handleLegacyTabClick = React.useCallback((tab: LegacyTab) => {
     setLegacyTab(tab);
     try {
       location.hash = tab;
     } catch {}
     window.dispatchEvent(new CustomEvent("app:setTab", { detail: tab }));
   }, []);
+
   const configActiveTab = React.useMemo<"home" | "teams" | "users" | null>(() => {
     if (!isConfigurationsPath) return null;
     if (normalizedPath === "/configuraciones" || normalizedPath === "/configuraciones/") {
@@ -313,6 +322,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     }
     return "home";
   }, [isConfigurationsPath, normalizedPath]);
+
   const [userModal, setUserModal] = React.useState(false);
   const [mapacheSection, setMapacheSection] =
     React.useState<MapachePortalSection>(MAPACHE_PORTAL_DEFAULT_SECTION);
@@ -988,13 +998,3 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     </nav>
   );
 }
-
-
-
-
-
-
-
-
-
-
