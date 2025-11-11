@@ -608,7 +608,7 @@ function TeamManagementPanel({
         open={Boolean(deleteTeam)}
         title={teamPanelT("dialogs.delete.title")}
         description={teamPanelT("dialogs.delete.description", { team: deleteTeam?.name ?? "" })}
-        confirmLabel={teamPanelT("dialogs.delete.confirm")}
+        confirmText={teamPanelT("dialogs.delete.confirm")}
         onCancel={() => setDeleteTeam(null)}
         onConfirm={handleDeleteTeam}
       />
