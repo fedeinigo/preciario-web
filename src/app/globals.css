@@ -582,3 +582,35 @@ html.mapache-theme body .text-white strong {
 /* tarjeta de login (tamaños cómodos) */
 .auth-card { max-width: 720px; }
 
+.auth-card-modern {
+  max-width: 480px;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-card-modern::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+}
+
+@media (min-width: 640px) {
+  .auth-card-modern {
+    max-width: 520px;
+  }
+}
+
