@@ -751,6 +751,7 @@ export default function Users() {
           onClose={() => setProfileOpen(false)}
           viewer={{ role: "admin", team: null }}
           targetUser={profileUser}
+          appearance="light"
         />
       )}
     </div>

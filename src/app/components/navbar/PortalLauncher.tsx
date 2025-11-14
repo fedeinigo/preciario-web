@@ -16,7 +16,7 @@ type PortalLauncherProps = {
   onMapacheNavigate?: () => void;
   className?: string;
   buttonClassName?: string;
-  variant?: "dark" | "light";
+  variant?: "dark" | "light" | "mapache" | "direct";
 };
 
 type PortalOption = {
@@ -28,9 +28,106 @@ type PortalOption = {
 
 const PORTAL_ROUTES: Record<PortalAccessId, string> = {
   direct: "/portal/directo",
-  mapache: "/mapache-portal/generator",
+  mapache: "/portal/mapache/generator",
   partner: "/partner-portal",
   marketing: "/marketing-portal",
+};
+
+type PortalLauncherVariant = NonNullable<PortalLauncherProps["variant"]>;
+
+type LauncherTheme = {
+  trigger: string;
+  panel: string;
+  header: string;
+  title: string;
+  description: string;
+  card: string;
+  cardTitle: string;
+  cardDescription: string;
+  action: string;
+  overlay: string;
+  overlaySpinner: string;
+  overlayText: string;
+  backdrop: string;
+};
+
+const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
+  dark: {
+    trigger:
+      "inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[13px] text-white transition hover:border-white/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60",
+    panel:
+      "rounded-[28px] border border-white/10 bg-slate-950/90 text-white shadow-[0_40px_120px_rgba(2,6,23,0.75)]",
+    header: "bg-transparent border-b border-white/10 px-6 py-4 text-white",
+    title: "text-lg font-semibold text-white",
+    description: "text-sm text-white/60",
+    card:
+      "flex items-center justify-between gap-4 rounded-2xl border border-white/20 bg-slate-900/60 px-4 py-3 shadow-[0_15px_40px_rgba(0,0,0,0.6)]",
+    cardTitle: "text-sm font-semibold text-white",
+    cardDescription: "text-xs text-white/50",
+    action:
+      "rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40",
+    overlay: "bg-slate-950/90 text-white",
+    overlaySpinner: "text-white/80",
+    overlayText: "text-white",
+    backdrop: "bg-black/55",
+  },
+  direct: {
+    trigger:
+      "inline-flex items-center gap-2 rounded-full border border-white/30 bg-[rgb(var(--primary))]/90 px-3 py-1.5 text-[13px] text-white shadow-sm transition hover:bg-[rgb(var(--primary))]",
+    panel:
+      "rounded-[32px] border border-white/20 bg-[rgb(var(--primary))] text-white shadow-[0_45px_130px_rgba(5,0,0,0.6)] backdrop-blur",
+    header: "bg-transparent border-b border-white/30 px-6 py-4 text-white",
+    title: "text-lg font-semibold text-white",
+    description: "text-sm text-white/80",
+    card:
+      "flex items-center justify-between gap-4 rounded-2xl border border-white/25 bg-[rgba(255,255,255,0.06)] px-4 py-3 shadow-[0_25px_70px_rgba(15,6,41,0.55)]",
+    cardTitle: "text-sm font-semibold text-white",
+    cardDescription: "text-xs text-white/70",
+    action:
+      "rounded-full border border-white/30 bg-white/20 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:border-white/50 hover:bg-white/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60",
+    overlay: "bg-[rgba(30,6,80,0.9)] text-white",
+    overlaySpinner: "text-white/80",
+    overlayText: "text-white/80",
+    backdrop: "bg-[rgba(42,9,97,0.75)] backdrop-blur",
+  },
+  mapache: {
+    trigger:
+      "inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-[13px] text-white transition hover:border-white/45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60",
+    panel:
+      "rounded-[28px] border border-white/10 bg-[rgb(var(--mapache-surface-strong))]/95 text-white shadow-[0_40px_120px_rgba(2,6,23,0.85)]",
+    header: "bg-transparent border-b border-white/10 px-6 py-4 text-white",
+    title: "text-lg font-semibold text-white",
+    description: "text-sm text-white/70",
+    card:
+      "flex items-center justify-between gap-4 rounded-2xl border border-white/15 bg-[rgba(255,255,255,0.04)] px-4 py-3 shadow-[0_20px_45px_rgba(0,0,0,0.55)]",
+    cardTitle: "text-sm font-semibold text-white",
+    cardDescription: "text-xs text-white/60",
+    action:
+      "mapache-modal-btn rounded-full border px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40",
+    overlay: "bg-slate-950/90 text-white",
+    overlaySpinner: "text-white/80",
+    overlayText: "text-white",
+    backdrop: "bg-slate-950/75",
+  },
+  light: {
+    trigger:
+      "inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] text-slate-900 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-300",
+    panel:
+      "rounded-[28px] border border-slate-200 bg-white text-slate-900 shadow-[0_35px_90px_rgba(15,23,42,0.15)]",
+    header: "bg-white border-b border-slate-100 px-6 py-4 text-slate-900",
+    title: "text-lg font-semibold text-slate-900",
+    description: "text-sm text-slate-500",
+    card:
+      "flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-[0_15px_40px_rgba(15,23,42,0.08)]",
+    cardTitle: "text-sm font-semibold text-slate-900",
+    cardDescription: "text-xs text-slate-500",
+    action:
+      "rounded-full border border-transparent bg-[rgb(var(--primary))] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-[rgb(var(--primary))]/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--primary))]/40",
+    overlay: "bg-white/90 text-slate-900",
+    overlaySpinner: "text-slate-600",
+    overlayText: "text-slate-900",
+    backdrop: "bg-black/30",
+  },
 };
 
 export default function PortalLauncher({
@@ -46,6 +143,8 @@ export default function PortalLauncher({
   const pathname = usePathname();
   const portalText = useTranslations("navbar.portalSwitcher");
   const portalOptionsText = useTranslations("navbar.portalSwitcher.options");
+  const appearance: PortalLauncherVariant = variant ?? "dark";
+  const theme = launcherThemes[appearance];
 
   const [modalOpen, setModalOpen] = React.useState(false);
   const [transitionVisible, setTransitionVisible] = React.useState(false);
@@ -113,7 +212,6 @@ export default function PortalLauncher({
   const handleNavigate = React.useCallback(
     (option: PortalOption) => {
       setModalOpen(false);
-
       const targetPath = option.href;
 
       if (option.id === "mapache" && onMapacheNavigate) {
@@ -179,31 +277,18 @@ export default function PortalLauncher({
     }
 
     return list;
-  }, [
-    canAccessMapache,
-    canAccessMarketing,
-    canAccessPartner,
-    portalOptionsText,
-  ]);
+  }, [canAccessMapache, canAccessMarketing, canAccessPartner, portalOptionsText]);
 
-  if (options.length === 0) {
+  if (options.length <= 1) {
     return null;
   }
-
-  const isDark = variant === "dark";
-  const triggerClasses = isDark
-    ? "inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[13px] text-white transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-white/40"
-    : "inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[13px] text-slate-700 transition hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-slate-400";
 
   return (
     <>
       <button
         type="button"
         onClick={() => setModalOpen(true)}
-        className={[
-          triggerClasses,
-          buttonClassName,
-        ].join(" ")}
+        className={[theme.trigger, buttonClassName].join(" ")}
       >
         <span>{portalText("button")}</span>
         <RefreshCcw className="h-4 w-4" aria-hidden="true" />
@@ -212,27 +297,26 @@ export default function PortalLauncher({
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={<span className="text-base font-semibold">{portalText("title")}</span>}
+        title={portalText("title")}
+        backdropClassName={theme.backdrop}
+        headerClassName={theme.header}
+        titleClassName={theme.title}
         panelWidthClassName="max-w-lg"
+        panelClassName={theme.panel}
       >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-500">{portalText("description")}</p>
+        <div className="space-y-3">
+          <p className={theme.description}>{portalText("description")}</p>
           <div className="space-y-3">
             {options.map((option) => (
-              <div
-                key={option.id}
-                className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"
-              >
+              <div key={option.id} className={theme.card}>
                 <div>
-                  <div className="text-sm font-semibold text-gray-900">
-                    {option.label}
-                  </div>
-                  <p className="text-xs text-gray-500">{option.description}</p>
+                  <div className={theme.cardTitle}>{option.label}</div>
+                  <p className={theme.cardDescription}>{option.description}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleNavigate(option)}
-                  className="rounded-md bg-[rgb(var(--primary))] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-[rgb(var(--primary))]/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--primary))]"
+                  className={theme.action}
                 >
                   {portalText("action")}
                 </button>
@@ -247,13 +331,16 @@ export default function PortalLauncher({
           ? createPortal(
               <div
                 className={[
-                  "fixed inset-0 z-[70] flex flex-col items-center justify-center bg-slate-950/90 text-white transition-opacity duration-200 ease-out",
+                  "fixed inset-0 z-[70] flex flex-col items-center justify-center transition-opacity duration-200 ease-out",
+                  theme.overlay,
                   transitionOpaque ? "opacity-100" : "opacity-0",
                   className,
                 ].join(" ")}
               >
-                <Loader2 className="h-12 w-12 animate-spin text-white/80" aria-hidden="true" />
-                <p className="mt-4 text-lg font-semibold">{portalText("loading")}</p>
+                <Loader2 className={`h-12 w-12 animate-spin ${theme.overlaySpinner}`} aria-hidden="true" />
+                <p className={`mt-4 text-lg font-semibold ${theme.overlayText}`}>
+                  {portalText("loading")}
+                </p>
               </div>,
               document.body,
             )
@@ -262,6 +349,3 @@ export default function PortalLauncher({
     </>
   );
 }
-
-
-

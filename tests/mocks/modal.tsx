@@ -8,6 +8,8 @@ type ModalProps = {
   children: React.ReactNode;
   containerClassName?: string;
   panelClassName?: string;
+  headerClassName?: string;
+  titleClassName?: string;
   panelWidthClassName?: string;
   panelStyle?: React.CSSProperties;
   backdropClassName?: string;

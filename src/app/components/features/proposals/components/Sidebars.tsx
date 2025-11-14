@@ -123,6 +123,39 @@ function ConfirmDialog({
   );
 }
 
+type ToggleLabels = { collapse: string; expand: string };
+
+function CollapsibleSidebarCard({
+  title,
+  labels,
+  children,
+}: {
+  title: string;
+  labels: ToggleLabels;
+  children: React.ReactNode;
+}) {
+  const [expanded, setExpanded] = React.useState(true);
+  const label = expanded ? labels.collapse : labels.expand;
+  return (
+    <div className="card border p-3 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="heading-bar-sm">{title}</div>
+        <button
+          type="button"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-lg font-semibold text-gray-600 transition hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          onClick={() => setExpanded((prev) => !prev)}
+          aria-expanded={expanded}
+          aria-label={label}
+          title={label}
+        >
+          {expanded ? "-" : "+"}
+        </button>
+      </div>
+      {expanded && children}
+    </div>
+  );
+}
+
 /* ===========================
    Sidebar de Filiales
    =========================== */
@@ -182,198 +215,209 @@ export function FilialesSidebar({
   );
 
   return (
-    <div className="card border p-3 space-y-3">
-      <div className="heading-bar-sm">{filialesT("title")}</div>
+    <>
+      <CollapsibleSidebarCard
+        title={filialesT("title")}
+        labels={{
+          collapse: filialesT("toggle.collapse"),
+          expand: filialesT("toggle.expand"),
+        }}
+      >
+        <>
+          {isAdmin && (
+            <button
+              className="btn-ghost w-full"
+              onClick={() =>
+                setPromptCfg({
+                  title: filialesT("prompts.addGroup.title"),
+                  fields: [
+                    {
+                      name: "title",
+                      label: filialesT("prompts.addGroup.label"),
+                      placeholder: filialesT("prompts.addGroup.placeholder"),
+                    },
+                  ],
+                  onConfirm: ({ title }) => {
+                    const t = (title ?? "").trim();
+                    if (!t) {
+                      setPromptCfg(null);
+                      return;
+                    }
+                    return addFilial(t).then((result) => {
+                      handleResult(result);
+                      setPromptCfg(null);
+                    });
+                  },
+                })
+              }
+            >
+              {filialesT("buttons.addGroup")}
+            </button>
+          )}
 
-      {isAdmin && (
-        <button
-          className="btn-ghost w-full"
-          onClick={() =>
-            setPromptCfg({
-              title: filialesT("prompts.addGroup.title"),
-              fields: [
-                {
-                  name: "title",
-                  label: filialesT("prompts.addGroup.label"),
-                  placeholder: filialesT("prompts.addGroup.placeholder"),
-                },
-              ],
-              onConfirm: ({ title }) => {
-                const t = (title ?? "").trim();
-                if (!t) {
-                  setPromptCfg(null);
-                  return;
-                }
-                return addFilial(t).then((result) => {
-                  handleResult(result);
-                  setPromptCfg(null);
-                });
-              },
-            })
-          }
-        >
-          {filialesT("buttons.addGroup")}
-        </button>
-      )}
-
-      <div className="space-y-4">
-        {filiales.map((g) => (
-          <div key={g.id} className="rounded border bg-white shadow-soft">
-            <div className="flex items-center justify-between px-3 py-2 border-b">
-              <div className="font-medium">{g.title}</div>
-              {isAdmin && (
-                <div className="flex gap-2">
-                  <button
-                    className="text-xs underline"
-                    onClick={() =>
-                      setPromptCfg({
-                        title: filialesT("prompts.editGroup.title"),
-                        fields: [
-                          {
-                            name: "title",
-                            label: filialesT("prompts.editGroup.label"),
-                            initial: g.title,
-                          },
-                        ],
-                      onConfirm: ({ title }) => {
-                        const t = (title ?? "").trim();
-                        if (!t) {
-                          setPromptCfg(null);
-                          return;
+          <div className="space-y-4">
+            {filiales.map((g) => (
+              <div key={g.id} className="rounded border bg-white shadow-soft">
+                <div className="flex items-center justify-between px-3 py-2 border-b">
+                  <div className="font-medium">{g.title}</div>
+                  {isAdmin && (
+                    <div className="flex gap-2">
+                      <button
+                        className="text-xs underline"
+                        onClick={() =>
+                          setPromptCfg({
+                            title: filialesT("prompts.editGroup.title"),
+                            fields: [
+                              {
+                                name: "title",
+                                label: filialesT("prompts.editGroup.label"),
+                                initial: g.title,
+                              },
+                            ],
+                            onConfirm: ({ title }) => {
+                              const t = (title ?? "").trim();
+                              if (!t) {
+                                setPromptCfg(null);
+                                return;
+                              }
+                              return editFilialTitle(g.id, t).then((result) => {
+                                handleResult(result);
+                                setPromptCfg(null);
+                              });
+                            },
+                          })
                         }
-                        return editFilialTitle(g.id, t).then((result) => {
-                          handleResult(result);
-                          setPromptCfg(null);
-                        });
-                      },
-                    })
-                  }
-                >
-                    {filialesT("buttons.edit")}
-                  </button>
-                  <button
-                    className="text-xs underline text-red-600"
-                    onClick={() =>
-                      setConfirmCfg({
-                        title: filialesT("confirmations.deleteGroup.title"),
-                        message: filialesT("confirmations.deleteGroup.message", {
-                          group: g.title,
-                        }),
-                        onConfirm: () => {
-                          void removeFilial(g.id).then(handleResult);
-                          setConfirmCfg(null);
-                        },
-                      })
-                    }
-                  >
-                    {filialesT("buttons.delete")}
-                  </button>
+                      >
+                        {filialesT("buttons.edit")}
+                      </button>
+                      <button
+                        className="text-xs underline text-red-600"
+                        onClick={() =>
+                          setConfirmCfg({
+                            title: filialesT("confirmations.deleteGroup.title"),
+                            message: filialesT("confirmations.deleteGroup.message", {
+                              group: g.title,
+                            }),
+                            onConfirm: () => {
+                              void removeFilial(g.id).then(handleResult);
+                              setConfirmCfg(null);
+                            },
+                          })
+                        }
+                      >
+                        {filialesT("buttons.delete")}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <ul className="px-3 py-2 space-y-1">
-              {g.countries.map((c) => {
-                const name = typeof c === "string" ? c : c.name;
-                const countryId = typeof c === "string" ? undefined : c.id;
-                const key = `${g.id}:${name}`;
-                return (
-                  <li key={key} className="flex items-center justify-between">
-                    <span>{name}</span>
-                    {isAdmin && countryId && (
-                      <span className="flex gap-2">
-                        <button
-                          className="text-xs underline"
-                          onClick={() =>
-                            setPromptCfg({
-                              title: filialesT("prompts.editCountry.title"),
-                              fields: [
-                                {
-                                  name: "name",
-                                  label: filialesT("prompts.editCountry.label"),
-                                  initial: name,
-                                },
-                              ],
-                              onConfirm: ({ name: newName }) => {
-                                const t = (newName ?? "").trim();
-                                if (!t) {
-                                  setPromptCfg(null);
-                                  return;
-                                }
-                                return editCountry(g.id, countryId ?? name, t).then((result) => {
-                                  handleResult(result);
-                                  setPromptCfg(null);
-                                });
+                <ul className="px-3 py-2 space-y-1">
+                  {g.countries.map((c) => {
+                    const name = typeof c === "string" ? c : c.name;
+                    const countryId = typeof c === "string" ? undefined : c.id;
+                    const key = `${g.id}:${name}`;
+                    return (
+                      <li key={key} className="flex items-center justify-between">
+                        <span>{name}</span>
+                        {isAdmin && countryId && (
+                          <span className="flex gap-2">
+                            <button
+                              className="text-xs underline"
+                              onClick={() =>
+                                setPromptCfg({
+                                  title: filialesT("prompts.editCountry.title"),
+                                  fields: [
+                                    {
+                                      name: "name",
+                                      label: filialesT("prompts.editCountry.label"),
+                                      initial: name,
+                                    },
+                                  ],
+                                  onConfirm: ({ name: newName }) => {
+                                    const t = (newName ?? "").trim();
+                                    if (!t) {
+                                      setPromptCfg(null);
+                                      return;
+                                    }
+                                    return editCountry(g.id, countryId ?? name, t).then(
+                                      (result) => {
+                                        handleResult(result);
+                                        setPromptCfg(null);
+                                      }
+                                    );
+                                  },
+                                })
+                              }
+                            >
+                              {filialesT("buttons.edit")}
+                            </button>
+                            <button
+                              className="text-xs underline text-red-600"
+                              onClick={() =>
+                                setConfirmCfg({
+                                  title: filialesT("confirmations.deleteCountry.title"),
+                                  message: filialesT("confirmations.deleteCountry.message", {
+                                    country: name,
+                                    group: g.title,
+                                  }),
+                                  onConfirm: () => {
+                                    void removeCountry(g.id, countryId ?? name).then(
+                                      handleResult
+                                    );
+                                    setConfirmCfg(null);
+                                  },
+                                })
+                              }
+                            >
+                              {filialesT("buttons.delete")}
+                            </button>
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                  {isAdmin && (
+                    <li>
+                      <button
+                        className="text-xs underline"
+                        onClick={() =>
+                          setPromptCfg({
+                            title: filialesT("prompts.addCountry.title"),
+                            fields: [
+                              {
+                                name: "name",
+                                label: filialesT("prompts.addCountry.label"),
+                                placeholder: filialesT("prompts.addCountry.placeholder"),
                               },
-                            })
-                          }
-                        >
-                          {filialesT("buttons.edit")}
-                        </button>
-                        <button
-                          className="text-xs underline text-red-600"
-                          onClick={() =>
-                            setConfirmCfg({
-                              title: filialesT("confirmations.deleteCountry.title"),
-                              message: filialesT("confirmations.deleteCountry.message", {
-                                country: name,
-                                group: g.title,
-                              }),
-                              onConfirm: () => {
-                                void removeCountry(g.id, countryId ?? name).then(handleResult);
-                                setConfirmCfg(null);
-                              },
-                            })
-                          }
-                        >
-                          {filialesT("buttons.delete")}
-                        </button>
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-
-              {isAdmin && (
-                <li>
-                  <button
-                    className="text-xs underline"
-                    onClick={() =>
-                      setPromptCfg({
-                        title: filialesT("prompts.addCountry.title"),
-                        fields: [
-                          {
-                            name: "name",
-                            label: filialesT("prompts.addCountry.label"),
-                            placeholder: filialesT("prompts.addCountry.placeholder"),
-                          },
-                        ],
-                        onConfirm: ({ name }) => {
-                          const n = (name ?? "").trim();
-                          if (!n) {
-                            setPromptCfg(null);
-                            return;
-                          }
-                          return addCountry(g.id, n).then((result) => {
-                            handleResult(result);
-                            setPromptCfg(null);
-                          });
-                        },
-                      })
-                    }
-                  >
-                    {filialesT("buttons.addCountry")}
-                  </button>
-                </li>
-              )}
-            </ul>
+                            ],
+                            onConfirm: ({ name }) => {
+                              const n = (name ?? "").trim();
+                              if (!n) {
+                                setPromptCfg(null);
+                                return;
+                              }
+                              return addCountry(g.id, n).then((result) => {
+                                handleResult(result);
+                                setPromptCfg(null);
+                              });
+                            },
+                          })
+                        }
+                      >
+                        {filialesT("buttons.addCountry")}
+                      </button>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            ))}
           </div>
-        ))}
 
-        {filiales.length === 0 && (
-          <div className="text-sm text-gray-500">{filialesT("empty")}</div>
-        )}
-      </div>
+          {filiales.length === 0 && (
+            <div className="text-sm text-gray-500">{filialesT("empty")}</div>
+          )}
+        </>
+      </CollapsibleSidebarCard>
 
       {/* Modales */}
       {promptCfg && (
@@ -394,7 +438,7 @@ export function FilialesSidebar({
           onConfirm={() => confirmCfg.onConfirm()}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -448,115 +492,127 @@ export function GlossarySidebar({
   );
 
   return (
-    <div className="card border p-3 space-y-3">
-      <div className="heading-bar-sm">{glossaryT("title")}</div>
-
-      {isAdmin && (
-        <button
-          className="btn-ghost w-full"
-          onClick={() =>
-            setPromptCfg({
-              title: glossaryT("prompts.add.title"),
-              fields: [
-                {
-                  name: "label",
-                  label: glossaryT("prompts.add.label"),
-                  placeholder: glossaryT("prompts.add.labelPlaceholder"),
-                },
-                {
-                  name: "url",
-                  label: glossaryT("prompts.add.url"),
-                  placeholder: glossaryT("prompts.add.urlPlaceholder"),
-                },
-              ],
-              onConfirm: ({ label, url }) => {
-                const l = (label ?? "").trim();
-                const u = (url ?? "").trim();
-                if (!l || !u) {
-                  setPromptCfg(null);
-                  return;
-                }
-                return addLink(l, u).then((result) => {
-                  handleResult(result);
-                  setPromptCfg(null);
-                });
-              },
-            })
-          }
-        >
-          {glossaryT("buttons.add")}
-        </button>
-      )}
-
-      <ul className="space-y-1">
-        {glossary.map((g) => (
-          <li key={g.id} className="flex items-center justify-between">
-            <a
-              className="text-sm underline"
-              href={g.url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {g.label}
-            </a>
-            {isAdmin && (
-              <span className="flex gap-2">
-                <button
-                  className="text-xs underline"
-                  onClick={() =>
-                    setPromptCfg({
-                      title: glossaryT("prompts.edit.title"),
-                      fields: [
-                        {
-                          name: "label",
-                          label: glossaryT("prompts.edit.label"),
-                          initial: g.label,
-                        },
-                        {
-                          name: "url",
-                          label: glossaryT("prompts.edit.url"),
-                          initial: g.url,
-                        },
-                      ],
-                      onConfirm: ({ label, url }) => {
-                        const l = (label ?? "").trim();
-                        const u = (url ?? "").trim();
-                        if (!l || !u) {
-                          setPromptCfg(null);
-                          return;
-                        }
-                        return editLink(g.id, l, u).then((result) => {
-                          handleResult(result);
-                          setPromptCfg(null);
-                        });
-                      },
-                    })
-                  }
-                >
-                  {glossaryT("buttons.edit")}
-                </button>
-                <button
-                  className="text-xs underline text-red-600"
-                  onClick={() =>
-                    setConfirmCfg({
-                      title: glossaryT("confirmations.delete.title"),
-                      message: glossaryT("confirmations.delete.message", {
-                        label: g.label,
-                      }),
-                    onConfirm: () => {
-                      void removeLink(g.id).then(handleResult);
-                      setConfirmCfg(null);
+    <>
+      <CollapsibleSidebarCard
+        title={glossaryT("title")}
+        labels={{
+          collapse: glossaryT("toggle.collapse"),
+          expand: glossaryT("toggle.expand"),
+        }}
+      >
+        <>
+          {isAdmin && (
+            <button
+              className="btn-ghost w-full"
+              onClick={() =>
+                setPromptCfg({
+                  title: glossaryT("prompts.add.title"),
+                  fields: [
+                    {
+                      name: "label",
+                      label: glossaryT("prompts.add.label"),
+                      placeholder: glossaryT("prompts.add.labelPlaceholder"),
                     },
-                  })
-                }
+                    {
+                      name: "url",
+                      label: glossaryT("prompts.add.url"),
+                      placeholder: glossaryT("prompts.add.urlPlaceholder"),
+                    },
+                  ],
+                  onConfirm: ({ label, url }) => {
+                    const l = (label ?? "").trim();
+                    const u = (url ?? "").trim();
+                    if (!l || !u) {
+                      setPromptCfg(null);
+                      return;
+                    }
+                    return addLink(l, u).then((result) => {
+                      handleResult(result);
+                      setPromptCfg(null);
+                    });
+                  },
+                })
+              }
+            >
+              {glossaryT("buttons.add")}
+            </button>
+          )}
+
+          <ul className="space-y-1">
+            {glossary.map((g) => (
+              <li key={g.id} className="flex items-center justify-between">
+                <a
+                  className="text-sm underline"
+                  href={g.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  {glossaryT("buttons.delete")}
-                </button>
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
+                  {g.label}
+                </a>
+                {isAdmin && (
+                  <span className="flex gap-2">
+                    <button
+                      className="text-xs underline"
+                      onClick={() =>
+                        setPromptCfg({
+                          title: glossaryT("prompts.edit.title"),
+                          fields: [
+                            {
+                              name: "label",
+                              label: glossaryT("prompts.edit.label"),
+                              initial: g.label,
+                            },
+                            {
+                              name: "url",
+                              label: glossaryT("prompts.edit.url"),
+                              initial: g.url,
+                            },
+                          ],
+                          onConfirm: ({ label, url }) => {
+                            const l = (label ?? "").trim();
+                            const u = (url ?? "").trim();
+                            if (!l || !u) {
+                              setPromptCfg(null);
+                              return;
+                            }
+                            return editLink(g.id, l, u).then((result) => {
+                              handleResult(result);
+                              setPromptCfg(null);
+                            });
+                          },
+                        })
+                      }
+                    >
+                      {glossaryT("buttons.edit")}
+                    </button>
+                    <button
+                      className="text-xs underline text-red-600"
+                      onClick={() =>
+                        setConfirmCfg({
+                          title: glossaryT("confirmations.delete.title"),
+                          message: glossaryT("confirmations.delete.message", {
+                            label: g.label,
+                          }),
+                          onConfirm: () => {
+                            void removeLink(g.id).then(handleResult);
+                            setConfirmCfg(null);
+                          },
+                        })
+                      }
+                    >
+                      {glossaryT("buttons.delete")}
+                    </button>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {glossary.length === 0 && (
+            <div className="text-sm text-gray-500">{glossaryT("empty")}</div>
+          )}
+        </>
+      </CollapsibleSidebarCard>
 
       {/* Modales */}
       {promptCfg && (
@@ -577,10 +633,6 @@ export function GlossarySidebar({
           onConfirm={() => confirmCfg.onConfirm()}
         />
       )}
-
-      {glossary.length === 0 && (
-        <div className="text-sm text-gray-500">{glossaryT("empty")}</div>
-      )}
-    </div>
+    </>
   );
 }

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function MapachePortalPage() {
-  redirect("/mapache-portal/generator");
+  redirect("/portal/mapache/generator");
 }

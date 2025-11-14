@@ -3103,6 +3103,11 @@ const messages: DeepRecord = {
             addCountry: "Agregar país",
 
           },
+          toggle: {
+            collapse: "Contraer",
+            expand: "Expandir",
+          },
+
 
           empty: "Sin filiales aún.",
 
@@ -3181,6 +3186,11 @@ const messages: DeepRecord = {
             delete: "Eliminar",
 
           },
+          toggle: {
+            collapse: "Contraer",
+            expand: "Expandir",
+          },
+
 
           empty: "Aún no hay enlaces.",
 

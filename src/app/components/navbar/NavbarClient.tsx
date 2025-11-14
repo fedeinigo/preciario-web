@@ -1,4 +1,4 @@
-// src/app/components/navbar/NavbarClient.tsx
+﻿// src/app/components/navbar/NavbarClient.tsx
 "use client";
 
 import * as React from "react";
@@ -13,8 +13,6 @@ import {
   BarChart2,
   Users,
   Users2,
-  Mail,
-  Shield,
   ShieldCheck,
   Target,
   Loader2,
@@ -22,16 +20,6 @@ import {
   Home,
 } from "lucide-react";
 
-import Modal from "@/app/components/ui/Modal";
-import { toast } from "@/app/components/ui/toast";
-import { formatUSD } from "@/app/components/features/proposals/lib/format";
-import {
-  q1Range,
-  q2Range,
-  q3Range,
-  q4Range,
-} from "@/app/components/features/proposals/lib/dateRanges";
-import { loadNavbarProgress } from "@/app/components/navbar/load-progress";
 import { normalizeProfileText } from "@/app/components/navbar/profile-format";
 import { useLanguage, useTranslations } from "@/app/LanguageProvider";
 import type { Locale } from "@/lib/i18n/config";
@@ -46,6 +34,7 @@ import {
   isMapachePortalSection,
 } from "@/app/mapache-portal/section-events";
 import PortalLauncher from "@/app/components/navbar/PortalLauncher";
+import UserProfileModal from "@/app/components/ui/UserProfileModal";
 
 export type NavbarClientProps = {
   session: Session | null;
@@ -71,6 +60,19 @@ type AnyRole =
   | "usuario"
   | string
   | undefined;
+
+type NavbarAppearance = "dark" | "light" | "mapache" | "direct";
+type PortalLauncherVariant = "dark" | "light" | "mapache" | "direct";
+
+type NavTheme = {
+  surface: string;
+  configButton: (active: boolean) => string;
+  profileButton: string;
+  languageSelect: string;
+  signOutButton: string;
+  portalVariant: PortalLauncherVariant;
+  profileAppearance: NavbarAppearance;
+};
 
 const APP_ROLES: readonly AppRole[] = ["admin", "lider", "usuario"];
 const APP_ROLE_SET: ReadonlySet<AppRole> = new Set<AppRole>(APP_ROLES);
@@ -150,13 +152,6 @@ function MapacheSectionBtn({
   );
 }
 
-function initials(fullName: string) {
-  const parts = fullName.split(" ").filter(Boolean);
-  const i1 = parts[0]?.[0] ?? "";
-  const i2 = parts[1]?.[0] ?? "";
-  return (i1 + i2).toUpperCase();
-}
-
 export default function NavbarClient({ session }: NavbarClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -177,10 +172,6 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const t = useTranslations("navbar");
   const tabsT = useTranslations("navbar.tabs");
   const profileT = useTranslations("navbar.profile");
-  const modalT = useTranslations("navbar.modal");
-  const modalLabelsT = useTranslations("navbar.modal.labels");
-  const modalLogT = useTranslations("navbar.modal.log");
-  const toastT = useTranslations("navbar.toast");
   const fallbacksT = useTranslations("navbar.fallbacks");
   const mapacheSectionsT = useTranslations("navbar.mapachePortalSections");
   const languageT = useTranslations("common.language");
@@ -250,13 +241,101 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const showAuthActions = status === "authenticated";
   const showPortalSwitcher = showAuthActions && navbarVariant !== "home";
 
+  const navbarAppearance: NavbarAppearance = isMapachePortal
+    ? "mapache"
+    : isMarketingPortal
+      ? "light"
+      : navbarVariant === "direct"
+        ? "direct"
+        : "dark";
+
+  const navTheme = React.useMemo<NavTheme>(() => {
+    if (navbarAppearance === "light") {
+      return {
+        surface: "border-b border-slate-200 bg-white/80 text-slate-900 backdrop-blur supports-[backdrop-filter]:bg-opacity-80",
+        configButton: (active: boolean) =>
+          `inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[13px] transition ${
+            active
+              ? "border-transparent bg-[rgb(var(--primary))] text-white shadow-sm"
+              : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
+          }`,
+        profileButton:
+          "inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] text-slate-900 hover:bg-slate-50 transition",
+        languageSelect:
+          "rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 focus:border-[rgb(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--primary))]/30",
+        signOutButton:
+          "inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-[rgb(var(--primary))] text-white hover:bg-[rgb(var(--primary))]/90",
+        portalVariant: "light",
+        profileAppearance: "light",
+      };
+    }
+    const isMapacheTheme = navbarAppearance === "mapache";
+    if (isMapacheTheme) {
+      return {
+        surface:
+          "border-b border-white/15 backdrop-blur supports-[backdrop-filter]:bg-opacity-80 bg-slate-950/90 text-white navbar--mapache-portal",
+        configButton: (active: boolean) =>
+          `inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[13px] transition ${
+            active
+              ? "border-transparent bg-white text-[#1f2937] shadow-sm"
+              : "border-white/25 bg-white/10 text-white hover:bg-white/15"
+          }`,
+        profileButton:
+          "inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition",
+        languageSelect:
+          "rounded-md border border-white/25 bg-white/10 px-2 py-1 text-sm text-white focus:border-white focus:outline-none focus:ring-2 focus:ring-white/40",
+        signOutButton:
+          "inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-white text-[#3b0a69] hover:bg-white/90",
+        portalVariant: "mapache",
+        profileAppearance: "mapache",
+      };
+    }
+    if (navbarAppearance === "direct") {
+      return {
+        surface:
+          "border-b border-white/20 bg-[rgb(var(--primary))] text-white shadow-[0_6px_18px_rgba(17,6,33,0.4)]",
+        configButton: (active: boolean) =>
+          `inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[13px] transition ${
+            active
+              ? "border-transparent bg-white text-[#2b0a52] shadow-sm"
+              : "border-white/30 bg-white/5 text-white hover:bg-white/10"
+          }`,
+        profileButton:
+          "inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/30 bg-white/10 hover:bg-white/20 transition",
+        languageSelect:
+          "rounded-md border border-white/25 bg-white/10 px-2 py-1 text-sm text-white focus:border-white focus:outline-none focus:ring-2 focus:ring-white/35",
+        signOutButton:
+          "inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-white text-[#3b0a69] hover:bg-white/90",
+        portalVariant: "direct",
+        profileAppearance: "direct",
+      };
+    }
+    return {
+      surface:
+        "border-b border-white/15 backdrop-blur supports-[backdrop-filter]:bg-opacity-80 bg-slate-950/80 text-white",
+      configButton: (active: boolean) =>
+        `inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[13px] transition ${
+          active
+            ? "border-transparent bg-white text-[#1f2937] shadow-sm"
+            : "border-white/25 bg-white/10 text-white hover:bg-white/15"
+        }`,
+      profileButton:
+        "inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition",
+      languageSelect:
+        "rounded-md border border-white/25 bg-white/10 px-2 py-1 text-sm text-white focus:border-white focus:outline-none focus:ring-2 focus:ring-white/40",
+      signOutButton:
+        "inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-white text-[#3b0a69] hover:bg-white/90",
+      portalVariant: "dark",
+      profileAppearance: "dark",
+    };
+  }, [navbarAppearance]);
+
   const role = (session?.user?.role as AnyRole) ?? "usuario";
   const appRole = toAppRole(role);
   const rawTeam = (session?.user?.team as string | null) ?? null;
   const team = normalizeProfileText(rawTeam) || fallbacksT("team");
   const name = normalizeProfileText(session?.user?.name) || fallbacksT("name");
   const email = session?.user?.email ?? fallbacksT("email");
-  const currentEmail = session?.user?.email ?? "";
   const isAdminRole = ADMIN_ROLES.has(appRole);
   const showConfigurationsShortcut =
     showAuthActions &&
@@ -268,7 +347,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const canAccessMarketingPortal = userPortals.includes("marketing");
   const canSeeUsers = isAdminRole;
 
-  // ---- Tabs del portal directo (navegación nueva) ----
+  // ---- Tabs del portal directo (navegaci├│n nueva) ----
   const directActiveTab = React.useMemo<DirectTab | null>(() => {
     if (navbarVariant !== "direct") {
       return null;
@@ -536,75 +615,6 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     [isMapachePortal, pathname, router],
   );
 
-  const now = new Date();
-  const initialQuarter: 1 | 2 | 3 | 4 = (() => {
-    const m = now.getMonth();
-    if (m <= 2) return 1;
-    if (m <= 5) return 2;
-    if (m <= 8) return 3;
-    return 4;
-  })();
-
-  const [yearSel, setYearSel] = React.useState<number>(now.getFullYear());
-  const [quarterSel, setQuarterSel] = React.useState<1 | 2 | 3 | 4>(initialQuarter);
-  const range = React.useMemo(
-    () => [q1Range, q2Range, q3Range, q4Range][quarterSel - 1](yearSel),
-    [yearSel, quarterSel]
-  );
-
-  const [goal, setGoal] = React.useState<number>(0);
-  const [progress, setProgress] = React.useState<number>(0);
-  const [inputAmount, setInputAmount] = React.useState<number>(0);
-  const [loadingGoal, setLoadingGoal] = React.useState<boolean>(false);
-
-  const loadMyGoal = React.useCallback(async () => {
-    setLoadingGoal(true);
-    try {
-      const r = await fetch(`/api/goals/user?year=${yearSel}&quarter=${quarterSel}`);
-      const j = await r.json();
-      const amt = Number(j.amount || 0);
-      setGoal(amt);
-      setInputAmount(amt);
-    } catch {
-      setGoal(0);
-      setInputAmount(0);
-    } finally {
-      setLoadingGoal(false);
-    }
-  }, [yearSel, quarterSel]);
-
-  const loadMyProgress = React.useCallback(async () => {
-    try {
-      const total = await loadNavbarProgress({ userEmail: currentEmail, range });
-      setProgress(total);
-    } catch {
-      setProgress(0);
-    }
-  }, [currentEmail, range]);
-
-  React.useEffect(() => {
-    if (!userModal || !currentEmail) return;
-    loadMyGoal();
-    loadMyProgress();
-  }, [userModal, currentEmail, loadMyGoal, loadMyProgress]);
-
-  const saveMyGoal = async () => {
-    try {
-      const r = await fetch("/api/goals/user", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: inputAmount, year: yearSel, quarter: quarterSel }),
-      });
-      if (!r.ok) throw new Error();
-      setGoal(inputAmount);
-      toast.success(toastT("goalSaved"));
-    } catch {
-      toast.error(toastT("goalError"));
-    }
-  };
-
-  const pct = goal > 0 ? (progress / goal) * 100 : 0;
-
   if (isPartnerPortal) {
     return null;
   }
@@ -613,7 +623,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     <nav
       role="navigation"
       aria-label={t("ariaLabel")}
-      className={`navbar fixed top-0 inset-x-0 z-50 border-b border-white/15 backdrop-blur supports-[backdrop-filter]:bg-opacity-80 ${isMapachePortal ? "navbar--mapache-portal" : ""}`}
+      className={`navbar fixed top-0 inset-x-0 z-50 ${navTheme.surface}`}
       style={{ height: "var(--nav-h)" }}
     >
       <div className="navbar-inner mx-auto max-w-[2000px] px-3">
@@ -631,6 +641,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
               canAccessMapache={canOpenMapachePortal}
               canAccessPartner={canAccessPartnerPortal}
               canAccessMarketing={canAccessMarketingPortal}
+              variant={navTheme.portalVariant}
               onMapacheNavigate={beginMapacheTransition}
             />
           ) : null}
@@ -664,8 +675,8 @@ export default function NavbarClient({ session }: NavbarClientProps) {
                 href="/marketing-portal"
                 className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
                   marketingView === "generator"
-                    ? "bg-white text-[#3b0a69] border-transparent shadow-sm"
-                    : "border-white/25 bg-white/10 text-white hover:bg-white/15"
+                    ? "border-transparent bg-[rgb(var(--primary))] text-white shadow-sm"
+                    : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
                 }`}
                 aria-current={marketingView === "generator" ? "page" : undefined}
               >
@@ -675,8 +686,8 @@ export default function NavbarClient({ session }: NavbarClientProps) {
                 href="/marketing-portal?view=history"
                 className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
                   marketingView === "history"
-                    ? "bg-white text-[#3b0a69] border-transparent shadow-sm"
-                    : "border-white/25 bg-white/10 text-white hover:bg-white/15"
+                    ? "border-transparent bg-[rgb(var(--primary))] text-white shadow-sm"
+                    : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
                 }`}
                 aria-current={marketingView === "history" ? "page" : undefined}
               >
@@ -812,12 +823,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
           {showConfigurationsShortcut && (
             <Link
               href="/configuraciones"
-              className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[13px] transition
-                ${
-                  isConfigurationsPath
-                    ? "border-transparent bg-white text-[#1f2937] shadow-sm"
-                    : "border-white/25 bg-white/10 text-white hover:bg-white/15"
-                }`}
+              className={navTheme.configButton(isConfigurationsPath)}
               aria-label={configurationsLabel}
               title={configurationsLabel}
             >
@@ -827,7 +833,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
           {showAuthActions && (
             <button
               onClick={() => setUserModal(true)}
-              className="inline-flex items-center rounded-full px-3 py-1.5 text-[13px] text-white border border-white/25 bg-white/10 hover:bg-white/15 transition"
+              className={navTheme.profileButton}
               title={profileT("open")}
             >
               {name}
@@ -835,7 +841,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
           )}
           {showAuthActions && (
             <select
-              className="rounded-md border border-white/25 bg-white/10 px-2 py-1 text-sm text-white focus:border-white focus:outline-none focus:ring-2 focus:ring-white/40"
+              className={navTheme.languageSelect}
               value={locale}
               onChange={(event) => handleLocaleChange(event.target.value as Locale)}
               aria-label={languageT("label")}
@@ -851,7 +857,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
           {showAuthActions && (
             <button
               onClick={() => signOut()}
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-white text-[#3b0a69] hover:bg-white/90"
+              className={navTheme.signOutButton}
             >
               {profileT("signOut")}
             </button>
@@ -871,130 +877,22 @@ export default function NavbarClient({ session }: NavbarClientProps) {
         </div>
       ) : null}
 
-      <Modal
-        open={showAuthActions && userModal}
-        onClose={() => setUserModal(false)}
-        title={modalT("title")}
-        variant="inverted"
-        panelClassName="max-w-2xl"
-        footer={
-          <div className="flex justify-between items-center w-full">
-            <div className="text-[12px] text-white/80">
-              {modalT("periodLabel")}: {yearSel} - Q{quarterSel} ({range.from} — {range.to})
-            </div>
-            <div className="flex gap-2">
-              <button className="btn-bar" onClick={() => setUserModal(false)}>
-                {modalT("close")}
-              </button>
-              <button className="btn-bar" onClick={saveMyGoal}>
-                {modalT("save")}
-              </button>
-            </div>
-          </div>
-        }
-      >
-        <div className="space-y-5 text-white">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-full flex items-center justify-center font-bold bg-white text-[rgb(var(--primary))]">
-              {initials(name)}
-            </div>
-            <div>
-              <div className="text-base font-semibold">{name}</div>
-              <div className="text-sm text-white/90 inline-flex items-center gap-1">
-                <Mail className="h-4 w-4" />
-                {email}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="rounded-md border border-white/20 bg-white/10 px-3 py-2">
-              <div className="text-[12px] text-white/80 flex items-center gap-1 mb-0.5">
-                <Shield className="h-3.5 w-3.5" />
-                {modalLabelsT("role")}
-              </div>
-              <div className="font-medium">{(role ?? "usuario").toString()}</div>
-            </div>
-            <div className="rounded-md border border-white/20 bg-white/10 px-3 py-2">
-              <div className="text-[12px] text-white/80 flex items-center gap-1 mb-0.5">
-                <Users2 className="h-3.5 w-3.5" />
-                {modalLabelsT("team")}
-              </div>
-              <div className="font-medium">{team}</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <label className="text-sm">
-              {modalLabelsT("year")}
-              <select
-                className="select-on-dark mt-1 w-full"
-                value={yearSel}
-                onChange={(e) => setYearSel(Number(e.target.value))}
-              >
-                {Array.from({ length: 5 }).map((_, i) => {
-                  const y = new Date().getFullYear() - 2 + i;
-                  return (
-                    <option key={y} value={y} className="text-black">
-                      {y}
-                    </option>
-                  );
-                })}
-              </select>
-            </label>
-            <label className="text-sm">
-              {modalLabelsT("quarter")}
-              <select
-                className="select-on-dark mt-1 w-full"
-                value={quarterSel}
-                onChange={(e) => setQuarterSel(Number(e.target.value) as 1 | 2 | 3 | 4)}
-              >
-                <option value={1} className="text-black">
-                  Q1
-                </option>
-                <option value={2} className="text-black">
-                  Q2
-                </option>
-                <option value={3} className="text-black">
-                  Q3
-                </option>
-                <option value={4} className="text-black">
-                  Q4
-                </option>
-              </select>
-            </label>
-            <label className="text-sm">
-              {modalLabelsT("goal")}
-              <input
-                className="input-pill mt-1 w-full"
-                type="number"
-                min={0}
-                value={inputAmount}
-                onChange={(e) => setInputAmount(Number(e.target.value))}
-              />
-            </label>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="rounded-md border border-white/20 bg-white/10 px-3 py-2">
-              <div className="text-[12px] text-white/80 mb-1">{modalLabelsT("currentGoal")}</div>
-              <div className="text-lg font-semibold">{formatUSD(goal)}</div>
-            </div>
-            <div className="rounded-md border border-white/20 bg-white/10 px-3 py-2">
-              <div className="text-[12px] text-white/80 mb-1">{modalLabelsT("progress")}</div>
-              <div className="text-lg font-semibold">{formatUSD(progress)}</div>
-              <div className="text-[12px] text-white/70">{`${pct.toFixed(1)}${modalT("progressSuffix")}`}</div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="text-[12px] text-white/80">{modalLogT("title")}</div>
-            <div className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-[13px]">
-              {loadingGoal ? modalLogT("loading") : modalLogT("info")}
-            </div>
-          </div>
-        </div>
-      </Modal>
+      {showAuthActions ? (
+        <UserProfileModal
+          open={userModal}
+          onClose={() => setUserModal(false)}
+          viewer={{
+            id: (session?.user?.id as string | null | undefined) ?? null,
+            email: session?.user?.email ?? null,
+            role: appRole,
+            team,
+            name,
+          }}
+          appearance={navTheme.profileAppearance}
+        />
+      ) : null}
     </nav>
   );
 }
+
+
