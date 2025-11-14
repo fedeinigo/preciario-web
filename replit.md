@@ -8,6 +8,41 @@ The system integrates with Google Docs/Drive for proposal document generation, P
 
 Preferred communication style: Simple, everyday language.
 
+# Recent Changes
+
+## Goals Page UX Improvements (November 2025)
+
+Implemented 5 major UX enhancements for `/portal/directo/goals`:
+
+1. **Skeleton Loaders**: Added `CardSkeleton` component used in `GoalsPage` to display loading states for `IndividualGoalCard` and `TeamGoalCard`, eliminating zero-data flash and improving perceived performance.
+
+2. **Professional Billing Editor**: Created `BillingEditorModal` component to replace legacy `window.prompt()` with a modern modal that includes:
+   - Input validation for billing amounts
+   - Preview of billed vs. pending amounts
+   - Professional purple-themed design matching the brand
+   - Proper form controls and error handling
+
+3. **Explanatory Tooltips**: Added `Tooltip` component with explanatory content for KPI metrics in the header (Delta, Progress, etc.) to help users understand what each metric represents.
+
+4. **Filters and Search**: Enhanced `TeamMembersTable` with:
+   - Real-time search by name or email
+   - Status filter (All / Above objective / Below objective)
+   - Performant filtering using `React.useMemo`
+   - Modern purple-themed filter UI with icons
+
+5. **Deal Drill-down Modal**: Created `DealDetailsModal` that opens when clicking on a deal in `BillingSummaryCard`, showing:
+   - Complete deal information (ID, URL, title, amounts)
+   - Billed vs. pending breakdown
+   - Creation and update timestamps
+   - Proper event handling with `stopPropagation` to prevent conflicts with inline controls
+
+All improvements maintain existing functionality, follow the established purple design system (#311160, #4c1d95, #5b21b6), and use modern gradients, shadows, and rounded borders for a professional appearance.
+
+**Next Steps Suggested**:
+- Localize new modal, tooltip, and filter strings through existing i18n layer
+- QA with large datasets to confirm performance under stress
+- Add regression tests for search/status filtering
+
 # System Architecture
 
 ## Frontend Architecture
