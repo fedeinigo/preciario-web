@@ -42,93 +42,97 @@ export default function IndividualGoalCard({
   React.useEffect(() => setTmp(myGoal), [myGoal]);
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden rounded-3xl border border-[#eadeff] bg-gradient-to-br from-white via-white to-[#f7f2ff] p-6 shadow-[0_24px_60px_rgba(79,29,149,0.12)]">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7c3aed]">
-            {t("title")}
-          </p>
-          <h3 className="mt-1 text-2xl font-semibold text-[#2f0f5d]">
-            {metricsT("goal")}
-          </h3>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {onAddManual && (
+    <div className="relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/60 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.04)]">
+      <div className="bg-gradient-to-r from-purple-50 to-white px-6 py-5 border-b border-slate-100">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-purple-600">
+              {t("title")}
+            </p>
+            <h3 className="mt-1.5 text-2xl font-bold text-slate-900">
+              {metricsT("goal")}
+            </h3>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {onAddManual && (
+              <button
+                className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200/60 px-4 py-2.5 text-sm font-semibold text-purple-700 shadow-sm shadow-purple-100/50 transition-all hover:shadow-md hover:shadow-purple-200/50 hover:scale-[1.02]"
+                onClick={onAddManual}
+              >
+                {t("manualCta")}
+              </button>
+            )}
             <button
-              className="inline-flex items-center justify-center rounded-full border border-[#c4b5fd] bg-white px-4 py-2 text-sm font-semibold text-[#4c1d95] shadow-sm transition hover:border-[#a78bfa] hover:text-[#3c0d7a]"
-              onClick={onAddManual}
+              className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.02]"
+              onClick={() => setOpen(true)}
             >
-              {t("manualCta")}
+              {t("editCta")}
             </button>
-          )}
-          <button
-            className="inline-flex items-center justify-center rounded-full border border-[#c4b5fd] bg-white px-4 py-2 text-sm font-semibold text-[#4c1d95] shadow-sm transition hover:border-[#a78bfa] hover:text-[#3c0d7a]"
-            onClick={() => setOpen(true)}
-          >
-            {t("editCta")}
-          </button>
+          </div>
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <GoalKpi label={t("quarterlyGoalLabel")}
-          value={formatUSD(myGoal)}
-        />
-        <GoalKpi label={t("monthlyGoalLabel")} value={formatUSD(monthlyGoal)} />
-      </div>
-
-      <div className="mt-6 rounded-3xl border border-[#efe7ff] bg-white/80 p-5 shadow-inner">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-[#5b21b6]">{t("progressLabel")}</p>
-            <p className="text-xl font-semibold text-[#047857]">{formatUSD(myProgress)}</p>
-          </div>
-          <div className="space-y-1 text-right">
-            <p className="text-sm font-medium text-[#a16207]">{t("remainingLabel")}</p>
-            <p className="text-xl font-semibold text-[#b45309]">{formatUSD(remaining)}</p>
-          </div>
+      <div className="p-6">{/* Content wrapper */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <GoalKpi label={t("quarterlyGoalLabel")}
+            value={formatUSD(myGoal)}
+          />
+          <GoalKpi label={t("monthlyGoalLabel")} value={formatUSD(monthlyGoal)} />
         </div>
 
-        <div className="mt-5 space-y-5">
-          <div>
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-[#7c3aed]">
-              <span>{t("quarterlyBarLabel")}</span>
-              <span>{t("completed", { pct: normalizedPct.toFixed(0) })}</span>
+        <div className="mt-6 rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50/50 to-purple-50/30 p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-slate-600">{t("progressLabel")}</p>
+              <p className="text-2xl font-bold text-emerald-600">{formatUSD(myProgress)}</p>
             </div>
-            <div className="relative mt-2 h-3 w-full overflow-hidden rounded-full bg-[#ede9fe]">
-              <div
-                className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#c084fc] via-[#a855f7] to-[#7c3aed]"
-                style={{ width: `${barPct}%` }}
-              />
+            <div className="space-y-1 text-right">
+              <p className="text-sm font-semibold text-slate-600">{t("remainingLabel")}</p>
+              <p className="text-2xl font-bold text-amber-600">{formatUSD(remaining)}</p>
             </div>
           </div>
 
-          <div>
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-[#7c3aed]">
-              <span>{t("monthlyBarLabel")}</span>
-              <span>{t("monthlyCompleted", { pct: normalizedMonthlyPct.toFixed(0) })}</span>
+          <div className="mt-6 space-y-6">
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold uppercase tracking-wider text-purple-600 mb-2">
+                <span>{t("quarterlyBarLabel")}</span>
+                <span>{t("completed", { pct: normalizedPct.toFixed(0) })}</span>
+              </div>
+              <div className="relative h-4 w-full overflow-hidden rounded-xl bg-slate-200/60">
+                <div
+                  className="absolute left-0 top-0 h-full rounded-xl bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 shadow-sm"
+                  style={{ width: `${barPct}%` }}
+                />
+              </div>
             </div>
-            <div className="relative mt-2 h-2 w-full overflow-hidden rounded-full bg-[#ede9fe]">
-              <div
-                className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#34d399] via-[#10b981] to-[#047857]"
-                style={{ width: `${monthlyBarPct}%` }}
-              />
-            </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-[#5b21b6]">
-              <span className="text-[#047857]">
-                {t("monthlyProgressLabel")}: {formatUSD(monthlyProgress)}
-              </span>
-              <span className="text-[#b45309]">
-                {t("monthlyRemainingLabel")}: {formatUSD(monthlyRemaining)}
-              </span>
+
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600 mb-2">
+                <span>{t("monthlyBarLabel")}</span>
+                <span>{t("monthlyCompleted", { pct: normalizedMonthlyPct.toFixed(0) })}</span>
+              </div>
+              <div className="relative h-3 w-full overflow-hidden rounded-xl bg-slate-200/60">
+                <div
+                  className="absolute left-0 top-0 h-full rounded-xl bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 shadow-sm"
+                  style={{ width: `${monthlyBarPct}%` }}
+                />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
+                <span className="text-emerald-600">
+                  {t("monthlyProgressLabel")}: {formatUSD(monthlyProgress)}
+                </span>
+                <span className="text-amber-600">
+                  {t("monthlyRemainingLabel")}: {formatUSD(monthlyRemaining)}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-4 flex justify-end text-xs text-[#7c3aed]">
-          <span>{t("period", { from: range.from, to: range.to })}</span>
+          <div className="mt-5 flex justify-end text-xs font-medium text-slate-500">
+            <span>{t("period", { from: range.from, to: range.to })}</span>
+          </div>
         </div>
-      </div>
+      </div>{/* End content wrapper */}
 
       <ConfirmDialog
         open={open}
