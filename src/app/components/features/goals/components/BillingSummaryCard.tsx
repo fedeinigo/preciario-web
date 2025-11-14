@@ -4,6 +4,7 @@
 import React from "react";
 import { useTranslations } from "@/app/LanguageProvider";
 import { formatUSD } from "../../proposals/lib/format";
+import DealDetailsModal from "./DealDetailsModal";
 
 export type UserWonDeal = {
   id: string;
@@ -48,6 +49,7 @@ export default function BillingSummaryCard({
   onDeleteDeal,
 }: Props) {
   const t = useTranslations("goals.billing");
+  const [selectedDeal, setSelectedDeal] = React.useState<UserWonDeal | null>(null);
 
   const sortedDeals = React.useMemo(() => {
     return [...deals].sort(
@@ -100,11 +102,12 @@ export default function BillingSummaryCard({
             sortedDeals.map((deal) => (
               <div
                 key={deal.id}
-                className="rounded-2xl border border-slate-200/60 bg-gradient-to-br from-white to-slate-50/30 px-5 py-4 shadow-sm hover:shadow-md transition-shadow"
+                className="rounded-2xl border border-slate-200/60 bg-gradient-to-br from-white to-slate-50/30 px-5 py-4 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                onClick={() => setSelectedDeal(deal)}
               >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-base font-bold text-slate-900">{deal.companyName}</p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 group-hover:text-purple-600 transition">
+                    <p className="text-base font-bold text-slate-900">{deal.companyName}</p>
                   <p className="text-xs font-semibold uppercase tracking-wide text-purple-600">
                     {deal.type === "auto" ? t("autoLabel") : t("manualLabel")}
                     <span className="mx-1 text-slate-300">·</span>
@@ -118,26 +121,32 @@ export default function BillingSummaryCard({
                       {deal.wonType === "UPSELL" ? t("wonTypeUpsell") : t("wonTypeNew")}
                     </span>
                   </p>
-                </div>
-                <div className="flex items-center gap-2">
+                  </div>
+                  <div className="flex items-center gap-2">
                   {deal.type === "manual" && onDeleteDeal && (
                     <button
                       className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 hover:border-rose-300"
-                      onClick={() => onDeleteDeal(deal)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteDeal(deal);
+                      }}
                     >
                       {t("deleteManual")}
                     </button>
                   )}
                   <button
                     className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 transition hover:bg-purple-100 hover:border-purple-300"
-                    onClick={() => onEditBilling(deal)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditBilling(deal);
+                    }}
                   >
                     {t("editBilling")}
                   </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-purple-600">
                     {t("monthlyFee")}
@@ -178,10 +187,10 @@ export default function BillingSummaryCard({
                     </a>
                   )}
                 </div>
+                </div>
               </div>
-            </div>
-          ))
-        )}
+            ))
+          )}
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50 to-purple-50/30 px-6 py-5">
@@ -220,6 +229,12 @@ export default function BillingSummaryCard({
           </div>
         </div>
       </div>
+
+      <DealDetailsModal 
+        deal={selectedDeal}
+        isOpen={selectedDeal !== null}
+        onClose={() => setSelectedDeal(null)}
+      />
     </div>
   );
 }

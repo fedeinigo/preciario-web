@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Filter } from "lucide-react";
 import { toast } from "@/app/components/ui/toast";
 import { formatUSD } from "../../proposals/lib/format";
 import { useTranslations } from "@/app/LanguageProvider";
@@ -48,6 +48,9 @@ export default function TeamMembersTable({
   const [sortKey, setSortKey] = React.useState<SortKey>("user");
   const [sortAsc, setSortAsc] = React.useState<boolean>(true);
 
+  const [searchQuery, setSearchQuery] = React.useState<string>("");
+  const [statusFilter, setStatusFilter] = React.useState<"all" | "above" | "below">("all");
+
   const startEdit = (r: TeamGoalRow) => {
     if (!canEdit) return;
     setEditing(r.userId);
@@ -69,8 +72,27 @@ export default function TeamMembersTable({
     }
   };
 
-  const sorted = React.useMemo(() => {
-    const arr = [...rows];
+  const filteredAndSorted = React.useMemo(() => {
+    let arr = [...rows];
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      arr = arr.filter((row) => {
+        const nameMatch = row.name?.toLowerCase().includes(query);
+        const emailMatch = row.email?.toLowerCase().includes(query);
+        return nameMatch || emailMatch;
+      });
+    }
+    
+    // Apply status filter
+    if (statusFilter === "above") {
+      arr = arr.filter((row) => row.pct >= 100);
+    } else if (statusFilter === "below") {
+      arr = arr.filter((row) => row.pct < 100);
+    }
+    
+    // Apply sorting
     arr.sort((a, b) => {
       const nameA = (a.name || a.email || a.userId || "").toLowerCase();
       const nameB = (b.name || b.email || b.userId || "").toLowerCase();
@@ -92,7 +114,7 @@ export default function TeamMembersTable({
       return sortAsc ? cmp : -cmp;
     });
     return arr;
-  }, [rows, sortKey, sortAsc]);
+  }, [rows, sortKey, sortAsc, searchQuery, statusFilter]);
 
   const Arrow = ({
     active,
@@ -152,6 +174,32 @@ export default function TeamMembersTable({
 
   return (
     <div className="space-y-4">
+      {/* Filters and Search */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar por nombre o email..."
+            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-2xl text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-slate-500" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as "all" | "above" | "below")}
+            className="px-4 py-2.5 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition bg-white"
+          >
+            <option value="all">Todos</option>
+            <option value="above">Arriba del objetivo</option>
+            <option value="below">Abajo del objetivo</option>
+          </select>
+        </div>
+      </div>
+
       <div className="hidden rounded-2xl bg-[#f5f0ff] px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#6d28d9] md:grid md:grid-cols-[minmax(0,2.3fr),minmax(0,1.1fr),minmax(0,1.1fr),minmax(0,0.9fr),minmax(0,1.4fr),minmax(0,1.1fr)] md:items-center">
         <button
           type="button"
@@ -192,10 +240,12 @@ export default function TeamMembersTable({
       <div className="divide-y divide-[#efe7ff] overflow-hidden rounded-2xl border border-[#efe7ff] bg-white shadow-sm">
         {loading ? (
           <div className="px-6 py-10 text-center text-sm text-[#6b21a8]">{t("loading")}</div>
-        ) : sorted.length === 0 ? (
-          <div className="px-6 py-10 text-center text-sm text-[#6b21a8]">{t("empty")}</div>
+        ) : filteredAndSorted.length === 0 ? (
+          <div className="px-6 py-10 text-center text-sm text-[#6b21a8]">
+            {searchQuery.trim() || statusFilter !== "all" ? "No se encontraron resultados con los filtros aplicados" : t("empty")}
+          </div>
         ) : (
-          sorted.map((r) => {
+          filteredAndSorted.map((r) => {
             const displayName = r.name || r.email || r.userId;
             const isEditing = editing === r.userId;
             const goalValue = isEditing ? tmp : r.goal;

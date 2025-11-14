@@ -16,6 +16,9 @@ import BillingSummaryCard, { UserWonDeal } from "./components/BillingSummaryCard
 import TeamRankingCard from "./components/TeamRankingCard";
 import { Download, Users2, Target } from "lucide-react";
 import ManualWonDialog from "./components/ManualWonDialog";
+import BillingEditorModal from "./components/BillingEditorModal";
+import CardSkeleton from "@/app/components/ui/skeletons/CardSkeleton";
+import Tooltip from "@/app/components/ui/Tooltip";
 
 type Props = {
   role: AppRole;
@@ -78,6 +81,8 @@ export default function GoalsPage({
     { userId?: string; email?: string | null; name?: string | null } | null
   >(null);
   const closeManualDialog = React.useCallback(() => setManualDialogTarget(null), []);
+
+  const [billingEditorDeal, setBillingEditorDeal] = React.useState<UserWonDeal | null>(null);
 
   const loadMyGoal = React.useCallback(async () => {
     try {
@@ -355,26 +360,24 @@ export default function GoalsPage({
   );
 
   const openBillingEditor = React.useCallback(
-    async (deal: UserWonDeal) => {
-      const current = Number.isFinite(deal.billedAmount) ? deal.billedAmount : 0;
-      const input = window.prompt(
-        billingT("editBillingPrompt", { company: deal.companyName }),
-        String(current)
-      );
-      if (input === null) return;
-      const next = Number(input);
-      if (!Number.isFinite(next) || next < 0) {
-        toast.error(billingT("invalidAmount"));
-        return;
-      }
+    (deal: UserWonDeal) => {
+      setBillingEditorDeal(deal);
+    },
+    []
+  );
+
+  const handleSaveBilling = React.useCallback(
+    async (billedAmount: number) => {
+      if (!billingEditorDeal) return;
       try {
-        await handleUpdateBilling(deal, next);
+        await handleUpdateBilling(billingEditorDeal, billedAmount);
         toast.success(toastT("billingSaved"));
       } catch {
         toast.error(toastT("billingError"));
+        throw new Error("Failed to save billing");
       }
     },
-    [billingT, handleUpdateBilling, toastT]
+    [billingEditorDeal, handleUpdateBilling, toastT]
   );
 
   const saveUserGoal = async (userId: string, amount: number) => {
@@ -466,15 +469,24 @@ export default function GoalsPage({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
                 <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3">
-                  <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">Objetivo</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">Objetivo</p>
+                    <Tooltip content="Tu meta de ventas para este trimestre" />
+                  </div>
                   <p className="text-2xl font-bold text-white mt-1">${myGoal.toLocaleString()}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3">
-                  <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">Progreso</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">Progreso</p>
+                    <Tooltip content="Total acumulado de ventas cerradas hasta ahora" />
+                  </div>
                   <p className="text-2xl font-bold text-white mt-1">${myProgress.toLocaleString()}</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3">
-                  <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">% Cumplimiento</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">% Cumplimiento</p>
+                    <Tooltip content="Porcentaje de tu objetivo alcanzado" />
+                  </div>
                   <p className="text-2xl font-bold text-white mt-1">
                     {myGoal > 0 ? ((myProgress / myGoal) * 100).toFixed(1) : "0.0"}%
                   </p>
@@ -486,7 +498,10 @@ export default function GoalsPage({
 
         {/* Main Content Grid - Improved Spacing */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
-          <IndividualGoalCard
+          {loadingDeals && myGoal === 0 ? (
+            <CardSkeleton />
+          ) : (
+            <IndividualGoalCard
             range={rangeForQuarter}
             myGoal={myGoal}
             myProgress={myProgress}
@@ -494,7 +509,11 @@ export default function GoalsPage({
             onSave={handleSaveMyGoal}
             onAddManual={canAddManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
           />
-          <TeamGoalCard
+          )}
+          {loadingTeam && teamGoal === 0 ? (
+            <CardSkeleton />
+          ) : (
+            <TeamGoalCard
             year={year}
             quarter={quarter}
             isSuperAdmin={isSuperAdmin}
@@ -507,6 +526,7 @@ export default function GoalsPage({
             sumMembersGoal={sumMembersGoal}
             onSaveTeamGoal={saveTeamGoal}
           />
+          )}
         </div>
 
         {/* Secondary Cards Grid */}
@@ -604,6 +624,13 @@ export default function GoalsPage({
           }}
         />
       )}
+
+      <BillingEditorModal
+        deal={billingEditorDeal}
+        isOpen={billingEditorDeal !== null}
+        onClose={() => setBillingEditorDeal(null)}
+        onSave={handleSaveBilling}
+      />
     </div>
   );
 }
