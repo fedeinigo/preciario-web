@@ -135,6 +135,10 @@ export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPage
   void isAdmin;
   const configT = useTranslations("configurations");
   const sectionsT = useTranslations("configurations.sections");
+  
+  const { teams, loading: loadingTeams } = useTeamsData();
+  const { users, loading: loadingUsers } = useAdminUsers({ isSuperAdmin: isAdmin });
+
   const summarySections = [
     {
       id: "teams",
@@ -142,6 +146,9 @@ export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPage
       title: configT("tabs.teams"),
       description: configT("teamPanel.header.description"),
       Icon: Users2,
+      gradient: "from-blue-500/10 to-blue-600/5",
+      stat: loadingTeams ? "..." : teams.length.toString(),
+      statLabel: "equipos activos",
     },
     {
       id: "users",
@@ -149,31 +156,55 @@ export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPage
       title: configT("tabs.users"),
       description: configT("userPanel.header.description"),
       Icon: ShieldCheck,
+      gradient: "from-purple-500/10 to-purple-600/5",
+      stat: loadingUsers ? "..." : users.length.toString(),
+      statLabel: "usuarios registrados",
     },
   ] as const;
 
   return (
-    <div className="space-y-8">
-      <div className="grid gap-4 md:grid-cols-2">
-        {summarySections.map(({ id, href, title, description: desc, Icon }) => (
+    <div className="space-y-12">
+      <div className="space-y-4 text-center">
+        <h1 className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-4xl font-bold tracking-tight text-transparent">
+          Configuraciones del Sistema
+        </h1>
+        <p className="mx-auto max-w-2xl text-lg text-slate-600">
+          Gestiona equipos, usuarios y permisos de acceso desde un solo lugar.
+        </p>
+      </div>
+
+      <div className="grid gap-8 md:grid-cols-2">
+        {summarySections.map(({ id, href, title, description: desc, Icon, gradient, stat, statLabel }) => (
           <Link
             key={id}
             href={href}
-            className="group flex flex-col rounded-2xl border border-slate-200 bg-white/80 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[rgb(var(--primary))]/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--primary))]"
+            className="group relative overflow-hidden rounded-3xl border-2 border-slate-200 bg-white p-8 text-left shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-purple-200 hover:shadow-2xl hover:shadow-purple-500/20 focus:outline-none focus-visible:ring-4 focus-visible:ring-purple-500/20 focus-visible:ring-offset-2"
           >
-            <div className="flex items-center gap-3">
-              <span className="rounded-full bg-slate-900/10 p-2 text-slate-900">
-                <Icon className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">{title}</p>
-                <p className="text-xs text-slate-600">{desc}</p>
+            <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
+            
+            <div className="relative space-y-6">
+              <div className="flex items-start justify-between">
+                <div className="rounded-2xl bg-gradient-to-br from-purple-100 to-purple-50 p-4 shadow-md transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
+                  <Icon className="h-10 w-10 text-purple-600" aria-hidden="true" />
+                </div>
+                <div className="text-right">
+                  <div className="text-3xl font-bold text-slate-900">{stat}</div>
+                  <div className="text-xs font-medium text-slate-500">{statLabel}</div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
+                <p className="text-base leading-relaxed text-slate-600">{desc}</p>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <span className="inline-flex items-center gap-2 text-base font-semibold text-purple-600 transition-colors group-hover:text-purple-700">
+                  {sectionsT("visit")}
+                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+                </span>
               </div>
             </div>
-            <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[rgb(var(--primary))]">
-              {sectionsT("visit")}
-              <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" aria-hidden="true" />
-            </span>
           </Link>
         ))}
       </div>
@@ -448,31 +479,37 @@ function TeamManagementPanel({
   };
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-      {teamsError ? (
-        <div className="rounded-b-none rounded-t-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          No se pudieron cargar los equipos: {teamsError}
-        </div>
-      ) : null}
-      <div className="grid gap-6 px-6 py-6 lg:grid-cols-3">
-        <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-slate-900">{teamPanelT("form.title")}</p>
-            <p className="text-xs text-slate-600">{teamPanelT("form.subtitle")}</p>
-          </div>
+    <section className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6 rounded-3xl border-2 border-slate-200 bg-gradient-to-br from-purple-50/50 to-white p-6 shadow-lg">
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-600">{teamPanelT("form.placeholder")}</label>
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-purple-100 p-2">
+                <PlusCircle className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-base font-bold text-slate-900">{teamPanelT("form.title")}</p>
+                <p className="text-xs text-slate-600">{teamPanelT("form.subtitle")}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+              {teamPanelT("form.placeholder")}
+            </label>
             <div className="flex gap-2">
               <input
                 type="text"
-                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="flex-1 rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:outline-none focus:ring-4 focus:ring-purple-500/10 disabled:bg-slate-100 disabled:text-slate-400"
+                placeholder="Nombre del equipo..."
                 value={newTeam}
                 onChange={(event) => setNewTeam(event.target.value)}
                 disabled={!isAdmin}
               />
               <button
                 type="button"
-                className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-purple-500/30 transition-all hover:scale-105 hover:shadow-xl hover:shadow-purple-500/40 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                 onClick={handleCreateTeam}
                 disabled={!isAdmin || creating}
               >
@@ -481,37 +518,51 @@ function TeamManagementPanel({
               </button>
             </div>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-            {teamPanelT("summary.label")}{" "}
-            <span className="font-semibold text-slate-900">{teams.length}</span>
+
+          <div className="rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-100/50 to-white p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-600">{teamPanelT("summary.label")}</span>
+              <span className="text-2xl font-bold text-purple-600">{teams.length}</span>
+            </div>
           </div>
+
+          {teamsError ? (
+            <div className="rounded-2xl border-2 border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              No se pudieron cargar los equipos: {teamsError}
+            </div>
+          ) : null}
         </div>
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-600">{teamPanelT("table.title")}</p>
+
+        <div className="space-y-4 lg:col-span-2">
+          <div className="flex items-center justify-between rounded-2xl border-2 border-slate-200 bg-white px-6 py-4 shadow-sm">
+            <p className="text-lg font-bold text-slate-900">{teamPanelT("table.title")}</p>
             {loadingTeams ? (
-              <span className="inline-flex items-center gap-2 text-xs text-slate-500">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span className="inline-flex items-center gap-2 text-sm text-slate-500">
+                <Loader2 className="h-4 w-4 animate-spin" />
                 {teamPanelT("table.loading")}
               </span>
             ) : null}
           </div>
-          <div className="overflow-hidden rounded-2xl border border-slate-100">
+
+          <div className="overflow-hidden rounded-3xl border-2 border-slate-200 bg-white shadow-lg">
             <table className="min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <thead className="bg-gradient-to-r from-slate-50 to-slate-100">
                 <tr>
-                  <th className="px-4 py-3">{teamPanelT("table.headings.team")}</th>
-                  <th className="px-4 py-3">{teamPanelT("table.headings.leaders")}</th>
-                  <th className="px-4 py-3">{teamPanelT("table.headings.members")}</th>
-                  <th className="px-4 py-3">{teamPanelT("table.headings.portals")}</th>
-                  <th className="px-4 py-3 text-right">{teamPanelT("table.headings.actions")}</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">{teamPanelT("table.headings.team")}</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">{teamPanelT("table.headings.leaders")}</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">{teamPanelT("table.headings.members")}</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">{teamPanelT("table.headings.portals")}</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-700">{teamPanelT("table.headings.actions")}</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {teamStats.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-6 text-center text-sm text-slate-500" colSpan={5}>
-                      {teamPanelT("table.empty")}
+                    <td className="px-6 py-12 text-center text-sm text-slate-500" colSpan={5}>
+                      <div className="flex flex-col items-center gap-2">
+                        <Users2 className="h-12 w-12 text-slate-300" />
+                        <p className="font-medium">{teamPanelT("table.empty")}</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -521,38 +572,78 @@ function TeamManagementPanel({
                     teamMembers.forEach((member) => {
                       member.portals.forEach((portal) => activePortals.add(portal));
                     });
+                    
+                    const getInitials = (name: string | null) => {
+                      if (!name) return "?";
+                      return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+                    };
+
                     return (
-                      <tr key={team.id} className="border-t border-slate-100">
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-slate-900">{team.name}</div>
-                          <p className="text-xs text-slate-500">
-                            {teamMembers.length} {teamPanelT("table.people")}
-                          </p>
+                      <tr key={team.id} className="transition-colors hover:bg-purple-50/50">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 text-base font-bold text-white shadow-lg shadow-purple-500/30">
+                              {team.name.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="text-base font-bold text-slate-900">{team.name}</div>
+                              <p className="text-xs font-medium text-slate-500">
+                                {teamMembers.length} {teamPanelT("table.people")}
+                              </p>
+                            </div>
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-slate-700">{leaders.length}</td>
-                        <td className="px-4 py-3 text-slate-700">{members.length}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-2 text-xs">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl font-bold text-slate-900">{leaders.length}</span>
+                            <ShieldCheck className="h-4 w-4 text-purple-500" />
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl font-bold text-slate-900">{members.length}</span>
+                            {teamMembers.length > 0 && (
+                              <div className="flex -space-x-2">
+                                {teamMembers.slice(0, 3).map((member, idx) => (
+                                  <div
+                                    key={member.id}
+                                    className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-slate-400 to-slate-500 text-xs font-semibold text-white shadow-md"
+                                    title={member.name || member.email || "Usuario"}
+                                  >
+                                    {getInitials(member.name)}
+                                  </div>
+                                ))}
+                                {teamMembers.length > 3 && (
+                                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-xs font-bold text-slate-600 shadow-md">
+                                    +{teamMembers.length - 3}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1.5">
                             {Array.from(activePortals).map((portal) => (
                               <span
                                 key={portal}
-                                className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600"
+                                className="inline-flex items-center gap-1 rounded-lg bg-purple-100 px-2.5 py-1 text-xs font-semibold text-purple-700"
                               >
                                 {portalsT(portal)}
                               </span>
                             ))}
-                            {activePortals.size === 0 ? (
-                              <span className="text-slate-400">
+                            {activePortals.size === 0 && (
+                              <span className="text-xs font-medium text-slate-400">
                                 {teamPanelT("table.noPortals")}
                               </span>
-                            ) : null}
+                            )}
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-6 py-4">
                           <div className="flex justify-end gap-2">
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-purple-300 hover:bg-purple-50 hover:text-purple-700 hover:shadow-md disabled:opacity-50"
                               onClick={() => setPortalTeam(team)}
                               disabled={!isAdmin}
                             >
@@ -561,7 +652,7 @@ function TeamManagementPanel({
                             </button>
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md disabled:opacity-50"
                               onClick={() => openRenameModal(team)}
                               disabled={!isAdmin}
                             >
@@ -570,7 +661,7 @@ function TeamManagementPanel({
                             </button>
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1 rounded-md border border-red-100 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+                              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 shadow-sm transition-all hover:border-red-300 hover:bg-red-100 hover:shadow-md disabled:opacity-50"
                               onClick={() => setDeleteTeam(team)}
                               disabled={!isAdmin}
                             >
@@ -806,24 +897,50 @@ function UserManagementPanel({
     void handleUpdateUser(user.id, { portals: next });
   };
 
+  const getInitials = (name: string | null) => {
+    if (!name) return "?";
+    return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  };
+
+  const getRoleGradient = (role: string) => {
+    if (role === "admin") return "from-purple-500 to-purple-600";
+    if (role === "lider") return "from-blue-500 to-blue-600";
+    return "from-slate-400 to-slate-500";
+  };
+
+  const getRoleBadge = (role: string) => {
+    if (role === "admin") return "bg-purple-100 text-purple-700 border-purple-200";
+    if (role === "lider") return "bg-blue-100 text-blue-700 border-blue-200";
+    return "bg-slate-100 text-slate-700 border-slate-200";
+  };
+
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-      <div className="space-y-4 px-6 py-6">
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-            <Search className="h-4 w-4 text-slate-500" />
+    <section className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="relative overflow-hidden rounded-2xl border-2 border-slate-200 bg-white shadow-sm transition-all hover:border-purple-300 hover:shadow-lg">
+          <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-purple-100 opacity-50" />
+          <label className="relative flex items-center gap-3 px-4 py-3">
+            <div className="rounded-xl bg-purple-100 p-2.5">
+              <Search className="h-5 w-5 text-purple-600" />
+            </div>
             <input
               type="text"
-              className="flex-1 border-0 bg-transparent text-sm text-slate-900 focus:outline-none"
+              className="flex-1 border-0 bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none"
               placeholder={userPanelT("filters.searchPlaceholder")}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
           </label>
-          <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-            <Filter className="h-4 w-4 text-slate-500" />
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl border-2 border-slate-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:shadow-lg">
+          <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-blue-100 opacity-50" />
+          <label className="relative flex items-center gap-3 px-4 py-3">
+            <div className="rounded-xl bg-blue-100 p-2.5">
+              <Filter className="h-5 w-5 text-blue-600" />
+            </div>
             <select
-              className="flex-1 border-0 bg-transparent text-sm text-slate-900 focus:outline-none"
+              className="flex-1 border-0 bg-transparent text-sm font-medium text-slate-900 focus:outline-none"
               value={roleFilter}
               onChange={(event) => setRoleFilter(event.target.value)}
             >
@@ -833,10 +950,16 @@ function UserManagementPanel({
               <option value="usuario">Usuario</option>
             </select>
           </label>
-          <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-            <Filter className="h-4 w-4 text-slate-500" />
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl border-2 border-slate-200 bg-white shadow-sm transition-all hover:border-emerald-300 hover:shadow-lg">
+          <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-emerald-100 opacity-50" />
+          <label className="relative flex items-center gap-3 px-4 py-3">
+            <div className="rounded-xl bg-emerald-100 p-2.5">
+              <Users2 className="h-5 w-5 text-emerald-600" />
+            </div>
             <select
-              className="flex-1 border-0 bg-transparent text-sm text-slate-900 focus:outline-none"
+              className="flex-1 border-0 bg-transparent text-sm font-medium text-slate-900 focus:outline-none"
               value={teamFilter}
               onChange={(event) => setTeamFilter(event.target.value)}
             >
@@ -850,36 +973,74 @@ function UserManagementPanel({
             </select>
           </label>
         </div>
-        <div className="overflow-x-auto rounded-2xl border border-slate-100">
+      </div>
+
+      <div className="overflow-hidden rounded-3xl border-2 border-slate-200 bg-white shadow-lg">
+        <div className="border-b-2 border-slate-200 bg-gradient-to-r from-purple-50 to-blue-50 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-white p-2 shadow-sm">
+                <ShieldCheck className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Usuarios del Sistema</h3>
+                <p className="text-sm text-slate-600">
+                  {filteredUsers.length} de {users.length} usuarios
+                </p>
+              </div>
+            </div>
+            {loadingUsers && (
+              <div className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 shadow-sm">
+                <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
+                <span className="text-sm font-medium text-slate-600">{userPanelT("table.loading")}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <thead className="bg-gradient-to-r from-slate-50 to-slate-100">
               <tr>
-                <th className="px-4 py-3">{userPanelT("table.headers.name")}</th>
-                <th className="px-4 py-3">{userPanelT("table.headers.role")}</th>
-                <th className="px-4 py-3">{userPanelT("table.headers.team")}</th>
-                <th className="px-4 py-3">{userPanelT("table.headers.portals")}</th>
-                <th className="px-4 py-3 text-right">{userPanelT("table.headers.actions")}</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">{userPanelT("table.headers.name")}</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">{userPanelT("table.headers.role")}</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">{userPanelT("table.headers.team")}</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">{userPanelT("table.headers.portals")}</th>
+                <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-700">{userPanelT("table.headers.actions")}</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-sm text-slate-500" colSpan={5}>
-                    {userPanelT("table.noResults")}
+                  <td className="px-6 py-12 text-center" colSpan={5}>
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="rounded-full bg-slate-100 p-4">
+                        <Search className="h-8 w-8 text-slate-400" />
+                      </div>
+                      <p className="text-base font-medium text-slate-600">{userPanelT("table.noResults")}</p>
+                      <p className="text-sm text-slate-500">Intenta ajustar los filtros de búsqueda</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filteredUsers.map((user) => (
-                  <tr key={user.id} className="border-t border-slate-100">
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-900">
-                        {user.name || userPanelT("table.placeholderName")}
+                  <tr key={user.id} className="transition-colors hover:bg-slate-50/50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${getRoleGradient(user.role)} text-base font-bold text-white shadow-lg`}>
+                          {getInitials(user.name)}
+                        </div>
+                        <div>
+                          <div className="text-base font-bold text-slate-900">
+                            {user.name || userPanelT("table.placeholderName")}
+                          </div>
+                          <div className="text-xs font-medium text-slate-500">{user.email}</div>
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-500">{user.email}</div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-6 py-4">
                       <select
-                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        className={`w-full rounded-xl border-2 ${getRoleBadge(user.role)} px-3 py-2 text-sm font-bold shadow-sm transition-all focus:outline-none focus:ring-4 focus:ring-purple-500/20 disabled:cursor-not-allowed disabled:opacity-60`}
                         value={user.role}
                         disabled={savingId === user.id}
                         onChange={(event) => handleUpdateUser(user.id, { role: event.target.value })}
@@ -889,9 +1050,9 @@ function UserManagementPanel({
                         <option value="usuario">Usuario</option>
                       </select>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-6 py-4">
                       <select
-                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm transition-all focus:border-purple-400 focus:outline-none focus:ring-4 focus:ring-purple-500/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
                         value={user.team || ""}
                         disabled={savingId === user.id}
                         onChange={(event) => handleUpdateUser(user.id, { team: event.target.value || null })}
@@ -904,24 +1065,25 @@ function UserManagementPanel({
                         ))}
                       </select>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
                           {portalsT("direct")}
                         </span>
                         {MUTABLE_PORTAL_ACCESS.map((portal) => {
                           const enabled = user.portals.includes(portal);
                           return (
-                          <button
-                            key={portal}
-                            type="button"
-                            disabled={savingId === user.id}
-                            aria-busy={savingId === user.id || undefined}
-                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold transition ${
-                              enabled ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
-                            } ${savingId === user.id ? "cursor-not-allowed opacity-60" : "hover:opacity-90"}`}
-                            onClick={() => toggleUserPortal(user, portal, !enabled)}
-                          >
+                            <button
+                              key={portal}
+                              type="button"
+                              disabled={savingId === user.id}
+                              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold shadow-sm transition-all ${
+                                enabled 
+                                  ? "bg-purple-600 text-white hover:bg-purple-700" 
+                                  : "border-2 border-slate-200 bg-white text-slate-600 hover:border-purple-300 hover:bg-purple-50"
+                              } ${savingId === user.id ? "cursor-not-allowed opacity-60" : "hover:scale-105"}`}
+                              onClick={() => toggleUserPortal(user, portal, !enabled)}
+                            >
                               {enabled ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
                               {portalsT(portal)}
                             </button>
@@ -929,17 +1091,17 @@ function UserManagementPanel({
                         })}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right text-xs text-slate-500">
+                    <td className="px-6 py-4 text-right">
                       {savingId === user.id ? (
-                        <span className="inline-flex items-center gap-1 text-slate-500">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <div className="inline-flex items-center gap-2 rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-700">
+                          <Loader2 className="h-4 w-4 animate-spin" />
                           {userPanelT("table.saving")}
-                        </span>
+                        </div>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-emerald-600">
-                          <ShieldCheck className="h-3.5 w-3.5" />
+                        <div className="inline-flex items-center gap-2 rounded-xl bg-emerald-100 px-3 py-2 text-xs font-bold text-emerald-700">
+                          <ShieldCheck className="h-4 w-4" />
                           {userPanelT("table.synced")}
-                        </span>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -948,12 +1110,6 @@ function UserManagementPanel({
             </tbody>
           </table>
         </div>
-        {loadingUsers ? (
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {userPanelT("table.loading")}
-          </div>
-        ) : null}
       </div>
     </section>
   );
