@@ -12,6 +12,8 @@ Preferred communication style: Simple, everyday language.
 
 ## Goals Page UX Improvements (November 2025)
 
+### Phase 1: UX Enhancements (Completed)
+
 Implemented 5 major UX enhancements for `/portal/directo/goals`:
 
 1. **Skeleton Loaders**: Added `CardSkeleton` component used in `GoalsPage` to display loading states for `IndividualGoalCard` and `TeamGoalCard`, eliminating zero-data flash and improving perceived performance.
@@ -35,6 +37,36 @@ Implemented 5 major UX enhancements for `/portal/directo/goals`:
    - Billed vs. pending breakdown
    - Creation and update timestamps
    - Proper event handling with `stopPropagation` to prevent conflicts with inline controls
+
+### Phase 2: Team Members Table Redesign (Completed)
+
+Completely redesigned `TeamMembersTable` from traditional table to modern **Hybrid Table-Card** layout:
+
+**Visual Improvements**:
+- Each team member now displayed in a beautiful mini-card with rounded-3xl borders
+- Large avatar (16x16) with performance-based gradient colors:
+  - Purple gradient: ≥100% (exceeding goal)
+  - Blue gradient: ≥75% (on track)
+  - Amber gradient: ≥50% (needs attention)
+  - Grey gradient: <50% (behind)
+- Performance badge prominently showing completion percentage
+- Decorative progress background fill that visually shows completion
+- Generous spacing and professional shadows with elegant hover effects
+
+**Layout Changes**:
+- Replaced table header with modern pill-style sort buttons with icons
+- Metrics displayed in 2-column grid (Objetivo and Avance)
+- Visual progress bar with gradient and smooth animations
+- Enhanced search with larger input and better focus states
+- Filter dropdown with emoji indicators
+
+**Preserved Functionality**:
+- All existing actions (Profile, Edit, Manual Billing)
+- Search and filter capabilities
+- Sortable columns (User, Goal, Progress, Percentage)
+- Inline editing for goals
+- Permission-based controls (canEdit)
+- Responsive layout for mobile and desktop
 
 All improvements maintain existing functionality, follow the established purple design system (#311160, #4c1d95, #5b21b6), and use modern gradients, shadows, and rounded borders for a professional appearance.
 
