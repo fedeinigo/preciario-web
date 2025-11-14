@@ -1,9 +1,9 @@
-﻿// src/app/components/ui/UserProfileModal.tsx
+// src/app/components/ui/UserProfileModal.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Modal from "@/app/components/ui/Modal";
-import { Mail, Shield, Users2 } from "lucide-react";
+import { Mail, Shield, Users2, TrendingUp, Calendar, Award } from "lucide-react";
 import { toast } from "@/app/components/ui/toast";
 import { formatUSD } from "@/app/components/features/proposals/lib/format";
 import { q1Range, q2Range, q3Range, q4Range } from "@/app/components/features/proposals/lib/dateRanges";
@@ -55,7 +55,7 @@ export default function UserProfileModal({
   const toastT = useTranslations("goals.toast");
   const metricsT = useTranslations("goals.individual.metrics");
   const billingT = useTranslations("goals.billing");
-  // Objetivo base: si vino targetUser lo tomo, sino el viewer
+
   const baseTarget = useMemo<TargetUser>(() => {
     if (targetUser?.email || targetUser?.id) return targetUser;
     return {
@@ -67,7 +67,6 @@ export default function UserProfileModal({
     };
   }, [targetUser, viewer]);
 
-  // Estado con target resuelto (id / team / role) desde /api/admin/users si faltan
   const [resolvedTarget, setResolvedTarget] = useState<TargetUser>(baseTarget);
 
   const { users: adminUsers } = useAdminUsers({
@@ -117,16 +116,13 @@ export default function UserProfileModal({
   const canEdit =
     isSelf ||
     viewer.role === "admin" ||
-    viewer.role === "admin" ||
     (viewer.role === "lider" && !!viewer.team && !!resolvedTarget.team && viewer.team === resolvedTarget.team);
 
   const canAddManual =
     isSelf ||
     viewer.role === "admin" ||
-    viewer.role === "admin" ||
     (viewer.role === "lider" && !!viewer.team && !!resolvedTarget.team && viewer.team === resolvedTarget.team);
 
-  // AÃ±o/quarter
   const now = new Date();
   const [year, setYear] = useState<number>(now.getFullYear());
   const [quarter, setQuarter] = useState<1 | 2 | 3 | 4>(() => {
@@ -137,7 +133,6 @@ export default function UserProfileModal({
     return 4;
   });
 
-  // Objetivo
   const [goalAmount, setGoalAmount] = useState<number>(0);
   const [loadingGoal, setLoadingGoal] = useState<boolean>(false);
   const [inputAmount, setInputAmount] = useState<number>(0);
@@ -146,7 +141,6 @@ export default function UserProfileModal({
     return [q1Range, q2Range, q3Range, q4Range][quarter - 1](year);
   }, [year, quarter]);
 
-  // Avance (WON del usuario en el trimestre)
   const [wonAmount, setWonAmount] = useState<number>(0);
   const loadProgress = useCallback(async () => {
     const params = new URLSearchParams({ year: String(year), quarter: String(quarter) });
@@ -201,7 +195,6 @@ export default function UserProfileModal({
         if (resolvedTarget.id) qs.push(`userId=${encodeURIComponent(resolvedTarget.id)}`);
         else if (resolvedTarget.email) qs.push(`email=${encodeURIComponent(resolvedTarget.email)}`);
       } else {
-        // tambiÃ©n puede ir con id/email, el backend lo permite sin problema
         if (resolvedTarget.id) qs.push(`userId=${encodeURIComponent(resolvedTarget.id)}`);
       }
       const r = await fetch(`/api/goals/user?${qs.join("&")}`);
@@ -224,7 +217,6 @@ export default function UserProfileModal({
     }
   }, [open, loadGoal, loadProgress]);
 
-  // % de cumplimiento: **sin** clamp (puede superar 100%)
   const pct = useMemo(() => {
     if (goalAmount <= 0) return 0;
     return (wonAmount / goalAmount) * 100;
@@ -238,7 +230,6 @@ export default function UserProfileModal({
         year,
         quarter,
       };
-      // Si edito a otro, envÃ­o siempre userId resuelto
       if (!isSelf && resolvedTarget.id) body.userId = resolvedTarget.id;
       const r = await fetch("/api/goals/user", {
         method: "PUT",
@@ -276,11 +267,11 @@ export default function UserProfileModal({
   const role = resolveRole(resolvedTarget.role as AppRole | string | null);
   const team = resolvedTarget.team ?? profileT("fallbacks.team");
   const email = resolvedTarget.email ?? profileT("fallbacks.email");
-  const viewerRoleLabel = resolveRole(viewer.role as AppRole | string | null);
 
   const isLightAppearance = appearance === "light";
   const isMapacheAppearance = appearance === "mapache";
   const isDirectAppearance = appearance === "direct";
+
   const panelClassName = [
     "max-w-full",
     isLightAppearance
@@ -291,6 +282,7 @@ export default function UserProfileModal({
           ? "bg-[#3b0a69] text-white border border-[#f3e8ff]/30 shadow-[0_45px_120px_rgba(27,2,54,0.55)]"
           : "bg-slate-950/90 text-white border border-white/10 shadow-[0_35px_110px_rgba(2,6,23,0.65)]",
   ].join(" ");
+
   const headerClassName = isLightAppearance
     ? "bg-white border-b border-slate-100 text-slate-900"
     : isMapacheAppearance
@@ -298,55 +290,48 @@ export default function UserProfileModal({
       : isDirectAppearance
         ? "bg-[#3b0a69] border-b border-white/15 text-white"
         : "bg-slate-950/70 border-b border-white/10 text-white";
+
   const titleClassName = isLightAppearance ? "text-lg font-semibold text-slate-900" : "text-lg font-semibold text-white";
   const bodyTextClass = isLightAppearance ? "text-slate-900" : "text-white";
   const subtleTextClass = isLightAppearance ? "text-slate-600" : isDirectAppearance ? "text-white/85" : "text-white/90";
   const labelTextClass = isLightAppearance ? "text-slate-500" : isDirectAppearance ? "text-white/70" : "text-white/80";
-  const badgeClass = isLightAppearance
-    ? "text-xs px-2 py-1 rounded bg-slate-100 border border-slate-200 text-slate-600"
-    : "text-xs px-2 py-1 rounded bg-white/10 border border-white/20 text-white/80";
+  
+  const primaryButtonClass = isLightAppearance
+    ? "rounded-full bg-[rgb(var(--primary))] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[rgb(var(--primary))]/90 shadow-lg shadow-[rgb(var(--primary))]/20"
+    : isDirectAppearance
+      ? "rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-[#3b0a69] hover:bg-white/90 shadow-lg shadow-white/20"
+      : "rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-slate-900 hover:bg-white/90 shadow-lg shadow-white/20";
+
+  const secondaryButtonClass = isLightAppearance
+    ? "rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+    : isDirectAppearance
+      ? "rounded-full border border-white/25 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+      : "rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15";
+
+  const statCardClass = isLightAppearance
+    ? "rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm"
+    : isDirectAppearance
+      ? "rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-xl backdrop-blur-sm"
+      : "rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-xl";
+
+  const infoCardClass = isLightAppearance
+    ? "rounded-xl border border-slate-200 bg-white p-4"
+    : isDirectAppearance
+      ? "rounded-xl border border-white/15 bg-white/5 p-4"
+      : "rounded-xl border border-white/20 bg-white/10 p-4";
+
   const selectClassName = isLightAppearance
-    ? "mt-1 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:ring-2 focus:ring-[rgb(var(--primary))]/30 focus:border-[rgb(var(--primary))]"
+    ? "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm focus:ring-2 focus:ring-[rgb(var(--primary))]/30 focus:border-[rgb(var(--primary))]"
     : isDirectAppearance
-      ? "mt-1 w-full rounded-2xl border border-white/25 bg-white/10 px-3 py-2 text-sm text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] focus:ring-2 focus:ring-white/30"
-      : "select-on-dark mt-1 w-full";
+      ? "mt-1.5 w-full rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-sm text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] focus:ring-2 focus:ring-white/30"
+      : "select-on-dark mt-1.5 w-full";
+
   const inputClassName = isLightAppearance
-    ? "input mt-1 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:ring-2 focus:ring-[rgb(var(--primary))]/30 focus:border-[rgb(var(--primary))]"
+    ? "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm focus:ring-2 focus:ring-[rgb(var(--primary))]/30 focus:border-[rgb(var(--primary))]"
     : isDirectAppearance
-      ? "input mt-1 w-full rounded-2xl border border-white/25 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] focus:ring-2 focus:ring-white/35"
-      : "input mt-1 w-full";
-  const cardClass = isLightAppearance
-    ? "rounded-md border border-slate-200 bg-slate-50 px-3 py-2"
-    : isDirectAppearance
-      ? "rounded-md border border-white/20 bg-white/10 px-3 py-2"
-      : "rounded-md border border-white/20 bg-white/10 px-3 py-2";
-  const kpiCardClass = isLightAppearance
-    ? "rounded-md border border-slate-200 bg-slate-50 px-3 py-3"
-    : isDirectAppearance
-      ? "rounded-md border border-white/15 bg-white/5 px-3 py-3"
-      : "rounded-md border border-white/20 bg-white/10 px-3 py-3";
-  const manualButtonClass = isLightAppearance
-    ? "rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-    : isDirectAppearance
-      ? "rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
-      : "rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15";
-  const footerSummaryClass = isLightAppearance ? "text-[12px] text-slate-500" : "text-[12px] text-white/80";
-  const footerPrimaryButtonClass = isLightAppearance
-    ? "rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-    : isDirectAppearance
-      ? "rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/20"
-      : "btn-bar mapache-modal-btn";
-  const footerSecondaryButtonClass = isLightAppearance
-    ? "rounded-full border border-transparent bg-[rgb(var(--primary))] px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-[rgb(var(--primary))]/90"
-    : isDirectAppearance
-      ? "rounded-full border border-transparent bg-white px-3 py-1.5 text-sm font-semibold text-[#3b0a69] hover:bg-white/90"
-      : "btn-bar mapache-modal-btn";
-  const progressTrackClass = isLightAppearance ? "h-3 w-full rounded bg-slate-200 overflow-hidden" : "h-3 w-full rounded bg-white/20 overflow-hidden";
-  const progressValueClass = isLightAppearance
-    ? "h-full bg-[rgb(var(--primary))]"
-    : isDirectAppearance
-      ? "h-full bg-gradient-to-r from-[#f6d3ff] via-[#d8b4fe] to-[#b794f4]"
-      : "h-full bg-white";
+      ? "mt-1.5 w-full rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-sm text-white placeholder:text-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] focus:ring-2 focus:ring-white/35"
+      : "input mt-1.5 w-full";
+
   const backdropClassName = isLightAppearance
     ? "bg-black/30"
     : isMapacheAppearance
@@ -354,6 +339,7 @@ export default function UserProfileModal({
       : isDirectAppearance
         ? "bg-[rgba(59,10,105,0.65)]"
         : "bg-black/60";
+
   return (
     <Modal
       open={open}
@@ -363,152 +349,184 @@ export default function UserProfileModal({
       headerClassName={headerClassName}
       titleClassName={titleClassName}
       panelClassName={panelClassName}
-      panelStyle={{ maxWidth: "min(100vw - 32px, 1200px)" }}
+      panelStyle={{ maxWidth: "min(100vw - 32px, 680px)" }}
       backdropClassName={backdropClassName}
       footer={
-        <div className="flex justify-between items-center w-full">
-          <div className={footerSummaryClass}>
-            {profileT("periodSummary", { year, quarter, from: range.from, to: range.to })}
-          </div>
-          <div className="flex gap-2">
-            <button className={footerPrimaryButtonClass} onClick={onClose}>
-              {profileT("buttons.close")}
+        <div className="flex justify-end items-center w-full gap-3">
+          <button className={secondaryButtonClass} onClick={onClose}>
+            {profileT("buttons.close")}
+          </button>
+          {canEdit && (
+            <button className={primaryButtonClass} onClick={save}>
+              {profileT("buttons.save")}
             </button>
-            {canEdit && (
-              <button className={footerSecondaryButtonClass} onClick={save}>
-                {profileT("buttons.save")}
-              </button>
-            )}
-          </div>
+          )}
         </div>
       }
     >
-      <div className={`space-y-4 ${bodyTextClass}`}>
-        {/* Encabezado */}
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-full flex items-center justify-center font-bold bg-white text-[rgb(var(--primary))]">
+      <div className={`space-y-6 ${bodyTextClass}`}>
+        {/* Profile Header - Más grande y elegante */}
+        <div className="flex flex-col items-center text-center space-y-4 pb-6 border-b border-current/10">
+          <div className={`h-20 w-20 rounded-full flex items-center justify-center font-bold text-2xl shadow-xl ${
+            isLightAppearance 
+              ? "bg-gradient-to-br from-[rgb(var(--primary))] to-[rgb(var(--primary))]/70 text-white"
+              : "bg-gradient-to-br from-white to-white/80 text-[rgb(var(--primary))]"
+          }`}>
             {initials(name)}
           </div>
-          <div>
-            <div className="text-base font-semibold">{name}</div>
-            <div className={`text-sm ${subtleTextClass} inline-flex items-center gap-1`}>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold">{name}</h2>
+            <div className={`flex items-center justify-center gap-2 ${subtleTextClass}`}>
               <Mail className="h-4 w-4" />
-              {email}
+              <span className="text-sm">{email}</span>
             </div>
           </div>
-          {!isSelf && (viewer.role === "admin" || viewer.role === "lider") && (
-            <span className={`ml-auto ${badgeClass}`}>
-              {profileT("viewerBadge", { role: viewerRoleLabel })}
-            </span>
-          )}
         </div>
 
-        {/* Rol / Equipo */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className={cardClass}>
-            <div className={`text-[12px] ${labelTextClass} flex items-center gap-1 mb-0.5`}>
-              <Shield className="h-3.5 w-3.5" />
+        {/* Role & Team Info - Cards más elegantes */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className={infoCardClass}>
+            <div className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}>
+              <Shield className="h-4 w-4" />
               {profileT("labels.role")}
             </div>
-            <div className="font-medium">{role}</div>
+            <div className="text-lg font-semibold">{role}</div>
           </div>
-          <div className={cardClass}>
-            <div className={`text-[12px] ${labelTextClass} flex items-center gap-1 mb-0.5`}>
-              <Users2 className="h-3.5 w-3.5" />
+          <div className={infoCardClass}>
+            <div className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}>
+              <Users2 className="h-4 w-4" />
               {profileT("labels.team")}
             </div>
-            <div className="font-medium">{team}</div>
+            <div className="text-lg font-semibold">{team}</div>
           </div>
         </div>
 
-        {/* Selectores */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <label className="text-sm">
-            {profileT("labels.year")}
-            <select
-              className={selectClassName}
-              value={year}
-              onChange={(e) => setYear(Number(e.target.value))}
-            >
-              {Array.from({ length: 5 }).map((_, i) => {
-                const y = new Date().getFullYear() - 2 + i;
-                return (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
-          <label className="text-sm">
-            {profileT("labels.quarter")}
-            <select
-              className={selectClassName}
-              value={quarter}
-              onChange={(e) => setQuarter(Number(e.target.value) as 1 | 2 | 3 | 4)}
-            >
-              <option value={1}>Q1</option>
-              <option value={2}>Q2</option>
-              <option value={3}>Q3</option>
-              <option value={4}>Q4</option>
-            </select>
-          </label>
-          <label className="text-sm">
-            {profileT("labels.goal")}
-            <div className="flex items-center gap-2 mt-1">
-              <input
-                className={inputClassName}
-                type="number"
-                min={0}
-                value={inputAmount}
-                disabled={!canEdit || loadingGoal}
-                onChange={(e) => setInputAmount(Number(e.target.value))}
+        {/* Current Quarter Performance - Destaca el desempeño actual */}
+        <div className={statCardClass}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className={`h-5 w-5 ${pct >= 100 ? 'text-green-500' : pct >= 50 ? 'text-yellow-500' : 'text-orange-500'}`} />
+              <h3 className="text-sm font-semibold uppercase tracking-wide opacity-90">
+                Desempeño Q{quarter} {year}
+              </h3>
+            </div>
+            {pct >= 100 && (
+              <Award className="h-6 w-6 text-yellow-500" />
+            )}
+          </div>
+          
+          {/* Progress Bar - Más prominente */}
+          <div className="mb-6">
+            <div className={`flex justify-between items-baseline mb-2`}>
+              <span className="text-3xl font-bold">{pct.toFixed(1)}%</span>
+              <span className={`text-sm ${labelTextClass}`}>
+                {formatUSD(wonAmount)} / {formatUSD(goalAmount)}
+              </span>
+            </div>
+            <div className={`h-4 w-full rounded-full overflow-hidden ${
+              isLightAppearance ? 'bg-slate-200' : 'bg-white/20'
+            }`}>
+              <div 
+                className={`h-full transition-all duration-500 ${
+                  isLightAppearance 
+                    ? 'bg-gradient-to-r from-[rgb(var(--primary))] to-[rgb(var(--primary))]/70'
+                    : isDirectAppearance
+                      ? 'bg-gradient-to-r from-[#f6d3ff] via-[#d8b4fe] to-[#b794f4]'
+                      : 'bg-gradient-to-r from-white to-white/80'
+                }`}
+                style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} 
               />
             </div>
-          </label>
-        </div>
+          </div>
 
-        {/* KPI cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className={kpiCardClass}>
-            <div className={`text-xs ${labelTextClass}`}>{metricsT("goal")}</div>
-            <div className="text-xl font-semibold">{formatUSD(goalAmount)}</div>
-          </div>
-          <div className={kpiCardClass}>
-            <div className={`text-xs ${labelTextClass}`}>{metricsT("progress")}</div>
-            <div className="text-xl font-semibold">{formatUSD(wonAmount)}</div>
-          </div>
-          <div className={kpiCardClass}>
-            <div className={`text-xs ${labelTextClass}`}>{metricsT("remaining")}</div>
-            <div className="text-xl font-semibold">
-              {formatUSD(Math.max(0, goalAmount - wonAmount))}
+          {/* Stats Grid - Más compacto */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className={`text-xs ${labelTextClass} mb-1`}>{metricsT("progress")}</div>
+              <div className="text-xl font-bold">{formatUSD(wonAmount)}</div>
+            </div>
+            <div>
+              <div className={`text-xs ${labelTextClass} mb-1`}>{metricsT("remaining")}</div>
+              <div className="text-xl font-bold">{formatUSD(Math.max(0, goalAmount - wonAmount))}</div>
             </div>
           </div>
-          <div className={kpiCardClass}>
-            <div className={`text-xs ${labelTextClass}`}>{metricsT("pct")}</div>
-            <div className="text-xl font-semibold">{pct.toFixed(1)}%</div>
+        </div>
+
+        {/* Period & Goal Controls - Always visible for context */}
+        <div className={`space-y-4 p-5 rounded-2xl border ${
+          isLightAppearance 
+            ? 'border-slate-200 bg-slate-50/50' 
+            : 'border-white/10 bg-white/5'
+        }`}>
+          <div className="flex items-center gap-2 mb-3">
+            <Calendar className={`h-4 w-4 ${labelTextClass}`} />
+            <span className={`text-sm font-semibold ${labelTextClass} uppercase tracking-wide`}>
+              Periodo y Objetivo
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <label className="text-sm">
+              <span className={labelTextClass}>{profileT("labels.year")}</span>
+              <select
+                className={selectClassName}
+                value={year}
+                onChange={(e) => setYear(Number(e.target.value))}
+              >
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const y = new Date().getFullYear() - 2 + i;
+                  return (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            <label className="text-sm">
+              <span className={labelTextClass}>{profileT("labels.quarter")}</span>
+              <select
+                className={selectClassName}
+                value={quarter}
+                onChange={(e) => setQuarter(Number(e.target.value) as 1 | 2 | 3 | 4)}
+              >
+                <option value={1}>Q1</option>
+                <option value={2}>Q2</option>
+                <option value={3}>Q3</option>
+                <option value={4}>Q4</option>
+              </select>
+            </label>
+            {canEdit && (
+              <label className="text-sm">
+                <span className={labelTextClass}>{profileT("labels.goal")} (USD)</span>
+                <input
+                  className={inputClassName}
+                  type="number"
+                  min={0}
+                  value={inputAmount}
+                  disabled={loadingGoal}
+                  onChange={(e) => setInputAmount(Number(e.target.value))}
+                />
+              </label>
+            )}
+          </div>
+          <div className={`text-xs ${labelTextClass} text-center pt-2`}>
+            {profileT("periodSummary", { year, quarter, from: range.from, to: range.to })}
           </div>
         </div>
 
+        {/* Action Button */}
         {canAddManual && (
-          <div className="flex justify-end">
-            <button
-              className={manualButtonClass}
-              onClick={() => setManualOpen(true)}
-              type="button"
-            >
-              {billingT("manualCta")}
-            </button>
-          </div>
+          <button
+            className={primaryButtonClass + " w-full"}
+            onClick={() => setManualOpen(true)}
+            type="button"
+          >
+            {billingT("manualCta")}
+          </button>
         )}
-
-        {/* Barra de progreso */}
-        <div className={kpiCardClass}>
-          <div className={progressTrackClass} title={`${pct.toFixed(1)}%`}>
-            <div className={progressValueClass} style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
-          </div>
-        </div>
       </div>
+      
       {manualOpen && (
         <ManualWonDialog
           open={manualOpen}
@@ -532,5 +550,3 @@ export default function UserProfileModal({
     </Modal>
   );
 }
-
-
