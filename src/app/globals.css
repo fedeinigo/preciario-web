@@ -432,6 +432,20 @@ html.mapache-theme body .text-white strong {
 }
 .btn-bar:hover { background-color: #5b21b6; }  /* un paso más intenso */
 
+.mapache-modal-btn {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.mapache-modal-btn:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+.mapache-modal-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
   /* --- Tabs --- */
   .tab {
     @apply inline-flex items-center gap-2 px-3 py-2 rounded-[var(--radius)] border text-[13.5px];
@@ -612,5 +626,19 @@ html.mapache-theme body .text-white strong {
   .auth-card-modern {
     max-width: 520px;
   }
+}
+
+.bg-gradient-to-b {
+  background-image: linear-gradient(
+    to bottom,
+    rgba(10, 12, 20, 0.95),
+    rgba(15, 16, 24, 0.95),
+    rgba(4, 6, 12, 0.98)
+  );
+}
+
+.bg-gray-50 {
+  --tw-bg-opacity: 1;
+  background-color: rgba(10, 12, 20, 0.92);
 }
 

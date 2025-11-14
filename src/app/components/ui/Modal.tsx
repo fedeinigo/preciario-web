@@ -1,63 +1,136 @@
 // src/app/components/ui/Modal.tsx
+
 "use client";
+
+
 
 import React from "react";
 
+
+
 type PanelStyle = React.CSSProperties;
+
 import { createPortal } from "react-dom";
 
+
+
 type Props = {
+
   open: boolean;
+
   onClose: () => void;
+
   title?: React.ReactNode;
+
   footer?: React.ReactNode;
+
   children: React.ReactNode;
+
   /** Clases extra para el contenedor externo */
+
   containerClassName?: string;
+
   /** Estilos extra para el panel */
+
   panelClassName?: string;
-  /** Clase para controlar el ancho máximo del panel */
+
+  /** Clases extra para el encabezado */
+
+  headerClassName?: string;
+
+  /** Clase para controlar el ancho mÃ¡ximo del panel */
+
   panelWidthClassName?: string;
-  /** Estilos en línea extra para el panel */
+
+  /** Clases extra para el título dentro del encabezado */
+
+  titleClassName?: string;
+
+  /** Estilos en lÃ­nea extra para el panel */
+
   panelStyle?: PanelStyle;
+
   /** Estilos extra para el backdrop */
+
   backdropClassName?: string;
+
   /** Variante del panel */
+
   variant?: "default" | "inverted"; // inverted = morado con texto blanco
+
   /** Evita cerrar al clickear fuera */
+
   disableCloseOnBackdrop?: boolean;
+
 };
 
+
+
 export default function Modal({
+
   open,
+
   onClose,
+
   title,
+
   footer,
+
   children,
+
   containerClassName = "",
+
   panelClassName = "",
+
+  headerClassName = "",
+
   panelWidthClassName = "max-w-2xl",
+
+  titleClassName = "",
+
   panelStyle,
+
   backdropClassName = "",
+
   variant = "default",
+
   disableCloseOnBackdrop = false,
+
 }: Props) {
+
   const panelRef = React.useRef<HTMLDivElement>(null);
+
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
+
   const titleId = React.useId();
 
+
+
   React.useEffect(() => {
+
     if (!open) return;
+
     const panel = panelRef.current;
+
     if (!panel) return;
 
+
+
     const selectors =
+
       'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+
     const focusable = Array.from(panel.querySelectorAll<HTMLElement>(selectors));
+
     const closeButton = closeButtonRef.current;
+
     const initialTarget =
+
       closeButton && !disableCloseOnBackdrop ? closeButton : focusable[0] ?? panel;
+
     initialTarget.focus({ preventScroll: true });
+
+
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !disableCloseOnBackdrop) {
@@ -92,9 +165,15 @@ export default function Modal({
     return () => panel.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose, disableCloseOnBackdrop]);
 
+
+
   if (!open) return null;
 
+
+
   const isInverted = variant === "inverted";
+
+
 
   const content = (
     <div
@@ -131,11 +210,16 @@ export default function Modal({
               isInverted
                 ? "border-b border-white/10"
                 : "bg-gray-50 border-b border-gray-200",
-            ].join(" ")}
+              headerClassName,
+            ]
+              .filter(Boolean)
+              .join(" ")}
             id={titleId}
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0 text-left">{title}</div>
+              <div className={"flex-1 min-w-0 text-left " + titleClassName}>
+                {title}
+              </div>
               {typeof onClose === "function" && (
                 <button
                   type="button"
@@ -154,7 +238,7 @@ export default function Modal({
                       : "text-gray-500 hover:bg-gray-100 focus-visible:outline-gray-300 disabled:text-gray-300 disabled:hover:bg-transparent",
                   ].join(" ")}
                 >
-                  <span aria-hidden="true">×</span>
+                  <span aria-hidden="true">&times;</span>
                 </button>
               )}
             </div>
@@ -178,9 +262,13 @@ export default function Modal({
       </div>
     </div>
   );
-
   if (typeof window !== "undefined") {
+
     return createPortal(content, document.body);
+
   }
+
   return content;
+
 }
+

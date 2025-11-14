@@ -41,11 +41,7 @@ import {
   sortStatuses,
   upsertStatus,
 } from "./status-management";
-import {
-  MAPACHE_PORTAL_DEFAULT_SECTION,
-  MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
-  type MapachePortalSection,
-} from "./section-events";
+import { MAPACHE_PORTAL_DEFAULT_SECTION } from "./section-events";
 import { useTasksQuery } from "./hooks/useTasksQuery";
 import { useFilterPresets } from "./hooks/useFilterPresets";
 import { useBoardManager } from "./hooks/useBoardManager";
@@ -63,9 +59,7 @@ import {
   TASKS_PAGE_SIZE,
   MS_IN_DAY,
 } from "./constants";
-import type { MapachePortalInsightsScope } from "./MapachePortalInsights";
 import { useMapacheFilters } from "./hooks/useMapacheFilters";
-import { useInsightsMetrics } from "./hooks/useInsightsMetrics";
 import { useAssignmentRatios } from "./hooks/useAssignmentRatios";
 import {
   formatAssigneeOption,
@@ -146,8 +140,6 @@ function getDateInputValue(value: string | null | undefined): string {
 
 type MapachePortalClientProps = {
   initialBootstrap: MapachePortalBootstrap;
-  heading?: React.ReactNode;
-  subheading?: React.ReactNode;
 };
 
 type DeliverableFormState = {
@@ -1008,8 +1000,6 @@ function createAssignmentSequence(
 
 export default function MapachePortalClient({
   initialBootstrap,
-  heading,
-  subheading,
 }: MapachePortalClientProps) {
   const {
     statuses: bootstrapStatuses,
@@ -1316,23 +1306,6 @@ export default function MapachePortalClient({
     }
     return "lista";
   });
-  const [insightsScope, setInsightsScope] =
-    React.useState<MapachePortalInsightsScope>("filtered");
-  const activeSection = React.useMemo<MapachePortalSection>(() => {
-    if (pathname?.startsWith("/mapache-portal/tasks")) {
-      return "tasks";
-    }
-    if (pathname?.startsWith("/mapache-portal/generator")) {
-      return "generator";
-    }
-    if (pathname?.startsWith("/mapache-portal/metrics")) {
-      return "metrics";
-    }
-    return MAPACHE_PORTAL_DEFAULT_SECTION;
-  }, [pathname]);
-  const isTasksSection = activeSection === "tasks";
-  const isMetricsSection = activeSection === "metrics";
-
   const [showSettingsModal, setShowSettingsModal] = React.useState(false);
   const [assignmentDraft, setAssignmentDraft] = React.useState<Record<string, string>>({});
   const [autoAssigning, setAutoAssigning] = React.useState(false);
@@ -1581,19 +1554,6 @@ export default function MapachePortalClient({
     if (typeof window === "undefined") return;
     window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
   }, [viewMode]);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    window.dispatchEvent(
-      new CustomEvent<MapachePortalSection>(
-        MAPACHE_PORTAL_SECTION_CHANGED_EVENT,
-        {
-          detail: activeSection,
-        },
-      ),
-    );
-  }, [activeSection]);
 
   const validationMessages = React.useMemo(
     () => ({
@@ -1912,16 +1872,6 @@ export default function MapachePortalClient({
   const deferredFilteredTasks = React.useDeferredValue(filteredTasks);
   const filtersPending = deferredFilteredTasks !== filteredTasks;
 
-  const { insightsMetrics } = useInsightsMetrics({
-    assigneeLabelMap,
-    deferredFilteredTasks,
-    isMetricsSection,
-    mapacheTeamMemberIds,
-    tasks,
-    statusKeys,
-    formatTaskAssigneeLabel,
-  });
-
   const tasksByStatus = React.useMemo(() => {
     const buckets = new Map<MapacheTaskStatus, MapacheTask[]>();
     deferredFilteredTasks.forEach((task) => {
@@ -2104,32 +2054,6 @@ export default function MapachePortalClient({
       </label>
     );
   };
-
-  const handleOpenSettingsModal = React.useCallback(() => {
-    const hasConfiguredRatios = Object.values(assignmentRatios).some(
-      (value) => typeof value === "number" && value > 0,
-    );
-    setAssignmentDraft(() => {
-      const next: Record<string, string> = {};
-      const defaultValue =
-        !hasConfiguredRatios && mapacheUsers.length > 0
-          ? 100 / mapacheUsers.length
-          : null;
-      mapacheUsers.forEach((user) => {
-        const ratio = assignmentRatios[user.id];
-        if (typeof ratio === "number" && ratio > 0) {
-          next[user.id] = ratioToPercentageInput(ratio);
-        } else if (defaultValue !== null) {
-          next[user.id] = formatPercentage(defaultValue);
-        } else {
-          next[user.id] = "";
-        }
-      });
-      return next;
-    });
-    setSettingsTab("assignment");
-    setShowSettingsModal(true);
-  }, [assignmentRatios, mapacheUsers]);
 
   const handleCloseSettingsModal = React.useCallback(() => {
     setShowSettingsModal(false);
@@ -2401,11 +2325,6 @@ export default function MapachePortalClient({
     setFormErrors({});
     setCurrentStep(0);
   }, []);
-
-  const handleOpenForm = React.useCallback(() => {
-    resetForm();
-    setShowForm(true);
-  }, [resetForm]);
 
   const handleCloseForm = React.useCallback(() => {
     setShowForm(false);
@@ -3387,48 +3306,8 @@ function TaskMetaChip({
       </div>
     );
 
-  const headerTitle = heading;
-  const headerSubtitle = subheading;
-  const hasHeaderTitle =
-    headerTitle !== null && headerTitle !== undefined && headerTitle !== false;
-  const hasHeaderSubtitle =
-    headerSubtitle !== null &&
-    headerSubtitle !== undefined &&
-    headerSubtitle !== false;
-  const hasHeaderContent = hasHeaderTitle || hasHeaderSubtitle;
-
   return (
     <section className="flex flex-col gap-6">
-      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        {hasHeaderContent ? (
-          <div>
-            {hasHeaderTitle ? (
-              <h1 className="text-2xl font-semibold text-white">{headerTitle}</h1>
-            ) : null}
-            {hasHeaderSubtitle ? (
-              <p className="mt-1 text-sm text-white/70">{headerSubtitle}</p>
-            ) : null}
-          </div>
-        ) : null}
-        <div className="flex gap-2 md:ml-auto">
-          <button
-            type="button"
-            onClick={handleOpenSettingsModal}
-            className="inline-flex items-center gap-2 rounded-md border border-white/25 px-4 py-2 text-sm text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-          >
-            <Settings className="h-4 w-4" aria-hidden="true" />
-            <span>{assignmentT("configure")}</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenForm}
-            className="inline-flex items-center rounded-md bg-[rgb(var(--primary))] px-4 py-2 text-sm font-medium text-white shadow-soft transition hover:bg-[rgb(var(--primary))]/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-          >
-            {actionsT("add")}
-          </button>
-        </div>
-      </header>
-
       <Modal
         open={showSettingsModal}
         onClose={handleCloseSettingsModal}
@@ -4714,136 +4593,6 @@ function TaskMetaChip({
         </form>
       </Modal>
 
-      {isMetricsSection ? (
-        <>
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex-1">{renderFilterBar()}</div>
-          </div>
-          <div className="mt-6 space-y-6">
-            <MapachePortalInsights
-              scope={insightsScope}
-              onScopeChange={setInsightsScope}
-              metricsByScope={insightsMetrics}
-              statuses={statusIndex.ordered}
-              formatStatusLabel={formatStatusLabel}
-            />
-          </div>
-          {renderLoadingMessage()}
-          {renderFetchErrorMessage()}
-        </>
-      ) : null}
-
-      {isTasksSection ? (
-        <>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex-1">{renderFilterBar()}</div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-          {renderBoardSelector()}
-          {renderViewModeToggle()}
-          {activeFilter.ownership === "unassigned" ? (
-            <button
-              type="button"
-              onClick={handleAutoAssign}
-                  disabled={autoAssigning || mapacheUsers.length === 0}
-                  className="inline-flex items-center gap-2 rounded-full border border-[rgb(var(--primary))] bg-[rgb(var(--primary))]/10 px-4 py-1 text-sm text-[rgb(var(--primary))] transition hover:bg-[rgb(var(--primary))]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Wand2 className="h-4 w-4" aria-hidden="true" />
-                  {autoAssigning
-                    ? assignmentT("autoAssigning")
-                    : assignmentT("autoAssign")}
-                </button>
-              ) : null}
-            </div>
-          </div>
-
-          {renderLoadingMessage()}
-
-          {!loading && filteredTasks.length === 0 && (
-            <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-6 text-center text-sm text-white/70">
-              <p className="font-medium text-white">
-                {showFilteredEmptyMessage ? emptyT("filteredTitle") : emptyT("title")}
-              </p>
-              <p className="mt-1 text-white/70">
-                {showFilteredEmptyMessage
-                  ? emptyT("filteredDescription")
-                  : emptyT("description")}
-              </p>
-            </div>
-          )}
-
-          {viewMode === null ? (
-            <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/70">
-              {t("loading")}
-            </div>
-          ) : viewMode === "lista" ? (
-            <TaskDataGrid
-              tasks={deferredFilteredTasks}
-              onOpen={openTask}
-              statusKeys={statusKeys}
-              substatusOptions={SUBSTATUS_OPTIONS}
-          statusIndex={statusIndex}
-          statusIndicatorClassNames={STATUS_INDICATOR_ACCENT_CLASSNAMES}
-          unspecifiedOptionLabel={formT("unspecifiedOption")}
-          messages={taskGridMessages}
-          onStatusChange={handleStatusChange}
-          onSubstatusChange={handleSubstatusChange}
-          onRequestDeleteTask={handleRequestDeleteTask}
-          deletingTaskId={deletingTaskId}
-          updatingTaskId={updatingTaskId}
-          getStatusBadgeKey={getStatusBadgeKey}
-          getPresentationDateMeta={getPresentationDateMeta}
-          formatStatusLabel={formatStatusLabel}
-          formatSubstatusLabel={formatSubstatusLabel}
-          formatAssigneeLabel={formatTaskAssigneeLabel}
-          getInitials={getInitials}
-        />
-      ) : (
-        <div
-          className="space-y-3"
-          aria-busy={filtersPending}
-        >
-          {filtersPending ? (
-            <div className="pointer-events-none flex justify-center">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                <span>{filtersApplyingLabel}</span>
-              </span>
-            </div>
-          ) : null}
-          {boardsError ? (
-            <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
-              {boardsError}
-            </div>
-          ) : null}
-          {boards.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-white/20 bg-white/5 px-4 py-6 text-sm text-white/70">
-              {boardsT("selector.empty")}
-            </div>
-          ) : boardColumnsWithTasks.length === 0 ? (
-            <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-6 text-sm text-white/70">
-              {boardsT("columns.empty")}
-            </div>
-          ) : (
-            <div className="-mx-1 overflow-x-auto pb-2">
-              <div className="flex min-w-max gap-4 px-1">
-                {boardColumnsWithTasks.map((column) => (
-                  <PipelineColumn
-                    key={column.id}
-                    title={column.title}
-                    statuses={column.statuses}
-                    tasks={column.tasks}
-                    onTaskDrop={handleTaskDroppedOnStatus}
-                    formatStatus={formatStatusLabel}
-                    dropMenuTitle={boardsT("columns.dropMenuTitle")}
-                    dropMenuDescription={boardsT("columns.dropMenuDescription")}
-                    dropMenuCancelLabel={boardsT("columns.dropMenuCancel")}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       <Modal
         open={selectedTask !== null}
@@ -5612,10 +5361,7 @@ function TaskMetaChip({
         <div className="mapache-modal-surface flex flex-col gap-3 text-sm">
           <p>{pendingDeletion ? actionsT("deleteConfirm", { id: pendingDeletion }) : null}</p>
         </div>
-       </Modal>
-
-      </>
-    ) : null}
+      </Modal>
 
     </section>
   );

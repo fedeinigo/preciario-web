@@ -559,6 +559,7 @@ export default function GoalsPage({
           onClose={() => setProfileOpen(false)}
           viewer={{ role, team: leaderTeam }}
           targetUser={profileUser}
+          appearance="light"
         />
       )}
       {manualDialogTarget && (

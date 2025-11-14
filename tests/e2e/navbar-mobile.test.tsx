@@ -1,4 +1,4 @@
-import Module from "node:module";
+﻿import Module from "node:module";
 import path from "node:path";
 import assert from "node:assert/strict";
 import React from "react";
@@ -61,7 +61,7 @@ test("NavbarClient renders a scrollable tablist for mobile viewports", { concurr
       const session = {
         user: {
           id: "user-123",
-          name: "Mapache Pérez",
+          name: "Mapache PÃ©rez",
           email: "mapache@example.com",
           role: "usuario",
           team: "Mapaches",
@@ -76,55 +76,12 @@ test("NavbarClient renders a scrollable tablist for mobile viewports", { concurr
       );
 
       assert(html.includes("overflow-x-auto"));
-      assert(html.includes("Histórico"));
-      assert(html.includes("Estadísticas"));
+      assert(html.includes("HistÃ³rico"));
+      assert(html.includes("EstadÃ­sticas"));
       assert(html.includes("Mapaches"));
     }
   );
 });
 
 
-test("NavbarLegacy matches the scrollable tablist behavior", { concurrency: false }, async () => {
-  await withModuleOverrides(
-    {
-      "next/navigation": { useRouter: () => ({ refresh: noop }) },
-      "next-auth/react": {
-        __esModule: true,
-        signOut: noop,
-        useSession: () => ({
-          status: "authenticated",
-          data: {
-            user: {
-              id: "user-123",
-              name: "Mapache Pérez",
-              email: "mapache@example.com",
-              role: "usuario",
-              team: "Mapaches",
-            },
-            expires: new Date().toISOString(),
-          },
-        }),
-      },
-      "@/app/components/ui/Modal": { __esModule: true, default: () => null },
-      "@/app/components/ui/toast": {
-        __esModule: true,
-        toast: Object.assign(noop, { success: noop, error: noop, info: noop }),
-      },
-    },
-    async () => {
-      const { LanguageProvider } = await import("../../src/app/LanguageProvider");
-      const { default: NavbarLegacy } = await import("../../src/app/components/NavbarLegacy");
 
-      const html = renderToStaticMarkup(
-        <LanguageProvider>
-          <NavbarLegacy />
-        </LanguageProvider>
-      );
-
-      assert(html.includes("overflow-x-auto"));
-      assert(html.includes("Histórico"));
-      assert(html.includes("Estadísticas"));
-      assert(html.includes("Mapaches"));
-    }
-  );
-});

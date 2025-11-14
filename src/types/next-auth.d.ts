@@ -19,7 +19,7 @@ declare module "next-auth" {
       image?: string | null;
       role: AppRole;
       team: string | null;
-      portals: PortalAccessId[];
+      portals?: PortalAccessId[];
     };
   }
 }

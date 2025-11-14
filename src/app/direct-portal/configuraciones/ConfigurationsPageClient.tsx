@@ -35,31 +35,100 @@ type ConfigurationsPageClientProps = {
   isAdmin: boolean;
 };
 
-function useTeamsData() {
-  const [teams, setTeams] = React.useState<TeamRow[]>([]);
-  const [loading, setLoading] = React.useState(true);
+type TeamsStoreState = {
+  teams: TeamRow[];
+  loading: boolean;
+  error: string | null;
+};
 
-  const refresh = React.useCallback(async () => {
-    setLoading(true);
+let teamFetchCount = 0;
+
+const teamsStore = {
+  state: {
+    teams: [] as TeamRow[],
+    loading: true,
+    error: null as string | null,
+  },
+  subscribers: new Set<() => void>(),
+  fetchPromise: null as Promise<void> | null,
+};
+
+const notifyTeamsSubscribers = () => {
+  teamsStore.subscribers.forEach((listener) => listener());
+};
+
+async function refreshTeamsData() {
+  if (teamsStore.fetchPromise) {
+    return teamsStore.fetchPromise;
+  }
+  teamsStore.state.loading = true;
+  teamsStore.state.error = null;
+  notifyTeamsSubscribers();
+
+  teamFetchCount += 1;
+  console.debug("[TeamsStore] fetching teams (#" + teamFetchCount + ")");
+
+  const promise = (async () => {
     try {
       const response = await fetch("/api/teams", { cache: "no-store" });
-      if (response.ok) {
-        setTeams(await response.json());
-      } else {
-        setTeams([]);
+      if (!response.ok) {
+        throw new Error(response.statusText || "Failed to load teams");
       }
-    } catch {
-      setTeams([]);
+      const data = (await response.json()) as TeamRow[];
+      teamsStore.state.teams = data;
+      teamsStore.state.error = null;
+    } catch (error) {
+      teamsStore.state.teams = [];
+      teamsStore.state.error =
+        error instanceof Error ? error.message : "Failed to load teams";
     } finally {
-      setLoading(false);
+      teamsStore.state.loading = false;
+      notifyTeamsSubscribers();
     }
+  })();
+
+  teamsStore.fetchPromise = promise;
+  await promise;
+  teamsStore.fetchPromise = null;
+  return promise;
+}
+
+function useTeamsData() {
+  const [state, setState] = React.useState(() => ({
+    teams: teamsStore.state.teams,
+    loading: teamsStore.state.loading,
+    error: teamsStore.state.error,
+  }));
+
+  React.useEffect(() => {
+    const listener = () => {
+      setState({
+        teams: teamsStore.state.teams,
+        loading: teamsStore.state.loading,
+        error: teamsStore.state.error,
+      });
+    };
+    teamsStore.subscribers.add(listener);
+    return () => {
+      teamsStore.subscribers.delete(listener);
+    };
   }, []);
 
   React.useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void refreshTeamsData();
+  }, []);
 
-  return { teams, loading, refresh };
+  return {
+    teams: state.teams,
+    loading: state.loading,
+    error: state.error,
+    refresh: refreshTeamsData,
+    fetchCount: teamFetchCount,
+  };
+}
+
+export function getTeamsFetchCount() {
+  return teamFetchCount;
 }
 
 export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPageClientProps) {
@@ -114,7 +183,12 @@ export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPage
 
 export function TeamManagementPageClient({ isAdmin }: ConfigurationsPageClientProps) {
   const configT = useTranslations("configurations");
-  const { teams, loading: loadingTeams, refresh: refreshTeams } = useTeamsData();
+  const {
+    teams,
+    loading: loadingTeams,
+    refresh: refreshTeams,
+    error: teamsError,
+  } = useTeamsData();
   const {
     users,
     reload: reloadAdminUsers,
@@ -130,6 +204,7 @@ export function TeamManagementPageClient({ isAdmin }: ConfigurationsPageClientPr
         teams={teams}
         loadingTeams={loadingTeams}
         refreshTeams={refreshTeams}
+        teamsError={teamsError}
         users={users}
         reloadUsers={reloadAdminUsers}
       />
@@ -190,6 +265,7 @@ function TeamManagementPanel({
   teams,
   loadingTeams,
   refreshTeams,
+  teamsError,
   users,
   reloadUsers,
 }: {
@@ -197,6 +273,7 @@ function TeamManagementPanel({
   teams: TeamRow[];
   loadingTeams: boolean;
   refreshTeams: () => Promise<void>;
+  teamsError?: string | null;
   users: AdminUser[];
   reloadUsers: () => Promise<AdminUser[]>;
 }) {
@@ -220,6 +297,11 @@ function TeamManagementPanel({
       return { team, leaders, members };
     });
   }, [teams, users]);
+
+  React.useEffect(() => {
+    if (!teamsError) return;
+    console.error("Failed to load teams:", teamsError);
+  }, [teamsError]);
 
   const handleCreateTeam = async () => {
     const name = newTeam.trim();
@@ -315,39 +397,49 @@ function TeamManagementPanel({
     }
     setPortalSaving(true);
     try {
-      let changed = false;
+      const updates: Promise<void>[] = [];
       for (const member of members) {
         const hasPortal = member.portals.includes(portal);
         if (hasPortal === enable) continue;
-        changed = true;
         const base = enable
           ? [...member.portals, portal]
           : member.portals.filter((p) => p !== portal);
         const next = includeDefaultPortal(base);
-        const response = await fetch("/api/admin/users", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: member.id,
-            portals: next,
-          }),
-        });
-        if (!response.ok) {
-          const data: { error?: string } = await response.json().catch(() => ({}));
-          throw new Error(data.error ?? "Failed");
-        }
-      }
-      if (!changed) {
-        toast.info(teamPanelT("portals.noChanges"));
-      } else {
-        toast.success(
-          teamPanelT("portals.updated", {
-            team: team.name,
-            portal: portalsT(portal),
+        updates.push(
+          fetch("/api/admin/users", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: member.id,
+              portals: next,
+            }),
+          }).then(async (response) => {
+            if (!response.ok) {
+              const data: { error?: string } = await response.json().catch(() => ({}));
+              throw new Error(data.error ?? "Failed");
+            }
           }),
         );
-        await reloadUsers().catch(() => undefined);
       }
+
+      if (updates.length === 0) {
+        toast.info(teamPanelT("portals.noChanges"));
+        return;
+      }
+
+      const results = await Promise.allSettled(updates);
+      const hasFailure = results.some((result) => result.status === "rejected");
+      if (hasFailure) {
+        throw new Error("portal update failed");
+      }
+
+      toast.success(
+        teamPanelT("portals.updated", {
+          team: team.name,
+          portal: portalsT(portal),
+        }),
+      );
+      await reloadUsers().catch(() => undefined);
     } catch {
       toast.error(teamPanelT("portals.error"));
     } finally {
@@ -357,6 +449,11 @@ function TeamManagementPanel({
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+      {teamsError ? (
+        <div className="rounded-b-none rounded-t-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          No se pudieron cargar los equipos: {teamsError}
+        </div>
+      ) : null}
       <div className="grid gap-6 px-6 py-6 lg:grid-cols-3">
         <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
           <div className="space-y-1">
@@ -565,13 +662,17 @@ function TeamManagementPanel({
                         </div>
                         <button
                           type="button"
-                          className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+                          disabled={portalSaving}
+                          aria-busy={portalSaving || undefined}
+                          className={[
+                            "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition",
                             state === "all"
                               ? "bg-slate-900 text-white"
                               : state === "partial"
                                 ? "bg-amber-100 text-amber-800"
-                                : "bg-slate-100 text-slate-600"
-                          }`}
+                                : "bg-slate-100 text-slate-600",
+                            portalSaving ? "cursor-not-allowed opacity-60" : "hover:opacity-90",
+                          ].join(" ")}
                           onClick={() =>
                             handleTeamPortalToggle(portalTeam, members, portal, !(state === "all"))
                           }
@@ -635,6 +736,7 @@ function UserManagementPanel({
   const [roleFilter, setRoleFilter] = React.useState("all");
   const [teamFilter, setTeamFilter] = React.useState("all");
   const [savingId, setSavingId] = React.useState<string | null>(null);
+  const pendingUserRequests = React.useRef(new Map<string, AbortController>());
 
   const teamOptions = React.useMemo(() => teams.map((team) => team.name), [teams]);
 
@@ -660,12 +762,16 @@ function UserManagementPanel({
     userId: string,
     payload: Partial<{ role: string; team: string | null; portals: PortalAccessId[] }>,
   ) => {
+    pendingUserRequests.current.get(userId)?.abort();
+    const controller = new AbortController();
+    pendingUserRequests.current.set(userId, controller);
     setSavingId(userId);
     try {
       const response = await fetch("/api/admin/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, ...payload }),
+        signal: controller.signal,
       });
       if (!response.ok) {
         const data: { error?: string } = await response.json().catch(() => ({}));
@@ -674,10 +780,17 @@ function UserManagementPanel({
       }
       toast.success(userToastT("saveSuccess"));
       await reloadUsers();
-    } catch {
+    } catch (error) {
+      if ((error as { name?: string }).name === "AbortError") {
+        return;
+      }
       toast.error(userToastT("saveError"));
     } finally {
-      setSavingId(null);
+      const current = pendingUserRequests.current.get(userId);
+      if (current === controller) {
+        pendingUserRequests.current.delete(userId);
+        setSavingId(null);
+      }
     }
   };
 
@@ -766,8 +879,9 @@ function UserManagementPanel({
                     </td>
                     <td className="px-4 py-3">
                       <select
-                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm"
+                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                         value={user.role}
+                        disabled={savingId === user.id}
                         onChange={(event) => handleUpdateUser(user.id, { role: event.target.value })}
                       >
                         <option value="admin">Admin</option>
@@ -777,8 +891,9 @@ function UserManagementPanel({
                     </td>
                     <td className="px-4 py-3">
                       <select
-                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm"
+                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                         value={user.team || ""}
+                        disabled={savingId === user.id}
                         onChange={(event) => handleUpdateUser(user.id, { team: event.target.value || null })}
                       >
                         <option value="">{userPanelT("table.placeholderTeam")}</option>
@@ -797,14 +912,16 @@ function UserManagementPanel({
                         {MUTABLE_PORTAL_ACCESS.map((portal) => {
                           const enabled = user.portals.includes(portal);
                           return (
-                            <button
-                              key={portal}
-                              type="button"
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-                                enabled ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
-                              }`}
-                              onClick={() => toggleUserPortal(user, portal, !enabled)}
-                            >
+                          <button
+                            key={portal}
+                            type="button"
+                            disabled={savingId === user.id}
+                            aria-busy={savingId === user.id || undefined}
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold transition ${
+                              enabled ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
+                            } ${savingId === user.id ? "cursor-not-allowed opacity-60" : "hover:opacity-90"}`}
+                            onClick={() => toggleUserPortal(user, portal, !enabled)}
+                          >
                               {enabled ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
                               {portalsT(portal)}
                             </button>

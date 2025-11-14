@@ -28,6 +28,8 @@ type TargetUser = {
   team?: string | null;
 };
 
+type ProfileAppearance = "dark" | "light" | "mapache" | "direct";
+
 function initials(fullName: string) {
   const parts = fullName.split(" ").filter(Boolean);
   const i1 = parts[0]?.[0] ?? "";
@@ -40,11 +42,13 @@ export default function UserProfileModal({
   onClose,
   viewer,
   targetUser,
+  appearance = "dark",
 }: {
   open: boolean;
   onClose: () => void;
   viewer: Viewer;
   targetUser?: TargetUser;
+  appearance?: ProfileAppearance;
 }) {
   const profileT = useTranslations("common.profileModal");
   const rolesT = useTranslations("common.roles");
@@ -274,29 +278,104 @@ export default function UserProfileModal({
   const email = resolvedTarget.email ?? profileT("fallbacks.email");
   const viewerRoleLabel = resolveRole(viewer.role as AppRole | string | null);
 
+  const isLightAppearance = appearance === "light";
+  const isMapacheAppearance = appearance === "mapache";
+  const isDirectAppearance = appearance === "direct";
+  const panelClassName = [
+    "max-w-full",
+    isLightAppearance
+      ? "bg-white text-slate-900 border border-slate-200 shadow-[0_35px_110px_rgba(15,23,42,0.15)]"
+      : isMapacheAppearance
+        ? "bg-[rgb(var(--mapache-surface-strong))]/95 text-white border border-white/10 shadow-[0_45px_130px_rgba(2,6,23,0.8)]"
+        : isDirectAppearance
+          ? "bg-[#3b0a69] text-white border border-[#f3e8ff]/30 shadow-[0_45px_120px_rgba(27,2,54,0.55)]"
+          : "bg-slate-950/90 text-white border border-white/10 shadow-[0_35px_110px_rgba(2,6,23,0.65)]",
+  ].join(" ");
+  const headerClassName = isLightAppearance
+    ? "bg-white border-b border-slate-100 text-slate-900"
+    : isMapacheAppearance
+      ? "bg-slate-950/70 border-b border-white/10 text-white"
+      : isDirectAppearance
+        ? "bg-[#3b0a69] border-b border-white/15 text-white"
+        : "bg-slate-950/70 border-b border-white/10 text-white";
+  const titleClassName = isLightAppearance ? "text-lg font-semibold text-slate-900" : "text-lg font-semibold text-white";
+  const bodyTextClass = isLightAppearance ? "text-slate-900" : "text-white";
+  const subtleTextClass = isLightAppearance ? "text-slate-600" : isDirectAppearance ? "text-white/85" : "text-white/90";
+  const labelTextClass = isLightAppearance ? "text-slate-500" : isDirectAppearance ? "text-white/70" : "text-white/80";
+  const badgeClass = isLightAppearance
+    ? "text-xs px-2 py-1 rounded bg-slate-100 border border-slate-200 text-slate-600"
+    : "text-xs px-2 py-1 rounded bg-white/10 border border-white/20 text-white/80";
+  const selectClassName = isLightAppearance
+    ? "mt-1 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:ring-2 focus:ring-[rgb(var(--primary))]/30 focus:border-[rgb(var(--primary))]"
+    : isDirectAppearance
+      ? "mt-1 w-full rounded-2xl border border-white/25 bg-white/10 px-3 py-2 text-sm text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] focus:ring-2 focus:ring-white/30"
+      : "select-on-dark mt-1 w-full";
+  const inputClassName = isLightAppearance
+    ? "input mt-1 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:ring-2 focus:ring-[rgb(var(--primary))]/30 focus:border-[rgb(var(--primary))]"
+    : isDirectAppearance
+      ? "input mt-1 w-full rounded-2xl border border-white/25 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] focus:ring-2 focus:ring-white/35"
+      : "input mt-1 w-full";
+  const cardClass = isLightAppearance
+    ? "rounded-md border border-slate-200 bg-slate-50 px-3 py-2"
+    : isDirectAppearance
+      ? "rounded-md border border-white/20 bg-white/10 px-3 py-2"
+      : "rounded-md border border-white/20 bg-white/10 px-3 py-2";
+  const kpiCardClass = isLightAppearance
+    ? "rounded-md border border-slate-200 bg-slate-50 px-3 py-3"
+    : isDirectAppearance
+      ? "rounded-md border border-white/15 bg-white/5 px-3 py-3"
+      : "rounded-md border border-white/20 bg-white/10 px-3 py-3";
+  const manualButtonClass = isLightAppearance
+    ? "rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+    : isDirectAppearance
+      ? "rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+      : "rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15";
+  const footerSummaryClass = isLightAppearance ? "text-[12px] text-slate-500" : "text-[12px] text-white/80";
+  const footerPrimaryButtonClass = isLightAppearance
+    ? "rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+    : isDirectAppearance
+      ? "rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/20"
+      : "btn-bar mapache-modal-btn";
+  const footerSecondaryButtonClass = isLightAppearance
+    ? "rounded-full border border-transparent bg-[rgb(var(--primary))] px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-[rgb(var(--primary))]/90"
+    : isDirectAppearance
+      ? "rounded-full border border-transparent bg-white px-3 py-1.5 text-sm font-semibold text-[#3b0a69] hover:bg-white/90"
+      : "btn-bar mapache-modal-btn";
+  const progressTrackClass = isLightAppearance ? "h-3 w-full rounded bg-slate-200 overflow-hidden" : "h-3 w-full rounded bg-white/20 overflow-hidden";
+  const progressValueClass = isLightAppearance
+    ? "h-full bg-[rgb(var(--primary))]"
+    : isDirectAppearance
+      ? "h-full bg-gradient-to-r from-[#f6d3ff] via-[#d8b4fe] to-[#b794f4]"
+      : "h-full bg-white";
+  const backdropClassName = isLightAppearance
+    ? "bg-black/30"
+    : isMapacheAppearance
+      ? "bg-slate-950/75"
+      : isDirectAppearance
+        ? "bg-[rgba(59,10,105,0.65)]"
+        : "bg-black/60";
   return (
     <Modal
       open={open}
       onClose={onClose}
       title={profileT("title")}
-      variant="inverted"
-      panelClassName="max-w-full"
+      variant={isLightAppearance ? "default" : "inverted"}
+      headerClassName={headerClassName}
+      titleClassName={titleClassName}
+      panelClassName={panelClassName}
       panelStyle={{ maxWidth: "min(100vw - 32px, 1200px)" }}
+      backdropClassName={backdropClassName}
       footer={
         <div className="flex justify-between items-center w-full">
-          <div className="text-[12px] text-white/80">{profileT("periodSummary", { year, quarter, from: range.from, to: range.to })}</div>
+          <div className={footerSummaryClass}>
+            {profileT("periodSummary", { year, quarter, from: range.from, to: range.to })}
+          </div>
           <div className="flex gap-2">
-            <button
-              className="rounded-md bg-white text-[rgb(var(--primary))] px-3 py-2 text-sm font-medium hover:bg-white/90"
-              onClick={onClose}
-            >
+            <button className={footerPrimaryButtonClass} onClick={onClose}>
               {profileT("buttons.close")}
             </button>
             {canEdit && (
-              <button
-                className="rounded-md bg-white/10 border border-white/30 text-white px-3 py-2 text-sm font-semibold hover:bg-white/15"
-                onClick={save}
-              >
+              <button className={footerSecondaryButtonClass} onClick={save}>
                 {profileT("buttons.save")}
               </button>
             )}
@@ -304,7 +383,7 @@ export default function UserProfileModal({
         </div>
       }
     >
-      <div className="space-y-4 text-white">
+      <div className={`space-y-4 ${bodyTextClass}`}>
         {/* Encabezado */}
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 rounded-full flex items-center justify-center font-bold bg-white text-[rgb(var(--primary))]">
@@ -312,13 +391,13 @@ export default function UserProfileModal({
           </div>
           <div>
             <div className="text-base font-semibold">{name}</div>
-            <div className="text-sm text-white/90 inline-flex items-center gap-1">
+            <div className={`text-sm ${subtleTextClass} inline-flex items-center gap-1`}>
               <Mail className="h-4 w-4" />
               {email}
             </div>
           </div>
           {!isSelf && (viewer.role === "admin" || viewer.role === "lider") && (
-            <span className="ml-auto text-xs px-2 py-1 rounded bg-white/10 border border-white/20">
+            <span className={`ml-auto ${badgeClass}`}>
               {profileT("viewerBadge", { role: viewerRoleLabel })}
             </span>
           )}
@@ -326,15 +405,15 @@ export default function UserProfileModal({
 
         {/* Rol / Equipo */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="rounded-md border border-white/20 bg-white/10 px-3 py-2">
-            <div className="text-[12px] text-white/80 flex items-center gap-1 mb-0.5">
+          <div className={cardClass}>
+            <div className={`text-[12px] ${labelTextClass} flex items-center gap-1 mb-0.5`}>
               <Shield className="h-3.5 w-3.5" />
               {profileT("labels.role")}
             </div>
             <div className="font-medium">{role}</div>
           </div>
-          <div className="rounded-md border border-white/20 bg-white/10 px-3 py-2">
-            <div className="text-[12px] text-white/80 flex items-center gap-1 mb-0.5">
+          <div className={cardClass}>
+            <div className={`text-[12px] ${labelTextClass} flex items-center gap-1 mb-0.5`}>
               <Users2 className="h-3.5 w-3.5" />
               {profileT("labels.team")}
             </div>
@@ -347,7 +426,7 @@ export default function UserProfileModal({
           <label className="text-sm">
             {profileT("labels.year")}
             <select
-              className="select mt-1"
+              className={selectClassName}
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
             >
@@ -364,7 +443,7 @@ export default function UserProfileModal({
           <label className="text-sm">
             {profileT("labels.quarter")}
             <select
-              className="select mt-1"
+              className={selectClassName}
               value={quarter}
               onChange={(e) => setQuarter(Number(e.target.value) as 1 | 2 | 3 | 4)}
             >
@@ -378,7 +457,7 @@ export default function UserProfileModal({
             {profileT("labels.goal")}
             <div className="flex items-center gap-2 mt-1">
               <input
-                className="input w-full"
+                className={inputClassName}
                 type="number"
                 min={0}
                 value={inputAmount}
@@ -391,22 +470,22 @@ export default function UserProfileModal({
 
         {/* KPI cards */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
-            <div className="text-xs text-white/80">{metricsT("goal")}</div>
+          <div className={kpiCardClass}>
+            <div className={`text-xs ${labelTextClass}`}>{metricsT("goal")}</div>
             <div className="text-xl font-semibold">{formatUSD(goalAmount)}</div>
           </div>
-          <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
-            <div className="text-xs text-white/80">{metricsT("progress")}</div>
+          <div className={kpiCardClass}>
+            <div className={`text-xs ${labelTextClass}`}>{metricsT("progress")}</div>
             <div className="text-xl font-semibold">{formatUSD(wonAmount)}</div>
           </div>
-          <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
-            <div className="text-xs text-white/80">{metricsT("remaining")}</div>
+          <div className={kpiCardClass}>
+            <div className={`text-xs ${labelTextClass}`}>{metricsT("remaining")}</div>
             <div className="text-xl font-semibold">
               {formatUSD(Math.max(0, goalAmount - wonAmount))}
             </div>
           </div>
-          <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
-            <div className="text-xs text-white/80">{metricsT("pct")}</div>
+          <div className={kpiCardClass}>
+            <div className={`text-xs ${labelTextClass}`}>{metricsT("pct")}</div>
             <div className="text-xl font-semibold">{pct.toFixed(1)}%</div>
           </div>
         </div>
@@ -414,7 +493,7 @@ export default function UserProfileModal({
         {canAddManual && (
           <div className="flex justify-end">
             <button
-              className="rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
+              className={manualButtonClass}
               onClick={() => setManualOpen(true)}
               type="button"
             >
@@ -424,12 +503,9 @@ export default function UserProfileModal({
         )}
 
         {/* Barra de progreso */}
-        <div className="rounded-md border border-white/20 bg-white/10 px-3 py-3">
-          <div className="h-3 w-full rounded bg-white/20 overflow-hidden" title={`${pct.toFixed(1)}%`}>
-            <div
-              className="h-full bg-white"
-              style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
-            />
+        <div className={kpiCardClass}>
+          <div className={progressTrackClass} title={`${pct.toFixed(1)}%`}>
+            <div className={progressValueClass} style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
           </div>
         </div>
       </div>
@@ -456,4 +532,5 @@ export default function UserProfileModal({
     </Modal>
   );
 }
+
 

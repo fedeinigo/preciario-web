@@ -1,13 +1,25 @@
 "use client";
 
+import * as React from "react";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import LanguageSelector from "@/app/components/LanguageSelector";
 import { useTranslations } from "@/app/LanguageProvider";
 
 export default function AuthLoginCard() {
   const t = useTranslations("auth.login");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams?.get("callbackUrl") ?? pathname ?? "/";
+  const [isSigningIn, setIsSigningIn] = React.useState(false);
+
+  const handleGoogleSignIn = () => {
+    if (isSigningIn) return;
+    setIsSigningIn(true);
+    void signIn("google", { callbackUrl }).finally(() => setIsSigningIn(false));
+  };
 
   return (
     <div className="hero-bg min-h-[calc(100vh-var(--nav-h)-var(--footer-h))] w-full flex items-center justify-center px-4 py-10">
@@ -36,9 +48,17 @@ export default function AuthLoginCard() {
 
           <div className="px-8 sm:px-12 pt-8 pb-8">
             <button
-              onClick={() => signIn("google", { callbackUrl: "/" })}
-              className="group w-full rounded-xl border border-white/20 bg-white text-[15px] sm:text-base font-semibold text-gray-800 hover:bg-white transition-all duration-300 inline-flex items-center justify-center gap-3 px-5 py-3.5 shadow-lg hover:shadow-2xl hover:shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden"
+              onClick={handleGoogleSignIn}
+              className="group w-full rounded-xl border border-white/20 bg-white text-[15px] sm:text-base font-semibold text-gray-800 hover:bg-white transition-all duration-300 inline-flex items-center justify-center gap-3 px-5 py-3.5 shadow-lg hover:shadow-2xl hover:shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden disabled:cursor-wait disabled:opacity-70"
+              disabled={isSigningIn}
+              aria-busy={isSigningIn}
             >
+              {isSigningIn ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute left-4 inline-flex h-3 w-3 rounded-full bg-slate-600 animate-pulse"
+                />
+              ) : null}
               <div className="absolute inset-0 bg-gradient-to-r from-purple-50/0 via-purple-100/30 to-purple-50/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <Image
                 src="/google-logo.png"
