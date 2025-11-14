@@ -49,87 +49,91 @@ export default function TeamRankingCard({ rows, loading, effectiveTeam }: Props)
   }, []);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-[#eadeff] bg-gradient-to-br from-white via-white to-[#f4f0ff] p-6 shadow-[0_24px_60px_rgba(79,29,149,0.12)]">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7c3aed]">
-            {t("title")}
-          </p>
-          <h3 className="mt-1 text-2xl font-semibold text-[#2f0f5d]">
-            {effectiveTeam ? t("subtitle", { team: effectiveTeam }) : t("subtitleNoTeam")}
-          </h3>
-        </div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#c4b5fd] bg-white p-1 text-xs font-semibold text-[#4c1d95] shadow-sm">
-          <button
-            className={`rounded-full px-3 py-1 transition ${mode === "deals" ? "bg-[#ede9fe]" : ""}`}
-            onClick={() => setMode("deals")}
-            type="button"
-          >
-            {t("modeDeals")}
-          </button>
-          <button
-            className={`rounded-full px-3 py-1 transition ${mode === "amount" ? "bg-[#ede9fe]" : ""}`}
-            onClick={() => setMode("amount")}
-            type="button"
-          >
-            {t("modeAmount")}
-          </button>
+    <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/60 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.04)]">
+      <div className="bg-gradient-to-r from-purple-50 to-white px-6 py-5 border-b border-slate-100">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-purple-600">
+              {t("title")}
+            </p>
+            <h3 className="mt-1.5 text-2xl font-bold text-slate-900">
+              {effectiveTeam ? t("subtitle", { team: effectiveTeam }) : t("subtitleNoTeam")}
+            </h3>
+          </div>
+          <div className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1 text-xs font-semibold shadow-sm">
+            <button
+              className={`rounded-xl px-4 py-2 transition ${mode === "deals" ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-sm" : "text-slate-700 hover:bg-slate-50"}`}
+              onClick={() => setMode("deals")}
+              type="button"
+            >
+              {t("modeDeals")}
+            </button>
+            <button
+              className={`rounded-xl px-4 py-2 transition ${mode === "amount" ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-sm" : "text-slate-700 hover:bg-slate-50"}`}
+              onClick={() => setMode("amount")}
+              type="button"
+            >
+              {t("modeAmount")}
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="mt-6 flex-1 space-y-3">
-        {!effectiveTeam ? (
-          <div className="rounded-3xl border border-dashed border-[#d8c7ff] bg-[#faf7ff] p-6 text-sm text-[#5b21b6]">
-            {t("emptyTeam")}
-          </div>
-        ) : loading ? (
-          <div className="rounded-3xl border border-dashed border-[#d8c7ff] bg-[#faf7ff] p-6 text-sm text-[#5b21b6]">
-            {t("loading")}
-          </div>
-        ) : ranked.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-[#d8c7ff] bg-[#faf7ff] p-6 text-sm text-[#5b21b6]">
-            {t("empty")}
-          </div>
-        ) : (
-          ranked.slice(0, 6).map((row, index) => (
-            <div
-              key={row.userId}
-              className="flex items-center justify-between gap-4 rounded-3xl border border-[#efe7ff] bg-white px-5 py-4 shadow-[0_12px_30px_rgba(124,58,237,0.08)]"
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#ede9fe] text-base font-semibold text-[#5b21b6]">
-                  {initialsFor(row.name, row.email)}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[#2f0f5d]">{displayName(row)}</p>
-                  {row.email && <p className="text-xs text-[#7c3aed]">{row.email}</p>}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="mb-1 flex justify-end">
-                  <span className="inline-flex rounded-full bg-[#ede9fe] px-3 py-0.5 text-[11px] font-semibold text-[#5b21b6]">
-                    {t("positionLabel", { position: index + 1 })}
-                  </span>
-                </div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#7c3aed]">
-                  {mode === "deals" ? t("dealsLabel") : t("amountLabel")}
-                </p>
-                <p className="text-lg font-semibold text-[#2f0f5d]">
-                  {mode === "deals" ? row.deals : formatUSD(row.progress)}
-                </p>
-                {mode === "amount" ? (
-                  <p className="text-xs text-[#6d28d9]">
-                    {t("dealsCount", { count: row.deals })}
-                  </p>
-                ) : (
-                  <p className="text-xs text-[#6d28d9]">
-                    {t("amountShort", { amount: formatUSD(row.progress) })}
-                  </p>
-                )}
-              </div>
+      <div className="p-6 flex-1 overflow-y-auto">
+        <div className="space-y-3">
+          {!effectiveTeam ? (
+            <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-8 text-center">
+              <p className="text-sm text-purple-900 font-medium">{t("emptyTeam")}</p>
             </div>
-          ))
-        )}
+          ) : loading ? (
+            <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-8 text-center">
+              <p className="text-sm text-purple-900 font-medium">{t("loading")}</p>
+            </div>
+          ) : ranked.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-8 text-center">
+              <p className="text-sm text-purple-900 font-medium">{t("empty")}</p>
+            </div>
+          ) : (
+            ranked.slice(0, 6).map((row, index) => (
+              <div
+                key={row.userId}
+                className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/60 bg-gradient-to-br from-white to-slate-50/30 px-5 py-4 shadow-sm hover:shadow-md transition-all"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-100 to-purple-50 border border-purple-200/50 text-base font-bold text-purple-700">
+                    {initialsFor(row.name, row.email)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{displayName(row)}</p>
+                    {row.email && <p className="text-xs text-slate-500 font-medium">{row.email}</p>}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="mb-1 flex justify-end">
+                    <span className="inline-flex rounded-xl bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-1 text-[11px] font-bold text-white shadow-sm">
+                      {t("positionLabel", { position: index + 1 })}
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-purple-600">
+                    {mode === "deals" ? t("dealsLabel") : t("amountLabel")}
+                  </p>
+                  <p className="text-lg font-bold text-slate-900">
+                    {mode === "deals" ? row.deals : formatUSD(row.progress)}
+                  </p>
+                  {mode === "amount" ? (
+                    <p className="text-xs font-medium text-slate-500">
+                      {t("dealsCount", { count: row.deals })}
+                    </p>
+                  ) : (
+                    <p className="text-xs font-medium text-slate-500">
+                      {t("amountShort", { amount: formatUSD(row.progress) })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
