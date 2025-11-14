@@ -20,6 +20,7 @@ export type AdminUser = {
 export type UseAdminUsersOptions = {
   isSuperAdmin?: boolean;
   isLeader?: boolean;
+  enabled?: boolean; // Explicit flag to control fetching
 };
 
 let cache: AdminUser[] | null = null;
@@ -72,8 +73,9 @@ async function ensureAdminUsers(force = false): Promise<AdminUser[]> {
 }
 
 export function useAdminUsers(options: UseAdminUsersOptions = {}) {
-  const { isSuperAdmin = false, isLeader = false } = options;
-  const enabled = isSuperAdmin || isLeader;
+  const { isSuperAdmin = false, isLeader = false, enabled: enabledOverride } = options;
+  // Allow explicit enabled flag to override role-based enablement
+  const enabled = enabledOverride !== undefined ? enabledOverride : (isSuperAdmin || isLeader);
 
   const [users, setUsers] = useState<AdminUser[]>(() => (cache ? [...cache] : []));
   const [loading, setLoading] = useState<boolean>(enabled && !cache && !lastError);

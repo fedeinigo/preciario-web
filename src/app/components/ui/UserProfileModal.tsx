@@ -68,21 +68,28 @@ export default function UserProfileModal({
   }, [targetUser, viewer]);
 
   const [resolvedTarget, setResolvedTarget] = useState<TargetUser>(baseTarget);
-
-  const { users: adminUsers } = useAdminUsers({
-    isSuperAdmin: viewer.role === "admin",
-    isLeader: viewer.role === "lider",
-  });
-
+  
+  // Update resolvedTarget when baseTarget changes
   useEffect(() => {
     setResolvedTarget(baseTarget);
   }, [baseTarget]);
+
+  // Only fetch admin users if we're missing critical data for enrichment
+  // Use resolvedTarget since it updates after baseTarget sync
+  const hasCompleteData = !!(resolvedTarget.team && resolvedTarget.id && resolvedTarget.role && resolvedTarget.name);
+  const { users: adminUsers } = useAdminUsers({
+    isSuperAdmin: viewer.role === "admin",
+    isLeader: viewer.role === "lider",
+    enabled: !hasCompleteData, // Explicitly disable fetch when we have complete data
+  });
 
   useEffect(() => {
     if (!open) return;
 
     const needsEnrichment = !resolvedTarget.team || !resolvedTarget.id || !resolvedTarget.role || !resolvedTarget.name;
     if (!needsEnrichment) return;
+    
+    // Only try enrichment if we have admin users loaded
     if (!adminUsers.length) return;
 
     const match = adminUsers.find(

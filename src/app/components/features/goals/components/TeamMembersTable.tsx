@@ -11,6 +11,8 @@ export type TeamGoalRow = {
   userId: string;
   email: string | null;
   name: string | null;
+  role?: string | null;
+  team?: string | null;
   goal: number;
   progress: number;
   pct: number; // puede superar 100
@@ -33,7 +35,7 @@ export default function TeamMembersTable({
   canEdit: boolean;
   canAddManual: boolean;
   onEditGoal: (userId: string, amount: number) => Promise<boolean> | boolean;
-  onOpenProfile: (u: { id: string; email: string | null; name: string | null }) => void;
+  onOpenProfile: (u: { id: string; email: string | null; name: string | null; role?: string | null; team?: string | null }) => void;
   onAddManual: (u: { id: string; email: string | null; name: string | null }) => void;
 }) {
   const t = useTranslations("goals.table");
@@ -365,7 +367,7 @@ export default function TeamMembersTable({
                       <>
                         <button
                           className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold bg-white border border-slate-300 text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-400 transition"
-                          onClick={() => onOpenProfile({ id: r.userId, email: r.email, name: r.name })}
+                          onClick={() => onOpenProfile({ id: r.userId, email: r.email, name: r.name, role: r.role, team: r.team })}
                         >
                           {actionsT("profile")}
                         </button>

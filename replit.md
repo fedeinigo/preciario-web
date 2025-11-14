@@ -10,6 +10,41 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## Goals Page Optimizations (November 2025)
+
+### Performance Optimization: UserProfileModal Loading Speed (Completed)
+
+**Problem identified:**
+- UserProfileModal was very slow to load when opening user profiles from Goals page
+- Sometimes displayed incorrect user data initially
+- Root cause: Modal always fetched all admin users to "enrich" missing role/team data, even when that data was already available
+
+**Solution implemented:**
+
+1. **API Enhancement** (`/api/goals/team/route.ts`):
+   - Added `role` and `team` fields to member select and response
+   - Ensures complete user data is returned for each team member
+
+2. **Data Flow Optimization**:
+   - Updated types to include `role` and `team` throughout the chain (TeamMemberResponse → TeamGoalRow)
+   - GoalsPage now passes complete user data (id, email, name, role, team) when opening profiles
+   - Uses team from API data instead of relying on effectiveTeam state
+
+3. **useAdminUsers Hook Enhancement**:
+   - Added explicit `enabled` parameter to control fetching
+   - When `enabled=false`, hook completely skips the admin users fetch
+
+4. **UserProfileModal Smart Loading**:
+   - Calculates `hasCompleteData` based on whether all required fields are present (team, id, role, name)
+   - Only enables useAdminUsers fetch when data is incomplete
+   - When opening from Goals page with complete data → no fetch → instant load
+
+**Expected outcome:**
+- Profile modal opens instantly from Goals page (no unnecessary API calls)
+- Correct user data displayed immediately
+- Enrichment still works in other contexts where data is incomplete
+- Significant performance improvement for most common use case
+
 ## Goals Page UX Improvements (November 2025)
 
 ### Phase 1: UX Enhancements (Completed)

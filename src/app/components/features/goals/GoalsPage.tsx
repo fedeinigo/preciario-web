@@ -31,6 +31,8 @@ type TeamMemberResponse = {
   userId?: string | number;
   email?: string | null;
   name?: string | null;
+  role?: string | null;
+  team?: string | null;
   goal?: number | string;
   progress?: number | string;
   pct?: number | string;
@@ -224,6 +226,8 @@ export default function GoalsPage({
           userId: String(member.userId ?? ""),
           email: member.email ?? null,
           name: member.name ?? null,
+          role: member.role ?? null,
+          team: member.team ?? null,
           goal: Number(member.goal ?? 0),
           progress: Number(member.progress ?? 0),
           pct: Number(member.pct ?? 0),
@@ -435,7 +439,7 @@ export default function GoalsPage({
 
   const [profileOpen, setProfileOpen] = React.useState(false);
   const [profileUser, setProfileUser] = React.useState<
-    { id: string; email: string | null; name: string | null; team?: string | null } | null
+    { id: string; email: string | null; name: string | null; team?: string | null; role?: string | null } | null
   >(null);
 
   const sumMembersGoal = React.useMemo(
@@ -588,7 +592,8 @@ export default function GoalsPage({
                 canAddManual={canAddManual}
                 onEditGoal={saveUserGoal}
                 onOpenProfile={(u) => {
-                  setProfileUser({ ...u, team: effectiveTeam });
+                  // Use team from row (API) instead of effectiveTeam to ensure it's always present
+                  setProfileUser({ ...u, team: u.team ?? effectiveTeam, role: u.role });
                   setProfileOpen(true);
                 }}
                 onAddManual={(u) =>
