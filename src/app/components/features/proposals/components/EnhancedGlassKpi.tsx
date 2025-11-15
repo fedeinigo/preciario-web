@@ -14,6 +14,7 @@ interface EnhancedGlassKpiProps {
   };
   icon?: React.ReactNode;
   tooltip?: string;
+  onClick?: () => void;
 }
 
 export function EnhancedGlassKpi({
@@ -25,6 +26,7 @@ export function EnhancedGlassKpi({
   comparison,
   icon,
   tooltip,
+  onClick,
 }: EnhancedGlassKpiProps) {
   const trendIcon = {
     up: <TrendingUp className="h-4 w-4 text-green-600" />,
@@ -39,7 +41,13 @@ export function EnhancedGlassKpi({
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-purple-100 bg-gradient-to-br from-white to-purple-50/30 p-5 shadow-lg shadow-purple-100/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-200/60">
+    <div 
+      className={`group relative overflow-hidden rounded-2xl border border-purple-100 bg-gradient-to-br from-white to-purple-50/30 p-5 shadow-lg shadow-purple-100/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-200/60 ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); } : undefined}
+    >
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-purple-200/40 to-transparent blur-2xl transition-all duration-300 group-hover:scale-125"

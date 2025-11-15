@@ -993,49 +993,54 @@ export default function Stats({
         columns={drillDownData?.columns || []}
       />
       
-      <div className="p-4">
-      <GradientShell>
-        <header className="flex flex-col gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-slate-50 p-6">
+        <div className="mx-auto max-w-[1600px] space-y-6">
           
-          <div className="grid gap-4 lg:grid-cols-2">
-            <SavedFiltersManager
-              currentFilters={{
-                from,
-                to,
-                teamFilter,
-                countryFilter,
-                userFilter,
-                orderKey,
-                orderDir,
-              }}
-              onApplyFilter={handleApplyFilters}
-              userEmail={currentEmail}
-            />
-            
-            <RefreshIndicator
-              onRefresh={handleManualRefresh}
-              lastUpdated={lastUpdated}
-              hasNewData={hasNewData}
-            />
-          </div>
-        </header>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_18px_48px_rgba(60,3,140,0.12)]">
-          <div className="flex flex-col gap-4">
-            <div>
-              <QuickRanges from={from} to={to} setFrom={setFrom} setTo={setTo} />
-            </div>
-            <div className="rounded-2xl border border-brand-primary/20 bg-brand-primary/5 px-4 py-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
-                  {filtersT("active.title")}
-                </p>
-                <p className="text-xs text-slate-500" aria-live="polite">
-                  {filtersSummaryText}
-                </p>
+          {/* ==================== TIER 1: FILTERS ==================== */}
+          <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur-sm">
+            <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h1 className="bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-2xl font-bold tracking-tight text-transparent">
+                  {t("title")}
+                </h1>
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <SavedFiltersManager
+                  currentFilters={{
+                    from,
+                    to,
+                    teamFilter,
+                    countryFilter,
+                    userFilter,
+                    orderKey,
+                    orderDir,
+                  }}
+                  onApplyFilter={handleApplyFilters}
+                  userEmail={currentEmail}
+                />
+                <RefreshIndicator
+                  onRefresh={handleManualRefresh}
+                  lastUpdated={lastUpdated}
+                  hasNewData={hasNewData}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50/50 to-white p-5">
+              <div className="mb-4">
+                <QuickRanges from={from} to={to} setFrom={setFrom} setTo={setTo} />
+              </div>
+              
+              <div className="mb-4 rounded-xl border border-purple-200/40 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600">
+                    {filtersT("active.title")}
+                  </span>
+                  <span className="text-xs text-slate-500" aria-live="polite">
+                    {filtersSummaryText}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
                 {activeFilters.length ? (
                   activeFilters.map((filter) => (
                     <button
@@ -1055,9 +1060,10 @@ export default function Stats({
                 ) : (
                   <span className="text-xs text-slate-500">{filtersT("active.none")}</span>
                 )}
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
                   {filtersT("from")}
@@ -1168,109 +1174,133 @@ export default function Stats({
                   )}
                 </select>
               </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-end">
-                <button
-                  type="button"
-                  className={secondaryButtonClass}
-                  onClick={() => {
-                    setFrom("");
-                    setTo("");
-                    setTeamFilter("");
-                    setCountryFilter("");
-                    setUserFilter("");
-                    setOrderKey("createdAt");
-                    setOrderDir("desc");
-                    setTopN(20);
-                    setShowAll(false);
-                    toast.info(toastT("reset"));
-                  }}
-                >
-                  {actionsT("reset")}
-                </button>
-                <button
-                  type="button"
-                  className={primaryButtonClass}
-                  onClick={exportFilteredProposalsCsv}
-                >
-                  {actionsT("exportFiltered")}
-                </button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-end xl:col-span-2">
+                  <button
+                    type="button"
+                    className={secondaryButtonClass}
+                    onClick={() => {
+                      setFrom("");
+                      setTo("");
+                      setTeamFilter("");
+                      setCountryFilter("");
+                      setUserFilter("");
+                      setOrderKey("createdAt");
+                      setOrderDir("desc");
+                      setTopN(20);
+                      setShowAll(false);
+                      toast.info(toastT("reset"));
+                    }}
+                  >
+                    {actionsT("reset")}
+                  </button>
+                  <button
+                    type="button"
+                    className={primaryButtonClass}
+                    onClick={exportFilteredProposalsCsv}
+                  >
+                    {actionsT("exportFiltered")}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-          <EnhancedGlassKpi
-            label={kpisT("generated")}
-            value={String(subset.length)}
-            data={sparklineSubsetCount}
-            onClick={() =>
-              openDrillDown("All Proposals", subset, [
-                { key: "companyName", label: "Company" },
-                { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
-                { key: "status", label: "Status" },
-                { key: "createdAt", label: "Created", format: (v) => new Date(v).toLocaleDateString() },
-              ])
-            }
-          />
-          <EnhancedGlassKpi
-            label={kpisT("uniqueUsers")}
-            value={String(uniqueUsers)}
-            data={sparklineUniqueUsers}
-          />
-          <EnhancedGlassKpi
-            label={kpisT("uniqueCompanies")}
-            value={String(uniqueCompanies)}
-            data={sparklineUniqueCompanies}
-          />
-          <EnhancedGlassKpi
-            label={kpisT("totalMonthly")}
-            value={formatUSD(totalMonthly)}
-            data={sparklineTotalMonthly}
-          />
-          <EnhancedGlassKpi
-            label={kpisT("averagePerProposal")}
-            value={formatUSD(avgPerProposal)}
-            data={sparklineAvgPerProposal}
-          />
-        </section>
+          {/* ==================== TIER 2: KEY METRICS ==================== */}
+          <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur-sm">
+            <div className="mb-5">
+              <h2 className="bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-lg font-bold uppercase tracking-wide text-transparent">
+                {kpisT("title") || "Key Metrics"}
+              </h2>
+            </div>
 
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-          <EnhancedGlassKpi
-            label={kpisT("wonCount")}
-            value={String(wonCount)}
-            data={sparklineWonCount}
-            onClick={() =>
-              openDrillDown("Won Proposals", wonRows, [
-                { key: "companyName", label: "Company" },
-                { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
-                { key: "createdAt", label: "Created", format: (v) => new Date(v).toLocaleDateString() },
-              ])
-            }
-          />
-          <EnhancedGlassKpi
-            label={kpisT("wonAmount")}
-            value={formatUSD(wonAmount)}
-            data={sparklineWonAmount}
-          />
-          <EnhancedGlassKpi
-            label={kpisT("winRate")}
-            value={`${winRate.toFixed(1)}%`}
-            data={sparklineWinRate}
-          />
-          <EnhancedGlassKpi
-            label={kpisT("wonAverageTicket")}
-            value={formatUSD(wonAvgTicket)}
-            data={sparklineWonAvgTicket}
-          />
-        </section>
+            {/* Row 1: 3 Primary KPIs */}
+            <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <EnhancedGlassKpi
+                label={kpisT("generated")}
+                value={String(subset.length)}
+                sparklineData={sparklineSubsetCount}
+                onClick={() =>
+                  openDrillDown("All Proposals", subset, [
+                    { key: "companyName", label: "Company" },
+                    { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
+                    { key: "status", label: "Status" },
+                    { key: "createdAt", label: "Created", format: (v) => typeof v === 'string' || typeof v === 'number' || v instanceof Date ? new Date(v).toLocaleDateString() : String(v) },
+                  ])
+                }
+              />
+              <EnhancedGlassKpi
+                label={kpisT("uniqueUsers")}
+                value={String(uniqueUsers)}
+                sparklineData={sparklineUniqueUsers}
+              />
+              <EnhancedGlassKpi
+                label={kpisT("uniqueCompanies")}
+                value={String(uniqueCompanies)}
+                sparklineData={sparklineUniqueCompanies}
+              />
+            </div>
 
-        <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-          <div className="xl:col-span-6">
-            <ChartCard
-              title={chartsT("countryLeaderboard.title")}
-              description={chartsT("countryLeaderboard.description")}
-            >
+            {/* Row 2: 3 Revenue KPIs */}
+            <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <EnhancedGlassKpi
+                label={kpisT("totalMonthly")}
+                value={formatUSD(totalMonthly)}
+                sparklineData={sparklineTotalMonthly}
+              />
+              <EnhancedGlassKpi
+                label={kpisT("averagePerProposal")}
+                value={formatUSD(avgPerProposal)}
+                sparklineData={sparklineAvgPerProposal}
+              />
+              <EnhancedGlassKpi
+                label={kpisT("wonCount")}
+                value={String(wonCount)}
+                sparklineData={sparklineWonCount}
+                onClick={() =>
+                  openDrillDown("Won Proposals", wonRows, [
+                    { key: "companyName", label: "Company" },
+                    { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
+                    { key: "createdAt", label: "Created", format: (v) => typeof v === 'string' || typeof v === 'number' || v instanceof Date ? new Date(v).toLocaleDateString() : String(v) },
+                  ])
+                }
+              />
+            </div>
+
+            {/* Row 3: 3 Won Metrics */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <EnhancedGlassKpi
+                label={kpisT("wonAmount")}
+                value={formatUSD(wonAmount)}
+                sparklineData={sparklineWonAmount}
+              />
+              <EnhancedGlassKpi
+                label={kpisT("winRate")}
+                value={`${winRate.toFixed(1)}%`}
+                sparklineData={sparklineWinRate}
+              />
+              <EnhancedGlassKpi
+                label={kpisT("wonAverageTicket")}
+                value={formatUSD(wonAvgTicket)}
+                sparklineData={sparklineWonAvgTicket}
+              />
+            </div>
+            </section>
+
+          {/* ==================== TIER 3: DEEP DIVE ANALYSIS ==================== */}
+          <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur-sm">
+            <div className="mb-5">
+              <h2 className="bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-lg font-bold uppercase tracking-wide text-transparent">
+                {sectionsT("deepDive") || "Deep Dive Analysis"}
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+              {/* LEFT COLUMN: Charts */}
+              <div className="space-y-6 lg:col-span-7">
+                <ChartCard
+                  title={chartsT("countryLeaderboard.title")}
+                  description={chartsT("countryLeaderboard.description")}
+                >
               {loading ? (
                 <ChartSkeleton />
               ) : (
@@ -1284,43 +1314,42 @@ export default function Stats({
                       { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
                       { key: "status", label: "Status" },
                       { key: "userEmail", label: "User" },
-                      { key: "createdAt", label: "Created", format: (v) => new Date(v).toLocaleDateString() },
+                      { key: "createdAt", label: "Created", format: (v) => typeof v === 'string' || typeof v === 'number' || v instanceof Date ? new Date(v).toLocaleDateString() : String(v) },
                     ]);
                   }}
                 />
               )}
-            </ChartCard>
-          </div>
-          <div className="xl:col-span-6">
-            <ChartCard
-              title={chartsT("skuMomentum.title")}
-              description={chartsT("skuMomentum.description")}
-            >
-              {loading ? (
-                <ChartSkeleton />
-              ) : (
-                <HorizontalBarList
-                  data={skuChartData}
-                  emptyMessage={chartsEmptyLabel}
-                  onBarClick={(sku) => {
-                    const skuProposals = subset.filter((p) =>
-                      p.items.some((item: any) => item.itemCode === sku)
-                    );
-                    openDrillDown(`Proposals with SKU: ${sku}`, skuProposals, [
-                      { key: "companyName", label: "Company" },
-                      { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
-                      { key: "country", label: "Country" },
-                      { key: "status", label: "Status" },
-                      { key: "createdAt", label: "Created", format: (v) => new Date(v).toLocaleDateString() },
-                    ]);
-                  }}
-                />
-              )}
-            </ChartCard>
-          </div>
-        </section>
+                </ChartCard>
 
-        <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <ChartCard
+                  title={chartsT("skuMomentum.title")}
+                  description={chartsT("skuMomentum.description")}
+                >
+                  {loading ? (
+                    <ChartSkeleton />
+                  ) : (
+                    <HorizontalBarList
+                      data={skuChartData}
+                      emptyMessage={chartsEmptyLabel}
+                      onBarClick={(sku) => {
+                        const skuProposals = subset.filter((p) =>
+                          p.items?.some((item: any) => item.itemCode === sku) ?? false
+                        );
+                        openDrillDown(`Proposals with SKU: ${sku}`, skuProposals, [
+                          { key: "companyName", label: "Company" },
+                          { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
+                          { key: "country", label: "Country" },
+                          { key: "status", label: "Status" },
+                          { key: "createdAt", label: "Created", format: (v) => typeof v === 'string' || typeof v === 'number' || v instanceof Date ? new Date(v).toLocaleDateString() : String(v) },
+                        ]);
+                      }}
+                    />
+                  )}
+                </ChartCard>
+              </div>
+
+              {/* RIGHT COLUMN: Tables */}
+              <div className="space-y-6 lg:col-span-5">
           <TableCard
             title={sectionsT("bySku.title")}
             actions={
@@ -1394,7 +1423,7 @@ export default function Stats({
                         className="cursor-pointer transition-colors hover:bg-purple-50"
                         onClick={() => {
                           const skuProposals = subset.filter((p) =>
-                            p.items.some((item: any) => item.itemCode === sku)
+                            p.items?.some((item: any) => item.itemCode === sku) ?? false
                           );
                           openDrillDown(`Proposals with SKU: ${sku} (${info.name})`, skuProposals, [
                             { key: "companyName", label: "Company" },
@@ -1402,7 +1431,7 @@ export default function Stats({
                             { key: "country", label: "Country" },
                             { key: "status", label: "Status" },
                             { key: "userEmail", label: "User" },
-                            { key: "createdAt", label: "Created", format: (v) => new Date(v).toLocaleDateString() },
+                            { key: "createdAt", label: "Created", format: (v) => typeof v === 'string' || typeof v === 'number' || v instanceof Date ? new Date(v).toLocaleDateString() : String(v) },
                           ]);
                         }}
                       >
@@ -1463,7 +1492,7 @@ export default function Stats({
                           { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
                           { key: "status", label: "Status" },
                           { key: "userEmail", label: "User" },
-                          { key: "createdAt", label: "Created", format: (v) => new Date(v).toLocaleDateString() },
+                          { key: "createdAt", label: "Created", format: (v) => typeof v === 'string' || typeof v === 'number' || v instanceof Date ? new Date(v).toLocaleDateString() : String(v) },
                         ]);
                       }}
                     >
@@ -1491,55 +1520,57 @@ export default function Stats({
                   : tableT("country.footer.total", { count: byCountryFull.length })}
               </div>
             )}
-          </TableCard>
-        </section>
+                </TableCard>
 
-        <TableCard
-          title={sectionsT("byUser.title")}
-          actions={
-            <button
-              type="button"
-              className={secondaryButtonClass}
-              onClick={exportUserCsv}
-              title={actionsT("csvTooltip")}
-            >
-              {actionsT("csvButton")}
-            </button>
-          }
-        >
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead>
-              <tr>
-                <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
-                  {tableT("user.headers.user")}
-                </th>
-                <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
-                  {tableT("user.headers.proposals")}
-                </th>
-              </tr>
-            </thead>
-            {loading ? (
-              <TableSkeleton rows={3} cols={2} />
-            ) : (
-              <tbody className="divide-y divide-slate-200">
-                {byUser.map(([email, total]) => (
-                  <tr key={email}>
-                    <td className="px-5 py-3 text-slate-600">{email}</td>
-                    <td className="px-5 py-3 text-right text-brand-primary font-semibold">{total}</td>
-                  </tr>
-                ))}
-                {!loading && byUser.length === 0 && (
-                  <tr>
-                    <td className="px-5 py-3 text-center text-sm text-slate-500" colSpan={2}>
-                      {tableT("empty")}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            )}
-          </table>
-        </TableCard>
-      </GradientShell>
+                <TableCard
+                  title={sectionsT("byUser.title")}
+                  actions={
+                    <button
+                      type="button"
+                      className={secondaryButtonClass}
+                      onClick={exportUserCsv}
+                      title={actionsT("csvTooltip")}
+                    >
+                      {actionsT("csvButton")}
+                    </button>
+                  }
+                >
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead>
+                      <tr>
+                        <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
+                          {tableT("user.headers.user")}
+                        </th>
+                        <th className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">
+                          {tableT("user.headers.proposals")}
+                        </th>
+                      </tr>
+                    </thead>
+                    {loading ? (
+                      <TableSkeleton rows={3} cols={2} />
+                    ) : (
+                      <tbody className="divide-y divide-slate-200">
+                        {byUser.map(([email, total]) => (
+                          <tr key={email}>
+                            <td className="px-5 py-3 text-slate-600">{email}</td>
+                            <td className="px-5 py-3 text-right text-brand-primary font-semibold">{total}</td>
+                          </tr>
+                        ))}
+                        {!loading && byUser.length === 0 && (
+                          <tr>
+                            <td className="px-5 py-3 text-center text-sm text-slate-500" colSpan={2}>
+                              {tableT("empty")}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    )}
+                  </table>
+                </TableCard>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
     </>
   );
