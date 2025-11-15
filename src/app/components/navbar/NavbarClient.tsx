@@ -335,7 +335,6 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const rawTeam = (session?.user?.team as string | null) ?? null;
   const team = normalizeProfileText(rawTeam) || fallbacksT("team");
   const name = normalizeProfileText(session?.user?.name) || fallbacksT("name");
-  const email = session?.user?.email ?? fallbacksT("email");
   const isAdminRole = ADMIN_ROLES.has(appRole);
   const showConfigurationsShortcut =
     showAuthActions &&

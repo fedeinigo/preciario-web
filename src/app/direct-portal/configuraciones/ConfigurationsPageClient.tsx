@@ -12,7 +12,6 @@ import {
   Unlock,
   Loader2,
   Search,
-  Filter,
   Globe,
   ArrowRight,
 } from "lucide-react";
@@ -33,12 +32,6 @@ type TeamRow = { id: string; name: string };
 
 type ConfigurationsPageClientProps = {
   isAdmin: boolean;
-};
-
-type TeamsStoreState = {
-  teams: TeamRow[];
-  loading: boolean;
-  error: string | null;
 };
 
 let teamFetchCount = 0;
@@ -178,7 +171,7 @@ export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPage
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {summarySections.map(({ id, href, title, description: desc, Icon, gradient, stat, statLabel }) => (
+        {summarySections.map(({ id, href, title, description: desc, Icon, stat, statLabel }) => (
           <Link
             key={id}
             href={href}
@@ -570,7 +563,7 @@ function TeamManagementPanel({
                             <span className="text-2xl font-bold text-slate-900">{members.length}</span>
                             {teamMembers.length > 0 && (
                               <div className="flex -space-x-2">
-                                {teamMembers.slice(0, 3).map((member, idx) => (
+                                {teamMembers.slice(0, 3).map((member) => (
                                   <div
                                     key={member.id}
                                     className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-slate-400 to-slate-500 text-xs font-semibold text-white shadow-md"
