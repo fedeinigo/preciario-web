@@ -3686,6 +3686,8 @@ const messages: DeepRecord = {
 
         sections: {
 
+          deepDive: "Análise aprofundada",
+
           bySku: {
 
             title: "Itens mais cotados (por SKU)",

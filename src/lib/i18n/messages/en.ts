@@ -3696,6 +3696,8 @@ const messages: DeepRecord = {
 
         sections: {
 
+          deepDive: "Deep dive",
+
           bySku: {
 
             title: "Top quoted items (by SKU)",
