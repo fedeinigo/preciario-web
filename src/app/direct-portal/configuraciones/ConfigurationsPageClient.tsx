@@ -636,7 +636,7 @@ function TeamManagementPanel({
       <Modal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
-        title={<span className="text-base font-semibold">{teamPanelT("form.title")}</span>}
+        title={teamPanelT("form.title")}
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-600">{teamPanelT("form.subtitle")}</p>
@@ -678,7 +678,7 @@ function TeamManagementPanel({
       <Modal
         open={Boolean(renameTeam)}
         onClose={() => setRenameTeam(null)}
-        title={<span className="text-base font-semibold">{teamPanelT("rename.title")}</span>}
+        title={teamPanelT("rename.title")}
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-600">{teamPanelT("rename.description")}</p>
@@ -713,11 +713,7 @@ function TeamManagementPanel({
       <Modal
         open={Boolean(portalTeam)}
         onClose={() => setPortalTeam(null)}
-        title={
-          <span className="text-base font-semibold">
-            {teamPanelT("portals.title", { team: portalTeam?.name ?? "" })}
-          </span>
-        }
+        title={teamPanelT("portals.title", { team: portalTeam?.name ?? "" })}
       >
         {portalTeam ? (
           <div className="space-y-4">
@@ -753,7 +749,7 @@ function TeamManagementPanel({
                           className={[
                             "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition",
                             state === "all"
-                              ? "bg-slate-900 text-white"
+                              ? "bg-purple-600 text-white"
                               : state === "partial"
                                 ? "bg-amber-100 text-amber-800"
                                 : "bg-slate-100 text-slate-600",

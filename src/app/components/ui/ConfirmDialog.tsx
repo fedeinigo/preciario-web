@@ -107,12 +107,12 @@ export default function ConfirmDialog({
       }
     >
       {description ? (
-        <div className="text-sm text-gray-700 mb-3">{description}</div>
+        <div className="text-sm text-slate-700 mb-3">{description}</div>
       ) : null}
 
       {inputLabel ? (
         <div>
-          <label className="block text-xs text-gray-600 mb-1">{inputLabel}</label>
+          <label className="block text-xs text-slate-600 mb-1">{inputLabel}</label>
           <input
             className={`input w-full ${error ? "border-red-400 ring-1 ring-red-400" : ""}`}
             placeholder={inputPlaceholder}
