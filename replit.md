@@ -132,3 +132,26 @@ Comprehensive restructure of key management and configuration interfaces, moving
 - Minimalist approach without "enormous" elements
 - Better space utilization throughout
 - All existing functionality preserved (zero regressions)
+
+### Further Refinements (Same Session)
+
+**Header Simplification**:
+- Removed breadcrumb navigation ("Configuraciones / Gestión de...")
+- Eliminated descriptive subtitles in Team and User Management pages
+- Now shows only clean, simple page titles (h1 text-xl)
+
+**Modal Components Redesign**:
+- Updated `Modal.tsx` to use slate colors instead of gray throughout
+- Updated `ConfirmDialog.tsx` for consistent slate palette
+- Changed portal access button from bg-slate-900 to bg-purple-600 for theme consistency
+- Simplified all modal titles (removed redundant font styling)
+
+**Translation Namespace Fix**:
+- Corrected portal name translations from `admin.users.portals` to `navbar.portalSwitcher.options`
+- Fixed "Portal Directo" displaying as "admin.users.portals.direct" in tables
+- All portal names now render correctly with proper labels and icons
+
+**Visual Consistency**:
+- Complete shift from gray/black accents to purple/slate theme
+- Unified color palette across all modals and dialogs
+- Improved professional appearance while maintaining accessibility
