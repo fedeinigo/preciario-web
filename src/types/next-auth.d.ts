@@ -9,6 +9,8 @@ declare module "next-auth" {
     id: string;
     role?: AppRole;
     team?: string | null;
+    positionName?: string | null;
+    leaderEmail?: string | null;
   }
 
   interface Session {
@@ -20,6 +22,8 @@ declare module "next-auth" {
       role: AppRole;
       team: string | null;
       portals?: PortalAccessId[];
+      positionName: string | null;
+      leaderEmail: string | null;
     };
   }
 }
@@ -33,5 +37,7 @@ declare module "next-auth/jwt" {
     refreshToken?: string | null;
     accessTokenExpires?: number | null; // epoch ms
     portals?: PortalAccessId[];
+    positionName?: string | null;
+    leaderEmail?: string | null;
   }
 }

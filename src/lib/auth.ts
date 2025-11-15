@@ -218,7 +218,7 @@ export const authOptions: NextAuthOptions = {
 
   // Guarda/actualiza tokens de Google en Account (refresh_token la 1ª vez)
   events: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       if (!account || account.provider !== "google" || !user?.id) return;
 
       const updates: {
