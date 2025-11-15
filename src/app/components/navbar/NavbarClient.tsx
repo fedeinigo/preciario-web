@@ -140,10 +140,10 @@ function MapacheSectionBtn({
     <button
       type="button"
       onClick={() => onClick(id)}
-      className={`rounded-full px-4 py-1.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+      className={`inline-flex items-center gap-2 rounded-md px-3.5 py-2 text-[13px] font-semibold transition border focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f6e8ff]/60 ${
         active
-          ? "bg-white text-[#1f2937] shadow-soft"
-          : "bg-transparent text-white/80 hover:bg-white/15"
+          ? "bg-gradient-to-r from-[#f9e8ff] to-[#f7d7ff] text-[#3b0764] border-transparent shadow-sm"
+          : "border-white/25 text-white/85 hover:bg-white/10"
       }`}
       aria-pressed={active}
     >
@@ -461,7 +461,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     mapacheTransitionStartedRef.current = true;
     mapacheTransitionOriginRef.current = pathname ?? null;
 
-    const targetPath = "/mapache-portal/generator";
+    const targetPath = "/portal/mapache/generator";
 
     if (typeof router.prefetch === "function") {
       try {
@@ -549,14 +549,8 @@ export default function NavbarClient({ session }: NavbarClientProps) {
       setMapacheSection(MAPACHE_PORTAL_DEFAULT_SECTION);
       return;
     }
-    if (pathname?.startsWith("/mapache-portal/generator")) {
+    if (pathname?.startsWith("/portal/mapache")) {
       setMapacheSection("generator");
-      return;
-    }
-    if (pathname?.startsWith("/mapache-portal/metrics")) {
-      setMapacheSection("metrics");
-    } else {
-      setMapacheSection("tasks");
     }
   }, [isMapachePortal, pathname]);
 
@@ -588,7 +582,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     if (!mapacheTransitionStartedRef.current) return;
     if (!pathname) return;
     if (pathname === mapacheTransitionOriginRef.current) return;
-    if (!pathname.startsWith("/mapache-portal")) {
+    if (!pathname.startsWith("/portal/mapache")) {
       hideMapacheTransition();
     }
   }, [pathname, mapacheTransitionVisible, hideMapacheTransition]);
@@ -597,16 +591,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     (next: MapachePortalSection) => {
       setMapacheSection(next);
       if (!isMapachePortal) return;
-      const target = (() => {
-        switch (next) {
-          case "generator":
-            return "/mapache-portal/generator";
-          case "metrics":
-            return "/mapache-portal/metrics";
-          default:
-            return "/mapache-portal/generator";
-        }
-      })();
+      const target = "/portal/mapache/generator";
       if (pathname !== target) {
         router.push(target);
       }
@@ -627,14 +612,16 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     >
       <div className="navbar-inner mx-auto max-w-[2000px] px-3">
         <div className="flex items-center gap-2">
-          <Image
-            src="/logo.png"
-            alt="Wise CX"
-            width={140}
-            height={36}
-            className="h-9 w-auto object-contain"
-            priority
-          />
+          <Link href="/home" aria-label="Ir a Home" className="inline-flex">
+            <Image
+              src="/logo.png"
+              alt="Wise CX"
+              width={140}
+              height={36}
+              className="h-9 w-auto object-contain"
+              priority
+            />
+          </Link>
           {showPortalSwitcher ? (
             <PortalLauncher
               canAccessMapache={canOpenMapachePortal}
@@ -648,23 +635,11 @@ export default function NavbarClient({ session }: NavbarClientProps) {
 
         <div className="flex flex-1 items-center justify-center">
           {isMapachePortal ? (
-            <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-1 py-1">
+            <div className="flex items-center gap-2 px-2 py-1">
               <MapacheSectionBtn
                 id="generator"
                 label={mapacheSectionsT("generator")}
                 active={mapacheSection === "generator"}
-                onClick={handleMapacheSectionChange}
-              />
-              <MapacheSectionBtn
-                id="tasks"
-                label={mapacheSectionsT("tasks")}
-                active={mapacheSection === "tasks"}
-                onClick={handleMapacheSectionChange}
-              />
-              <MapacheSectionBtn
-                id="metrics"
-                label={mapacheSectionsT("metrics")}
-                active={mapacheSection === "metrics"}
                 onClick={handleMapacheSectionChange}
               />
             </div>
