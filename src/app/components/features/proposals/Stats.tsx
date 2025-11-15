@@ -1398,7 +1398,23 @@ export default function Stats({
                   {bySku.map(([sku, info]) => {
                     const { display } = getDisplayedSkuQuantity(sku, info.name, info.qty);
                     return (
-                      <tr key={sku}>
+                      <tr
+                        key={sku}
+                        className="cursor-pointer transition-colors hover:bg-purple-50"
+                        onClick={() => {
+                          const skuProposals = subset.filter((p) =>
+                            p.items.some((item: any) => item.itemCode === sku)
+                          );
+                          openDrillDown(`Proposals with SKU: ${sku} (${info.name})`, skuProposals, [
+                            { key: "companyName", label: "Company" },
+                            { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
+                            { key: "country", label: "Country" },
+                            { key: "status", label: "Status" },
+                            { key: "userEmail", label: "User" },
+                            { key: "createdAt", label: "Created", format: (v) => new Date(v).toLocaleDateString() },
+                          ]);
+                        }}
+                      >
                         <td className="px-5 py-3 font-mono text-sm text-slate-500">{sku}</td>
                         <td className="px-5 py-3 text-slate-600">{info.name}</td>
                         <td className="px-5 py-3 text-right text-brand-primary font-semibold">{display}</td>
@@ -1446,7 +1462,20 @@ export default function Stats({
               ) : (
                 <tbody className="divide-y divide-slate-200">
                   {byCountry.map(([country, total]) => (
-                    <tr key={country}>
+                    <tr
+                      key={country}
+                      className="cursor-pointer transition-colors hover:bg-purple-50"
+                      onClick={() => {
+                        const countryProposals = subset.filter((p) => p.country === country);
+                        openDrillDown(`Proposals from ${country}`, countryProposals, [
+                          { key: "companyName", label: "Company" },
+                          { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
+                          { key: "status", label: "Status" },
+                          { key: "userEmail", label: "User" },
+                          { key: "createdAt", label: "Created", format: (v) => new Date(v).toLocaleDateString() },
+                        ]);
+                      }}
+                    >
                       <td className="px-5 py-3 text-slate-600">
                         {country}{" "}
                         <span className="text-xs text-slate-400">({countryIdFromName(country)})</span>
