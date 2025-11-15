@@ -1294,62 +1294,8 @@ export default function Stats({
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-              {/* LEFT COLUMN: Charts */}
-              <div className="space-y-6 lg:col-span-7">
-                <ChartCard
-                  title={chartsT("countryLeaderboard.title")}
-                  description={chartsT("countryLeaderboard.description")}
-                >
-              {loading ? (
-                <ChartSkeleton />
-              ) : (
-                <HorizontalBarList
-                  data={countryChartData}
-                  emptyMessage={chartsEmptyLabel}
-                  onBarClick={(country) => {
-                    const countryProposals = subset.filter((p) => p.country === country);
-                    openDrillDown(`Proposals from ${country}`, countryProposals, [
-                      { key: "companyName", label: "Company" },
-                      { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
-                      { key: "status", label: "Status" },
-                      { key: "userEmail", label: "User" },
-                      { key: "createdAt", label: "Created", format: (v) => typeof v === 'string' || typeof v === 'number' || v instanceof Date ? new Date(v).toLocaleDateString() : String(v) },
-                    ]);
-                  }}
-                />
-              )}
-                </ChartCard>
-
-                <ChartCard
-                  title={chartsT("skuMomentum.title")}
-                  description={chartsT("skuMomentum.description")}
-                >
-                  {loading ? (
-                    <ChartSkeleton />
-                  ) : (
-                    <HorizontalBarList
-                      data={skuChartData}
-                      emptyMessage={chartsEmptyLabel}
-                      onBarClick={(sku) => {
-                        const skuProposals = subset.filter((p) =>
-                          p.items?.some((item: any) => item.itemCode === sku) ?? false
-                        );
-                        openDrillDown(`Proposals with SKU: ${sku}`, skuProposals, [
-                          { key: "companyName", label: "Company" },
-                          { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
-                          { key: "country", label: "Country" },
-                          { key: "status", label: "Status" },
-                          { key: "createdAt", label: "Created", format: (v) => typeof v === 'string' || typeof v === 'number' || v instanceof Date ? new Date(v).toLocaleDateString() : String(v) },
-                        ]);
-                      }}
-                    />
-                  )}
-                </ChartCard>
-              </div>
-
-              {/* RIGHT COLUMN: Tables */}
-              <div className="space-y-6 lg:col-span-5">
+            {/* FULL WIDTH: Tables stacked vertically */}
+            <div className="space-y-6">
           <TableCard
             title={sectionsT("bySku.title")}
             actions={
@@ -1567,7 +1513,6 @@ export default function Stats({
                     )}
                   </table>
                 </TableCard>
-              </div>
             </div>
           </section>
         </div>
