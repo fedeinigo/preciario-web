@@ -39,7 +39,6 @@ export default function TeamMembersTable({
   onAddManual: (u: { id: string; email: string | null; name: string | null }) => void;
 }) {
   const t = useTranslations("goals.table");
-  const headersT = useTranslations("goals.table.headers");
   const actionsT = useTranslations("goals.table.actions");
   const billingT = useTranslations("goals.billing");
   const labelsT = useTranslations("goals.table.labels");
@@ -151,9 +150,6 @@ export default function TeamMembersTable({
     if (pct >= 50) return { bg: "bg-gradient-to-br from-amber-500 to-amber-600", text: "text-amber-700", ring: "ring-amber-500/20" };
     return { bg: "bg-gradient-to-br from-slate-400 to-slate-500", text: "text-slate-700", ring: "ring-slate-500/20" };
   };
-
-  const actionButtonBase =
-    "inline-flex w-full md:w-auto items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white";
 
   return (
     <div className="space-y-5">

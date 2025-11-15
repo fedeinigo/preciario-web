@@ -2,22 +2,14 @@
 "use client";
 
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-import { X, BarChart3, Users, Building2, DollarSign, TrendingUp, Target, Award, Percent } from "lucide-react";
+import { X } from "lucide-react";
 import type { ProposalRecord } from "@/lib/types";
 import type { AppRole } from "@/constants/teams";
 import { countryIdFromName } from "./lib/catalogs";
 import { buildCsv, downloadCsv } from "./lib/csv";
 import { formatUSD, formatDateTime } from "./lib/format";
 import { toast } from "@/app/components/ui/toast";
-import {
-  q1Range,
-  q2Range,
-  q3Range,
-  q4Range,
-  currentMonthRange,
-  prevMonthRange,
-  currentQuarterRange,
-} from "./lib/dateRanges";
+import { q1Range, q2Range, q3Range, q4Range, currentMonthRange, prevMonthRange } from "./lib/dateRanges";
 import { useTranslations } from "@/app/LanguageProvider";
 import { fetchAllProposals, invalidateProposalsCache, type ProposalsListMeta } from "./lib/proposals-response";
 import { useAdminUsers } from "./hooks/useAdminUsers";
@@ -58,40 +50,6 @@ const getDisplayedSkuQuantity = (sku: string, name: string | undefined, quantity
   };
 };
 
-function GradientShell({ children }: { children: React.ReactNode }) {
-  return (
-    <section className="relative overflow-hidden rounded-3xl border border-brand-primary/10 bg-white p-6 text-slate-900 shadow-[0_28px_72px_rgba(60,3,140,0.12)]">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-32 right-[-10%] h-72 w-72 rounded-full bg-[radial-gradient(circle,_rgba(132,90,191,0.25),_transparent_70%)] blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -left-24 top-1/3 h-80 w-80 rounded-full bg-[radial-gradient(circle,_rgba(60,3,140,0.18),_transparent_70%)] blur-3xl"
-      />
-      <div className="relative z-10 space-y-6">{children}</div>
-    </section>
-  );
-}
-
-function GlassKpi({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-brand-primary/10 bg-white px-5 py-4 shadow-[0_16px_32px_rgba(60,3,140,0.08)]">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-primary/70">{label}</p>
-      <p className="mt-2 text-3xl font-semibold text-brand-primary">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
-    </div>
-  );
-}
-
 function TableCard({
   title,
   actions,
@@ -125,117 +83,6 @@ function TableSkeleton({ rows, cols }: { rows: number; cols: number }) {
         </tr>
       ))}
     </tbody>
-  );
-}
-
-const chartPalette = ["#6366F1", "#22D3EE", "#8B5CF6", "#F472B6", "#14B8A6", "#F59E0B", "#0EA5E9"] as const;
-
-function ChartCard({
-  title,
-  description,
-  meta,
-  children,
-}: {
-  title: React.ReactNode;
-  description?: React.ReactNode;
-  meta?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="relative flex h-full flex-col overflow-hidden rounded-3xl border border-brand-primary/10 bg-white/95 p-6 text-slate-900 shadow-[0_22px_60px_rgba(60,3,140,0.12)]">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-28 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,_rgba(124,58,237,0.18),_transparent_70%)] blur-3xl"
-      />
-      <div className="relative z-10 flex flex-col gap-3">
-        <header className="space-y-1">
-          <h3 className="text-base font-semibold tracking-tight text-brand-primary">{title}</h3>
-          {description ? <p className="text-sm text-slate-500">{description}</p> : null}
-        </header>
-        {meta ? <div className="text-xs text-slate-500">{meta}</div> : null}
-        <div className="flex-1">{children}</div>
-      </div>
-    </section>
-  );
-}
-
-function ChartSkeleton() {
-  return (
-    <div className="flex h-[240px] w-full items-center justify-center">
-      <div className="h-32 w-full max-w-md animate-pulse rounded-3xl bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100" />
-    </div>
-  );
-}
-
-function ChartEmpty({ message }: { message: string }) {
-  return (
-    <div className="flex h-[240px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 text-center text-sm text-slate-400">
-      {message}
-    </div>
-  );
-}
-
-type HorizontalBarDatum = { name: string; value: number; helper?: string; display?: string };
-
-function HorizontalBarList({
-  data,
-  emptyMessage,
-  formatValue = (value: number) => value.toLocaleString(),
-  onBarClick,
-}: {
-  data: HorizontalBarDatum[];
-  emptyMessage: string;
-  formatValue?: (value: number) => string;
-  onBarClick?: (name: string) => void;
-}) {
-  if (!data.length) {
-    return <ChartEmpty message={emptyMessage} />;
-  }
-
-  const max = Math.max(...data.map((item) => item.value), 1);
-
-  return (
-    <div className="space-y-3">
-      {data.map((item, index) => {
-        const percent = max === 0 ? 0 : (item.value / max) * 100;
-        const color = chartPalette[index % chartPalette.length];
-        return (
-          <div
-            key={item.name}
-            className={`rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-[0_12px_36px_rgba(60,3,140,0.08)] ${
-              onBarClick ? "cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-200/50" : ""
-            }`}
-            onClick={onBarClick ? () => onBarClick(item.name) : undefined}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-              <div className="flex items-center gap-3">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-primary/10 text-xs font-semibold text-brand-primary">
-                  {index + 1}
-                </span>
-                <div>
-                  <p className="font-semibold text-slate-600">{item.name}</p>
-                  {item.helper ? (
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">{item.helper}</p>
-                  ) : null}
-                </div>
-              </div>
-              <span className="text-sm font-semibold text-brand-primary">
-                {item.display ?? formatValue(item.value)}
-              </span>
-            </div>
-            <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${percent}%`,
-                  background: `linear-gradient(90deg, ${color} 0%, rgba(99,102,241,0.7) 100%)`,
-                }}
-              />
-            </div>
-          </div>
-        );
-      })}
-    </div>
   );
 }
 
@@ -315,8 +162,14 @@ function QuickRanges({
   );
 }
 
-type ProposalForStats = ProposalRecord & {
-  items?: Array<{ sku: string; name: string; quantity: number }>;
+type BaseProposalItem = ProposalRecord["items"] extends Array<infer Item>
+  ? Item
+  : { sku: string; name: string; quantity: number };
+
+type ProposalItem = BaseProposalItem & { itemCode?: string | null };
+
+type ProposalForStats = Omit<ProposalRecord, "items"> & {
+  items?: ProposalItem[];
 };
 type OrderKey = "createdAt" | "totalAmount";
 type OrderDir = "asc" | "desc";
@@ -341,7 +194,6 @@ export default function Stats({
   const kpisT = useTranslations("proposals.stats.kpis");
   const sectionsT = useTranslations("proposals.stats.sections");
   const tableT = useTranslations("proposals.stats.table");
-  const chartsT = useTranslations("proposals.stats.charts");
 
   // filtros - Default to Q4 2025 (current quarter)
   const [from, setFrom] = useState("2025-10-01");
@@ -470,28 +322,6 @@ export default function Stats({
       label: b.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
     }));
   }, []);
-
-  const getTrend = (currentData: SparklineData): "up" | "down" | "neutral" => {
-    if (currentData.length < 6) return "neutral";
-    
-    const nonZeroValues = currentData.filter(d => d.value > 0);
-    if (nonZeroValues.length < 3) return "neutral";
-    
-    const halfPoint = Math.floor(currentData.length / 2);
-    const recentValues = currentData.slice(halfPoint);
-    const olderValues = currentData.slice(0, halfPoint);
-    
-    const recentAvg = recentValues.reduce((sum, d) => sum + d.value, 0) / recentValues.length;
-    const olderAvg = olderValues.reduce((sum, d) => sum + d.value, 0) / olderValues.length;
-    
-    if (olderAvg === 0) return recentAvg > 0 ? "up" : "neutral";
-    
-    const percentChange = ((recentAvg - olderAvg) / olderAvg) * 100;
-    
-    if (percentChange > 10) return "up";
-    if (percentChange < -10) return "down";
-    return "neutral";
-  };
 
   const pathname = usePathname();
   useEffect(() => {
@@ -671,46 +501,6 @@ export default function Stats({
     [byUserFull, topN, showAll]
   );
 
-  const chartsEmptyLabel = chartsT("empty");
-  const chartsOthersLabel = chartsT("others");
-  const countryChartData = useMemo(() => {
-    const items = byCountry.slice(0, 6).map(([country, total]) => ({
-      name: country,
-      value: total,
-      helper: countryIdFromName(country),
-    }));
-    if (!showAll && byCountryFull.length > 6) {
-      const remaining = byCountryFull.slice(6).reduce((acc, [, total]) => acc + total, 0);
-      if (remaining > 0) {
-        items.push({ name: chartsOthersLabel, value: remaining, helper: "" });
-      }
-    }
-    return items;
-  }, [byCountry, byCountryFull, chartsOthersLabel, showAll]);
-
-  const skuChartData = useMemo(() => {
-    const items = bySku.slice(0, 6).map(([sku, info]) => {
-      const { value, display } = getDisplayedSkuQuantity(sku, info.name, info.qty);
-      return {
-        name: info.name || sku,
-        helper: sku,
-        value,
-        display,
-      };
-    });
-    if (!showAll && bySkuFull.length > 6) {
-      const remaining = bySkuFull.slice(6).reduce((acc, [, info]) => acc + info.qty, 0);
-      if (remaining > 0) {
-        items.push({
-          name: chartsOthersLabel,
-          value: remaining,
-          helper: "",
-          display: remaining.toLocaleString(),
-        });
-      }
-    }
-    return items;
-  }, [bySku, bySkuFull, chartsOthersLabel, showAll]);
 
   // CSVs
   const exportSkuCsv = () => {
@@ -1369,7 +1159,7 @@ export default function Stats({
                         className="cursor-pointer transition-colors hover:bg-purple-50"
                         onClick={() => {
                           const skuProposals = subset.filter((p) =>
-                            p.items?.some((item: any) => item.itemCode === sku) ?? false
+                            p.items?.some((item) => item.itemCode === sku || item.sku === sku) ?? false
                           );
                           openDrillDown(`Proposals with SKU: ${sku} (${info.name})`, skuProposals, [
                             { key: "companyName", label: "Company" },

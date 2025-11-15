@@ -42,7 +42,7 @@ export default function BillingEditorModal({ deal, isOpen, onClose, onSave }: Pr
     try {
       await onSave(amount);
       onClose();
-    } catch (err) {
+    } catch {
       setError("Error al guardar. Intenta nuevamente.");
     } finally {
       setIsSaving(false);
