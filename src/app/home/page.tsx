@@ -70,76 +70,62 @@ export default async function HomePage() {
   const userName = session.user?.name?.split(" ")[0] || "Usuario";
 
   return (
-    <section className="relative min-h-[calc(100vh-var(--nav-h))] w-full overflow-hidden bg-gradient-to-br from-slate-50 via-purple-50/30 to-slate-50">
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
-      
-      <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-12 px-4 py-16 text-center">
-        <div className="space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-700 shadow-sm">
-            <Sparkles className="h-4 w-4" />
-            Bienvenido, {userName}
+    <section className="min-h-[calc(100vh-var(--nav-h))] bg-slate-50 px-4 py-8">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-purple-600">
+              <Sparkles className="h-4 w-4" />
+              Hola, {userName}
+            </div>
+            <h1 className="text-3xl font-bold text-slate-900">
+              Selecciona tu Portal
+            </h1>
           </div>
-          <h1 className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-5xl font-bold tracking-tight text-transparent sm:text-6xl">
-            Selecciona tu Portal
-          </h1>
-          <p className="mx-auto max-w-2xl text-lg text-slate-600">
-            Accede a las herramientas y recursos de tu equipo. Mostramos solo los portales habilitados para tu usuario.
-          </p>
         </div>
 
-        <div className="grid w-full gap-6 sm:grid-cols-2 lg:gap-8">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {PORTAL_CARDS.map((portal) => {
             const isEnabled = accessiblePortals.has(portal.id);
             const Icon = portal.icon;
             
             const card = (
               <div
-                className={`group relative h-full overflow-hidden rounded-3xl border-2 p-8 text-left transition-all duration-300 ${
+                className={`group relative overflow-hidden rounded-xl border transition-all duration-200 ${
                   isEnabled
-                    ? `border-slate-200 bg-white ${portal.glowColor} shadow-lg hover:-translate-y-1 hover:border-purple-200 hover:shadow-2xl`
-                    : "border-slate-200 bg-slate-100/50 opacity-60"
+                    ? "border-slate-200 bg-white shadow-sm hover:border-purple-300 hover:shadow-md"
+                    : "border-slate-200 bg-slate-50 opacity-50"
                 }`}
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${portal.gradient} opacity-0 transition-opacity duration-300 ${isEnabled ? "group-hover:opacity-100" : ""}`} />
-                
-                <div className="relative space-y-6">
-                  <div className="flex items-start justify-between">
-                    <div className={`rounded-2xl p-4 transition-all duration-300 ${
+                <div className="p-5">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className={`rounded-lg p-2.5 ${
                       isEnabled 
-                        ? "bg-gradient-to-br from-purple-100 to-purple-50 group-hover:scale-110 group-hover:shadow-lg" 
+                        ? "bg-purple-100 group-hover:bg-purple-200" 
                         : "bg-slate-200"
                     }`}>
-                      <Icon className={`h-8 w-8 ${isEnabled ? "text-purple-600" : "text-slate-400"}`} />
+                      <Icon className={`h-5 w-5 ${isEnabled ? "text-purple-600" : "text-slate-400"}`} />
                     </div>
-                    {!isEnabled && <Lock className="h-6 w-6 text-slate-400" />}
+                    {!isEnabled && <Lock className="h-4 w-4 text-slate-400" />}
                   </div>
 
-                  <div className="space-y-3">
-                    <h2 className={`text-2xl font-bold ${isEnabled ? "text-slate-900" : "text-slate-500"}`}>
+                  <div className="space-y-2">
+                    <h3 className={`text-base font-bold ${isEnabled ? "text-slate-900" : "text-slate-500"}`}>
                       {portal.title}
-                    </h2>
-                    <p className={`text-base leading-relaxed ${isEnabled ? "text-slate-600" : "text-slate-400"}`}>
+                    </h3>
+                    <p className={`text-sm leading-snug ${isEnabled ? "text-slate-600" : "text-slate-400"}`}>
                       {portal.description}
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2">
-                    {isEnabled ? (
-                      <>
-                        <span className="inline-flex items-center gap-2 text-base font-semibold text-purple-600 transition-colors group-hover:text-purple-700">
-                          Acceder
-                          <svg className="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                          </svg>
-                        </span>
-                      </>
-                    ) : (
-                      <span className="inline-flex items-center gap-2 text-sm font-medium text-slate-400">
-                        <Lock className="h-4 w-4" />
-                        Acceso restringido
-                      </span>
-                    )}
-                  </div>
+                  {isEnabled && (
+                    <div className="mt-4 flex items-center text-sm font-semibold text-purple-600">
+                      Acceder
+                      <svg className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -148,7 +134,7 @@ export default async function HomePage() {
               <Link
                 key={portal.id}
                 href={portal.href}
-                className="focus:outline-none focus-visible:ring-4 focus-visible:ring-purple-500/20 focus-visible:ring-offset-2"
+                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
               >
                 {card}
               </Link>
@@ -160,9 +146,9 @@ export default async function HomePage() {
           })}
         </div>
 
-        <div className="mt-4 text-sm text-slate-500">
+        <p className="mt-6 text-center text-sm text-slate-500">
           ¿Necesitas acceso a más portales? Contacta al administrador de tu equipo.
-        </div>
+        </p>
       </div>
     </section>
   );
