@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-import { X } from "lucide-react";
+import { X, BarChart3, Users, Building2, DollarSign, TrendingUp, Target, Award, Percent } from "lucide-react";
 import type { ProposalRecord } from "@/lib/types";
 import type { AppRole } from "@/constants/teams";
 import { countryIdFromName } from "./lib/catalogs";
@@ -16,13 +16,17 @@ import {
   q4Range,
   currentMonthRange,
   prevMonthRange,
-  currentWeekRange,
-  prevWeekRange,
+  currentQuarterRange,
 } from "./lib/dateRanges";
 import { useTranslations } from "@/app/LanguageProvider";
 import { fetchAllProposals, invalidateProposalsCache, type ProposalsListMeta } from "./lib/proposals-response";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { usePathname } from "next/navigation";
+import { EnhancedGlassKpi } from "./components/EnhancedGlassKpi";
+import type { SparklineData } from "./components/Sparkline";
+import { DrillDownModal } from "./components/DrillDownModal";
+import { SavedFiltersManager } from "./components/SavedFiltersManager";
+import { RefreshIndicator } from "./components/RefreshIndicator";
 
 const THOUSAND_SCALING_SKUS = ["minutos de telefonia - entrantes", "minutos de telefonia - salientes"] as const;
 
@@ -302,28 +306,6 @@ function QuickRanges({
       >
         {t("previousMonth")}
       </button>
-      <button
-        className={`${baseClass} ${
-          isRangeActive(currentWeekRange())
-            ? "border-brand-primary bg-brand-primary text-white shadow-sm"
-            : "border-brand-primary/20 bg-brand-primary/5 text-brand-primary hover:border-brand-primary/40 hover:bg-brand-primary/10"
-        }`}
-        onClick={() => apply(currentWeekRange())}
-        type="button"
-      >
-        {t("currentWeek")}
-      </button>
-      <button
-        className={`${baseClass} ${
-          isRangeActive(prevWeekRange())
-            ? "border-brand-primary bg-brand-primary text-white shadow-sm"
-            : "border-brand-primary/20 bg-brand-primary/5 text-brand-primary hover:border-brand-primary/40 hover:bg-brand-primary/10"
-        }`}
-        onClick={() => apply(prevWeekRange())}
-        type="button"
-      >
-        {t("previousWeek")}
-      </button>
     </div>
   );
 }
@@ -373,6 +355,16 @@ export default function Stats({
   const [loading, setLoading] = useState(true);
   const [all, setAll] = useState<ProposalForStats[]>([]);
   const [, setListMeta] = useState<ProposalsListMeta | undefined>();
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [hasNewData, setHasNewData] = useState(false);
+
+  // drill-down modal state
+  const [drillDownOpen, setDrillDownOpen] = useState(false);
+  const [drillDownData, setDrillDownData] = useState<{
+    title: string;
+    data: Array<Record<string, unknown>>;
+    columns: Array<{ key: string; label: string; format?: (value: unknown) => string }>;
+  } | null>(null);
 
   type LoadOptions = { skipCache?: boolean };
   const load = useCallback(async (options?: LoadOptions) => {
@@ -381,8 +373,17 @@ export default function Stats({
       const { proposals, meta } = await fetchAllProposals({
         skipCache: options?.skipCache ?? false,
       });
+      const hadData = all.length > 0;
+      const hasNewProposals = proposals.length > all.length;
+      
       setAll(proposals);
       setListMeta(meta);
+      setLastUpdated(new Date());
+      
+      if (hadData && hasNewProposals && !options?.skipCache) {
+        setHasNewData(true);
+        setTimeout(() => setHasNewData(false), 5000);
+      }
     } catch (error) {
       setAll([]);
       setListMeta(undefined);
@@ -394,7 +395,98 @@ export default function Stats({
     } finally {
       setLoading(false);
     }
-  }, [toastT]);
+  }, [toastT, all.length]);
+
+  const handleManualRefresh = useCallback(async () => {
+    invalidateProposalsCache();
+    await load({ skipCache: true });
+    toast.success(toastT("refreshSuccess") || "Datos actualizados");
+  }, [load, toastT]);
+
+  const openDrillDown = useCallback((
+    title: string,
+    data: Array<Record<string, unknown>>,
+    columns: Array<{ key: string; label: string; format?: (value: unknown) => string }>
+  ) => {
+    setDrillDownData({ title, data, columns });
+    setDrillDownOpen(true);
+  }, []);
+
+  const handleApplyFilters = useCallback((filters: {
+    from?: string;
+    to?: string;
+    teamFilter?: string;
+    countryFilter?: string;
+    userFilter?: string;
+    orderKey?: string;
+    orderDir?: string;
+  }) => {
+    setFrom(filters.from || "");
+    setTo(filters.to || "");
+    setTeamFilter(filters.teamFilter || "");
+    setCountryFilter(filters.countryFilter || "");
+    setUserFilter(filters.userFilter || "");
+    if (filters.orderKey) setOrderKey(filters.orderKey as OrderKey);
+    if (filters.orderDir) setOrderDir(filters.orderDir as OrderDir);
+  }, []);
+
+  const generateSparklineData = useCallback((
+    proposals: ProposalForStats[],
+    days: number = 30,
+    valueExtractor: (p: ProposalForStats) => number = () => 1
+  ): SparklineData => {
+    const now = new Date();
+    now.setHours(23, 59, 59, 999);
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const startTime = now.getTime() - (days * msPerDay);
+    
+    const buckets: Array<{ date: Date; value: number }> = [];
+    const interval = Math.max(1, Math.floor(days / 10));
+    
+    for (let i = 0; i <= days; i += interval) {
+      const bucketStart = new Date(startTime + i * msPerDay);
+      bucketStart.setHours(0, 0, 0, 0);
+      const bucketEnd = new Date(bucketStart);
+      bucketEnd.setHours(23, 59, 59, 999);
+      bucketEnd.setDate(bucketEnd.getDate() + interval - 1);
+      
+      const value = proposals
+        .filter(p => {
+          const created = new Date(p.createdAt);
+          return created >= bucketStart && created <= bucketEnd;
+        })
+        .reduce((sum, p) => sum + valueExtractor(p), 0);
+      
+      buckets.push({ date: new Date(bucketStart), value });
+    }
+    
+    return buckets.map(b => ({
+      value: b.value,
+      label: b.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    }));
+  }, []);
+
+  const getTrend = (currentData: SparklineData): "up" | "down" | "neutral" => {
+    if (currentData.length < 6) return "neutral";
+    
+    const nonZeroValues = currentData.filter(d => d.value > 0);
+    if (nonZeroValues.length < 3) return "neutral";
+    
+    const halfPoint = Math.floor(currentData.length / 2);
+    const recentValues = currentData.slice(halfPoint);
+    const olderValues = currentData.slice(0, halfPoint);
+    
+    const recentAvg = recentValues.reduce((sum, d) => sum + d.value, 0) / recentValues.length;
+    const olderAvg = olderValues.reduce((sum, d) => sum + d.value, 0) / olderValues.length;
+    
+    if (olderAvg === 0) return recentAvg > 0 ? "up" : "neutral";
+    
+    const percentChange = ((recentAvg - olderAvg) / olderAvg) * 100;
+    
+    if (percentChange > 10) return "up";
+    if (percentChange < -10) return "down";
+    return "neutral";
+  };
 
   const pathname = usePathname();
   useEffect(() => {
@@ -775,6 +867,26 @@ export default function Stats({
       percent: percentValue,
     });
   }, [all.length, filtersT, subset.length, summaryPercentFormatter]);
+
+  const sparklineProposalsGenerated = useMemo(() => generateSparklineData(subset, 30), [subset, generateSparklineData]);
+  const sparklineUniqueUsers = useMemo(() => {
+    const usersByDay = new Map<string, Set<string>>();
+    subset.forEach(p => {
+      const day = new Date(p.createdAt).toDateString();
+      if (!usersByDay.has(day)) usersByDay.set(day, new Set());
+      if (p.userEmail) usersByDay.get(day)!.add(p.userEmail);
+    });
+    return generateSparklineData(subset, 30, () => 1);
+  }, [subset, generateSparklineData]);
+  const sparklineTotalMonthly = useMemo(() => 
+    generateSparklineData(subset, 30, (p) => Number(p.totalAmount) || 0),
+    [subset, generateSparklineData]
+  );
+  const sparklineWonCount = useMemo(() => generateSparklineData(wonRows, 30), [wonRows, generateSparklineData]);
+  const sparklineWonAmount = useMemo(() => 
+    generateSparklineData(wonRows, 30, (p) => Number(p.totalAmount) || 0),
+    [wonRows, generateSparklineData]
+  );
 
   return (
     <div className="p-4">
