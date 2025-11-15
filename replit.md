@@ -40,7 +40,18 @@ Preferred communication style: Simple, everyday language.
 
 ## UI/UX Decisions
 
-The application features a modern purple-themed design with gradients. Recent updates have focused on creating compact, professional, and minimalist layouts, improving space utilization, and unifying modal themes. Key interfaces like the Home Page, Configuration, Team Management, and User Management have been restructured for better visual hierarchy and density. The statistics dashboard has been completely redesigned with a three-tier visual layout, glassmorphism elements, enhanced KPI cards with sparklines, and interactive drill-down capabilities.
+The application features a modern purple-themed design with gradients. Recent updates have focused on creating compact, professional, and minimalist layouts, improving space utilization, and unifying modal themes. Key interfaces like the Home Page, Configuration, Team Management, and User Management have been restructured for better visual hierarchy and density. 
+
+The statistics dashboard has been completely redesigned with a three-tier visual layout, glassmorphism elements, enhanced KPI cards with sparklines, and interactive drill-down capabilities.
+
+The Generator page (`/portal/directo/generator`) has been visually modernized with the same purple/slate glassmorphism design system while preserving all existing functionality. Updates include:
+- **Container**: Gradient background (`from-purple-50 via-white to-slate-50`)
+- **Cards**: Glassmorphism styling (`rounded-2xl`, `bg-white/90`, `backdrop-blur-sm`, `shadow-lg`)
+- **Headers**: Purple gradients (`from-purple-600 to-purple-800`) for main components, green for WhatsApp, slate for sidebars
+- **Inputs**: Modern rounded borders with purple focus rings (`focus:ring-purple-400/20`)
+- **Buttons**: Gradient-styled with proper visual hierarchy (purple primary, white secondary, red destructive)
+- **Sidebars**: Modernized with Lucide chevron icons for collapse toggles
+- **Modals**: Updated with purple/red gradient buttons and improved spacing
 
 # External Dependencies
 
