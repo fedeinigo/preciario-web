@@ -2,6 +2,7 @@
 
 import React from "react";
 import Modal from "@/app/components/ui/Modal";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { useTranslations } from "@/app/LanguageProvider";
 import { toast } from "@/app/components/ui/toast";
@@ -49,10 +50,10 @@ function PromptDialog({
       onClose={onCancel}
       title={title}
       footer={
-        <div className="flex justify-end gap-2">
-          <button className="btn-ghost" onClick={onCancel}>{dialogT("cancel")}</button>
+        <div className="flex justify-end gap-3">
+          <button className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400/20" onClick={onCancel}>{dialogT("cancel")}</button>
           <button
-            className="btn-primary"
+            className="rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-400/50"
             onClick={() => {
               Promise.resolve(onConfirm(values)).catch((err) => {
                 console.error(err);
@@ -64,12 +65,12 @@ function PromptDialog({
         </div>
       }
     >
-      <div className="grid grid-cols-1 gap-3">
+      <div className="grid grid-cols-1 gap-4">
         {fields.map((f) => (
           <div key={f.name}>
-            <label className="block text-xs text-gray-600 mb-1">{f.label}</label>
+            <label className="block text-xs font-medium text-slate-700 mb-2">{f.label}</label>
             <input
-              className="input"
+              className="w-full h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20"
               placeholder={f.placeholder}
               value={values[f.name] ?? ""}
               onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
@@ -103,10 +104,10 @@ function ConfirmDialog({
       onClose={onCancel}
       title={title}
       footer={
-        <div className="flex justify-end gap-2">
-          <button className="btn-ghost" onClick={onCancel}>{dialogT("cancel")}</button>
+        <div className="flex justify-end gap-3">
+          <button className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400/20" onClick={onCancel}>{dialogT("cancel")}</button>
           <button
-            className="btn-primary"
+            className="rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:from-red-700 hover:to-red-800 focus:outline-none focus:ring-2 focus:ring-red-400/50"
             onClick={() => {
               Promise.resolve(onConfirm()).catch((err) => {
                 console.error(err);
@@ -118,7 +119,7 @@ function ConfirmDialog({
         </div>
       }
     >
-      <div className="text-sm text-gray-700">{message}</div>
+      <div className="text-sm text-slate-700">{message}</div>
     </Modal>
   );
 }
@@ -137,21 +138,21 @@ function CollapsibleSidebarCard({
   const [expanded, setExpanded] = React.useState(true);
   const label = expanded ? labels.collapse : labels.expand;
   return (
-    <div className="card border p-3 space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="heading-bar-sm">{title}</div>
+    <div className="rounded-2xl border border-slate-200 bg-white/90 shadow-lg backdrop-blur-sm overflow-hidden">
+      <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-slate-600 to-slate-700 px-4 py-3">
+        <h3 className="text-sm font-bold text-white uppercase tracking-wide">{title}</h3>
         <button
           type="button"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-lg font-semibold text-gray-600 transition hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20 hover:border-white/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
           onClick={() => setExpanded((prev) => !prev)}
           aria-expanded={expanded}
           aria-label={label}
           title={label}
         >
-          {expanded ? "-" : "+"}
+          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
       </div>
-      {expanded && children}
+      {expanded && <div className="p-4 space-y-3">{children}</div>}
     </div>
   );
 }
