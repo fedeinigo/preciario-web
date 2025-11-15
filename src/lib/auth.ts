@@ -81,9 +81,27 @@ export const authOptions: NextAuthOptions = {
 
   // Solo emails @wisecx.com pasan
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, profile }) {
       const email = user?.email ?? "";
-      return email.endsWith("@wisecx.com");
+      const allowed = email.endsWith("@wisecx.com");
+      if (!allowed) return false;
+
+      const googleImage =
+        typeof (profile as { picture?: string } | undefined)?.picture === "string"
+          ? (profile as { picture?: string }).picture!
+          : null;
+
+      if (googleImage && user?.id) {
+        // Fire-and-forget update for profile image
+        void prisma.user
+          .update({
+            where: { id: user.id as string },
+            data: { image: googleImage },
+          })
+          .catch(() => undefined);
+      }
+
+      return true;
     },
 
     async jwt({ token, user }) {
@@ -218,9 +236,7 @@ export const authOptions: NextAuthOptions = {
         },
       } as const;
 
-      const hasAccountUpdates = Object.keys(updates).length > 0;
-
-      if (hasAccountUpdates) {
+      if (Object.keys(updates).length > 0) {
         try {
           await prisma.account.update({ where: key, data: updates });
         } catch {
@@ -233,18 +249,6 @@ export const authOptions: NextAuthOptions = {
               ...updates,
             },
           });
-        }
-      }
-
-      const googleImage = (profile as { picture?: string } | undefined)?.picture;
-      if (googleImage && googleImage !== user.image) {
-        try {
-          await prisma.user.update({
-            where: { id: user.id as string },
-            data: { image: googleImage },
-          });
-        } catch {
-          // Ignore update failures; image is optional
         }
       }
     },

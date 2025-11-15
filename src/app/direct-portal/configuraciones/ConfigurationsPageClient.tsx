@@ -27,6 +27,7 @@ import {
   includeDefaultPortal,
   type PortalAccessId,
 } from "@/constants/portals";
+import UserAvatar from "@/app/components/ui/UserAvatar";
 
 type TeamRow = { id: string; name: string };
 
@@ -532,11 +533,6 @@ function TeamManagementPanel({
                       member.portals.forEach((portal) => activePortals.add(portal));
                     });
                     
-                    const getInitials = (name: string | null) => {
-                      if (!name) return "?";
-                      return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-                    };
-
                     return (
                       <tr key={team.id} className="transition-colors hover:bg-purple-50/50">
                         <td className="px-6 py-4">
@@ -563,15 +559,17 @@ function TeamManagementPanel({
                             <span className="text-2xl font-bold text-slate-900">{members.length}</span>
                             {teamMembers.length > 0 && (
                               <div className="flex -space-x-2">
-                                {teamMembers.slice(0, 3).map((member) => (
-                                  <div
-                                    key={member.id}
-                                    className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-slate-400 to-slate-500 text-xs font-semibold text-white shadow-md"
-                                    title={member.name || member.email || "Usuario"}
-                                  >
-                                    {getInitials(member.name)}
-                                  </div>
-                                ))}
+                    {teamMembers.slice(0, 3).map((member) => (
+                      <div key={member.id} className="flex">
+                        <UserAvatar
+                          name={member.name ?? undefined}
+                          email={member.email ?? undefined}
+                          image={member.image ?? undefined}
+                          size={32}
+                          className="border-2 border-white shadow-md"
+                        />
+                      </div>
+                    ))}
                                 {teamMembers.length > 3 && (
                                   <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-xs font-bold text-slate-600 shadow-md">
                                     +{teamMembers.length - 3}
@@ -892,17 +890,6 @@ function UserManagementPanel({
     void handleUpdateUser(user.id, { portals: next });
   };
 
-  const getInitials = (name: string | null) => {
-    if (!name) return "?";
-    return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-  };
-
-  const getRoleGradient = (role: string) => {
-    if (role === "admin") return "from-purple-500 to-purple-600";
-    if (role === "lider") return "from-blue-500 to-blue-600";
-    return "from-slate-400 to-slate-500";
-  };
-
   const getRoleBadge = (role: string) => {
     if (role === "admin") return "bg-purple-100 text-purple-700 border-purple-200";
     if (role === "lider") return "bg-blue-100 text-blue-700 border-blue-200";
@@ -981,9 +968,13 @@ function UserManagementPanel({
                   <tr key={user.id} className="transition-colors hover:bg-slate-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${getRoleGradient(user.role)} text-xs font-bold text-white`}>
-                          {getInitials(user.name)}
-                        </div>
+                        <UserAvatar
+                          name={user.name ?? undefined}
+                          email={user.email ?? undefined}
+                          image={user.image ?? undefined}
+                          size={36}
+                          className="rounded-lg shadow-sm"
+                        />
                         <div>
                           <div className="text-sm font-semibold text-slate-900">
                             {user.name || userPanelT("table.placeholderName")}
