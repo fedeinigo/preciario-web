@@ -5,6 +5,7 @@ import React from "react";
 import type { AppRole } from "@/constants/teams";
 import { toast } from "@/app/components/ui/toast";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
+import Modal from "@/app/components/ui/Modal";
 import { useTranslations } from "@/app/LanguageProvider";
 import { q1Range, q2Range, q3Range, q4Range } from "../proposals/lib/dateRanges";
 import { useAdminUsers } from "../proposals/hooks/useAdminUsers";
@@ -85,6 +86,7 @@ export default function GoalsPage({
   const closeManualDialog = React.useCallback(() => setManualDialogTarget(null), []);
 
   const [billingEditorDeal, setBillingEditorDeal] = React.useState<UserWonDeal | null>(null);
+  const [deleteConfirmDeal, setDeleteConfirmDeal] = React.useState<UserWonDeal | null>(null);
 
   const loadMyGoal = React.useCallback(async () => {
     try {
@@ -292,16 +294,21 @@ export default function GoalsPage({
   );
 
   const handleDeleteManualWon = React.useCallback(
-    async (deal: UserWonDeal) => {
+    (deal: UserWonDeal) => {
       if (!deal.manualDealId) return;
-      const confirmed = window.confirm(
-        billingT("deleteManualConfirm", { company: deal.companyName || billingT("unknownCompany") })
-      );
-      if (!confirmed) return;
+      setDeleteConfirmDeal(deal);
+    },
+    []
+  );
+
+  const confirmDeleteManualWon = React.useCallback(
+    async () => {
+      if (!deleteConfirmDeal || !deleteConfirmDeal.manualDealId) return;
       try {
-        const res = await fetch(`/api/goals/wins?manualDealId=${deal.manualDealId}`, { method: "DELETE" });
+        const res = await fetch(`/api/goals/wins?manualDealId=${deleteConfirmDeal.manualDealId}`, { method: "DELETE" });
         if (!res.ok) throw new Error("fail");
         toast.success(toastT("manualWonDeleted"));
+        setDeleteConfirmDeal(null);
         await loadMyWins();
         if (isSuperAdmin || role === "lider" || role === "admin") {
           await loadTeam();
@@ -310,7 +317,7 @@ export default function GoalsPage({
         toast.error(toastT("manualWonDeleteError"));
       }
     },
-    [billingT, toastT, loadMyWins, isSuperAdmin, role, loadTeam]
+    [deleteConfirmDeal, toastT, loadMyWins, isSuperAdmin, role, loadTeam]
   );
 
   const handleUpdateBilling = React.useCallback(
@@ -637,6 +644,61 @@ export default function GoalsPage({
         onClose={() => setBillingEditorDeal(null)}
         onSave={handleSaveBilling}
       />
+
+      <Modal
+        open={!!deleteConfirmDeal}
+        onClose={() => setDeleteConfirmDeal(null)}
+        title={billingT("deleteManualTitle")}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400/20"
+              onClick={() => setDeleteConfirmDeal(null)}
+            >
+              {billingT("deleteCancel")}
+            </button>
+            <button
+              className="rounded-lg bg-gradient-to-r from-red-600 to-red-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:from-red-700 hover:to-red-800 focus:outline-none focus:ring-2 focus:ring-red-400/50"
+              onClick={confirmDeleteManualWon}
+            >
+              {billingT("deleteConfirm")}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl bg-red-50 border border-red-200 p-4">
+            <p className="text-sm font-medium text-red-900">
+              {billingT("deleteManualConfirm", { 
+                company: deleteConfirmDeal?.companyName || billingT("unknownCompany") 
+              })}
+            </p>
+          </div>
+          {deleteConfirmDeal && (
+            <div className="space-y-2 text-sm text-slate-600">
+              <div className="flex justify-between">
+                <span className="font-medium">{billingT("monthlyFee")}:</span>
+                <span className="font-semibold text-slate-900">
+                  ${deleteConfirmDeal.monthlyFee.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">{billingT("wonTypeLabel")}:</span>
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  deleteConfirmDeal.wonType === "UPSELL" 
+                    ? "bg-amber-100 text-amber-800" 
+                    : "bg-purple-100 text-purple-800"
+                }`}>
+                  {deleteConfirmDeal.wonType === "UPSELL" ? billingT("wonTypeUpsell") : billingT("wonTypeNew")}
+                </span>
+              </div>
+            </div>
+          )}
+          <p className="text-sm text-slate-500">
+            {billingT("deleteWarning")}
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }

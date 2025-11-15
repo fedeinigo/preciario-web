@@ -2054,7 +2054,17 @@ const messages: DeepRecord = {
 
         deleteManual: "Excluir",
 
-        deleteManualConfirm: "Excluir o Won manual de {company}?",
+        deleteManualTitle: "Confirmar Exclusão",
+
+        deleteManualConfirm: "Tem certeza de que deseja excluir o Won manual de {company}?",
+
+        deleteCancel: "Cancelar",
+
+        deleteConfirm: "Excluir",
+
+        deleteWarning: "Esta ação não pode ser desfeita. O progresso da sua meta será ajustado automaticamente.",
+
+        wonTypeLabel: "Tipo de Won",
 
         editBilling: "Atualizar faturado",
 

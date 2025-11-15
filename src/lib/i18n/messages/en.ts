@@ -2046,7 +2046,17 @@ const messages: DeepRecord = {
 
         deleteManual: "Delete",
 
-        deleteManualConfirm: "Delete the manual Won for {company}?",
+        deleteManualTitle: "Confirm Deletion",
+
+        deleteManualConfirm: "Are you sure you want to delete the manual Won for {company}?",
+
+        deleteCancel: "Cancel",
+
+        deleteConfirm: "Delete",
+
+        deleteWarning: "This action cannot be undone. Your goal progress will be automatically adjusted.",
+
+        wonTypeLabel: "Won Type",
 
         editBilling: "Update billed amount",
 
