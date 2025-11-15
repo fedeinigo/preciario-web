@@ -26,21 +26,23 @@ export default function CompanyCard({
   t,
 }: CompanyCardProps) {
   return (
-    <div className="mb-4 rounded-md border-2 bg-white shadow-soft overflow-hidden">
-      <div className="heading-bar-sm">{t("title")}</div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-        <div className="rounded-md border border-[rgb(var(--primary))]/25 bg-[rgb(var(--primary-soft))]/20 p-3">
-          <label className="block text-xs text-gray-700 mb-1">{t("name.label")}</label>
+    <div className="rounded-xl border border-slate-200 bg-white shadow-md overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-100 to-slate-50 px-4 py-3 border-b border-slate-200">
+        <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">{t("title")}</h3>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-5">
+        <div className="rounded-lg border border-purple-200 bg-purple-50/30 p-4 transition hover:shadow-sm">
+          <label className="block text-xs font-medium text-slate-700 mb-2">{t("name.label")}</label>
           <input
-            className="input w-full h-10"
+            className="w-full h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20"
             placeholder={t("name.placeholder")}
             value={companyName}
             onChange={(event) => onCompanyNameChange(event.target.value)}
           />
         </div>
 
-        <div className="rounded-md border border-[rgb(var(--primary))]/25 bg-[rgb(var(--primary-soft))]/20 p-3">
-          <label className="block text-xs text-gray-700 mb-1">{t("country.label")}</label>
+        <div className="rounded-lg border border-purple-200 bg-purple-50/30 p-4 transition hover:shadow-sm">
+          <label className="block text-xs font-medium text-slate-700 mb-2">{t("country.label")}</label>
           <Combobox
             options={countryOptions}
             value={country}
@@ -49,10 +51,10 @@ export default function CompanyCard({
           />
         </div>
 
-        <div className="rounded-md border border-[rgb(var(--primary))]/25 bg-[rgb(var(--primary-soft))]/20 p-3">
-          <label className="block text-xs text-gray-700 mb-1">{t("subsidiary.label")}</label>
-          <input className="input w-full h-10" value={subsidiary || emptyValue} readOnly />
-          <p className="mt-1 text-[12px] text-gray-600">{t("subsidiary.helper")}</p>
+        <div className="rounded-lg border border-purple-200 bg-purple-50/30 p-4 transition hover:shadow-sm">
+          <label className="block text-xs font-medium text-slate-700 mb-2">{t("subsidiary.label")}</label>
+          <input className="w-full h-10 rounded-lg border border-slate-300 bg-slate-100 px-3 text-sm text-slate-600 shadow-sm" value={subsidiary || emptyValue} readOnly />
+          <p className="mt-2 text-xs text-slate-600">{t("subsidiary.helper")}</p>
         </div>
       </div>
     </div>
