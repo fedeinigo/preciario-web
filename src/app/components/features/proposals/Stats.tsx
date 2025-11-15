@@ -343,9 +343,9 @@ export default function Stats({
   const tableT = useTranslations("proposals.stats.table");
   const chartsT = useTranslations("proposals.stats.charts");
 
-  // filtros
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  // filtros - Default to Q4 2025 (current quarter)
+  const [from, setFrom] = useState("2025-10-01");
+  const [to, setTo] = useState("2025-12-31");
   const [teamFilter, setTeamFilter] = useState<string>("");
   const [countryFilter, setCountryFilter] = useState<string>("");
   const [userFilter, setUserFilter] = useState<string>("");
