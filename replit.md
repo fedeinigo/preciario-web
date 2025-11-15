@@ -60,6 +60,7 @@ The Generator page (`/portal/directo/generator`) has been visually modernized wi
 **Google Workspace APIs**: OAuth, Docs API (document creation), Drive API (file permissions), Sheets API (cost data).
 **Pipedrive CRM**: API integration for syncing won deals and proposal URLs.
 **Vercel Analytics**: Production usage tracking.
+**Vercel Speed Insights**: Real User Monitoring (RUM) for performance metrics in production.
 
 ## Database
 
