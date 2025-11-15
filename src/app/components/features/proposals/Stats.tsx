@@ -873,16 +873,8 @@ export default function Stats({
     });
   }, [all.length, filtersT, subset.length, summaryPercentFormatter]);
 
-  const sparklineProposalsGenerated = useMemo(() => generateSparklineData(subset, 30), [subset, generateSparklineData]);
-  const sparklineUniqueUsers = useMemo(() => {
-    const usersByDay = new Map<string, Set<string>>();
-    subset.forEach(p => {
-      const day = new Date(p.createdAt).toDateString();
-      if (!usersByDay.has(day)) usersByDay.set(day, new Set());
-      if (p.userEmail) usersByDay.get(day)!.add(p.userEmail);
-    });
-    return generateSparklineData(subset, 30, () => 1);
-  }, [subset, generateSparklineData]);
+  // Sparklines for all KPIs (30-day rolling window)
+  const sparklineSubsetCount = useMemo(() => generateSparklineData(subset, 30), [subset, generateSparklineData]);
   const sparklineTotalMonthly = useMemo(() => 
     generateSparklineData(subset, 30, (p) => Number(p.totalAmount) || 0),
     [subset, generateSparklineData]
@@ -893,7 +885,6 @@ export default function Stats({
     [wonRows, generateSparklineData]
   );
   
-  // Additional sparklines for remaining KPIs
   const sparklineUniqueUsers = useMemo(() => {
     const usersByDay = new Map<string, Set<string>>();
     subset.forEach((p) => {
@@ -901,13 +892,13 @@ export default function Stats({
       if (!usersByDay.has(date)) usersByDay.set(date, new Set());
       usersByDay.get(date)!.add(p.userEmail);
     });
-    const data: { date: Date; value: number }[] = [];
+    const data: { value: number; label?: string }[] = [];
     const endDate = new Date();
     for (let i = 29; i >= 0; i--) {
       const date = new Date(endDate);
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      data.push({ date, value: usersByDay.get(dateStr)?.size || 0 });
+      data.push({ value: usersByDay.get(dateStr)?.size || 0, label: dateStr });
     }
     return data;
   }, [subset]);
@@ -919,13 +910,13 @@ export default function Stats({
       if (!companiesByDay.has(date)) companiesByDay.set(date, new Set());
       companiesByDay.get(date)!.add(p.companyName);
     });
-    const data: { date: Date; value: number }[] = [];
+    const data: { value: number; label?: string }[] = [];
     const endDate = new Date();
     for (let i = 29; i >= 0; i--) {
       const date = new Date(endDate);
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      data.push({ date, value: companiesByDay.get(dateStr)?.size || 0 });
+      data.push({ value: companiesByDay.get(dateStr)?.size || 0, label: dateStr });
     }
     return data;
   }, [subset]);
@@ -937,7 +928,7 @@ export default function Stats({
       if (!proposalsByDay.has(date)) proposalsByDay.set(date, []);
       proposalsByDay.get(date)!.push(Number(p.totalAmount) || 0);
     });
-    const data: { date: Date; value: number }[] = [];
+    const data: { value: number; label?: string }[] = [];
     const endDate = new Date();
     for (let i = 29; i >= 0; i--) {
       const date = new Date(endDate);
@@ -945,7 +936,7 @@ export default function Stats({
       const dateStr = date.toISOString().split('T')[0];
       const amounts = proposalsByDay.get(dateStr) || [];
       const avg = amounts.length > 0 ? amounts.reduce((a, b) => a + b, 0) / amounts.length : 0;
-      data.push({ date, value: avg });
+      data.push({ value: avg, label: dateStr });
     }
     return data;
   }, [subset]);
@@ -959,7 +950,7 @@ export default function Stats({
       stats.total++;
       if (p.status === "won") stats.won++;
     });
-    const data: { date: Date; value: number }[] = [];
+    const data: { value: number; label?: string }[] = [];
     const endDate = new Date();
     for (let i = 29; i >= 0; i--) {
       const date = new Date(endDate);
@@ -967,7 +958,7 @@ export default function Stats({
       const dateStr = date.toISOString().split('T')[0];
       const stats = proposalsByDay.get(dateStr);
       const rate = stats && stats.total > 0 ? (stats.won / stats.total) * 100 : 0;
-      data.push({ date, value: rate });
+      data.push({ value: rate, label: dateStr });
     }
     return data;
   }, [subset]);
@@ -979,7 +970,7 @@ export default function Stats({
       if (!wonByDay.has(date)) wonByDay.set(date, []);
       wonByDay.get(date)!.push(Number(p.totalAmount) || 0);
     });
-    const data: { date: Date; value: number }[] = [];
+    const data: { value: number; label?: string }[] = [];
     const endDate = new Date();
     for (let i = 29; i >= 0; i--) {
       const date = new Date(endDate);
@@ -987,7 +978,7 @@ export default function Stats({
       const dateStr = date.toISOString().split('T')[0];
       const amounts = wonByDay.get(dateStr) || [];
       const avg = amounts.length > 0 ? amounts.reduce((a, b) => a + b, 0) / amounts.length : 0;
-      data.push({ date, value: avg });
+      data.push({ value: avg, label: dateStr });
     }
     return data;
   }, [wonRows]);
