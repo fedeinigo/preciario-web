@@ -181,10 +181,12 @@ function HorizontalBarList({
   data,
   emptyMessage,
   formatValue = (value: number) => value.toLocaleString(),
+  onBarClick,
 }: {
   data: HorizontalBarDatum[];
   emptyMessage: string;
   formatValue?: (value: number) => string;
+  onBarClick?: (name: string) => void;
 }) {
   if (!data.length) {
     return <ChartEmpty message={emptyMessage} />;
@@ -200,7 +202,10 @@ function HorizontalBarList({
         return (
           <div
             key={item.name}
-            className="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-[0_12px_36px_rgba(60,3,140,0.08)]"
+            className={`rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-[0_12px_36px_rgba(60,3,140,0.08)] ${
+              onBarClick ? "cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-200/50" : ""
+            }`}
+            onClick={onBarClick ? () => onBarClick(item.name) : undefined}
           >
             <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
               <div className="flex items-center gap-3">
@@ -1278,7 +1283,20 @@ export default function Stats({
               {loading ? (
                 <ChartSkeleton />
               ) : (
-                <HorizontalBarList data={countryChartData} emptyMessage={chartsEmptyLabel} />
+                <HorizontalBarList
+                  data={countryChartData}
+                  emptyMessage={chartsEmptyLabel}
+                  onBarClick={(country) => {
+                    const countryProposals = subset.filter((p) => p.country === country);
+                    openDrillDown(`Proposals from ${country}`, countryProposals, [
+                      { key: "companyName", label: "Company" },
+                      { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
+                      { key: "status", label: "Status" },
+                      { key: "userEmail", label: "User" },
+                      { key: "createdAt", label: "Created", format: (v) => new Date(v).toLocaleDateString() },
+                    ]);
+                  }}
+                />
               )}
             </ChartCard>
           </div>
@@ -1290,7 +1308,22 @@ export default function Stats({
               {loading ? (
                 <ChartSkeleton />
               ) : (
-                <HorizontalBarList data={skuChartData} emptyMessage={chartsEmptyLabel} />
+                <HorizontalBarList
+                  data={skuChartData}
+                  emptyMessage={chartsEmptyLabel}
+                  onBarClick={(sku) => {
+                    const skuProposals = subset.filter((p) =>
+                      p.items.some((item: any) => item.itemCode === sku)
+                    );
+                    openDrillDown(`Proposals with SKU: ${sku}`, skuProposals, [
+                      { key: "companyName", label: "Company" },
+                      { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
+                      { key: "country", label: "Country" },
+                      { key: "status", label: "Status" },
+                      { key: "createdAt", label: "Created", format: (v) => new Date(v).toLocaleDateString() },
+                    ]);
+                  }}
+                />
               )}
             </ChartCard>
           </div>
