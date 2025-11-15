@@ -236,7 +236,7 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      const googleImage = profile?.picture;
+      const googleImage = (profile as { picture?: string } | undefined)?.picture;
       if (googleImage && googleImage !== user.image) {
         try {
           await prisma.user.update({
