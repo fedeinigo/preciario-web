@@ -193,7 +193,7 @@ export default function Modal({
           panelWidthClassName,
           isInverted
             ? "bg-[rgb(var(--primary))] text-white border-white/10"
-            : "bg-white text-gray-900 border-gray-200",
+            : "bg-white text-slate-900 border-slate-200",
           panelClassName,
         ].join(" ")}
         style={panelStyle}
@@ -209,7 +209,7 @@ export default function Modal({
               "px-4 py-3 text-sm font-semibold",
               isInverted
                 ? "border-b border-white/10"
-                : "bg-gray-50 border-b border-gray-200",
+                : "bg-slate-50 border-b border-slate-200",
               headerClassName,
             ]
               .filter(Boolean)
@@ -235,7 +235,7 @@ export default function Modal({
                     "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-transparent text-lg leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
                     isInverted
                       ? "text-white hover:bg-white/10 focus-visible:outline-white/40 disabled:text-white/60 disabled:hover:bg-transparent"
-                      : "text-gray-500 hover:bg-gray-100 focus-visible:outline-gray-300 disabled:text-gray-300 disabled:hover:bg-transparent",
+                      : "text-slate-500 hover:bg-slate-100 focus-visible:outline-slate-300 disabled:text-slate-300 disabled:hover:bg-transparent",
                   ].join(" ")}
                 >
                   <span aria-hidden="true">&times;</span>
@@ -253,7 +253,7 @@ export default function Modal({
               "px-4 py-3",
               isInverted
                 ? "border-t border-white/10 bg-white/5"
-                : "bg-gray-50 border-t border-gray-200",
+                : "bg-slate-50 border-t border-slate-200",
             ].join(" ")}
           >
             {footer}

@@ -269,25 +269,9 @@ function SectionPageShell({
   description?: string;
   children: React.ReactNode;
 }) {
-  const sectionsT = useTranslations("configurations.sections");
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <Link
-            href="/configuraciones"
-            className="font-medium hover:text-purple-600 transition-colors"
-          >
-            Configuraciones
-          </Link>
-          <span>/</span>
-          <span className="font-semibold text-slate-700">{title}</span>
-        </div>
-      </div>
-      {description && (
-        <p className="text-sm text-slate-600">{description}</p>
-      )}
+      <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
       {children}
     </div>
   );
@@ -311,7 +295,7 @@ function TeamManagementPanel({
   reloadUsers: () => Promise<AdminUser[]>;
 }) {
   const teamPanelT = useTranslations("configurations.teamPanel");
-  const portalsT = useTranslations("admin.users.portals");
+  const portalsT = useTranslations("navbar.portalSwitcher.options");
 
   const [newTeam, setNewTeam] = React.useState("");
   const [creating, setCreating] = React.useState(false);
@@ -832,7 +816,7 @@ function UserManagementPanel({
 }) {
   const userPanelT = useTranslations("configurations.userPanel");
   const userToastT = useTranslations("configurations.userPanel.toast");
-  const portalsT = useTranslations("admin.users.portals");
+  const portalsT = useTranslations("navbar.portalSwitcher.options");
 
   const [search, setSearch] = React.useState("");
   const [roleFilter, setRoleFilter] = React.useState("all");
