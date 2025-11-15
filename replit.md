@@ -171,9 +171,9 @@ Comprehensive restructure of key management and configuration interfaces, moving
 - Descriptions preserved and rendered below titles in all pages
 - Increased title sizes and improved visual hierarchy throughout
 
-**Modal Theme Unification (Portal Directo & Configuraciones)**:
-- PortalLauncher and UserProfileModal now use consistent purple/white theme in all Direct Portal and Configuration routes
-- Changed `navbarAppearance` logic to use "direct" theme for both `navbarVariant === "direct"` and `navbarVariant === "config"`
-- Applies to routes: `/portal/directo/*` and `/configuraciones/*`
-- Eliminates previous inconsistency where configuration pages used dark/gray theme instead of purple theme
-- Both modals now have unified purple backgrounds, white text, and purple gradient accents throughout Direct Portal ecosystem
+**Modal Theme Unification (Portal Directo, Configuraciones & Home)**:
+- PortalLauncher and UserProfileModal now use consistent purple/white theme in all Direct Portal, Configuration routes, and Home page
+- Changed `navbarAppearance` logic to use "direct" theme for `navbarVariant === "direct"`, `navbarVariant === "config"`, and `navbarVariant === "home"`
+- Applies to routes: `/portal/directo/*`, `/configuraciones/*`, and `/home`
+- Eliminates previous inconsistency where configuration pages and home used dark/gray theme instead of purple theme
+- Both modals now have unified purple backgrounds, white text, and purple gradient accents throughout the main application ecosystem
