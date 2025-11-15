@@ -1,6 +1,6 @@
 # Overview
 
-This Next.js 15 application, using the App Router, is an internal platform for Wise CX to create, track, and manage commercial sales proposals. It features Google Workspace integration for document generation, specialized portals for different teams (Direct, Mapache, Partner, Marketing), and role-based access control. The system integrates with Google Docs/Drive, Pipedrive for CRM synchronization, and uses NextAuth with Google OAuth for authentication, supporting multiple locales (Spanish and English).
+This Next.js 15 application is an internal platform for Wise CX, designed to create, track, and manage commercial sales proposals. It integrates with Google Workspace for document generation, features specialized portals for various teams (Direct, Mapache, Partner, Marketing), and implements role-based access control. The system also connects with Google Docs/Drive, Pipedrive for CRM synchronization, and uses NextAuth with Google OAuth for authentication, supporting multiple locales (Spanish and English).
 
 # User Preferences
 
@@ -10,56 +10,44 @@ Preferred communication style: Simple, everyday language.
 
 ## Frontend Architecture
 
-**Framework**: Next.js 15.5.1 (App Router, React 19.1.0) leveraging Server Components and Client Components, with feature flags for progressive enhancement.
-
-**State Management**: React Query for server state, React Context for application-level state, and NextAuth for session management.
-
-**UI Components**: Custom component library with Tailwind CSS, including a purple brand theme. Uses specialized components from cmdk, react-table, and react-virtual.
-
-**Routing Strategy**: Locale-aware routing (`/es`, `/en`) and specific portal routes (`/mapache-portal`).
+**Framework**: Next.js 15.5.1 (App Router, React 19.1.0) utilizing Server and Client Components with feature flags.
+**State Management**: React Query for server state, React Context for application state, and NextAuth for session management.
+**UI Components**: Custom component library with Tailwind CSS (purple brand theme), cmdk, react-table, and react-virtual.
+**Routing Strategy**: Locale-aware routing (`/es`, `/en`) and portal-specific routes (`/mapache-portal`).
 
 ## Backend Architecture
 
 **API Routes**: Next.js API routes (`/src/app/api/`) following RESTful conventions for proposals, items, admin, and CRM integration.
-
-**Authentication Guards**: Centralized logic (`/src/app/api/_utils/require-auth.ts`) with feature flag support (`FEATURE_SECURE_API_ROUTES`).
-
-**Business Logic**: Separated modules for Google Workspace integration, OAuth, Pipedrive CRM, and portal-specific logic.
-
-**Feature Flags**: Comprehensive flag system (`/src/lib/feature-flags.ts`) for safe architectural rollout.
-
+**Authentication Guards**: Centralized logic (`/src/app/api/_utils/require-auth.ts`) with feature flag support.
+**Business Logic**: Separated modules for Google Workspace, OAuth, Pipedrive CRM, and portal-specific logic.
+**Feature Flags**: Comprehensive flag system (`/src/lib/feature-flags.ts`) for progressive architectural rollout.
 **Internationalization**: Custom i18n with server-side message loading, client-side context, and JSON message files.
 
 ## Data Layer
 
-**ORM**: Prisma 6.18.0 for type-safe database access (PostgreSQL).
-
+**ORM**: Prisma 6.18.0 for type-safe PostgreSQL database access.
 **Key Models**: `User`, `Proposal`, `Item`, `MapacheTask`, `MapacheBoard`.
-
 **Relationships**: Proposals contain items and belong to users; tasks have statuses; users have portal and team memberships.
-
 **Indexing**: `Proposal.userId` is indexed for optimized queries.
 
 ## Authentication & Authorization
 
 **Provider**: NextAuth v4 with Google OAuth.
-
 **Session Strategy**: JWT-based sessions with server-side verification.
-
 **Role System**: Three-tier hierarchy (`admin`, `lider`, `usuario`) mapped from Prisma `Role` enum.
-
 **Portal Access**: Dynamic assignment via `PortalAccess` records or fallback logic.
+**Security**: Feature flags for strict OAuth linking and API route security, with Google Drive and Docs scopes.
 
-**Security**: Feature flags for strict OAuth linking and API route security. Scopes include Google Drive and Docs.
+## UI/UX Decisions
+
+The application features a modern purple-themed design with gradients. Recent updates have focused on creating compact, professional, and minimalist layouts, improving space utilization, and unifying modal themes. Key interfaces like the Home Page, Configuration, Team Management, and User Management have been restructured for better visual hierarchy and density. The statistics dashboard has been completely redesigned with a three-tier visual layout, glassmorphism elements, enhanced KPI cards with sparklines, and interactive drill-down capabilities.
 
 # External Dependencies
 
 ## Third-Party Services
 
 **Google Workspace APIs**: OAuth, Docs API (document creation), Drive API (file permissions), Sheets API (cost data).
-
 **Pipedrive CRM**: API integration for syncing won deals and proposal URLs.
-
 **Vercel Analytics**: Production usage tracking.
 
 ## Database
@@ -69,190 +57,6 @@ Preferred communication style: Simple, everyday language.
 ## UI Component Libraries
 
 **Atlaskit Pragmatic Drag and Drop**: Drag-and-drop interactions.
-
 **Floating UI**: Tooltip and popover positioning.
-
 **Lucide React**: Icon library.
-
 **TanStack Libraries**: React Query, React Table, React Virtual.
-
-## Development Tools
-
-**TypeScript**: Strict mode with path aliases.
-
-**ESLint**: Flat config with Next.js rules.
-
-**Testing**: Node.js native test runner, Testing Library for unit, integration, and e2e tests.
-
-**Build Tooling**: Turbopack (dev), Bundle Analyzer, PostCSS with Tailwind CSS.
-
-## Deployment
-
-**Platform**: Vercel.
-
-**Environment Variables**: Configured via `DATABASE_URL`, OAuth credentials, and NextAuth settings.
-
-# Recent Changes
-
-## UI/UX Complete Restructure (November 15, 2025)
-
-Comprehensive restructure of key management and configuration interfaces, moving beyond visual updates to fundamental layout reorganization:
-
-**Home Page (`/home`)**:
-- Replaced large hero section with compact inline header
-- Implemented 4-column grid layout (lg:grid-cols-4) for portal cards
-- Reduced card size and padding (p-5 instead of p-8)
-- Minimized icon sizes (h-5 w-5) for better proportion
-- Created more professional, dashboard-like appearance
-
-**Configurations Landing (`/configuraciones`)**:
-- Eliminated centered large gradient headers
-- Implemented compact horizontal cards with inline icons and stats
-- Reduced spacing and shadows for cleaner look
-- Created professional dashboard aesthetic
-
-**Team Management (`/configuraciones/team-management`)**:
-- **Eliminated sidebar panel** (previous lg:grid-cols-3 layout)
-- Moved team creation to modal dialog instead of sidebar form
-- Made table full-width and primary interface element
-- Simplified header with compact team counter
-- Improved visual hierarchy and space utilization
-
-**User Management (`/configuraciones/user-management`)**:
-- **Eliminated 3-filter grid** (previous md:grid-cols-3 layout)
-- Condensed all filters (search, role, team, count) into single compact horizontal row
-- Reduced table padding (px-4 py-3 instead of px-6 py-4)
-- Smaller avatars (h-9 w-9) and text sizes for better density
-- Improved vertical space usage significantly
-- All filtering functionality preserved and verified working
-
-**Design Philosophy**:
-- Modern purple-themed gradients maintained
-- Compact, professional layouts prioritized
-- Minimalist approach without "enormous" elements
-- Better space utilization throughout
-- All existing functionality preserved (zero regressions)
-
-### Further Refinements (Same Session)
-
-**Header Simplification**:
-- Removed breadcrumb navigation ("Configuraciones / Gestión de...")
-- Eliminated descriptive subtitles in Team and User Management pages
-- Now shows only clean, simple page titles (h1 text-xl)
-
-**Modal Components Redesign**:
-- Updated `Modal.tsx` to use slate colors instead of gray throughout
-- Updated `ConfirmDialog.tsx` for consistent slate palette
-- Changed portal access button from bg-slate-900 to bg-purple-600 for theme consistency
-- Simplified all modal titles (removed redundant font styling)
-
-**Translation Namespace Fix**:
-- Corrected portal name translations from `admin.users.portals` to `navbar.portalSwitcher.options`
-- Fixed "Portal Directo" displaying as "admin.users.portals.direct" in tables
-- All portal names now render correctly with proper labels and icons
-
-**Visual Consistency**:
-- Complete shift from gray/black accents to purple/slate theme
-- Unified color palette across all modals and dialogs
-- Improved professional appearance while maintaining accessibility
-
-### Additional Visual Enhancements (Same Session Continuation)
-
-**Portal Translation Fix**:
-- Corrected portal name rendering bug where all portals showed translation keys
-- Fixed by changing `portalsT(portal)` to `portalsT(\`${portal}.label\`)`
-- Now properly displays "Portal Directo", "Portal Mapache", "Portal Partner", "Portal Marketing"
-
-**Page Title Visual Improvements**:
-- "Configuraciones del Sistema" now centered in gradient purple card with shadow
-- "Gestión de Equipos" and "Gestión de Usuarios" titles in purple/slate gradient cards
-- All page titles upgraded from plain text to styled cards with purple borders
-- Title gradients: `bg-clip-text bg-gradient-to-r from-purple-600 to-purple-800`
-- Descriptions preserved and rendered below titles in all pages
-- Increased title sizes and improved visual hierarchy throughout
-
-**Modal Theme Unification (Portal Directo, Configuraciones & Home)**:
-- PortalLauncher and UserProfileModal now use consistent purple/white theme in all Direct Portal, Configuration routes, and Home page
-- Changed `navbarAppearance` logic to use "direct" theme for `navbarVariant === "direct"`, `navbarVariant === "config"`, and `navbarVariant === "home"`
-- Applies to routes: `/portal/directo/*`, `/configuraciones/*`, and `/home`
-- Eliminates previous inconsistency where configuration pages and home used dark/gray theme instead of purple theme
-- Both modals now have unified purple backgrounds, white text, and purple gradient accents throughout the main application ecosystem
-
-**PortalLauncher Color Contrast Fix**:
-- Fixed critical bug where PortalLauncher modal appeared with white text on white/light gray background (unreadable)
-- Root cause: Modal component wasn't receiving `variant` prop, defaulting to light theme with white backgrounds
-- Solution: Added `variant={appearance === "light" ? "default" : "inverted"}` to Modal in PortalLauncher
-- Now correctly applies dark/purple backgrounds for direct, dark, and mapache themes
-- Maintains light white backgrounds for marketing portal theme
-- Text is now properly readable with correct contrast in all portal themes
-
-## Statistics Dashboard Complete Redesign (November 15, 2025)
-
-Complete redesign and enhancement of the statistics dashboard (`/portal/directo/stats`) with new interactive features AND comprehensive visual layout overhaul:
-
-**New Components Created** (`/src/app/components/features/proposals/components/`):
-- **Sparkline.tsx**: Mini trend charts showing 30-day rolling data with automatic trend detection (up/down/stable using 7-day moving averages)
-- **EnhancedGlassKpi.tsx**: Enhanced KPI cards with integrated sparklines, trend indicators, and drill-down click support (includes onClick handler with accessibility features)
-- **DrillDownModal.tsx**: Interactive modal for displaying detailed data tables when clicking on KPIs, charts, or table rows
-- **SavedFiltersManager.tsx**: Filter preset management with localStorage persistence for saving/loading filter configurations
-- **RefreshIndicator.tsx**: Real-time indicator showing last data update time with manual refresh button
-
-**Three-Tier Visual Layout Redesign**:
-- **Main Container**: Gradient background (`bg-gradient-to-br from-purple-50 via-white to-slate-50`) with max-width constraint (1600px)
-- **Tier 1 - Filters Section**: 
-  - Glassmorphism card with `rounded-2xl border border-slate-200 bg-white/90 shadow-lg backdrop-blur-sm`
-  - Responsive header with gradient title and SavedFiltersManager/RefreshIndicator on right
-  - Filter controls in responsive grid (sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6)
-  - Purple-themed active filter pills with clear buttons
-  
-- **Tier 2 - Key Metrics Section**:
-  - 9 KPIs reorganized into balanced 3x3 layout (3 rows, 3 columns each)
-  - Row 1: Primary metrics (Proposals, Users, Companies)
-  - Row 2: Revenue metrics (Total, Average, Won Count)
-  - Row 3: Performance metrics (Won Amount, Win Rate, Average Ticket)
-  - Each row uses `grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3`
-  - Gradient section header: `bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text`
-
-- **Tier 3 - Deep Dive Analysis**:
-  - Two-column layout using `grid grid-cols-1 gap-6 lg:grid-cols-12`
-  - Left column (lg:col-span-7): Country and SKU charts stacked vertically
-  - Right column (lg:col-span-5): All three tables (By SKU, By Country, By User) stacked vertically
-  - Better visual balance and utilization of horizontal space
-
-**Core Functionality Enhancements**:
-- Removed week-based comparisons (currentWeek/prevWeek) maintaining Q1-Q4 and month-to-month analysis
-- Implemented 9 sparklines (30-day rolling window) for all KPIs
-- Added drill-down functionality to all interactive elements with dynamic column configuration
-- Set default filter to Q4 2025 (Oct 1 - Dec 31)
-- Integrated SavedFiltersManager and RefreshIndicator
-
-**Interactive Features**:
-- **KPI Cards**: Click any of 9 EnhancedGlassKpi cards to drill down with keyboard accessibility
-- **Charts**: Click bars in Country/SKU HorizontalBarList charts to filter proposals
-- **Tables**: Click rows in all three tables with purple hover states
-- **Filter Presets**: Save and reload filter configurations
-
-**Technical Implementation**:
-- **Helper Functions**: openDrillDown(), handleApplyFilters(), generateSparklineData(), getTrend()
-- **Type Safety**: Proper type guards for Date formatters, optional chaining for p.items, sparklineData prop typing
-- **Data Processing**: Client-side sparkline generation with Map/Set data structures
-- **Trend Detection**: 7-day moving average comparison requiring minimum 3 days of data
-- **SparklineData Format**: `{ value: number; label?: string }[]`
-
-**Visual Design System**:
-- **Glassmorphism**: Consistent border-slate-200, bg-white/90, shadow-lg, backdrop-blur-sm
-- **Gradients**: Purple gradient headers (from-purple-600 to-purple-800)
-- **Spacing**: Consistent space-y-6 between sections, p-6 internal padding
-- **Responsive**: Proper breakpoints (sm, md, lg, xl) throughout all tiers
-- **Accessibility**: Proper role, tabIndex, keyboard handlers for interactive elements
-
-**Performance & UX**:
-- Efficient client-side processing with memoization
-- Hover states and visual feedback on all interactive elements
-- Purple/slate theme consistency
-- Responsive design maintained across all breakpoints
-- Zero regressions in existing functionality
-
-**Future Optimization Notes**:
-- Server-side aggregation and pagination recommended for scaling
-- Consider caching sparkline data for frequently accessed date ranges
