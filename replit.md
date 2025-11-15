@@ -185,3 +185,45 @@ Comprehensive restructure of key management and configuration interfaces, moving
 - Now correctly applies dark/purple backgrounds for direct, dark, and mapache themes
 - Maintains light white backgrounds for marketing portal theme
 - Text is now properly readable with correct contrast in all portal themes
+
+## Statistics Dashboard Redesign (November 15, 2025)
+
+Complete redesign and enhancement of the statistics dashboard (`/portal/directo/stats`) with new interactive features and improved data visualization:
+
+**New Components Created** (`/src/app/components/features/proposals/components/`):
+- **Sparkline.tsx**: Mini trend charts showing 30-day rolling data with automatic trend detection (up/down/stable using 7-day moving averages)
+- **EnhancedGlassKpi.tsx**: Enhanced KPI cards with integrated sparklines, trend indicators, and drill-down click support
+- **DrillDownModal.tsx**: Interactive modal for displaying detailed data tables when clicking on KPIs, charts, or table rows
+- **SavedFiltersManager.tsx**: Filter preset management with localStorage persistence for saving/loading filter configurations
+- **RefreshIndicator.tsx**: Real-time indicator showing last data update time with manual refresh button
+
+**Core Functionality Enhancements**:
+- Removed week-based comparisons (currentWeek/prevWeek) as requested, maintaining Q1-Q4 and month-to-month analysis
+- Implemented 9 sparklines (30-day rolling window) for all KPIs: proposals generated, unique users, unique companies, total monthly revenue, average per proposal, won count, won amount, win rate, won average ticket
+- Added drill-down functionality to all interactive elements (KPIs, charts, tables) with dynamic column configuration
+- Set default filter to Q4 2025 (Oct 1 - Dec 31) for immediate relevant data on load
+- Integrated SavedFiltersManager and RefreshIndicator into stats page header
+
+**Interactive Features**:
+- **KPI Cards**: Click any of 9 EnhancedGlassKpi cards to view detailed proposal data in DrillDownModal
+- **Charts**: Click bars in Country or SKU HorizontalBarList charts to filter and view specific proposals
+- **Tables**: Click rows in "By SKU" or "By Country" tables to drill down into proposal details with purple hover states
+- **Filter Presets**: Save current filter combinations and quickly reload them later
+
+**Technical Implementation**:
+- **Helper Functions**: openDrillDown(), handleApplyFilters(), generateSparklineData(), getTrend()
+- **Data Processing**: Client-side sparkline generation with proper Date object handling and ISO string formatting
+- **Trend Detection**: 7-day moving average comparison requiring minimum 3 days of data for reliable trend indication
+- **Type Safety**: All components properly typed with SparklineData format: `{ value: number; label?: string }[]`
+
+**Performance & UX**:
+- Efficient client-side processing with Map/Set data structures for unique value tracking
+- Proper memoization using React useMemo for sparkline calculations
+- Hover states and visual feedback on all interactive elements
+- Purple/slate theme consistency throughout new components
+- Responsive design maintained across all new features
+
+**Future Optimization Notes**:
+- Current implementation uses client-side data processing (acceptable for current dataset size)
+- Server-side aggregation and pagination recommended for scaling beyond current data volume
+- Consider caching sparkline data for frequently accessed date ranges
