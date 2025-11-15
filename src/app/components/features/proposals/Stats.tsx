@@ -948,7 +948,7 @@ export default function Stats({
       if (!proposalsByDay.has(date)) proposalsByDay.set(date, { total: 0, won: 0 });
       const stats = proposalsByDay.get(date)!;
       stats.total++;
-      if (p.status === "won") stats.won++;
+      if (p.status === "WON") stats.won++;
     });
     const data: { value: number; label?: string }[] = [];
     const endDate = new Date();
