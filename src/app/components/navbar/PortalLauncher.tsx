@@ -303,6 +303,7 @@ export default function PortalLauncher({
         titleClassName={theme.title}
         panelWidthClassName="max-w-lg"
         panelClassName={theme.panel}
+        variant={appearance === "light" ? "default" : "inverted"}
       >
         <div className="space-y-3">
           <p className={theme.description}>{portalText("description")}</p>
