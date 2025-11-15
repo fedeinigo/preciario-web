@@ -2263,31 +2263,29 @@ const messages: DeepRecord = {
       },
 
       onboarding: {
-
-        title: "Choose your team",
-
+        title: "Complete your details",
         intro:
-
-          "Welcome! To personalize your experience, let us know which team you belong to.",
-
+          "To personalize your experience we need to know your animal team, your role and your direct leader.",
+        teamLabel: "Which animal team are you part of?",
         selectPlaceholder: "(choose a team)",
-
+        teamOtherOption: "Other…",
+        customTeamLabel: "Tell us the team name",
+        customTeamPlaceholder: "e.g. CX Specials",
+        positionLabel: "Position name",
+        positionPlaceholder: "e.g. Operations Lead",
+        leaderEmailLabel: "Direct leader email",
+        leaderEmailHint: "Must be an @wisecx.com address",
         actions: {
-
-          later: "Later",
-
           save: "Save",
-
+          saving: "Saving…",
         },
-
         toasts: {
-
-          saved: "Team saved",
-
-          error: "Could not save the team",
-
+          saved: "Information saved",
+          error: "We couldn’t save your information",
         },
-
+        errors: {
+          leaderEmail: "Enter a valid @wisecx.com email",
+        },
       },
 
       countries: {

@@ -121,18 +121,20 @@ export const authOptions: NextAuthOptions = {
       if (dbUserId) {
         const dbUser = await prisma.user.findUnique({
           where: { id: dbUserId },
-        select: {
-          id: true,
-          role: true,
-          team: true,
-          email: true,
-          image: true,
-          portalAccesses: {
-            select: {
-              portal: true,
+          select: {
+            id: true,
+            role: true,
+            team: true,
+            email: true,
+            image: true,
+            positionName: true,
+            leaderEmail: true,
+            portalAccesses: {
+              select: {
+                portal: true,
+              },
             },
           },
-        },
         });
         if (dbUser) {
           const appRole = appRoleFromDb(dbUser.role);
@@ -140,6 +142,8 @@ export const authOptions: NextAuthOptions = {
           token.email = dbUser.email ?? token.email;
           token.role = appRole;
           token.team = dbUser.team ?? null;
+          token.positionName = dbUser.positionName ?? null;
+          token.leaderEmail = dbUser.leaderEmail ?? null;
           token.portals = resolvePortalAccess({
             portalAccesses: dbUser.portalAccesses,
             role: dbUser.role,
@@ -156,23 +160,27 @@ export const authOptions: NextAuthOptions = {
       if (token?.email) {
         const dbUser = await prisma.user.findUnique({
           where: { email: token.email as string },
-        select: {
-          id: true,
-          role: true,
-          team: true,
-          image: true,
-          portalAccesses: {
-            select: {
-              portal: true,
+          select: {
+            id: true,
+            role: true,
+            team: true,
+            image: true,
+            positionName: true,
+            leaderEmail: true,
+            portalAccesses: {
+              select: {
+                portal: true,
+              },
             },
           },
-        },
         });
         if (dbUser) {
           const appRole = appRoleFromDb(dbUser.role);
           token.id = dbUser.id;
           token.role = appRole;
           token.team = dbUser.team ?? null;
+          token.positionName = dbUser.positionName ?? null;
+          token.leaderEmail = dbUser.leaderEmail ?? null;
           token.portals = resolvePortalAccess({
             portalAccesses: dbUser.portalAccesses,
             role: dbUser.role,
@@ -192,6 +200,8 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.role = (token.role as AppRole) ?? "usuario";
         session.user.team = (token.team as string | null) ?? null;
+        session.user.positionName = (token.positionName as string | null) ?? null;
+        session.user.leaderEmail = (token.leaderEmail as string | null) ?? null;
         const portalList = Array.isArray(token.portals)
           ? (token.portals as PortalAccessId[])
           : [];

@@ -14,6 +14,7 @@ import { auth } from "@/lib/auth";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 import { loadMessages } from "@/lib/i18n/messages";
 import { defaultLocale, localeCookieName, normalizeLocale } from "@/lib/i18n/config";
+import OnboardingTeamModal from "@/app/components/features/proposals/OnboardingTeamModal";
 
 export const metadata: Metadata = {
   title: "Wise CX — Preciario",
@@ -54,6 +55,7 @@ export default async function RootLayout({
               <Suspense fallback={null}>
                 <Navbar session={session} />
               </Suspense>
+              <OnboardingTeamModal />
               <main className="pt-[var(--nav-h)]">{children}</main>
             </SessionProviderWrapper>
           </LanguageProvider>
@@ -71,6 +73,7 @@ export default async function RootLayout({
             <Suspense fallback={null}>
               <Navbar session={session} />
             </Suspense>
+            <OnboardingTeamModal />
             <main className="pt-[var(--nav-h)]">{children}</main>
           </ClientSessionBoundary>
         </LanguageProvider>
