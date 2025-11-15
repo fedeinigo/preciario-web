@@ -190,7 +190,7 @@ export const authOptions: NextAuthOptions = {
 
   // Guarda/actualiza tokens de Google en Account (refresh_token la 1ª vez)
   events: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (!account || account.provider !== "google" || !user?.id) return;
 
       const updates: {
@@ -211,8 +211,6 @@ export const authOptions: NextAuthOptions = {
       if (typeof account.id_token === "string") updates.id_token = account.id_token;
       if (typeof account.session_state === "string") updates.session_state = account.session_state;
 
-      if (Object.keys(updates).length === 0) return;
-
       const key = {
         provider_providerAccountId: {
           provider: "google",
@@ -220,18 +218,34 @@ export const authOptions: NextAuthOptions = {
         },
       } as const;
 
-      try {
-        await prisma.account.update({ where: key, data: updates });
-      } catch {
-        await prisma.account.create({
-          data: {
-            userId: user.id as string,
-            type: "oauth",
-            provider: "google",
-            providerAccountId: account.providerAccountId!,
-            ...updates,
-          },
-        });
+      const hasAccountUpdates = Object.keys(updates).length > 0;
+
+      if (hasAccountUpdates) {
+        try {
+          await prisma.account.update({ where: key, data: updates });
+        } catch {
+          await prisma.account.create({
+            data: {
+              userId: user.id as string,
+              type: "oauth",
+              provider: "google",
+              providerAccountId: account.providerAccountId!,
+              ...updates,
+            },
+          });
+        }
+      }
+
+      const googleImage = profile?.picture;
+      if (googleImage && googleImage !== user.image) {
+        try {
+          await prisma.user.update({
+            where: { id: user.id as string },
+            data: { image: googleImage },
+          });
+        } catch {
+          // Ignore update failures; image is optional
+        }
       }
     },
   },

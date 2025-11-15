@@ -26,6 +26,7 @@ type Props = {
   currentEmail: string;
   leaderTeam: string | null;
   isSuperAdmin: boolean;
+  viewerImage?: string | null;
 };
 
 type TeamMemberResponse = {
@@ -46,6 +47,7 @@ export default function GoalsPage({
   currentEmail,
   leaderTeam,
   isSuperAdmin,
+  viewerImage = null,
 }: Props) {
   const pageT = useTranslations("goals.page");
   const toastT = useTranslations("goals.toast");
@@ -634,7 +636,7 @@ export default function GoalsPage({
             role,
             team: leaderTeam,
             email: currentEmail ?? null,
-            image: null,
+            image: viewerImage ?? null,
           }}
           targetUser={profileUser}
           appearance="light"

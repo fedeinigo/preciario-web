@@ -8,6 +8,7 @@ export type DirectPortalViewer = {
   email: string;
   role: AppRole;
   team: string | null;
+  image: string | null;
 };
 
 function normalizeRole(role: unknown): AppRole {
@@ -32,5 +33,6 @@ export function buildDirectPortalViewer(
     email: session.user.email ?? "",
     role: normalizeRole(session.user.role),
     team: (session.user.team as string | null | undefined) ?? null,
+    image: (session.user.image as string | null | undefined) ?? null,
   };
 }

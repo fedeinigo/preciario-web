@@ -43,6 +43,7 @@ export default function ProposalsIndex() {
   const isSuperAdmin = role === "admin";
   const userId = (session?.user?.id as string | undefined) ?? "";
   const userEmail = currentEmail;
+  const viewerImage = (session?.user?.image as string | null | undefined) ?? null;
 
   // Paso el resto a un hijo autenticado para no llamar hooks condicionalmente
   return (
@@ -53,6 +54,7 @@ export default function ProposalsIndex() {
       isSuperAdmin={isSuperAdmin}
       userId={userId}
       userEmail={userEmail}
+      viewerImage={viewerImage}
     />
   );
 }
@@ -65,8 +67,9 @@ function AuthedTabs(props: {
   isSuperAdmin: boolean;
   userId: string;
   userEmail: string;
+  viewerImage: string | null;
 }) {
-  const { role, currentEmail, leaderTeam, isSuperAdmin, userId, userEmail } = props;
+  const { role, currentEmail, leaderTeam, isSuperAdmin, userId, userEmail, viewerImage } = props;
 
   const [tab, setTab] = React.useState<Tab>(readHash());
 
@@ -123,6 +126,7 @@ function AuthedTabs(props: {
           currentEmail={currentEmail}
           leaderTeam={leaderTeam}
           isSuperAdmin={isSuperAdmin}
+          viewerImage={viewerImage}
         />
       )}
 
