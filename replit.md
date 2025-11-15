@@ -177,3 +177,11 @@ Comprehensive restructure of key management and configuration interfaces, moving
 - Applies to routes: `/portal/directo/*`, `/configuraciones/*`, and `/home`
 - Eliminates previous inconsistency where configuration pages and home used dark/gray theme instead of purple theme
 - Both modals now have unified purple backgrounds, white text, and purple gradient accents throughout the main application ecosystem
+
+**PortalLauncher Color Contrast Fix**:
+- Fixed critical bug where PortalLauncher modal appeared with white text on white/light gray background (unreadable)
+- Root cause: Modal component wasn't receiving `variant` prop, defaulting to light theme with white backgrounds
+- Solution: Added `variant={appearance === "light" ? "default" : "inverted"}` to Modal in PortalLauncher
+- Now correctly applies dark/purple backgrounds for direct, dark, and mapache themes
+- Maintains light white backgrounds for marketing portal theme
+- Text is now properly readable with correct contrast in all portal themes
