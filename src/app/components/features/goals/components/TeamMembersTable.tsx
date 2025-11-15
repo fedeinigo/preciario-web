@@ -261,148 +261,133 @@ export default function TeamMembersTable({
             const perfColor = getPerformanceColor(r.pct);
             const pctSafe = Number.isFinite(r.pct) ? r.pct : 0;
             const progressWidth = Math.min(100, Math.max(0, pctSafe));
-            
+
             return (
               <div
                 key={r.userId}
-                className="group relative rounded-3xl bg-white border border-slate-200 shadow-sm hover:shadow-lg hover:border-purple-200 transition-all duration-300 overflow-hidden"
+                className="rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-purple-200 hover:shadow-lg transition-all duration-300 p-4 space-y-4"
               >
-                {/* Progress Background */}
-                <div
-                  className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-purple-50/40 to-transparent transition-all duration-300"
-                  style={{ width: `${Math.min(progressWidth, 100)}%` }}
-                />
-                
-                <div className="relative p-6">
-                  {/* Header: Avatar + Name + Performance Badge */}
-                  <div className="flex items-start justify-between gap-4 mb-5">
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <div className="flex h-16 w-16 shrink-0 items-center justify-center">
-                          <UserAvatar
-                            name={displayName}
-                            email={r.email ?? undefined}
-                            image={r.image ?? undefined}
-                            size={64}
-                            className={`shadow-lg ring-4 ${perfColor.ring}`}
-                          />
-                        </div>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-lg font-bold text-slate-900 truncate mb-0.5">{displayName}</h3>
-                        {r.email && <p className="text-sm text-slate-500 truncate">{r.email}</p>}
-                      </div>
-                    </div>
-                    <div className={`shrink-0 px-4 py-2 rounded-2xl ${perfColor.bg} shadow-md`}>
-                      <div className="text-2xl font-bold text-white text-center leading-none">{pctSafe.toFixed(0)}%</div>
-                      <div className="text-[10px] font-medium text-white/90 text-center mt-0.5 uppercase tracking-wide">Cumpl.</div>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-6">
+                  <div className="flex items-center gap-3 min-w-[220px] flex-1">
+                    <UserAvatar
+                      name={displayName}
+                      email={r.email ?? undefined}
+                      image={r.image ?? undefined}
+                      size={56}
+                      className={`shadow-sm ring-4 ${perfColor.ring}`}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-base font-semibold text-slate-900 truncate">{displayName}</p>
+                      {r.email && <p className="text-sm text-slate-500 truncate">{r.email}</p>}
                     </div>
                   </div>
 
-                  {/* Metrics Grid */}
-                  <div className="grid grid-cols-2 gap-4 mb-5">
-                    {/* Objetivo */}
-                    <div className="rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 p-4 border border-slate-200">
-                      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Objetivo</div>
+                  <div className="min-w-[160px]">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Objetivo</p>
+                    {isEditing ? (
+                      <input
+                        className="w-full rounded-lg border-2 border-purple-200 px-3 py-1.5 text-base font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                        type="number"
+                        min={0}
+                        value={Number.isFinite(tmp) ? tmp : 0}
+                        onChange={(e) => setTmp(Number(e.target.value || 0))}
+                        autoFocus
+                      />
+                    ) : (
+                      <>
+                        <p className="text-lg font-bold text-slate-900">{formatUSD(r.goal)}</p>
+                        <p className="text-xs text-slate-500">{labelsT("monthly")}: {formatUSD(Number.isFinite(monthly) ? monthly : 0)}</p>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="min-w-[150px]">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-purple-600 mb-1">Avance</p>
+                    <p className="text-lg font-bold text-purple-900">{formatUSD(r.progress)}</p>
+                    <p className="text-xs text-purple-600">
+                      {r.dealsCount !== undefined ? `${r.dealsCount} deal${r.dealsCount !== 1 ? "s" : ""}` : "-"}
+                    </p>
+                  </div>
+
+                  <div className="flex w-full gap-2 sm:w-auto sm:min-w-[140px]">
+                    <div className="flex w-full flex-col gap-2">
                       {isEditing ? (
-                        <input
-                          className="w-full px-3 py-2 rounded-xl border-2 border-purple-300 bg-white text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                          type="number"
-                          min={0}
-                          value={Number.isFinite(tmp) ? tmp : 0}
-                          onChange={(e) => setTmp(Number(e.target.value || 0))}
-                          autoFocus
-                        />
+                        <>
+                          <button
+                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                            onClick={() => saveEdit(r.userId)}
+                          >
+                            {actionsT("save")}
+                          </button>
+                          <button
+                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white/80 shadow-sm transition hover:shadow-md"
+                            onClick={cancelEdit}
+                          >
+                            {actionsT("cancel")}
+                          </button>
+                        </>
                       ) : (
                         <>
-                          <div className="text-lg font-bold text-slate-900">{formatUSD(r.goal)}</div>
-                          <div className="text-xs text-slate-500 mt-0.5">
-                            {labelsT("monthly")}: {formatUSD(Number.isFinite(monthly) ? monthly : 0)}
-                          </div>
+                          <button
+                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                            onClick={() =>
+                              onOpenProfile({
+                                id: r.userId,
+                                email: r.email,
+                                name: r.name,
+                                role: r.role,
+                                team: r.team,
+                                image: r.image ?? null,
+                              })
+                            }
+                          >
+                            {actionsT("profile")}
+                          </button>
+                          {canAddManual && (
+                            <button
+                              className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                              onClick={() => onAddManual({ id: r.userId, email: r.email, name: r.name })}
+                            >
+                              {billingT("manualCta")}
+                            </button>
+                          )}
+                          <button
+                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                            onClick={() => {
+                              if (!canEdit) {
+                                toast.info(toastT("restrictedEdit"));
+                                return;
+                              }
+                              startEdit(r);
+                            }}
+                          >
+                            {actionsT("edit")}
+                          </button>
                         </>
                       )}
                     </div>
-
-                    {/* Avance */}
-                    <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 border border-purple-200">
-                      <div className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-1.5">Avance</div>
-                      <div className="text-lg font-bold text-purple-900">{formatUSD(r.progress)}</div>
-                      <div className="text-xs text-purple-600 mt-0.5">
-                        {r.dealsCount !== undefined ? `${r.dealsCount} deal${r.dealsCount !== 1 ? 's' : ''}` : '—'}
-                      </div>
-                    </div>
                   </div>
 
-                  {/* Progress Bar */}
-                  <div className="mb-5">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-slate-600">Progreso visual</span>
-                      <span className="text-xs font-bold text-purple-700">{pctSafe.toFixed(1)}%</span>
-                    </div>
-                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200">
-                      <div
-                        className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 shadow-sm transition-all duration-500"
-                        style={{ width: `${progressWidth}%` }}
-                      />
-                      {pctSafe > 100 && (
-                        <div className="absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-amber-400 to-transparent opacity-75" />
-                      )}
-                    </div>
+                  <div className={`flex flex-col items-center justify-center rounded-xl px-4 py-2 ${perfColor.bg} shadow-sm`}>
+                    <span className="text-2xl font-bold text-white leading-none">{pctSafe.toFixed(0)}%</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-white/80 mt-1">
+                      Cumpl.
+                    </span>
                   </div>
+                </div>
 
-                  {/* Actions */}
-                  <div className="flex flex-wrap gap-2">
-                    {isEditing ? (
-                      <>
-                        <button
-                          className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold bg-white border-2 border-slate-300 text-slate-700 shadow-sm hover:bg-slate-50 transition"
-                          onClick={cancelEdit}
-                        >
-                          {actionsT("cancel")}
-                        </button>
-                        <button
-                          className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:scale-[1.02] transition-all"
-                          onClick={() => saveEdit(r.userId)}
-                        >
-                          {actionsT("save")}
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold bg-white border border-slate-300 text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-400 transition"
-                          onClick={() =>
-                            onOpenProfile({
-                              id: r.userId,
-                              email: r.email,
-                              name: r.name,
-                              role: r.role,
-                              team: r.team,
-                              image: r.image ?? null,
-                            })
-                          }
-                        >
-                          {actionsT("profile")}
-                        </button>
-                        {canAddManual && (
-                          <button
-                            className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-md shadow-purple-500/20 hover:shadow-lg hover:shadow-purple-500/30 transition-all"
-                            onClick={() => onAddManual({ id: r.userId, email: r.email, name: r.name })}
-                          >
-                            {billingT("manualCta")}
-                          </button>
-                        )}
-                        <button
-                          className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold bg-purple-50 border border-purple-200 text-purple-700 shadow-sm hover:bg-purple-100 hover:border-purple-300 transition"
-                          onClick={() => {
-                            if (!canEdit) {
-                              toast.info(toastT("restrictedEdit"));
-                              return;
-                            }
-                            startEdit(r);
-                          }}
-                        >
-                          {actionsT("edit")}
-                        </button>
-                      </>
+                <div>
+                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                    <span>Progreso visual</span>
+                    <span className="font-semibold text-purple-700">{pctSafe.toFixed(1)}%</span>
+                  </div>
+                  <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 transition-all duration-500"
+                      style={{ width: `${progressWidth}%` }}
+                    />
+                    {pctSafe > 100 && (
+                      <div className="absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-amber-400 to-transparent opacity-70" />
                     )}
                   </div>
                 </div>
