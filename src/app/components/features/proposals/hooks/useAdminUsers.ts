@@ -11,6 +11,8 @@ export type AdminUser = {
   image: string | null;
   role: AppRole;
   team: string | null;
+  positionName: string | null;
+  leaderEmail: string | null;
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string | null;

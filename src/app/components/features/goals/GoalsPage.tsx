@@ -657,6 +657,8 @@ export default function GoalsPage({
             team: leaderTeam,
             email: currentEmail ?? null,
             image: viewerImage ?? null,
+            positionName: null,
+            leaderEmail: null,
           }}
           targetUser={profileUser}
           appearance="light"

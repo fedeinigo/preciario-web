@@ -738,7 +738,7 @@ export default function Users() {
         <UserProfileModal
           open={profileOpen}
           onClose={() => setProfileOpen(false)}
-          viewer={{ role: "admin", team: null, email: null, name: null, image: null }}
+          viewer={{ role: "admin", team: null, email: null, name: null, image: null, positionName: null, leaderEmail: null }}
           targetUser={profileUser}
           appearance="light"
         />

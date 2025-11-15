@@ -88,6 +88,8 @@ export async function GET() {
       image: true,
       role: true,
       team: true,
+      positionName: true,
+      leaderEmail: true,
       createdAt: true,
       updatedAt: true,
       portalAccesses: {
@@ -191,6 +193,8 @@ export async function PATCH(req: Request) {
         image: true,
         role: true,
         team: true,
+        positionName: true,
+        leaderEmail: true,
         createdAt: true,
         updatedAt: true,
         portalAccesses: {

@@ -82,6 +82,12 @@ const messages: DeepRecord = {
 
           team: "Team",
 
+          position: "Position",
+
+          leader: "Leader",
+
+          period: "Period & Goal",
+
           year: "Year",
 
           quarter: "Quarter",
@@ -97,6 +103,10 @@ const messages: DeepRecord = {
           team: "—",
 
           email: "—",
+
+          position: "—",
+
+          leader: "—",
 
         },
 

@@ -851,21 +851,23 @@ export default function NavbarClient({ session }: NavbarClientProps) {
         </div>
       ) : null}
 
-      {showAuthActions ? (
-        <UserProfileModal
-          open={userModal}
-          onClose={() => setUserModal(false)}
-          viewer={{
-            id: (session?.user?.id as string | null | undefined) ?? null,
-            email: session?.user?.email ?? null,
-            role: appRole,
-            team,
-            name,
-            image: session?.user?.image ?? null,
-          }}
-          appearance={navTheme.profileAppearance}
-        />
-      ) : null}
+          {showAuthActions ? (
+            <UserProfileModal
+              open={userModal}
+              onClose={() => setUserModal(false)}
+              viewer={{
+                id: (session?.user?.id as string | null | undefined) ?? null,
+                email: session?.user?.email ?? null,
+                role: appRole,
+                team,
+                name,
+                image: session?.user?.image ?? null,
+                positionName: (session?.user?.positionName as string | null | undefined) ?? null,
+                leaderEmail: (session?.user?.leaderEmail as string | null | undefined) ?? null,
+              }}
+              appearance={navTheme.profileAppearance}
+            />
+          ) : null}
     </nav>
   );
 }

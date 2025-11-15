@@ -85,8 +85,8 @@ export default function GeneratorMainCard({
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white/90 shadow-lg backdrop-blur-sm overflow-hidden">
-      <div className="bg-gradient-to-r from-purple-600 to-purple-800 px-6 py-4">
-        <h1 className="text-xl font-bold text-white">{heading}</h1>
+      <div className="px-6 py-4 border-b border-purple-100 bg-white">
+        <h1 className="text-xl font-bold text-[#4c1d95]">{heading}</h1>
       </div>
 
       <div className="p-6 space-y-6">

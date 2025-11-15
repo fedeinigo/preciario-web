@@ -73,22 +73,22 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
   },
   direct: {
     trigger:
-      "inline-flex items-center gap-2 rounded-full border border-white/30 bg-[rgb(var(--primary))]/90 px-3 py-1.5 text-[13px] text-white shadow-sm transition hover:bg-[rgb(var(--primary))]",
+      "inline-flex items-center gap-2 rounded-full border border-[#c4b5fd] bg-white px-3 py-1.5 text-[13px] font-semibold text-[#4c1d95] shadow-sm transition hover:bg-[#ede9fe] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c4b5fd]",
     panel:
-      "rounded-[32px] border border-white/20 bg-[rgb(var(--primary))] text-white shadow-[0_45px_130px_rgba(5,0,0,0.6)] backdrop-blur",
-    header: "bg-transparent border-b border-white/30 px-6 py-4 text-white",
-    title: "text-lg font-semibold text-white",
-    description: "text-sm text-white/80",
+      "rounded-[32px] border border-[#ede9fe] bg-white text-slate-900 shadow-[0_45px_130px_rgba(76,29,149,0.15)]",
+    header: "bg-white border-b border-[#ede9fe] px-6 py-4 text-[#4c1d95]",
+    title: "text-lg font-semibold text-[#4c1d95]",
+    description: "text-sm text-slate-600",
     card:
-      "flex items-center justify-between gap-4 rounded-2xl border border-white/25 bg-[rgba(255,255,255,0.06)] px-4 py-3 shadow-[0_25px_70px_rgba(15,6,41,0.55)]",
-    cardTitle: "text-sm font-semibold text-white",
-    cardDescription: "text-xs text-white/70",
+      "flex items-center justify-between gap-4 rounded-2xl border border-[#ede9fe] bg-[#faf5ff] px-4 py-3 shadow-sm",
+    cardTitle: "text-sm font-semibold text-slate-900",
+    cardDescription: "text-xs text-slate-500",
     action:
-      "rounded-full border border-white/30 bg-white/20 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:border-white/50 hover:bg-white/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60",
-    overlay: "bg-[rgba(30,6,80,0.9)] text-white",
-    overlaySpinner: "text-white/80",
-    overlayText: "text-white/80",
-    backdrop: "bg-[rgba(42,9,97,0.75)] backdrop-blur",
+      "rounded-full border border-transparent bg-[#4c1d95] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-[#3b0d71] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c4b5fd]",
+    overlay: "bg-white/95 text-[#4c1d95]",
+    overlaySpinner: "text-[#4c1d95]",
+    overlayText: "text-[#4c1d95]",
+    backdrop: "bg-black/35",
   },
   mapache: {
     trigger:
