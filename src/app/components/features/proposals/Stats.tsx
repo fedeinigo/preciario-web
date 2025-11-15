@@ -887,6 +887,105 @@ export default function Stats({
     generateSparklineData(wonRows, 30, (p) => Number(p.totalAmount) || 0),
     [wonRows, generateSparklineData]
   );
+  
+  // Additional sparklines for remaining KPIs
+  const sparklineUniqueUsers = useMemo(() => {
+    const usersByDay = new Map<string, Set<string>>();
+    subset.forEach((p) => {
+      const date = new Date(p.createdAt).toISOString().split('T')[0];
+      if (!usersByDay.has(date)) usersByDay.set(date, new Set());
+      usersByDay.get(date)!.add(p.userEmail);
+    });
+    const data: { date: Date; value: number }[] = [];
+    const endDate = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(endDate);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      data.push({ date, value: usersByDay.get(dateStr)?.size || 0 });
+    }
+    return data;
+  }, [subset]);
+  
+  const sparklineUniqueCompanies = useMemo(() => {
+    const companiesByDay = new Map<string, Set<string>>();
+    subset.forEach((p) => {
+      const date = new Date(p.createdAt).toISOString().split('T')[0];
+      if (!companiesByDay.has(date)) companiesByDay.set(date, new Set());
+      companiesByDay.get(date)!.add(p.companyName);
+    });
+    const data: { date: Date; value: number }[] = [];
+    const endDate = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(endDate);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      data.push({ date, value: companiesByDay.get(dateStr)?.size || 0 });
+    }
+    return data;
+  }, [subset]);
+  
+  const sparklineAvgPerProposal = useMemo(() => {
+    const proposalsByDay = new Map<string, number[]>();
+    subset.forEach((p) => {
+      const date = new Date(p.createdAt).toISOString().split('T')[0];
+      if (!proposalsByDay.has(date)) proposalsByDay.set(date, []);
+      proposalsByDay.get(date)!.push(Number(p.totalAmount) || 0);
+    });
+    const data: { date: Date; value: number }[] = [];
+    const endDate = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(endDate);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const amounts = proposalsByDay.get(dateStr) || [];
+      const avg = amounts.length > 0 ? amounts.reduce((a, b) => a + b, 0) / amounts.length : 0;
+      data.push({ date, value: avg });
+    }
+    return data;
+  }, [subset]);
+  
+  const sparklineWinRate = useMemo(() => {
+    const proposalsByDay = new Map<string, { total: number; won: number }>();
+    subset.forEach((p) => {
+      const date = new Date(p.createdAt).toISOString().split('T')[0];
+      if (!proposalsByDay.has(date)) proposalsByDay.set(date, { total: 0, won: 0 });
+      const stats = proposalsByDay.get(date)!;
+      stats.total++;
+      if (p.status === "won") stats.won++;
+    });
+    const data: { date: Date; value: number }[] = [];
+    const endDate = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(endDate);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const stats = proposalsByDay.get(dateStr);
+      const rate = stats && stats.total > 0 ? (stats.won / stats.total) * 100 : 0;
+      data.push({ date, value: rate });
+    }
+    return data;
+  }, [subset]);
+  
+  const sparklineWonAvgTicket = useMemo(() => {
+    const wonByDay = new Map<string, number[]>();
+    wonRows.forEach((p) => {
+      const date = new Date(p.createdAt).toISOString().split('T')[0];
+      if (!wonByDay.has(date)) wonByDay.set(date, []);
+      wonByDay.get(date)!.push(Number(p.totalAmount) || 0);
+    });
+    const data: { date: Date; value: number }[] = [];
+    const endDate = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(endDate);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const amounts = wonByDay.get(dateStr) || [];
+      const avg = amounts.length > 0 ? amounts.reduce((a, b) => a + b, 0) / amounts.length : 0;
+      data.push({ date, value: avg });
+    }
+    return data;
+  }, [wonRows]);
 
   return (
     <>
@@ -1105,18 +1204,69 @@ export default function Stats({
         </section>
 
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-          <GlassKpi label={kpisT("generated")} value={String(subset.length)} />
-          <GlassKpi label={kpisT("uniqueUsers")} value={String(uniqueUsers)} />
-          <GlassKpi label={kpisT("uniqueCompanies")} value={String(uniqueCompanies)} />
-          <GlassKpi label={kpisT("totalMonthly")} value={formatUSD(totalMonthly)} />
-          <GlassKpi label={kpisT("averagePerProposal")} value={formatUSD(avgPerProposal)} />
+          <EnhancedGlassKpi
+            label={kpisT("generated")}
+            value={String(subset.length)}
+            data={sparklineSubsetCount}
+            onClick={() =>
+              openDrillDown("All Proposals", subset, [
+                { key: "companyName", label: "Company" },
+                { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
+                { key: "status", label: "Status" },
+                { key: "createdAt", label: "Created", format: (v) => new Date(v).toLocaleDateString() },
+              ])
+            }
+          />
+          <EnhancedGlassKpi
+            label={kpisT("uniqueUsers")}
+            value={String(uniqueUsers)}
+            data={sparklineUniqueUsers}
+          />
+          <EnhancedGlassKpi
+            label={kpisT("uniqueCompanies")}
+            value={String(uniqueCompanies)}
+            data={sparklineUniqueCompanies}
+          />
+          <EnhancedGlassKpi
+            label={kpisT("totalMonthly")}
+            value={formatUSD(totalMonthly)}
+            data={sparklineTotalMonthly}
+          />
+          <EnhancedGlassKpi
+            label={kpisT("averagePerProposal")}
+            value={formatUSD(avgPerProposal)}
+            data={sparklineAvgPerProposal}
+          />
         </section>
 
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-          <GlassKpi label={kpisT("wonCount")} value={String(wonCount)} />
-          <GlassKpi label={kpisT("wonAmount")} value={formatUSD(wonAmount)} />
-          <GlassKpi label={kpisT("winRate")} value={`${winRate.toFixed(1)}%`} />
-          <GlassKpi label={kpisT("wonAverageTicket")} value={formatUSD(wonAvgTicket)} />
+          <EnhancedGlassKpi
+            label={kpisT("wonCount")}
+            value={String(wonCount)}
+            data={sparklineWonCount}
+            onClick={() =>
+              openDrillDown("Won Proposals", wonRows, [
+                { key: "companyName", label: "Company" },
+                { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
+                { key: "createdAt", label: "Created", format: (v) => new Date(v).toLocaleDateString() },
+              ])
+            }
+          />
+          <EnhancedGlassKpi
+            label={kpisT("wonAmount")}
+            value={formatUSD(wonAmount)}
+            data={sparklineWonAmount}
+          />
+          <EnhancedGlassKpi
+            label={kpisT("winRate")}
+            value={`${winRate.toFixed(1)}%`}
+            data={sparklineWinRate}
+          />
+          <EnhancedGlassKpi
+            label={kpisT("wonAverageTicket")}
+            value={formatUSD(wonAvgTicket)}
+            data={sparklineWonAvgTicket}
+          />
         </section>
 
         <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
