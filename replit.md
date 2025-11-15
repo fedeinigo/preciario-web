@@ -186,44 +186,73 @@ Comprehensive restructure of key management and configuration interfaces, moving
 - Maintains light white backgrounds for marketing portal theme
 - Text is now properly readable with correct contrast in all portal themes
 
-## Statistics Dashboard Redesign (November 15, 2025)
+## Statistics Dashboard Complete Redesign (November 15, 2025)
 
-Complete redesign and enhancement of the statistics dashboard (`/portal/directo/stats`) with new interactive features and improved data visualization:
+Complete redesign and enhancement of the statistics dashboard (`/portal/directo/stats`) with new interactive features AND comprehensive visual layout overhaul:
 
 **New Components Created** (`/src/app/components/features/proposals/components/`):
 - **Sparkline.tsx**: Mini trend charts showing 30-day rolling data with automatic trend detection (up/down/stable using 7-day moving averages)
-- **EnhancedGlassKpi.tsx**: Enhanced KPI cards with integrated sparklines, trend indicators, and drill-down click support
+- **EnhancedGlassKpi.tsx**: Enhanced KPI cards with integrated sparklines, trend indicators, and drill-down click support (includes onClick handler with accessibility features)
 - **DrillDownModal.tsx**: Interactive modal for displaying detailed data tables when clicking on KPIs, charts, or table rows
 - **SavedFiltersManager.tsx**: Filter preset management with localStorage persistence for saving/loading filter configurations
 - **RefreshIndicator.tsx**: Real-time indicator showing last data update time with manual refresh button
 
+**Three-Tier Visual Layout Redesign**:
+- **Main Container**: Gradient background (`bg-gradient-to-br from-purple-50 via-white to-slate-50`) with max-width constraint (1600px)
+- **Tier 1 - Filters Section**: 
+  - Glassmorphism card with `rounded-2xl border border-slate-200 bg-white/90 shadow-lg backdrop-blur-sm`
+  - Responsive header with gradient title and SavedFiltersManager/RefreshIndicator on right
+  - Filter controls in responsive grid (sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6)
+  - Purple-themed active filter pills with clear buttons
+  
+- **Tier 2 - Key Metrics Section**:
+  - 9 KPIs reorganized into balanced 3x3 layout (3 rows, 3 columns each)
+  - Row 1: Primary metrics (Proposals, Users, Companies)
+  - Row 2: Revenue metrics (Total, Average, Won Count)
+  - Row 3: Performance metrics (Won Amount, Win Rate, Average Ticket)
+  - Each row uses `grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3`
+  - Gradient section header: `bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text`
+
+- **Tier 3 - Deep Dive Analysis**:
+  - Two-column layout using `grid grid-cols-1 gap-6 lg:grid-cols-12`
+  - Left column (lg:col-span-7): Country and SKU charts stacked vertically
+  - Right column (lg:col-span-5): All three tables (By SKU, By Country, By User) stacked vertically
+  - Better visual balance and utilization of horizontal space
+
 **Core Functionality Enhancements**:
-- Removed week-based comparisons (currentWeek/prevWeek) as requested, maintaining Q1-Q4 and month-to-month analysis
-- Implemented 9 sparklines (30-day rolling window) for all KPIs: proposals generated, unique users, unique companies, total monthly revenue, average per proposal, won count, won amount, win rate, won average ticket
-- Added drill-down functionality to all interactive elements (KPIs, charts, tables) with dynamic column configuration
-- Set default filter to Q4 2025 (Oct 1 - Dec 31) for immediate relevant data on load
-- Integrated SavedFiltersManager and RefreshIndicator into stats page header
+- Removed week-based comparisons (currentWeek/prevWeek) maintaining Q1-Q4 and month-to-month analysis
+- Implemented 9 sparklines (30-day rolling window) for all KPIs
+- Added drill-down functionality to all interactive elements with dynamic column configuration
+- Set default filter to Q4 2025 (Oct 1 - Dec 31)
+- Integrated SavedFiltersManager and RefreshIndicator
 
 **Interactive Features**:
-- **KPI Cards**: Click any of 9 EnhancedGlassKpi cards to view detailed proposal data in DrillDownModal
-- **Charts**: Click bars in Country or SKU HorizontalBarList charts to filter and view specific proposals
-- **Tables**: Click rows in "By SKU" or "By Country" tables to drill down into proposal details with purple hover states
-- **Filter Presets**: Save current filter combinations and quickly reload them later
+- **KPI Cards**: Click any of 9 EnhancedGlassKpi cards to drill down with keyboard accessibility
+- **Charts**: Click bars in Country/SKU HorizontalBarList charts to filter proposals
+- **Tables**: Click rows in all three tables with purple hover states
+- **Filter Presets**: Save and reload filter configurations
 
 **Technical Implementation**:
 - **Helper Functions**: openDrillDown(), handleApplyFilters(), generateSparklineData(), getTrend()
-- **Data Processing**: Client-side sparkline generation with proper Date object handling and ISO string formatting
-- **Trend Detection**: 7-day moving average comparison requiring minimum 3 days of data for reliable trend indication
-- **Type Safety**: All components properly typed with SparklineData format: `{ value: number; label?: string }[]`
+- **Type Safety**: Proper type guards for Date formatters, optional chaining for p.items, sparklineData prop typing
+- **Data Processing**: Client-side sparkline generation with Map/Set data structures
+- **Trend Detection**: 7-day moving average comparison requiring minimum 3 days of data
+- **SparklineData Format**: `{ value: number; label?: string }[]`
+
+**Visual Design System**:
+- **Glassmorphism**: Consistent border-slate-200, bg-white/90, shadow-lg, backdrop-blur-sm
+- **Gradients**: Purple gradient headers (from-purple-600 to-purple-800)
+- **Spacing**: Consistent space-y-6 between sections, p-6 internal padding
+- **Responsive**: Proper breakpoints (sm, md, lg, xl) throughout all tiers
+- **Accessibility**: Proper role, tabIndex, keyboard handlers for interactive elements
 
 **Performance & UX**:
-- Efficient client-side processing with Map/Set data structures for unique value tracking
-- Proper memoization using React useMemo for sparkline calculations
+- Efficient client-side processing with memoization
 - Hover states and visual feedback on all interactive elements
-- Purple/slate theme consistency throughout new components
-- Responsive design maintained across all new features
+- Purple/slate theme consistency
+- Responsive design maintained across all breakpoints
+- Zero regressions in existing functionality
 
 **Future Optimization Notes**:
-- Current implementation uses client-side data processing (acceptable for current dataset size)
-- Server-side aggregation and pagination recommended for scaling beyond current data volume
+- Server-side aggregation and pagination recommended for scaling
 - Consider caching sparkline data for frequently accessed date ranges
