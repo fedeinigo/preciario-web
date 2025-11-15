@@ -245,7 +245,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     ? "mapache"
     : isMarketingPortal
       ? "light"
-      : navbarVariant === "direct"
+      : navbarVariant === "direct" || navbarVariant === "config"
         ? "direct"
         : "dark";
 
