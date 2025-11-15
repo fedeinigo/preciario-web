@@ -17,6 +17,8 @@ import { MUTABLE_PORTAL_ACCESS, includeDefaultPortal } from "@/constants/portals
 
 type Role = "admin" | "lider" | "usuario";
 
+type TeamRow = { id: string; name: string };
+
 type UserRow = {
   id: string;
   email: string | null;
