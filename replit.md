@@ -37,6 +37,7 @@ Preferred communication style: Simple, everyday language.
 **Role System**: Three-tier hierarchy (`admin`, `lider`, `usuario`) mapped from Prisma `Role` enum.
 **Portal Access**: Dynamic assignment via `PortalAccess` records or fallback logic.
 **Security**: Feature flags for strict OAuth linking and API route security, with Google Drive and Docs scopes.
+**Goals Permissions**: All users can add manual Won deals for themselves. Admin/leaders can additionally manage Won deals for their team members. Backend enforces authorization via `canManageTarget` function.
 
 ## UI/UX Decisions
 

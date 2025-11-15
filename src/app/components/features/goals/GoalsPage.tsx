@@ -196,6 +196,7 @@ export default function GoalsPage({
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);
   const [loadingTeam, setLoadingTeam] = React.useState<boolean>(false);
   const canAddManual = isSuperAdmin || role === "lider" || role === "admin";
+  const canAddSelfManual = true;
 
   const loadTeam = React.useCallback(async () => {
     const canSelectTeam = isSuperAdmin || role === "admin";
@@ -511,7 +512,7 @@ export default function GoalsPage({
             myProgress={myProgress}
             monthlyProgress={myMonthlyProgress}
             onSave={handleSaveMyGoal}
-            onAddManual={canAddManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
+            onAddManual={canAddSelfManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
           />
           )}
           {loadingTeam && teamGoal === 0 ? (
@@ -541,7 +542,7 @@ export default function GoalsPage({
             loading={loadingDeals}
             goal={myGoal}
             onEditBilling={openBillingEditor}
-            onAddManual={canAddManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
+            onAddManual={canAddSelfManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
             onDeleteDeal={handleDeleteManualWon}
           />
           <TeamRankingCard rows={rows} loading={loadingTeam} effectiveTeam={effectiveTeam} />
