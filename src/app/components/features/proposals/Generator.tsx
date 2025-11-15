@@ -988,16 +988,25 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
       <div className="mx-auto max-w-[1800px]">
         <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_300px] gap-6">
           <aside className="hidden xl:block">
-            <FilialesSidebar
-              isAdmin={isAdmin}
-              filiales={filiales}
-              addFilial={addFilial}
-              editFilialTitle={editFilialTitle}
-              removeFilial={removeFilial}
-              addCountry={addCountry}
-              editCountry={editCountry}
-              removeCountry={removeCountry}
-            />
+            <div className="space-y-6">
+              <FilialesSidebar
+                isAdmin={isAdmin}
+                filiales={filiales}
+                addFilial={addFilial}
+                editFilialTitle={editFilialTitle}
+                removeFilial={removeFilial}
+                addCountry={addCountry}
+                editCountry={editCountry}
+                removeCountry={removeCountry}
+              />
+              <GlossarySidebar
+                isAdmin={isAdmin}
+                glossary={glossary}
+                addLink={addLink}
+                editLink={editLink}
+                removeLink={removeLink}
+              />
+            </div>
           </aside>
 
           <section className="space-y-6">
@@ -1016,20 +1025,11 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
           </section>
 
           <aside className="hidden xl:block">
-            <div className="space-y-6">
-              <GlossarySidebar
-                isAdmin={isAdmin}
-                glossary={glossary}
-                addLink={addLink}
-                editLink={editLink}
-                removeLink={removeLink}
-              />
-              <WhatsAppCalculatorCard
-                subsidiary={subsidiary}
-                defaultCountry={country}
-                resolveErrorMessage={resolveProposalErrorMessage}
-              />
-            </div>
+            <WhatsAppCalculatorCard
+              subsidiary={subsidiary}
+              defaultCountry={country}
+              resolveErrorMessage={resolveProposalErrorMessage}
+            />
           </aside>
         </div>
       </div>
