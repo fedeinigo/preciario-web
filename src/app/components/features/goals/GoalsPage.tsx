@@ -9,6 +9,7 @@ import Modal from "@/app/components/ui/Modal";
 import { useTranslations } from "@/app/LanguageProvider";
 import { q1Range, q2Range, q3Range, q4Range } from "../proposals/lib/dateRanges";
 import { useAdminUsers } from "../proposals/hooks/useAdminUsers";
+import type { AdminUser } from "../proposals/hooks/useAdminUsers";
 import QuarterPicker from "./components/QuarterPicker";
 import IndividualGoalCard from "./components/IndividualGoalCard";
 import TeamGoalCard from "./components/TeamGoalCard";
@@ -27,6 +28,7 @@ type Props = {
   leaderTeam: string | null;
   isSuperAdmin: boolean;
   viewerImage?: string | null;
+  viewerId?: string | null;
 };
 
 type TeamMemberResponse = {
@@ -48,6 +50,7 @@ export default function GoalsPage({
   leaderTeam,
   isSuperAdmin,
   viewerImage = null,
+  viewerId = null,
 }: Props) {
   const pageT = useTranslations("goals.page");
   const toastT = useTranslations("goals.toast");
@@ -59,6 +62,14 @@ export default function GoalsPage({
     isSuperAdmin,
     isLeader: role === "lider",
   });
+
+  const emailToAdminUser = React.useMemo(() => {
+    const map = new Map<string, AdminUser>();
+    adminUsers.forEach((user) => {
+      if (user.email) map.set(user.email, user);
+    });
+    return map;
+  }, [adminUsers]);
 
   const now = new Date();
   const [year, setYear] = React.useState<number>(now.getFullYear());
@@ -228,24 +239,33 @@ export default function GoalsPage({
       setTeamProgress(Number(j.teamProgress || 0));
       const members = (Array.isArray(j.members) ? j.members : []) as TeamMemberResponse[];
       setRows(
-        members.map((member) => ({
-          userId: String(member.userId ?? ""),
-          email: member.email ?? null,
-          name: member.name ?? null,
-          role: member.role ?? null,
-          team: member.team ?? null,
-          goal: Number(member.goal ?? 0),
-          progress: Number(member.progress ?? 0),
-          pct: Number(member.pct ?? 0),
-          dealsCount: Number(member.dealsCount ?? 0),
-        }))
+        members.map((member) => {
+          const memberId = String(member.userId ?? "");
+          const email = member.email ?? null;
+          let image = member.image ?? (email ? emailToAdminUser.get(email)?.image ?? null : null);
+          if (!image && viewerId && viewerId === memberId) {
+            image = viewerImage ?? null;
+          }
+          return {
+            userId: memberId,
+            email,
+            name: member.name ?? null,
+            role: member.role ?? null,
+            team: member.team ?? null,
+            image,
+            goal: Number(member.goal ?? 0),
+            progress: Number(member.progress ?? 0),
+            pct: Number(member.pct ?? 0),
+            dealsCount: Number(member.dealsCount ?? 0),
+          };
+        })
       );
     } catch {
       setTeamGoal(0); setTeamProgress(0); setRows([]);
     } finally {
       setLoadingTeam(false);
     }
-  }, [effectiveTeam, isSuperAdmin, role, year, quarter]);
+  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage]);
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
 

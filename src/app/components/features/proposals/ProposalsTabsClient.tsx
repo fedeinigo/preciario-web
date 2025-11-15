@@ -88,6 +88,7 @@ export default function ProposalsTabsClient({
           leaderTeam={viewer.team}
           isSuperAdmin={isSuperAdmin}
           viewerImage={viewer.image}
+          viewerId={viewer.id}
         />
       )}
 

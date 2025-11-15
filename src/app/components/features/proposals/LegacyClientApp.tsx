@@ -127,6 +127,7 @@ function AuthedTabs(props: {
           leaderTeam={leaderTeam}
           isSuperAdmin={isSuperAdmin}
           viewerImage={viewerImage}
+          viewerId={userId}
         />
       )}
 
