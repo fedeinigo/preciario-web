@@ -164,13 +164,17 @@ export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPage
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-slate-900">
-          Configuraciones del Sistema
-        </h1>
-        <p className="text-sm text-slate-600">
-          Gestiona equipos, usuarios y permisos de acceso desde un solo lugar.
-        </p>
+      <div className="mx-auto max-w-2xl">
+        <div className="overflow-hidden rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-lg">
+          <div className="px-8 py-6 text-center">
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-purple-800">
+              Configuraciones del Sistema
+            </h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Gestiona equipos, usuarios y permisos de acceso desde un solo lugar.
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -270,8 +274,15 @@ function SectionPageShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+    <div className="space-y-6">
+      <div className="rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 via-white to-purple-50 px-6 py-4 shadow-sm">
+        <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-slate-700">
+          {title}
+        </h1>
+        {description && (
+          <p className="mt-2 text-sm text-slate-600">{description}</p>
+        )}
+      </div>
       {children}
     </div>
   );
@@ -453,7 +464,7 @@ function TeamManagementPanel({
       toast.success(
         teamPanelT("portals.updated", {
           team: team.name,
-          portal: portalsT(portal),
+          portal: portalsT(`${portal}.label`),
         }),
       );
       await reloadUsers().catch(() => undefined);
@@ -584,7 +595,7 @@ function TeamManagementPanel({
                                 key={portal}
                                 className="inline-flex items-center gap-1 rounded-lg bg-purple-100 px-2.5 py-1 text-xs font-semibold text-purple-700"
                               >
-                                {portalsT(portal)}
+                                {portalsT(`${portal}.label`)}
                               </span>
                             ))}
                             {activePortals.size === 0 && (
@@ -737,7 +748,7 @@ function TeamManagementPanel({
                         className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm"
                       >
                         <div>
-                          <div className="font-medium text-slate-900">{portalsT(portal)}</div>
+                          <div className="font-medium text-slate-900">{portalsT(`${portal}.label`)}</div>
                           <p className="text-xs text-slate-500">
                             {withPortal}/{members.length} {teamPanelT("portals.members")}
                           </p>
@@ -1018,7 +1029,7 @@ function UserManagementPanel({
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1.5">
                         <span className="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                          {portalsT("direct")}
+                          {portalsT("direct.label")}
                         </span>
                         {MUTABLE_PORTAL_ACCESS.map((portal) => {
                           const enabled = user.portals.includes(portal);
@@ -1035,7 +1046,7 @@ function UserManagementPanel({
                               onClick={() => toggleUserPortal(user, portal, !enabled)}
                             >
                               {enabled ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
-                              {portalsT(portal)}
+                              {portalsT(`${portal}.label`)}
                             </button>
                           );
                         })}
