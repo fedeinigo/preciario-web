@@ -5,6 +5,7 @@ import React from "react";
 import { useTranslations } from "@/app/LanguageProvider";
 import { formatUSD } from "../../proposals/lib/format";
 import type { TeamGoalRow } from "./TeamMembersTable";
+import UserAvatar from "@/app/components/ui/UserAvatar";
 
 type Props = {
   rows: TeamGoalRow[];
@@ -39,14 +40,6 @@ export default function TeamRankingCard({ rows, loading, effectiveTeam }: Props)
   }, [rows, mode]);
 
   const displayName = (row: TeamGoalRow) => row.name || row.email || row.userId;
-
-  const initialsFor = React.useCallback((name: string | null, email: string | null) => {
-    const source = (name || email || "").trim();
-    if (!source) return "--";
-    const parts = source.split(/\s+/).filter(Boolean);
-    if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-    return `${parts[0]![0]}${parts[parts.length - 1]![0]}`.toUpperCase();
-  }, []);
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/60 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.04)]">
@@ -99,10 +92,14 @@ export default function TeamRankingCard({ rows, loading, effectiveTeam }: Props)
                 key={row.userId}
                 className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200/60 bg-gradient-to-br from-white to-slate-50/30 px-5 py-4 shadow-sm hover:shadow-md transition-all"
               >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-100 to-purple-50 border border-purple-200/50 text-base font-bold text-purple-700">
-                    {initialsFor(row.name, row.email)}
-                  </div>
+              <div className="flex items-center gap-4">
+                <UserAvatar
+                  name={displayName(row)}
+                  email={row.email ?? undefined}
+                  image={row.image ?? undefined}
+                  size={48}
+                  className="shadow-sm ring-2 ring-purple-200/70"
+                />
                   <div>
                     <p className="text-sm font-bold text-slate-900">{displayName(row)}</p>
                     {row.email && <p className="text-xs text-slate-500 font-medium">{row.email}</p>}

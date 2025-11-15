@@ -103,17 +103,18 @@ export const authOptions: NextAuthOptions = {
       if (dbUserId) {
         const dbUser = await prisma.user.findUnique({
           where: { id: dbUserId },
-          select: {
-            id: true,
-            role: true,
-            team: true,
-            email: true,
-            portalAccesses: {
-              select: {
-                portal: true,
-              },
+        select: {
+          id: true,
+          role: true,
+          team: true,
+          email: true,
+          image: true,
+          portalAccesses: {
+            select: {
+              portal: true,
             },
           },
+        },
         });
         if (dbUser) {
           const appRole = appRoleFromDb(dbUser.role);
@@ -126,6 +127,9 @@ export const authOptions: NextAuthOptions = {
             role: dbUser.role,
             team: dbUser.team,
           });
+          const resolvedImage = dbUser.image ?? (token.picture as string | undefined) ?? null;
+          token.picture = resolvedImage;
+          token.image = resolvedImage;
         }
         return token as JWT;
       }
@@ -134,16 +138,17 @@ export const authOptions: NextAuthOptions = {
       if (token?.email) {
         const dbUser = await prisma.user.findUnique({
           where: { email: token.email as string },
-          select: {
-            id: true,
-            role: true,
-            team: true,
-            portalAccesses: {
-              select: {
-                portal: true,
-              },
+        select: {
+          id: true,
+          role: true,
+          team: true,
+          image: true,
+          portalAccesses: {
+            select: {
+              portal: true,
             },
           },
+        },
         });
         if (dbUser) {
           const appRole = appRoleFromDb(dbUser.role);
@@ -155,6 +160,9 @@ export const authOptions: NextAuthOptions = {
             role: dbUser.role,
             team: dbUser.team,
           });
+          const resolvedImage = dbUser.image ?? (token.picture as string | undefined) ?? null;
+          token.picture = resolvedImage;
+          token.image = resolvedImage;
         }
       }
 
@@ -170,6 +178,11 @@ export const authOptions: NextAuthOptions = {
           ? (token.portals as PortalAccessId[])
           : [];
         session.user.portals = includeDefaultPortal(portalList);
+        const resolvedImage =
+          (token.picture as string | undefined) ??
+          (token.image as string | undefined) ??
+          null;
+        session.user.image = resolvedImage;
       }
       return session;
     },

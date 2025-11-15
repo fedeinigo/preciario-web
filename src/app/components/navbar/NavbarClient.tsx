@@ -886,6 +886,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
             role: appRole,
             team,
             name,
+            image: session?.user?.image ?? null,
           }}
           appearance={navTheme.profileAppearance}
         />

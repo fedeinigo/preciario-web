@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp, Search, Filter, User, Target, TrendingUp } from
 import { toast } from "@/app/components/ui/toast";
 import { formatUSD } from "../../proposals/lib/format";
 import { useTranslations } from "@/app/LanguageProvider";
+import UserAvatar from "@/app/components/ui/UserAvatar";
 
 export type TeamGoalRow = {
   userId: string;
@@ -13,6 +14,7 @@ export type TeamGoalRow = {
   name: string | null;
   role?: string | null;
   team?: string | null;
+  image?: string | null;
   goal: number;
   progress: number;
   pct: number; // puede superar 100
@@ -35,7 +37,14 @@ export default function TeamMembersTable({
   canEdit: boolean;
   canAddManual: boolean;
   onEditGoal: (userId: string, amount: number) => Promise<boolean> | boolean;
-  onOpenProfile: (u: { id: string; email: string | null; name: string | null; role?: string | null; team?: string | null }) => void;
+  onOpenProfile: (u: {
+    id: string;
+    email: string | null;
+    name: string | null;
+    role?: string | null;
+    team?: string | null;
+    image?: string | null;
+  }) => void;
   onAddManual: (u: { id: string; email: string | null; name: string | null }) => void;
 }) {
   const t = useTranslations("goals.table");
@@ -134,15 +143,6 @@ export default function TeamMembersTable({
       )}
     </span>
   );
-
-  const initialsFor = (name: string | null, email: string | null) => {
-    const fallback = email || name || "";
-    const source = (name || fallback || "").trim();
-    if (!source) return "--";
-    const parts = source.split(/\s+/).filter(Boolean);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-  };
 
   const getPerformanceColor = (pct: number) => {
     if (pct >= 100) return { bg: "bg-gradient-to-br from-purple-500 to-purple-700", text: "text-purple-700", ring: "ring-purple-500/20" };
@@ -276,10 +276,16 @@ export default function TeamMembersTable({
                 <div className="relative p-6">
                   {/* Header: Avatar + Name + Performance Badge */}
                   <div className="flex items-start justify-between gap-4 mb-5">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl ${perfColor.bg} text-white text-xl font-bold shadow-lg ring-4 ${perfColor.ring}`}>
-                        {initialsFor(r.name, r.email)}
-                      </div>
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center">
+                          <UserAvatar
+                            name={displayName}
+                            email={r.email ?? undefined}
+                            image={r.image ?? undefined}
+                            size={64}
+                            className={`shadow-lg ring-4 ${perfColor.ring}`}
+                          />
+                        </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="text-lg font-bold text-slate-900 truncate mb-0.5">{displayName}</h3>
                         {r.email && <p className="text-sm text-slate-500 truncate">{r.email}</p>}
@@ -363,7 +369,16 @@ export default function TeamMembersTable({
                       <>
                         <button
                           className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold bg-white border border-slate-300 text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-400 transition"
-                          onClick={() => onOpenProfile({ id: r.userId, email: r.email, name: r.name, role: r.role, team: r.team })}
+                          onClick={() =>
+                            onOpenProfile({
+                              id: r.userId,
+                              email: r.email,
+                              name: r.name,
+                              role: r.role,
+                              team: r.team,
+                              image: r.image ?? null,
+                            })
+                          }
                         >
                           {actionsT("profile")}
                         </button>

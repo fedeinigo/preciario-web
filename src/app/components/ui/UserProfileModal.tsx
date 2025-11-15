@@ -3,6 +3,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Modal from "@/app/components/ui/Modal";
+import UserAvatar from "@/app/components/ui/UserAvatar";
 import { Mail, Shield, Users2, TrendingUp, Calendar, Award } from "lucide-react";
 import { toast } from "@/app/components/ui/toast";
 import { formatUSD } from "@/app/components/features/proposals/lib/format";
@@ -18,6 +19,7 @@ type Viewer = {
   role: AppRole | string;
   team?: string | null;
   name?: string | null;
+  image?: string | null;
 };
 
 type TargetUser = {
@@ -26,16 +28,10 @@ type TargetUser = {
   name?: string | null;
   role?: AppRole | string | null;
   team?: string | null;
+  image?: string | null;
 };
 
 type ProfileAppearance = "dark" | "light" | "mapache" | "direct";
-
-function initials(fullName: string) {
-  const parts = fullName.split(" ").filter(Boolean);
-  const i1 = parts[0]?.[0] ?? "";
-  const i2 = parts[1]?.[0] ?? "";
-  return (i1 + i2).toUpperCase();
-}
 
 export default function UserProfileModal({
   open,
@@ -57,13 +53,19 @@ export default function UserProfileModal({
   const billingT = useTranslations("goals.billing");
 
   const baseTarget = useMemo<TargetUser>(() => {
-    if (targetUser?.email || targetUser?.id) return targetUser;
+    if (targetUser?.email || targetUser?.id) {
+      return {
+        ...targetUser,
+        image: targetUser.image ?? viewer.image ?? null,
+      };
+    }
     return {
       id: viewer.id ?? null,
       email: viewer.email ?? null,
       name: viewer.name ?? null,
       role: (viewer.role as AppRole) ?? "usuario",
       team: viewer.team ?? null,
+      image: viewer.image ?? null,
     };
   }, [targetUser, viewer]);
 
@@ -104,6 +106,7 @@ export default function UserProfileModal({
         name: match.name ?? prev.name ?? null,
         role: match.role ?? prev.role ?? "usuario",
         team: match.team ?? prev.team ?? null,
+        image: match.image ?? prev.image ?? null,
       }));
     }
   }, [
@@ -274,6 +277,7 @@ export default function UserProfileModal({
   const role = resolveRole(resolvedTarget.role as AppRole | string | null);
   const team = resolvedTarget.team ?? profileT("fallbacks.team");
   const email = resolvedTarget.email ?? profileT("fallbacks.email");
+  const profileImage = resolvedTarget.image ?? viewer.image ?? null;
 
   const isLightAppearance = appearance === "light";
   const isMapacheAppearance = appearance === "mapache";
@@ -374,13 +378,13 @@ export default function UserProfileModal({
       <div className={`space-y-6 ${bodyTextClass}`}>
         {/* Profile Header - Más grande y elegante */}
         <div className="flex flex-col items-center text-center space-y-4 pb-6 border-b border-current/10">
-          <div className={`h-20 w-20 rounded-full flex items-center justify-center font-bold text-2xl shadow-xl ${
-            isLightAppearance 
-              ? "bg-gradient-to-br from-[rgb(var(--primary))] to-[rgb(var(--primary))]/70 text-white"
-              : "bg-gradient-to-br from-white to-white/80 text-[rgb(var(--primary))]"
-          }`}>
-            {initials(name)}
-          </div>
+          <UserAvatar
+            name={name}
+            email={resolvedTarget.email ?? undefined}
+            image={profileImage}
+            size={88}
+            className={`shadow-xl ${isLightAppearance ? "ring-4 ring-white/70" : "ring-4 ring-white/20"}`}
+          />
           <div className="space-y-2">
             <h2 className="text-2xl font-bold">{name}</h2>
             <div className={`flex items-center justify-center gap-2 ${subtleTextClass}`}>

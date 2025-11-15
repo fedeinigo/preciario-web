@@ -34,6 +34,7 @@ type TeamMemberResponse = {
   name?: string | null;
   role?: string | null;
   team?: string | null;
+  image?: string | null;
   goal?: number | string;
   progress?: number | string;
   pct?: number | string;
@@ -447,7 +448,14 @@ export default function GoalsPage({
 
   const [profileOpen, setProfileOpen] = React.useState(false);
   const [profileUser, setProfileUser] = React.useState<
-    { id: string; email: string | null; name: string | null; team?: string | null; role?: string | null } | null
+    {
+      id: string;
+      email: string | null;
+      name: string | null;
+      team?: string | null;
+      role?: AppRole | string | null;
+      image?: string | null;
+    } | null
   >(null);
 
   const sumMembersGoal = React.useMemo(
@@ -593,17 +601,22 @@ export default function GoalsPage({
                 </div>
               </div>
             ) : (
-              <TeamMembersTable
-                loading={loadingTeam}
-                rows={rows}
-                canEdit={isSuperAdmin || role === "lider" || role === "admin"}
-                canAddManual={canAddManual}
-                onEditGoal={saveUserGoal}
-                onOpenProfile={(u) => {
-                  // Use team from row (API) instead of effectiveTeam to ensure it's always present
-                  setProfileUser({ ...u, team: u.team ?? effectiveTeam, role: u.role });
-                  setProfileOpen(true);
-                }}
+                <TeamMembersTable
+                  loading={loadingTeam}
+                  rows={rows}
+                  canEdit={isSuperAdmin || role === "lider" || role === "admin"}
+                  canAddManual={canAddManual}
+                  onEditGoal={saveUserGoal}
+                  onOpenProfile={(u) => {
+                    // Use team from row (API) instead of effectiveTeam to ensure it's always present
+                    setProfileUser({
+                      ...u,
+                      team: u.team ?? effectiveTeam,
+                      role: u.role,
+                      image: u.image ?? null,
+                    });
+                    setProfileOpen(true);
+                  }}
                 onAddManual={(u) =>
                   setManualDialogTarget({ userId: u.id, email: u.email, name: u.name })
                 }
@@ -617,7 +630,12 @@ export default function GoalsPage({
         <UserProfileModal
           open={profileOpen}
           onClose={() => setProfileOpen(false)}
-          viewer={{ role, team: leaderTeam }}
+          viewer={{
+            role,
+            team: leaderTeam,
+            email: currentEmail ?? null,
+            image: null,
+          }}
           targetUser={profileUser}
           appearance="light"
         />
