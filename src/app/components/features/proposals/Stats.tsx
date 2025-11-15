@@ -889,10 +889,41 @@ export default function Stats({
   );
 
   return (
-    <div className="p-4">
+    <>
+      <DrillDownModal
+        isOpen={drillDownOpen}
+        onClose={() => setDrillDownOpen(false)}
+        title={drillDownData?.title || ""}
+        data={drillDownData?.data || []}
+        columns={drillDownData?.columns || []}
+      />
+      
+      <div className="p-4">
       <GradientShell>
-        <header className="flex flex-col gap-2">
+        <header className="flex flex-col gap-4">
           <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+          
+          <div className="grid gap-4 lg:grid-cols-2">
+            <SavedFiltersManager
+              currentFilters={{
+                from,
+                to,
+                teamFilter,
+                countryFilter,
+                userFilter,
+                orderKey,
+                orderDir,
+              }}
+              onApplyFilter={handleApplyFilters}
+              userEmail={currentEmail}
+            />
+            
+            <RefreshIndicator
+              onRefresh={handleManualRefresh}
+              lastUpdated={lastUpdated}
+              hasNewData={hasNewData}
+            />
+          </div>
         </header>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_18px_48px_rgba(60,3,140,0.12)]">
@@ -1306,6 +1337,7 @@ export default function Stats({
           </table>
         </TableCard>
       </GradientShell>
-    </div>
+      </div>
+    </>
   );
 }
