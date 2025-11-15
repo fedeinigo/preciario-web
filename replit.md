@@ -155,3 +155,18 @@ Comprehensive restructure of key management and configuration interfaces, moving
 - Complete shift from gray/black accents to purple/slate theme
 - Unified color palette across all modals and dialogs
 - Improved professional appearance while maintaining accessibility
+
+### Additional Visual Enhancements (Same Session Continuation)
+
+**Portal Translation Fix**:
+- Corrected portal name rendering bug where all portals showed translation keys
+- Fixed by changing `portalsT(portal)` to `portalsT(\`${portal}.label\`)`
+- Now properly displays "Portal Directo", "Portal Mapache", "Portal Partner", "Portal Marketing"
+
+**Page Title Visual Improvements**:
+- "Configuraciones del Sistema" now centered in gradient purple card with shadow
+- "Gestión de Equipos" and "Gestión de Usuarios" titles in purple/slate gradient cards
+- All page titles upgraded from plain text to styled cards with purple borders
+- Title gradients: `bg-clip-text bg-gradient-to-r from-purple-600 to-purple-800`
+- Descriptions preserved and rendered below titles in all pages
+- Increased title sizes and improved visual hierarchy throughout
