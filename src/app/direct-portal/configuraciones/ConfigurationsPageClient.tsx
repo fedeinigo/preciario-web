@@ -272,18 +272,22 @@ function SectionPageShell({
   const sectionsT = useTranslations("configurations.sections");
 
   return (
-    <div className="space-y-6">
-      <Link
-        href="/configuraciones"
-        className="inline-flex items-center gap-2 text-sm font-semibold text-[rgb(var(--primary))] hover:text-[rgb(var(--primary))]/80"
-      >
-        <ArrowRight className="h-3.5 w-3.5 -scale-x-100" aria-hidden="true" />
-        {sectionsT("back")}
-      </Link>
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
-        {description ? <p className="mt-1 text-sm text-slate-600">{description}</p> : null}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <Link
+            href="/configuraciones"
+            className="font-medium hover:text-purple-600 transition-colors"
+          >
+            Configuraciones
+          </Link>
+          <span>/</span>
+          <span className="font-semibold text-slate-700">{title}</span>
+        </div>
       </div>
+      {description && (
+        <p className="text-sm text-slate-600">{description}</p>
+      )}
       {children}
     </div>
   );
