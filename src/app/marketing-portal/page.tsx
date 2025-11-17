@@ -1,11 +1,16 @@
 import { redirect } from "next/navigation";
 
-export default function LegacyMarketingPortalPage({
+type LegacyMarketingSearchParams = {
+  view?: string;
+};
+
+export default async function LegacyMarketingPortalPage({
   searchParams,
 }: {
-  searchParams?: { view?: string };
+  searchParams?: Promise<LegacyMarketingSearchParams>;
 }) {
-  const view = searchParams?.view === "history" ? "history" : "generator";
+  const resolvedParams = (await searchParams) ?? {};
+  const view = resolvedParams.view === "history" ? "history" : "generator";
   const target = view === "history" ? "/portal/marketing/history" : "/portal/marketing/generator";
   redirect(target);
 }
