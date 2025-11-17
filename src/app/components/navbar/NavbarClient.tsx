@@ -251,6 +251,22 @@ export default function NavbarClient({ session }: NavbarClientProps) {
         ? "direct"
         : "dark";
 
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const html = document.documentElement;
+    const body = document.body;
+    if (isMarketingPortal) {
+      html.classList.add("marketing-theme");
+      body.classList.add("marketing-theme");
+      return () => {
+        html.classList.remove("marketing-theme");
+        body.classList.remove("marketing-theme");
+      };
+    }
+    html.classList.remove("marketing-theme");
+    body.classList.remove("marketing-theme");
+  }, [isMarketingPortal]);
+
   const navTheme = React.useMemo<NavTheme>(() => {
     if (navbarAppearance === "marketing") {
       return {

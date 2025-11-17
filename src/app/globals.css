@@ -156,6 +156,40 @@ body.mapache-theme {
   --mapache-surface-strong: 32 34 46;
 }
 
+html.marketing-theme body,
+body.marketing-theme {
+  --marketing-surface: 229 243 255;
+  --marketing-surface-strong: 208 224 255;
+  --marketing-primary: 32 94 179;
+  --marketing-muted: 13 82 139;
+}
+
+html.marketing-theme body .navbar,
+body.marketing-theme .navbar {
+  background: linear-gradient(120deg, rgba(236, 246, 255, 0.95), rgba(210, 228, 255, 0.95));
+  color: #0f406d;
+  box-shadow: 0 26px 60px rgba(15, 118, 168, 0.2);
+  border-bottom: 1px solid rgba(32, 94, 179, 0.2);
+}
+
+html.marketing-theme body .navbar .btn,
+html.marketing-theme body .navbar .btn-ghost,
+body.marketing-theme .navbar .btn,
+body.marketing-theme .navbar .btn-ghost {
+  background: linear-gradient(135deg, rgba(32, 94, 179, 0.9), rgba(24, 75, 154, 0.9));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(15, 118, 168, 0.3);
+}
+
+html.marketing-theme body .navbar .btn:hover,
+html.marketing-theme body .navbar .btn-ghost:hover,
+body.marketing-theme .navbar .btn:hover,
+body.marketing-theme .navbar .btn-ghost:hover {
+  background: linear-gradient(135deg, rgba(24, 75, 154, 1), rgba(18, 58, 131, 1));
+  box-shadow: 0 16px 35px rgba(15, 118, 168, 0.25);
+}
+
 /*
  * Mapache portal legacy class overrides
  * -------------------------------------
