@@ -279,8 +279,6 @@ export default function NavbarClient({ session }: NavbarClientProps) {
 
   const logoSrc = isMarketingPortal ? "/logo_color.png" : "/logo.png";
 
-  const logoSrc = isMarketingPortal ? "/logo_color.png" : "/logo.png";
-
   const navTheme = React.useMemo<NavTheme>(() => {
     if (navbarAppearance === "marketing") {
       return {
