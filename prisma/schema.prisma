@@ -21,6 +21,8 @@ model User {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   team          String?
+  positionName  String?
+  leaderEmail   String?
   role          Role          @default(usuario)
 
   accounts      Account[]

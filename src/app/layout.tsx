@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 
 import { Suspense } from "react";
 import { cookies } from "next/headers";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import Navbar from "@/app/components/Navbar";
 import ClientSessionBoundary from "@/app/ClientSessionBoundary";
@@ -13,6 +14,7 @@ import { auth } from "@/lib/auth";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 import { loadMessages } from "@/lib/i18n/messages";
 import { defaultLocale, localeCookieName, normalizeLocale } from "@/lib/i18n/config";
+import OnboardingTeamModal from "@/app/components/features/proposals/OnboardingTeamModal";
 
 export const metadata: Metadata = {
   title: "Wise CX — Preciario",
@@ -53,9 +55,11 @@ export default async function RootLayout({
               <Suspense fallback={null}>
                 <Navbar session={session} />
               </Suspense>
+              <OnboardingTeamModal />
               <main className="pt-[var(--nav-h)]">{children}</main>
             </SessionProviderWrapper>
           </LanguageProvider>
+          <SpeedInsights />
         </body>
       </html>
     );
@@ -69,9 +73,11 @@ export default async function RootLayout({
             <Suspense fallback={null}>
               <Navbar session={session} />
             </Suspense>
+            <OnboardingTeamModal />
             <main className="pt-[var(--nav-h)]">{children}</main>
           </ClientSessionBoundary>
         </LanguageProvider>
+        <SpeedInsights />
       </body>
     </html>
   );

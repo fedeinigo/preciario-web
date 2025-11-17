@@ -84,69 +84,73 @@ export default function GeneratorMainCard({
   const formattedTotal = formatUSD(totals.amount);
 
   return (
-    <div className="card border-2">
-      <div className="heading-bar mb-3">{heading}</div>
+    <div className="rounded-2xl border border-slate-200 bg-white/90 shadow-lg backdrop-blur-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-purple-100 bg-white">
+        <h1 className="text-xl font-bold text-[#4c1d95]">{heading}</h1>
+      </div>
 
-      <PipedriveCard
-        value={pipedrive.value}
-        dealId={pipedrive.dealId}
-        example={pipedrive.example}
-        mode={pipedrive.mode}
-        onChange={pipedrive.onChange}
-        onModeChange={pipedrive.onModeChange}
-        t={pipedrive.t}
-      />
+      <div className="p-6 space-y-6">
+        <PipedriveCard
+          value={pipedrive.value}
+          dealId={pipedrive.dealId}
+          example={pipedrive.example}
+          mode={pipedrive.mode}
+          onChange={pipedrive.onChange}
+          onModeChange={pipedrive.onModeChange}
+          t={pipedrive.t}
+        />
 
-      <CompanyCard
-        companyName={company.companyName}
-        onCompanyNameChange={company.onCompanyNameChange}
-        country={company.country}
-        onCountryChange={company.onCountryChange}
-        subsidiary={company.subsidiary}
-        emptyValue={company.emptyValue}
-        countryOptions={company.countryOptions}
-        t={company.t}
-      />
+        <CompanyCard
+          companyName={company.companyName}
+          onCompanyNameChange={company.onCompanyNameChange}
+          country={company.country}
+          onCountryChange={company.onCountryChange}
+          subsidiary={company.subsidiary}
+          emptyValue={company.emptyValue}
+          countryOptions={company.countryOptions}
+          t={company.t}
+        />
 
-      <CatalogToolbar
-        isAdmin={toolbar.isAdmin}
-        categoryFilter={toolbar.categoryFilter}
-        onCategoryChange={toolbar.onCategoryChange}
-        searchTerm={toolbar.searchTerm}
-        onSearchTermChange={toolbar.onSearchTermChange}
-        sortKey={toolbar.sortKey}
-        onSortChange={toolbar.onSortChange}
-        onAddItem={toolbar.onAddItem}
-        onGenerate={toolbar.onGenerate}
-        onReset={toolbar.onReset}
-        disabled={toolbar.disabled}
-        actionsT={toolbar.actionsT}
-        filtersT={toolbar.filtersT}
-        orderT={toolbar.orderT}
-        availableCategories={toolbar.availableCategories}
-        resetTitle={toolbar.resetTitle}
-      />
+        <CatalogToolbar
+          isAdmin={toolbar.isAdmin}
+          categoryFilter={toolbar.categoryFilter}
+          onCategoryChange={toolbar.onCategoryChange}
+          searchTerm={toolbar.searchTerm}
+          onSearchTermChange={toolbar.onSearchTermChange}
+          sortKey={toolbar.sortKey}
+          onSortChange={toolbar.onSortChange}
+          onAddItem={toolbar.onAddItem}
+          onGenerate={toolbar.onGenerate}
+          onReset={toolbar.onReset}
+          disabled={toolbar.disabled}
+          actionsT={toolbar.actionsT}
+          filtersT={toolbar.filtersT}
+          orderT={toolbar.orderT}
+          availableCategories={toolbar.availableCategories}
+          resetTitle={toolbar.resetTitle}
+        />
 
-      <ItemsTable
-        items={itemsTable.items}
-        isAdmin={itemsTable.isAdmin}
-        showSku={itemsTable.showSku}
-        onToggle={itemsTable.onToggle}
-        onChangeQty={itemsTable.onChangeQty}
-        onChangeDiscountPct={itemsTable.onChangeDiscountPct}
-        onEdit={itemsTable.onEdit}
-        onDelete={itemsTable.onDelete}
-        page={itemsTable.page}
-        pageSize={itemsTable.pageSize}
-        onPageChange={itemsTable.onPageChange}
-        onPageSizeChange={itemsTable.onPageSizeChange}
-        locale={itemsTable.locale}
-      />
+        <ItemsTable
+          items={itemsTable.items}
+          isAdmin={itemsTable.isAdmin}
+          showSku={itemsTable.showSku}
+          onToggle={itemsTable.onToggle}
+          onChangeQty={itemsTable.onChangeQty}
+          onChangeDiscountPct={itemsTable.onChangeDiscountPct}
+          onEdit={itemsTable.onEdit}
+          onDelete={itemsTable.onDelete}
+          page={itemsTable.page}
+          pageSize={itemsTable.pageSize}
+          onPageChange={itemsTable.onPageChange}
+          onPageSizeChange={itemsTable.onPageSizeChange}
+          locale={itemsTable.locale}
+        />
 
-      <div className="mt-3 flex justify-end">
-        <div className="rounded-sm border-2 bg-white px-5 py-3 shadow-soft text-right">
-          <div className="text-sm text-gray-500">{totals.label}</div>
-          <div className="text-[22px] font-semibold text-primary">{formattedTotal}</div>
+        <div className="flex justify-end">
+          <div className="rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white px-6 py-4 shadow-md">
+            <div className="text-sm font-medium text-slate-600 uppercase tracking-wide">{totals.label}</div>
+            <div className="mt-1 text-2xl font-bold text-purple-700">{formattedTotal}</div>
+          </div>
         </div>
       </div>
     </div>

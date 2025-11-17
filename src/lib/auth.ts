@@ -81,9 +81,27 @@ export const authOptions: NextAuthOptions = {
 
   // Solo emails @wisecx.com pasan
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, profile }) {
       const email = user?.email ?? "";
-      return email.endsWith("@wisecx.com");
+      const allowed = email.endsWith("@wisecx.com");
+      if (!allowed) return false;
+
+      const googleImage =
+        typeof (profile as { picture?: string } | undefined)?.picture === "string"
+          ? (profile as { picture?: string }).picture!
+          : null;
+
+      if (googleImage && user?.id) {
+        // Fire-and-forget update for profile image
+        void prisma.user
+          .update({
+            where: { id: user.id as string },
+            data: { image: googleImage },
+          })
+          .catch(() => undefined);
+      }
+
+      return true;
     },
 
     async jwt({ token, user }) {
@@ -108,6 +126,9 @@ export const authOptions: NextAuthOptions = {
             role: true,
             team: true,
             email: true,
+            image: true,
+            positionName: true,
+            leaderEmail: true,
             portalAccesses: {
               select: {
                 portal: true,
@@ -121,11 +142,16 @@ export const authOptions: NextAuthOptions = {
           token.email = dbUser.email ?? token.email;
           token.role = appRole;
           token.team = dbUser.team ?? null;
+          token.positionName = dbUser.positionName ?? null;
+          token.leaderEmail = dbUser.leaderEmail ?? null;
           token.portals = resolvePortalAccess({
             portalAccesses: dbUser.portalAccesses,
             role: dbUser.role,
             team: dbUser.team,
           });
+          const resolvedImage = dbUser.image ?? (token.picture as string | undefined) ?? null;
+          token.picture = resolvedImage;
+          token.image = resolvedImage;
         }
         return token as JWT;
       }
@@ -138,6 +164,9 @@ export const authOptions: NextAuthOptions = {
             id: true,
             role: true,
             team: true,
+            image: true,
+            positionName: true,
+            leaderEmail: true,
             portalAccesses: {
               select: {
                 portal: true,
@@ -150,11 +179,16 @@ export const authOptions: NextAuthOptions = {
           token.id = dbUser.id;
           token.role = appRole;
           token.team = dbUser.team ?? null;
+          token.positionName = dbUser.positionName ?? null;
+          token.leaderEmail = dbUser.leaderEmail ?? null;
           token.portals = resolvePortalAccess({
             portalAccesses: dbUser.portalAccesses,
             role: dbUser.role,
             team: dbUser.team,
           });
+          const resolvedImage = dbUser.image ?? (token.picture as string | undefined) ?? null;
+          token.picture = resolvedImage;
+          token.image = resolvedImage;
         }
       }
 
@@ -166,10 +200,17 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.role = (token.role as AppRole) ?? "usuario";
         session.user.team = (token.team as string | null) ?? null;
+        session.user.positionName = (token.positionName as string | null) ?? null;
+        session.user.leaderEmail = (token.leaderEmail as string | null) ?? null;
         const portalList = Array.isArray(token.portals)
           ? (token.portals as PortalAccessId[])
           : [];
         session.user.portals = includeDefaultPortal(portalList);
+        const resolvedImage =
+          (token.picture as string | undefined) ??
+          (token.image as string | undefined) ??
+          null;
+        session.user.image = resolvedImage;
       }
       return session;
     },
@@ -198,8 +239,6 @@ export const authOptions: NextAuthOptions = {
       if (typeof account.id_token === "string") updates.id_token = account.id_token;
       if (typeof account.session_state === "string") updates.session_state = account.session_state;
 
-      if (Object.keys(updates).length === 0) return;
-
       const key = {
         provider_providerAccountId: {
           provider: "google",
@@ -207,18 +246,20 @@ export const authOptions: NextAuthOptions = {
         },
       } as const;
 
-      try {
-        await prisma.account.update({ where: key, data: updates });
-      } catch {
-        await prisma.account.create({
-          data: {
-            userId: user.id as string,
-            type: "oauth",
-            provider: "google",
-            providerAccountId: account.providerAccountId!,
-            ...updates,
-          },
-        });
+      if (Object.keys(updates).length > 0) {
+        try {
+          await prisma.account.update({ where: key, data: updates });
+        } catch {
+          await prisma.account.create({
+            data: {
+              userId: user.id as string,
+              type: "oauth",
+              provider: "google",
+              providerAccountId: account.providerAccountId!,
+              ...updates,
+            },
+          });
+        }
       }
     },
   },

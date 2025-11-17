@@ -82,6 +82,12 @@ const messages: DeepRecord = {
 
           team: "Team",
 
+          position: "Position",
+
+          leader: "Leader",
+
+          period: "Period & Goal",
+
           year: "Year",
 
           quarter: "Quarter",
@@ -97,6 +103,10 @@ const messages: DeepRecord = {
           team: "—",
 
           email: "—",
+
+          position: "—",
+
+          leader: "—",
 
         },
 
@@ -2046,7 +2056,17 @@ const messages: DeepRecord = {
 
         deleteManual: "Delete",
 
-        deleteManualConfirm: "Delete the manual Won for {company}?",
+        deleteManualTitle: "Confirm Deletion",
+
+        deleteManualConfirm: "Are you sure you want to delete the manual Won for {company}?",
+
+        deleteCancel: "Cancel",
+
+        deleteConfirm: "Delete",
+
+        deleteWarning: "This action cannot be undone. Your goal progress will be automatically adjusted.",
+
+        wonTypeLabel: "Won Type",
 
         editBilling: "Update billed amount",
 
@@ -2253,31 +2273,29 @@ const messages: DeepRecord = {
       },
 
       onboarding: {
-
-        title: "Choose your team",
-
+        title: "Complete your details",
         intro:
-
-          "Welcome! To personalize your experience, let us know which team you belong to.",
-
+          "To personalize your experience we need to know your animal team, your role and your direct leader.",
+        teamLabel: "Which animal team are you part of?",
         selectPlaceholder: "(choose a team)",
-
+        teamOtherOption: "Other…",
+        customTeamLabel: "Tell us the team name",
+        customTeamPlaceholder: "e.g. CX Specials",
+        positionLabel: "Position name",
+        positionPlaceholder: "e.g. Operations Lead",
+        leaderEmailLabel: "Direct leader email",
+        leaderEmailHint: "Must be an @wisecx.com address",
         actions: {
-
-          later: "Later",
-
           save: "Save",
-
+          saving: "Saving…",
         },
-
         toasts: {
-
-          saved: "Team saved",
-
-          error: "Could not save the team",
-
+          saved: "Information saved",
+          error: "We couldn’t save your information",
         },
-
+        errors: {
+          leaderEmail: "Enter a valid @wisecx.com email",
+        },
       },
 
       countries: {
@@ -3695,6 +3713,8 @@ const messages: DeepRecord = {
         },
 
         sections: {
+
+          deepDive: "Deep dive",
 
           bySku: {
 

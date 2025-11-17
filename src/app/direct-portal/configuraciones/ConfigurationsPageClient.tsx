@@ -12,7 +12,6 @@ import {
   Unlock,
   Loader2,
   Search,
-  Filter,
   Globe,
   ArrowRight,
 } from "lucide-react";
@@ -28,17 +27,12 @@ import {
   includeDefaultPortal,
   type PortalAccessId,
 } from "@/constants/portals";
+import UserAvatar from "@/app/components/ui/UserAvatar";
 
 type TeamRow = { id: string; name: string };
 
 type ConfigurationsPageClientProps = {
   isAdmin: boolean;
-};
-
-type TeamsStoreState = {
-  teams: TeamRow[];
-  loading: boolean;
-  error: string | null;
 };
 
 let teamFetchCount = 0;
@@ -135,6 +129,10 @@ export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPage
   void isAdmin;
   const configT = useTranslations("configurations");
   const sectionsT = useTranslations("configurations.sections");
+  
+  const { teams, loading: loadingTeams } = useTeamsData();
+  const { users, loading: loadingUsers } = useAdminUsers({ isSuperAdmin: isAdmin });
+
   const summarySections = [
     {
       id: "teams",
@@ -142,6 +140,9 @@ export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPage
       title: configT("tabs.teams"),
       description: configT("teamPanel.header.description"),
       Icon: Users2,
+      gradient: "from-blue-500/10 to-blue-600/5",
+      stat: loadingTeams ? "..." : teams.length.toString(),
+      statLabel: "equipos activos",
     },
     {
       id: "users",
@@ -149,31 +150,57 @@ export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPage
       title: configT("tabs.users"),
       description: configT("userPanel.header.description"),
       Icon: ShieldCheck,
+      gradient: "from-purple-500/10 to-purple-600/5",
+      stat: loadingUsers ? "..." : users.length.toString(),
+      statLabel: "usuarios registrados",
     },
   ] as const;
 
   return (
     <div className="space-y-8">
+      <div className="mx-auto max-w-2xl">
+        <div className="overflow-hidden rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-lg">
+          <div className="px-8 py-6 text-center">
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-purple-800">
+              Configuraciones del Sistema
+            </h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Gestiona equipos, usuarios y permisos de acceso desde un solo lugar.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
-        {summarySections.map(({ id, href, title, description: desc, Icon }) => (
+        {summarySections.map(({ id, href, title, description: desc, Icon, stat, statLabel }) => (
           <Link
             key={id}
             href={href}
-            className="group flex flex-col rounded-2xl border border-slate-200 bg-white/80 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[rgb(var(--primary))]/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--primary))]"
+            className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-6 text-left shadow-sm transition-all duration-200 hover:border-purple-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
           >
-            <div className="flex items-center gap-3">
-              <span className="rounded-full bg-slate-900/10 p-2 text-slate-900">
-                <Icon className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">{title}</p>
-                <p className="text-xs text-slate-600">{desc}</p>
+            <div className="flex items-start gap-4">
+              <div className="rounded-lg bg-purple-100 p-3 transition-colors group-hover:bg-purple-200">
+                <Icon className="h-6 w-6 text-purple-600" aria-hidden="true" />
+              </div>
+              
+              <div className="flex-1 space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+                    <p className="mt-1 text-sm text-slate-600">{desc}</p>
+                  </div>
+                  <div className="flex flex-col items-end text-right">
+                    <div className="text-2xl font-bold text-slate-900">{stat}</div>
+                    <div className="text-xs text-slate-500">{statLabel}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center text-sm font-semibold text-purple-600">
+                  {sectionsT("visit")}
+                  <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+                </div>
               </div>
             </div>
-            <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[rgb(var(--primary))]">
-              {sectionsT("visit")}
-              <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" aria-hidden="true" />
-            </span>
           </Link>
         ))}
       </div>
@@ -240,20 +267,15 @@ function SectionPageShell({
   description?: string;
   children: React.ReactNode;
 }) {
-  const sectionsT = useTranslations("configurations.sections");
-
   return (
     <div className="space-y-6">
-      <Link
-        href="/configuraciones"
-        className="inline-flex items-center gap-2 text-sm font-semibold text-[rgb(var(--primary))] hover:text-[rgb(var(--primary))]/80"
-      >
-        <ArrowRight className="h-3.5 w-3.5 -scale-x-100" aria-hidden="true" />
-        {sectionsT("back")}
-      </Link>
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
-        {description ? <p className="mt-1 text-sm text-slate-600">{description}</p> : null}
+      <div className="rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 via-white to-purple-50 px-6 py-4 shadow-sm">
+        <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-slate-700">
+          {title}
+        </h1>
+        {description && (
+          <p className="mt-2 text-sm text-slate-600">{description}</p>
+        )}
       </div>
       {children}
     </div>
@@ -278,7 +300,7 @@ function TeamManagementPanel({
   reloadUsers: () => Promise<AdminUser[]>;
 }) {
   const teamPanelT = useTranslations("configurations.teamPanel");
-  const portalsT = useTranslations("admin.users.portals");
+  const portalsT = useTranslations("navbar.portalSwitcher.options");
 
   const [newTeam, setNewTeam] = React.useState("");
   const [creating, setCreating] = React.useState(false);
@@ -436,7 +458,7 @@ function TeamManagementPanel({
       toast.success(
         teamPanelT("portals.updated", {
           team: team.name,
-          portal: portalsT(portal),
+          portal: portalsT(`${portal}.label`),
         }),
       );
       await reloadUsers().catch(() => undefined);
@@ -447,71 +469,60 @@ function TeamManagementPanel({
     }
   };
 
+  const [createModalOpen, setCreateModalOpen] = React.useState(false);
+
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-      {teamsError ? (
-        <div className="rounded-b-none rounded-t-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+    <section className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-slate-600">
+            <span className="font-semibold text-slate-900">{teams.length}</span> equipos activos
+          </div>
+          {loadingTeams && (
+            <span className="inline-flex items-center gap-2 text-sm text-slate-500">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Cargando...
+            </span>
+          )}
+        </div>
+        
+        {isAdmin && (
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+            onClick={() => setCreateModalOpen(true)}
+          >
+            <PlusCircle className="h-4 w-4" />
+            Crear Equipo
+          </button>
+        )}
+      </div>
+
+      {teamsError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           No se pudieron cargar los equipos: {teamsError}
         </div>
-      ) : null}
-      <div className="grid gap-6 px-6 py-6 lg:grid-cols-3">
-        <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-slate-900">{teamPanelT("form.title")}</p>
-            <p className="text-xs text-slate-600">{teamPanelT("form.subtitle")}</p>
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-600">{teamPanelT("form.placeholder")}</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                value={newTeam}
-                onChange={(event) => setNewTeam(event.target.value)}
-                disabled={!isAdmin}
-              />
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                onClick={handleCreateTeam}
-                disabled={!isAdmin || creating}
-              >
-                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
-                {teamPanelT("form.submit")}
-              </button>
-            </div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-            {teamPanelT("summary.label")}{" "}
-            <span className="font-semibold text-slate-900">{teams.length}</span>
-          </div>
-        </div>
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-600">{teamPanelT("table.title")}</p>
-            {loadingTeams ? (
-              <span className="inline-flex items-center gap-2 text-xs text-slate-500">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                {teamPanelT("table.loading")}
-              </span>
-            ) : null}
-          </div>
-          <div className="overflow-hidden rounded-2xl border border-slate-100">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      )}
+
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <table className="min-w-full text-left text-sm">
+              <thead className="bg-gradient-to-r from-slate-50 to-slate-100">
                 <tr>
-                  <th className="px-4 py-3">{teamPanelT("table.headings.team")}</th>
-                  <th className="px-4 py-3">{teamPanelT("table.headings.leaders")}</th>
-                  <th className="px-4 py-3">{teamPanelT("table.headings.members")}</th>
-                  <th className="px-4 py-3">{teamPanelT("table.headings.portals")}</th>
-                  <th className="px-4 py-3 text-right">{teamPanelT("table.headings.actions")}</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">{teamPanelT("table.headings.team")}</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">{teamPanelT("table.headings.leaders")}</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">{teamPanelT("table.headings.members")}</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-700">{teamPanelT("table.headings.portals")}</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-700">{teamPanelT("table.headings.actions")}</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {teamStats.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-6 text-center text-sm text-slate-500" colSpan={5}>
-                      {teamPanelT("table.empty")}
+                    <td className="px-6 py-12 text-center text-sm text-slate-500" colSpan={5}>
+                      <div className="flex flex-col items-center gap-2">
+                        <Users2 className="h-12 w-12 text-slate-300" />
+                        <p className="font-medium">{teamPanelT("table.empty")}</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -521,38 +532,75 @@ function TeamManagementPanel({
                     teamMembers.forEach((member) => {
                       member.portals.forEach((portal) => activePortals.add(portal));
                     });
+                    
                     return (
-                      <tr key={team.id} className="border-t border-slate-100">
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-slate-900">{team.name}</div>
-                          <p className="text-xs text-slate-500">
-                            {teamMembers.length} {teamPanelT("table.people")}
-                          </p>
+                      <tr key={team.id} className="transition-colors hover:bg-purple-50/50">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 text-base font-bold text-white shadow-lg shadow-purple-500/30">
+                              {team.name.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="text-base font-bold text-slate-900">{team.name}</div>
+                              <p className="text-xs font-medium text-slate-500">
+                                {teamMembers.length} {teamPanelT("table.people")}
+                              </p>
+                            </div>
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-slate-700">{leaders.length}</td>
-                        <td className="px-4 py-3 text-slate-700">{members.length}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-2 text-xs">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl font-bold text-slate-900">{leaders.length}</span>
+                            <ShieldCheck className="h-4 w-4 text-purple-500" />
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl font-bold text-slate-900">{members.length}</span>
+                            {teamMembers.length > 0 && (
+                              <div className="flex -space-x-2">
+                    {teamMembers.slice(0, 3).map((member) => (
+                      <div key={member.id} className="flex">
+                        <UserAvatar
+                          name={member.name ?? undefined}
+                          email={member.email ?? undefined}
+                          image={member.image ?? undefined}
+                          size={32}
+                          className="border-2 border-white shadow-md"
+                        />
+                      </div>
+                    ))}
+                                {teamMembers.length > 3 && (
+                                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-xs font-bold text-slate-600 shadow-md">
+                                    +{teamMembers.length - 3}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1.5">
                             {Array.from(activePortals).map((portal) => (
                               <span
                                 key={portal}
-                                className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600"
+                                className="inline-flex items-center gap-1 rounded-lg bg-purple-100 px-2.5 py-1 text-xs font-semibold text-purple-700"
                               >
-                                {portalsT(portal)}
+                                {portalsT(`${portal}.label`)}
                               </span>
                             ))}
-                            {activePortals.size === 0 ? (
-                              <span className="text-slate-400">
+                            {activePortals.size === 0 && (
+                              <span className="text-xs font-medium text-slate-400">
                                 {teamPanelT("table.noPortals")}
                               </span>
-                            ) : null}
+                            )}
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-6 py-4">
                           <div className="flex justify-end gap-2">
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-purple-300 hover:bg-purple-50 hover:text-purple-700 hover:shadow-md disabled:opacity-50"
                               onClick={() => setPortalTeam(team)}
                               disabled={!isAdmin}
                             >
@@ -561,7 +609,7 @@ function TeamManagementPanel({
                             </button>
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 hover:shadow-md disabled:opacity-50"
                               onClick={() => openRenameModal(team)}
                               disabled={!isAdmin}
                             >
@@ -570,7 +618,7 @@ function TeamManagementPanel({
                             </button>
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1 rounded-md border border-red-100 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+                              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 shadow-sm transition-all hover:border-red-300 hover:bg-red-100 hover:shadow-md disabled:opacity-50"
                               onClick={() => setDeleteTeam(team)}
                               disabled={!isAdmin}
                             >
@@ -586,13 +634,53 @@ function TeamManagementPanel({
               </tbody>
             </table>
           </div>
+
+      <Modal
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        title={teamPanelT("form.title")}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">{teamPanelT("form.subtitle")}</p>
+          <input
+            type="text"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            placeholder={teamPanelT("form.placeholder")}
+            value={newTeam}
+            onChange={(event) => setNewTeam(event.target.value)}
+            autoFocus
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              onClick={() => {
+                setCreateModalOpen(false);
+                setNewTeam("");
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white hover:bg-purple-700 disabled:opacity-60"
+              onClick={async () => {
+                await handleCreateTeam();
+                setCreateModalOpen(false);
+              }}
+              disabled={creating}
+            >
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
+              {teamPanelT("form.submit")}
+            </button>
+          </div>
         </div>
-      </div>
+      </Modal>
 
       <Modal
         open={Boolean(renameTeam)}
         onClose={() => setRenameTeam(null)}
-        title={<span className="text-base font-semibold">{teamPanelT("rename.title")}</span>}
+        title={teamPanelT("rename.title")}
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-600">{teamPanelT("rename.description")}</p>
@@ -627,11 +715,7 @@ function TeamManagementPanel({
       <Modal
         open={Boolean(portalTeam)}
         onClose={() => setPortalTeam(null)}
-        title={
-          <span className="text-base font-semibold">
-            {teamPanelT("portals.title", { team: portalTeam?.name ?? "" })}
-          </span>
-        }
+        title={teamPanelT("portals.title", { team: portalTeam?.name ?? "" })}
       >
         {portalTeam ? (
           <div className="space-y-4">
@@ -655,7 +739,7 @@ function TeamManagementPanel({
                         className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm"
                       >
                         <div>
-                          <div className="font-medium text-slate-900">{portalsT(portal)}</div>
+                          <div className="font-medium text-slate-900">{portalsT(`${portal}.label`)}</div>
                           <p className="text-xs text-slate-500">
                             {withPortal}/{members.length} {teamPanelT("portals.members")}
                           </p>
@@ -667,7 +751,7 @@ function TeamManagementPanel({
                           className={[
                             "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition",
                             state === "all"
-                              ? "bg-slate-900 text-white"
+                              ? "bg-purple-600 text-white"
                               : state === "partial"
                                 ? "bg-amber-100 text-amber-800"
                                 : "bg-slate-100 text-slate-600",
@@ -730,7 +814,7 @@ function UserManagementPanel({
 }) {
   const userPanelT = useTranslations("configurations.userPanel");
   const userToastT = useTranslations("configurations.userPanel.toast");
-  const portalsT = useTranslations("admin.users.portals");
+  const portalsT = useTranslations("navbar.portalSwitcher.options");
 
   const [search, setSearch] = React.useState("");
   const [roleFilter, setRoleFilter] = React.useState("all");
@@ -806,80 +890,102 @@ function UserManagementPanel({
     void handleUpdateUser(user.id, { portals: next });
   };
 
+  const getRoleBadge = (role: string) => {
+    if (role === "admin") return "bg-purple-100 text-purple-700 border-purple-200";
+    if (role === "lider") return "bg-blue-100 text-blue-700 border-blue-200";
+    return "bg-slate-100 text-slate-700 border-slate-200";
+  };
+
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-      <div className="space-y-4 px-6 py-6">
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-            <Search className="h-4 w-4 text-slate-500" />
-            <input
-              type="text"
-              className="flex-1 border-0 bg-transparent text-sm text-slate-900 focus:outline-none"
-              placeholder={userPanelT("filters.searchPlaceholder")}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </label>
-          <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-            <Filter className="h-4 w-4 text-slate-500" />
-            <select
-              className="flex-1 border-0 bg-transparent text-sm text-slate-900 focus:outline-none"
-              value={roleFilter}
-              onChange={(event) => setRoleFilter(event.target.value)}
-            >
-              <option value="all">{userPanelT("filters.allRoles")}</option>
-              <option value="admin">Admin</option>
-              <option value="lider">Líder</option>
-              <option value="usuario">Usuario</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-            <Filter className="h-4 w-4 text-slate-500" />
-            <select
-              className="flex-1 border-0 bg-transparent text-sm text-slate-900 focus:outline-none"
-              value={teamFilter}
-              onChange={(event) => setTeamFilter(event.target.value)}
-            >
-              <option value="all">{userPanelT("filters.allTeams")}</option>
-              <option value="none">{userPanelT("filters.onlyNoTeam")}</option>
-              {teamOptions.map((team) => (
-                <option key={team} value={team}>
-                  {team}
-                </option>
-              ))}
-            </select>
-          </label>
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm focus-within:border-purple-300 focus-within:ring-2 focus-within:ring-purple-500/20">
+          <Search className="h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            className="flex-1 border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            placeholder={userPanelT("filters.searchPlaceholder")}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
         </div>
-        <div className="overflow-x-auto rounded-2xl border border-slate-100">
+
+        <select
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm focus:border-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+          value={roleFilter}
+          onChange={(event) => setRoleFilter(event.target.value)}
+        >
+          <option value="all">{userPanelT("filters.allRoles")}</option>
+          <option value="admin">Admin</option>
+          <option value="lider">Líder</option>
+          <option value="usuario">Usuario</option>
+        </select>
+
+        <select
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm focus:border-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+          value={teamFilter}
+          onChange={(event) => setTeamFilter(event.target.value)}
+        >
+          <option value="all">{userPanelT("filters.allTeams")}</option>
+          <option value="none">{userPanelT("filters.onlyNoTeam")}</option>
+          {teamOptions.map((team) => (
+            <option key={team} value={team}>
+              {team}
+            </option>
+          ))}
+        </select>
+
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <span className="font-semibold text-slate-900">{filteredUsers.length}</span> de {users.length}
+          {loadingUsers && <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-600" />}
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-3">{userPanelT("table.headers.name")}</th>
-                <th className="px-4 py-3">{userPanelT("table.headers.role")}</th>
-                <th className="px-4 py-3">{userPanelT("table.headers.team")}</th>
-                <th className="px-4 py-3">{userPanelT("table.headers.portals")}</th>
-                <th className="px-4 py-3 text-right">{userPanelT("table.headers.actions")}</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">{userPanelT("table.headers.name")}</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">{userPanelT("table.headers.role")}</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">{userPanelT("table.headers.team")}</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600">{userPanelT("table.headers.portals")}</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-600">{userPanelT("table.headers.actions")}</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-sm text-slate-500" colSpan={5}>
-                    {userPanelT("table.noResults")}
+                  <td className="px-4 py-12 text-center" colSpan={5}>
+                    <div className="flex flex-col items-center gap-2">
+                      <Search className="h-8 w-8 text-slate-300" />
+                      <p className="text-sm font-medium text-slate-600">{userPanelT("table.noResults")}</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filteredUsers.map((user) => (
-                  <tr key={user.id} className="border-t border-slate-100">
+                  <tr key={user.id} className="transition-colors hover:bg-slate-50">
                     <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-900">
-                        {user.name || userPanelT("table.placeholderName")}
+                      <div className="flex items-center gap-2.5">
+                        <UserAvatar
+                          name={user.name ?? undefined}
+                          email={user.email ?? undefined}
+                          image={user.image ?? undefined}
+                          size={36}
+                          className="rounded-lg shadow-sm"
+                        />
+                        <div>
+                          <div className="text-sm font-semibold text-slate-900">
+                            {user.name || userPanelT("table.placeholderName")}
+                          </div>
+                          <div className="text-xs text-slate-500">{user.email}</div>
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-500">{user.email}</div>
                     </td>
                     <td className="px-4 py-3">
                       <select
-                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        className={`w-full rounded-lg border ${getRoleBadge(user.role)} px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500/20 disabled:cursor-not-allowed disabled:opacity-60`}
                         value={user.role}
                         disabled={savingId === user.id}
                         onChange={(event) => handleUpdateUser(user.id, { role: event.target.value })}
@@ -891,7 +997,7 @@ function UserManagementPanel({
                     </td>
                     <td className="px-4 py-3">
                       <select
-                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-900 focus:border-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
                         value={user.team || ""}
                         disabled={savingId === user.id}
                         onChange={(event) => handleUpdateUser(user.id, { team: event.target.value || null })}
@@ -905,38 +1011,39 @@ function UserManagementPanel({
                       </select>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
-                          {portalsT("direct")}
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                          {portalsT("direct.label")}
                         </span>
                         {MUTABLE_PORTAL_ACCESS.map((portal) => {
                           const enabled = user.portals.includes(portal);
                           return (
-                          <button
-                            key={portal}
-                            type="button"
-                            disabled={savingId === user.id}
-                            aria-busy={savingId === user.id || undefined}
-                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold transition ${
-                              enabled ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
-                            } ${savingId === user.id ? "cursor-not-allowed opacity-60" : "hover:opacity-90"}`}
-                            onClick={() => toggleUserPortal(user, portal, !enabled)}
-                          >
-                              {enabled ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-                              {portalsT(portal)}
+                            <button
+                              key={portal}
+                              type="button"
+                              disabled={savingId === user.id}
+                              className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                                enabled 
+                                  ? "bg-purple-600 text-white hover:bg-purple-700" 
+                                  : "border border-slate-200 bg-white text-slate-600 hover:border-purple-300 hover:bg-purple-50"
+                              } ${savingId === user.id ? "cursor-not-allowed opacity-60" : ""}`}
+                              onClick={() => toggleUserPortal(user, portal, !enabled)}
+                            >
+                              {enabled ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                              {portalsT(`${portal}.label`)}
                             </button>
                           );
                         })}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right text-xs text-slate-500">
+                    <td className="px-4 py-3 text-right">
                       {savingId === user.id ? (
-                        <span className="inline-flex items-center gap-1 text-slate-500">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           {userPanelT("table.saving")}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-emerald-600">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
                           <ShieldCheck className="h-3.5 w-3.5" />
                           {userPanelT("table.synced")}
                         </span>
@@ -948,12 +1055,6 @@ function UserManagementPanel({
             </tbody>
           </table>
         </div>
-        {loadingUsers ? (
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {userPanelT("table.loading")}
-          </div>
-        ) : null}
       </div>
     </section>
   );

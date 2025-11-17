@@ -45,108 +45,116 @@ export default function TeamGoalCard({
   const [editOpen, setEditOpen] = React.useState(false);
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden rounded-3xl border border-[#eadeff] bg-gradient-to-br from-white via-white to-[#f4f0ff] p-6 shadow-[0_24px_60px_rgba(79,29,149,0.12)]">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7c3aed]">{t("title")}</p>
-          <h3 className="mt-1 text-2xl font-semibold text-[#2f0f5d]">
-            {metricsT("goal")}
-          </h3>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          {isSuperAdmin && (
-            <select
-              className="h-10 rounded-full border border-[#c4b5fd] bg-white px-4 text-sm font-medium text-[#4c1d95] shadow-sm transition hover:border-[#a78bfa]"
-              value={effectiveTeam}
-              onChange={(e) => onChangeTeam(e.target.value)}
-            >
-              <option className="text-black" value="">
-                {t("selectPlaceholder")}
-              </option>
-              {allTeams.map((tName) => (
-                <option className="text-black" key={tName} value={tName}>
-                  {tName}
+    <div className="relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/60 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.04)]">
+      <div className="bg-gradient-to-r from-purple-50 to-white px-6 py-5 border-b border-slate-100">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-purple-600">{t("title")}</p>
+            <h3 className="mt-1.5 text-2xl font-bold text-slate-900">
+              {metricsT("goal")}
+            </h3>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {isSuperAdmin && (
+              <select
+                className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-purple-300 hover:shadow-md focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                value={effectiveTeam}
+                onChange={(e) => onChangeTeam(e.target.value)}
+              >
+                <option className="text-black" value="">
+                  {t("selectPlaceholder")}
                 </option>
-              ))}
-            </select>
-          )}
-          {(isSuperAdmin || role === "lider") && (
-            <button
-              className="inline-flex items-center justify-center rounded-full border border-[#c4b5fd] bg-white px-4 py-2 text-sm font-semibold text-[#4c1d95] shadow-sm transition hover:border-[#a78bfa] hover:text-[#3c0d7a]"
-              onClick={() => setEditOpen(true)}
-            >
-              {t("editCta")}
-            </button>
-          )}
+                {allTeams.map((tName) => (
+                  <option className="text-black" key={tName} value={tName}>
+                    {tName}
+                  </option>
+                ))}
+              </select>
+            )}
+            {(isSuperAdmin || role === "lider") && (
+              <button
+                className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.02]"
+                onClick={() => setEditOpen(true)}
+              >
+                {t("editCta")}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {!effectiveTeam ? (
-        <div className="mt-6 rounded-3xl border border-dashed border-[#d8c7ff] bg-[#faf7ff] p-6 text-sm text-[#5b21b6]">
-          {isSuperAdmin ? emptyT("admin") : emptyT("member")}
-        </div>
-      ) : (
-        <>
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <GoalKpi label={t("teamGoalLabel")} value={formatUSD(teamGoal)} />
-            <GoalKpi label={t("membersSumLabel")} value={formatUSD(sumMembersGoal)} />
+      <div className="p-6">
+        {!effectiveTeam ? (
+          <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-8 text-center">
+            <div className="mx-auto max-w-md">
+              <p className="text-sm text-purple-900 font-medium">
+                {isSuperAdmin ? emptyT("admin") : emptyT("member")}
+              </p>
+            </div>
           </div>
-
-          <div className="mt-6 rounded-3xl border border-[#efe7ff] bg-white/80 p-5 shadow-inner">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-[#5b21b6]">{t("progressLabel")}</p>
-                <p className="text-xl font-semibold text-[#047857]">{formatUSD(teamProgress)}</p>
-              </div>
-              <div className="space-y-1 text-right">
-                <p className="text-sm font-medium text-[#a16207]">{t("remainingLabel")}</p>
-                <p className="text-xl font-semibold text-[#b45309]">{formatUSD(remaining)}</p>
-              </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <GoalKpi label={t("teamGoalLabel")} value={formatUSD(teamGoal)} />
+              <GoalKpi label={t("membersSumLabel")} value={formatUSD(sumMembersGoal)} />
             </div>
 
-            <div className="mt-5">
-              <div className="relative h-3 w-full overflow-hidden rounded-full bg-[#ede9fe]">
-                <div
-                  className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#c084fc] via-[#a855f7] to-[#7c3aed]"
-                  style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
-                />
-                {teamGoal > 0 && (
-                  <div
-                    className="absolute top-0 bottom-0 w-[2px] bg-[#fbbf24]"
-                    style={{ left: `calc(${Math.min(100, Math.max(0, monthlyPct))}% - 1px)` }}
-                  />
-                )}
-                <div className="absolute inset-0 flex">
-                  <div className="h-full w-1/3 border-r border-white/40" />
-                  <div className="h-full w-1/3 border-r border-white/40" />
-                  <div className="h-full w-1/3" />
+            <div className="mt-6 rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50/50 to-purple-50/30 p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-slate-600">{t("progressLabel")}</p>
+                  <p className="text-2xl font-bold text-emerald-600">{formatUSD(teamProgress)}</p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-sm font-semibold text-slate-600">{t("remainingLabel")}</p>
+                  <p className="text-2xl font-bold text-amber-600">{formatUSD(remaining)}</p>
                 </div>
               </div>
-            </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-[#5b21b6]">
-              <span className="font-semibold text-[#6d28d9]">
-                {t("completed", { pct: Math.max(0, pct).toFixed(0) })}
-              </span>
-              <span className="text-xs text-[#7c3aed]">
-                {t("progressTitle", { year, quarter })}
-              </span>
-            </div>
+              <div className="mt-6">
+                <div className="relative h-4 w-full overflow-hidden rounded-xl bg-slate-200/60">
+                  <div
+                    className="absolute left-0 top-0 h-full rounded-xl bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 shadow-sm"
+                    style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+                  />
+                  {teamGoal > 0 && (
+                    <div
+                      className="absolute top-0 bottom-0 w-[3px] bg-amber-400 shadow-sm"
+                      style={{ left: `calc(${Math.min(100, Math.max(0, monthlyPct))}% - 1.5px)` }}
+                    />
+                  )}
+                  <div className="absolute inset-0 flex">
+                    <div className="h-full w-1/3 border-r border-white/40" />
+                    <div className="h-full w-1/3 border-r border-white/40" />
+                    <div className="h-full w-1/3" />
+                  </div>
+                </div>
+              </div>
 
-            <div className="mt-4 flex items-center justify-between rounded-2xl bg-[#f8f5ff] px-4 py-3 text-sm">
-              <span className="font-medium text-[#5b21b6]">{t("deltaLabelShort")}</span>
-              <span
-                className={`font-semibold ${
-                  delta === 0 ? "text-[#5b21b6]" : delta > 0 ? "text-emerald-600" : "text-rose-600"
-                }`}
-              >
-                {delta > 0 ? "+" : ""}
-                {formatUSD(delta)}
-              </span>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="font-bold text-purple-600">
+                  {t("completed", { pct: Math.max(0, pct).toFixed(0) })}
+                </span>
+                <span className="text-xs font-medium text-slate-500">
+                  {t("progressTitle", { year, quarter })}
+                </span>
+              </div>
+
+              <div className="mt-5 flex items-center justify-between rounded-2xl bg-gradient-to-r from-slate-50 to-purple-50/50 px-5 py-3.5 border border-slate-100">
+                <span className="font-semibold text-slate-700">{t("deltaLabelShort")}</span>
+                <span
+                  className={`text-lg font-bold ${
+                    delta === 0 ? "text-slate-600" : delta > 0 ? "text-emerald-600" : "text-rose-600"
+                  }`}
+                >
+                  {delta > 0 ? "+" : ""}
+                  {formatUSD(delta)}
+                </span>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
 
       <ConfirmDialog
         open={editOpen}

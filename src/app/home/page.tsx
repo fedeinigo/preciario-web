@@ -1,6 +1,6 @@
 // src/app/home/page.tsx
 import Link from "next/link";
-import { Lock, Unlock } from "lucide-react";
+import { Lock, FileText, Users, Megaphone, Handshake, Sparkles } from "lucide-react";
 
 import AuthLoginCard from "@/app/components/AuthLoginCard";
 import { auth } from "@/lib/auth";
@@ -11,6 +11,9 @@ type PortalCard = {
   title: string;
   description: string;
   href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  gradient: string;
+  glowColor: string;
 };
 
 const PORTAL_CARDS: PortalCard[] = [
@@ -19,24 +22,36 @@ const PORTAL_CARDS: PortalCard[] = [
     title: "Portal Directo",
     description: "Genera propuestas, historicos, estadisticas y objetivos.",
     href: "/portal/directo",
+    icon: FileText,
+    gradient: "from-purple-500/10 via-purple-600/5 to-transparent",
+    glowColor: "shadow-purple-500/20 hover:shadow-purple-500/40",
   },
   {
     id: "mapache",
     title: "Portal Mapache",
     description: "Gestion de tareas y metricas del equipo Mapache.",
     href: "/portal/mapache",
+    icon: Users,
+    gradient: "from-blue-500/10 via-blue-600/5 to-transparent",
+    glowColor: "shadow-blue-500/20 hover:shadow-blue-500/40",
   },
   {
     id: "marketing",
     title: "Portal Marketing",
     description: "Materiales y reportes para el equipo de marketing.",
     href: "/portal/marketing",
+    icon: Megaphone,
+    gradient: "from-pink-500/10 via-pink-600/5 to-transparent",
+    glowColor: "shadow-pink-500/20 hover:shadow-pink-500/40",
   },
   {
     id: "partner",
     title: "Portal Partner",
     description: "Recursos exclusivos para partners y alianzas.",
     href: "/portal/partner",
+    icon: Handshake,
+    gradient: "from-emerald-500/10 via-emerald-600/5 to-transparent",
+    glowColor: "shadow-emerald-500/20 hover:shadow-emerald-500/40",
   },
 ];
 
@@ -52,47 +67,66 @@ export default async function HomePage() {
   }
 
   const accessiblePortals = new Set<PortalAccessId>(session.user?.portals ?? ["direct"]);
+  const userName = session.user?.name?.split(" ")[0] || "Usuario";
 
   return (
-    <section className="min-h-[calc(100vh-var(--nav-h))] w-full bg-slate-50 px-4 py-12">
-      <div className="mx-auto flex max-w-5xl flex-col items-center gap-10 text-center">
-        <div className="space-y-3">
-          <p className="text-sm font-semibold uppercase tracking-wide text-[rgb(var(--primary))]">
-            Bienvenido
-          </p>
-          <h1 className="text-3xl font-semibold text-slate-900">Seleccione el portal</h1>
-          <p className="text-base text-slate-600">
-            Elegi donde queres trabajar. Mostramos solamente los portales habilitados para tu usuario.
-          </p>
+    <section className="min-h-[calc(100vh-var(--nav-h))] bg-slate-50 px-4 py-8">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-purple-600">
+              <Sparkles className="h-4 w-4" />
+              Hola, {userName}
+            </div>
+            <h1 className="text-3xl font-bold text-slate-900">
+              Selecciona tu Portal
+            </h1>
+          </div>
         </div>
 
-        <div className="grid w-full gap-6 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {PORTAL_CARDS.map((portal) => {
             const isEnabled = accessiblePortals.has(portal.id);
+            const Icon = portal.icon;
+            
             const card = (
               <div
-                className={`relative h-full rounded-2xl border p-6 text-left transition ${
+                className={`group relative overflow-hidden rounded-xl border transition-all duration-200 ${
                   isEnabled
-                    ? "border-[rgb(var(--primary))]/30 bg-white shadow hover:shadow-lg"
-                    : "border-slate-200 bg-slate-100 text-slate-500"
+                    ? "border-slate-200 bg-white shadow-sm hover:border-purple-300 hover:shadow-md"
+                    : "border-slate-200 bg-slate-50 opacity-50"
                 }`}
               >
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">{portal.title}</h2>
-                  {isEnabled ? (
-                    <Unlock className="h-5 w-5 text-[rgb(var(--primary))]" aria-hidden="true" />
-                  ) : (
-                    <Lock className="h-5 w-5 text-slate-400" aria-hidden="true" />
+                <div className="p-5">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className={`rounded-lg p-2.5 ${
+                      isEnabled 
+                        ? "bg-purple-100 group-hover:bg-purple-200" 
+                        : "bg-slate-200"
+                    }`}>
+                      <Icon className={`h-5 w-5 ${isEnabled ? "text-purple-600" : "text-slate-400"}`} />
+                    </div>
+                    {!isEnabled && <Lock className="h-4 w-4 text-slate-400" />}
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className={`text-base font-bold ${isEnabled ? "text-slate-900" : "text-slate-500"}`}>
+                      {portal.title}
+                    </h3>
+                    <p className={`text-sm leading-snug ${isEnabled ? "text-slate-600" : "text-slate-400"}`}>
+                      {portal.description}
+                    </p>
+                  </div>
+
+                  {isEnabled && (
+                    <div className="mt-4 flex items-center text-sm font-semibold text-purple-600">
+                      Acceder
+                      <svg className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
                   )}
                 </div>
-                <p className="text-sm leading-relaxed">{portal.description}</p>
-                <span
-                  className={`pointer-events-none mt-6 inline-flex items-center text-sm font-semibold ${
-                    isEnabled ? "text-[rgb(var(--primary))]" : "text-slate-400"
-                  }`}
-                >
-                  {isEnabled ? "Ingresar →" : "Acceso restringido"}
-                </span>
               </div>
             );
 
@@ -100,7 +134,7 @@ export default async function HomePage() {
               <Link
                 key={portal.id}
                 href={portal.href}
-                className="group focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--primary))]"
+                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
               >
                 {card}
               </Link>
@@ -111,6 +145,10 @@ export default async function HomePage() {
             );
           })}
         </div>
+
+        <p className="mt-6 text-center text-sm text-slate-500">
+          ¿Necesitas acceso a más portales? Contacta al administrador de tu equipo.
+        </p>
       </div>
     </section>
   );

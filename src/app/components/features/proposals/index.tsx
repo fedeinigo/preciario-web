@@ -11,6 +11,7 @@ export interface ProposalViewer {
   email: string;
   role: AppRole | "usuario";
   team: string | null;
+  image: string | null;
 }
 
 export default function ProposalApp({
@@ -27,6 +28,7 @@ export default function ProposalApp({
     email: session.user?.email ?? "",
     role: (session.user?.role as AppRole | undefined) ?? "usuario",
     team: (session.user?.team as string | null | undefined) ?? null,
+    image: (session.user?.image as string | null | undefined) ?? null,
   };
 
   return <ProposalsTabsClient viewer={viewer} />;

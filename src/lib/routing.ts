@@ -21,8 +21,5 @@ export function isMapachePath(pathname: string | null): boolean {
 
   const normalized = stripLocaleFromPath(pathname);
 
-  return (
-    normalized.startsWith("/mapache-portal") ||
-    normalized.startsWith("/portal/mapache")
-  );
+  return normalized.startsWith("/portal/mapache");
 }

@@ -984,52 +984,54 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
   );
 
   return (
-    <div className="p-6">
-      <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)_280px] gap-6">
-        <aside className="hidden xl:block">
-          <FilialesSidebar
-            isAdmin={isAdmin}
-            filiales={filiales}
-            addFilial={addFilial}
-            editFilialTitle={editFilialTitle}
-            removeFilial={removeFilial}
-            addCountry={addCountry}
-            editCountry={editCountry}
-            removeCountry={removeCountry}
-          />
-        </aside>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-slate-50 p-6">
+      <div className="mx-auto max-w-[1800px]">
+        <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_300px] gap-6">
+          <aside className="hidden xl:block">
+            <div className="space-y-6">
+              <GlossarySidebar
+                isAdmin={isAdmin}
+                glossary={glossary}
+                addLink={addLink}
+                editLink={editLink}
+                removeLink={removeLink}
+              />
+              <FilialesSidebar
+                isAdmin={isAdmin}
+                filiales={filiales}
+                addFilial={addFilial}
+                editFilialTitle={editFilialTitle}
+                removeFilial={removeFilial}
+                addCountry={addCountry}
+                editCountry={editCountry}
+                removeCountry={removeCountry}
+              />
+            </div>
+          </aside>
 
-        <section className="space-y-4">
-          <GeneratorMainCard {...mainCardProps} />
+          <section className="space-y-6">
+            <GeneratorMainCard {...mainCardProps} />
 
-          <GeneratorModalStack
-            summary={summaryState}
-            confirmReset={confirmResetState}
-            whatsapp={whatsappState}
-            minutes={minutesState}
-            wiser={wiserState}
-            itemForm={itemFormState}
-            showItemForm={isAdmin}
-            proposalCreated={proposalCreatedState}
-          />
-        </section>
-
-        <aside className="hidden xl:block">
-          <div className="space-y-4">
-            <GlossarySidebar
-              isAdmin={isAdmin}
-              glossary={glossary}
-              addLink={addLink}
-              editLink={editLink}
-              removeLink={removeLink}
+            <GeneratorModalStack
+              summary={summaryState}
+              confirmReset={confirmResetState}
+              whatsapp={whatsappState}
+              minutes={minutesState}
+              wiser={wiserState}
+              itemForm={itemFormState}
+              showItemForm={isAdmin}
+              proposalCreated={proposalCreatedState}
             />
+          </section>
+
+          <aside className="hidden xl:block">
             <WhatsAppCalculatorCard
               subsidiary={subsidiary}
               defaultCountry={country}
               resolveErrorMessage={resolveProposalErrorMessage}
             />
-          </div>
-        </aside>
+          </aside>
+        </div>
       </div>
     </div>
   );

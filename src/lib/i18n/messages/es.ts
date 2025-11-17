@@ -82,6 +82,12 @@ const messages: DeepRecord = {
 
           team: "Equipo",
 
+          position: "Posición",
+
+          leader: "Líder",
+
+          period: "Periodo y Objetivo",
+
           year: "Año",
 
           quarter: "Trimestre",
@@ -97,6 +103,10 @@ const messages: DeepRecord = {
           team: "—",
 
           email: "—",
+
+          position: "—",
+
+          leader: "—",
 
         },
 
@@ -2052,7 +2062,17 @@ const messages: DeepRecord = {
 
         deleteManual: "Eliminar",
 
-        deleteManualConfirm: "¿Eliminar el Won manual de {company}?",
+        deleteManualTitle: "Confirmar Eliminación",
+
+        deleteManualConfirm: "¿Estás seguro de que deseas eliminar el Won manual de {company}?",
+
+        deleteCancel: "Cancelar",
+
+        deleteConfirm: "Eliminar",
+
+        deleteWarning: "Esta acción no se puede deshacer. El progreso de tu objetivo se ajustará automáticamente.",
+
+        wonTypeLabel: "Tipo de Won",
 
         editBilling: "Actualizar facturado",
 
@@ -2259,31 +2279,29 @@ const messages: DeepRecord = {
       },
 
       onboarding: {
-
-        title: "Selecciona tu equipo",
-
+        title: "Completemos tus datos",
         intro:
-
-          "Bienvenido. Para personalizar tu experiencia, indícanos a qué equipo perteneces.",
-
+          "Para personalizar tu experiencia necesitamos saber a qué equipo perteneces, cuál es tu posición y quién es tu líder directo.",
+        teamLabel: "Equipo del que formas parte (versión animal)",
         selectPlaceholder: "(elige un equipo)",
-
+        teamOtherOption: "Otros...",
+        customTeamLabel: "Indica el nombre del equipo",
+        customTeamPlaceholder: "Ej. CX Especiales",
+        positionLabel: "Nombre de la posición",
+        positionPlaceholder: "Ej. Líder de Operaciones",
+        leaderEmailLabel: "Email del líder directo",
+        leaderEmailHint: "Debe ser un correo @wisecx.com",
         actions: {
-
-          later: "Más tarde",
-
           save: "Guardar",
-
+          saving: "Guardando…",
         },
-
         toasts: {
-
-          saved: "Equipo guardado",
-
-          error: "No se pudo guardar el equipo",
-
+          saved: "Datos guardados",
+          error: "No se pudo guardar la información",
         },
-
+        errors: {
+          leaderEmail: "Ingresá un email válido @wisecx.com",
+        },
       },
 
       countries: {
@@ -3717,6 +3735,8 @@ const messages: DeepRecord = {
         },
 
         sections: {
+
+          deepDive: "Análisis profundo",
 
           bySku: {
 

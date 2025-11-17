@@ -2,15 +2,19 @@
 "use client";
 
 import React from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Filter, User, Target, TrendingUp } from "lucide-react";
 import { toast } from "@/app/components/ui/toast";
 import { formatUSD } from "../../proposals/lib/format";
 import { useTranslations } from "@/app/LanguageProvider";
+import UserAvatar from "@/app/components/ui/UserAvatar";
 
 export type TeamGoalRow = {
   userId: string;
   email: string | null;
   name: string | null;
+  role?: string | null;
+  team?: string | null;
+  image?: string | null;
   goal: number;
   progress: number;
   pct: number; // puede superar 100
@@ -33,11 +37,17 @@ export default function TeamMembersTable({
   canEdit: boolean;
   canAddManual: boolean;
   onEditGoal: (userId: string, amount: number) => Promise<boolean> | boolean;
-  onOpenProfile: (u: { id: string; email: string | null; name: string | null }) => void;
+  onOpenProfile: (u: {
+    id: string;
+    email: string | null;
+    name: string | null;
+    role?: string | null;
+    team?: string | null;
+    image?: string | null;
+  }) => void;
   onAddManual: (u: { id: string; email: string | null; name: string | null }) => void;
 }) {
   const t = useTranslations("goals.table");
-  const headersT = useTranslations("goals.table.headers");
   const actionsT = useTranslations("goals.table.actions");
   const billingT = useTranslations("goals.billing");
   const labelsT = useTranslations("goals.table.labels");
@@ -47,6 +57,9 @@ export default function TeamMembersTable({
 
   const [sortKey, setSortKey] = React.useState<SortKey>("user");
   const [sortAsc, setSortAsc] = React.useState<boolean>(true);
+
+  const [searchQuery, setSearchQuery] = React.useState<string>("");
+  const [statusFilter, setStatusFilter] = React.useState<"all" | "above" | "below">("all");
 
   const startEdit = (r: TeamGoalRow) => {
     if (!canEdit) return;
@@ -69,8 +82,27 @@ export default function TeamMembersTable({
     }
   };
 
-  const sorted = React.useMemo(() => {
-    const arr = [...rows];
+  const filteredAndSorted = React.useMemo(() => {
+    let arr = [...rows];
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      arr = arr.filter((row) => {
+        const nameMatch = row.name?.toLowerCase().includes(query);
+        const emailMatch = row.email?.toLowerCase().includes(query);
+        return nameMatch || emailMatch;
+      });
+    }
+    
+    // Apply status filter
+    if (statusFilter === "above") {
+      arr = arr.filter((row) => row.pct >= 100);
+    } else if (statusFilter === "below") {
+      arr = arr.filter((row) => row.pct < 100);
+    }
+    
+    // Apply sorting
     arr.sort((a, b) => {
       const nameA = (a.name || a.email || a.userId || "").toLowerCase();
       const nameB = (b.name || b.email || b.userId || "").toLowerCase();
@@ -92,7 +124,7 @@ export default function TeamMembersTable({
       return sortAsc ? cmp : -cmp;
     });
     return arr;
-  }, [rows, sortKey, sortAsc]);
+  }, [rows, sortKey, sortAsc, searchQuery, statusFilter]);
 
   const Arrow = ({
     active,
@@ -112,186 +144,252 @@ export default function TeamMembersTable({
     </span>
   );
 
-  const initialsFor = (name: string | null, email: string | null) => {
-    const fallback = email || name || "";
-    const source = (name || fallback || "").trim();
-    if (!source) return "--";
-    const parts = source.split(/\s+/).filter(Boolean);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  const getPerformanceColor = (pct: number) => {
+    if (pct >= 100) return { bg: "bg-gradient-to-br from-purple-500 to-purple-700", text: "text-purple-700", ring: "ring-purple-500/20" };
+    if (pct >= 75) return { bg: "bg-gradient-to-br from-blue-500 to-blue-600", text: "text-blue-700", ring: "ring-blue-500/20" };
+    if (pct >= 50) return { bg: "bg-gradient-to-br from-amber-500 to-amber-600", text: "text-amber-700", ring: "ring-amber-500/20" };
+    return { bg: "bg-gradient-to-br from-slate-400 to-slate-500", text: "text-slate-700", ring: "ring-slate-500/20" };
   };
-
-  const ProgressChip = ({ pct }: { pct: number }) => {
-    const pctSafe = Number.isFinite(pct) ? pct : 0;
-    const baseWidth = Math.min(100, Math.max(0, pctSafe));
-    const overflow = Math.max(0, pctSafe - 100);
-
-    return (
-      <div className="flex w-full flex-col gap-1">
-        <div className="relative h-2 w-full overflow-hidden rounded-full bg-[#f3e8ff]">
-          <div
-            className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#c084fc] via-[#a855f7] to-[#6d28d9]"
-            style={{ width: `${baseWidth}%` }}
-          />
-          {overflow > 0 && (
-            <div
-              className="absolute top-0 h-full rounded-r-full bg-[#ede9fe]"
-              style={{ left: "calc(100% - 12px)", width: "12px" }}
-            >
-              <div className="h-full w-full rounded-r-full bg-[length:8px_8px] [background-image:repeating-linear-gradient(45deg,rgba(109,40,217,0.65)_0,rgba(109,40,217,0.65)_4px,rgba(109,40,217,0.2)_4px,rgba(109,40,217,0.2)_8px)]" />
-            </div>
-          )}
-        </div>
-        <div className="text-xs font-semibold text-[#6d28d9]">{pctSafe.toFixed(1)}%</div>
-      </div>
-    );
-  };
-
-  const actionButtonBase =
-    "inline-flex w-full md:w-auto items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white";
 
   return (
-    <div className="space-y-4">
-      <div className="hidden rounded-2xl bg-[#f5f0ff] px-6 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#6d28d9] md:grid md:grid-cols-[minmax(0,2.3fr),minmax(0,1.1fr),minmax(0,1.1fr),minmax(0,0.9fr),minmax(0,1.4fr),minmax(0,1.1fr)] md:items-center">
-        <button
-          type="button"
-          className="flex items-center gap-1 text-left"
-          onClick={() => handleSort("user")}
-        >
-          {headersT("user")}{" "}
-          <Arrow active={sortKey === "user"} direction={sortAsc ? "asc" : "desc"} />
-        </button>
-        <button
-          type="button"
-          className="flex items-center justify-end gap-1 text-right"
-          onClick={() => handleSort("goal")}
-        >
-          {headersT("goal")}{" "}
-          <Arrow active={sortKey === "goal"} direction={sortAsc ? "asc" : "desc"} />
-        </button>
-        <button
-          type="button"
-          className="flex items-center justify-end gap-1 text-right"
-          onClick={() => handleSort("progress")}
-        >
-          {headersT("progress")}{" "}
-          <Arrow active={sortKey === "progress"} direction={sortAsc ? "asc" : "desc"} />
-        </button>
-        <button
-          type="button"
-          className="flex items-center justify-end gap-1 text-right"
-          onClick={() => handleSort("pct")}
-        >
-          {headersT("pct")}{" "}
-          <Arrow active={sortKey === "pct"} direction={sortAsc ? "asc" : "desc"} />
-        </button>
-        <div className="text-right">{labelsT("visual")}</div>
-        <div className="text-right">{actionsT("title")}</div>
+    <div className="space-y-5">
+      {/* Filters and Search */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar por nombre o email..."
+            className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-2xl text-sm bg-white shadow-sm focus:border-purple-400 focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="h-5 w-5 text-slate-500" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as "all" | "above" | "below")}
+            className="px-5 py-3 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 focus:border-purple-400 focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition bg-white shadow-sm"
+          >
+            <option value="all">Todos</option>
+            <option value="above">✓ Arriba del objetivo</option>
+            <option value="below">↓ Abajo del objetivo</option>
+          </select>
+        </div>
       </div>
 
-      <div className="divide-y divide-[#efe7ff] overflow-hidden rounded-2xl border border-[#efe7ff] bg-white shadow-sm">
+      {/* Sort Controls */}
+      <div className="flex flex-wrap gap-2">
+        <span className="text-xs font-medium text-slate-500 self-center">Ordenar por:</span>
+        <button
+          type="button"
+          onClick={() => handleSort("user")}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+            sortKey === "user"
+              ? "bg-purple-100 text-purple-700 shadow-sm"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          <User className="h-3 w-3" />
+          Usuario
+          {sortKey === "user" && <Arrow active={true} direction={sortAsc ? "asc" : "desc"} />}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSort("goal")}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+            sortKey === "goal"
+              ? "bg-purple-100 text-purple-700 shadow-sm"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          <Target className="h-3 w-3" />
+          Objetivo
+          {sortKey === "goal" && <Arrow active={true} direction={sortAsc ? "asc" : "desc"} />}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSort("progress")}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+            sortKey === "progress"
+              ? "bg-purple-100 text-purple-700 shadow-sm"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          <TrendingUp className="h-3 w-3" />
+          Avance
+          {sortKey === "progress" && <Arrow active={true} direction={sortAsc ? "asc" : "desc"} />}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSort("pct")}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+            sortKey === "pct"
+              ? "bg-purple-100 text-purple-700 shadow-sm"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          % Cumpl.
+          {sortKey === "pct" && <Arrow active={true} direction={sortAsc ? "asc" : "desc"} />}
+        </button>
+      </div>
+
+      <div className="space-y-3">
         {loading ? (
-          <div className="px-6 py-10 text-center text-sm text-[#6b21a8]">{t("loading")}</div>
-        ) : sorted.length === 0 ? (
-          <div className="px-6 py-10 text-center text-sm text-[#6b21a8]">{t("empty")}</div>
+          <div className="rounded-3xl bg-white border border-slate-200 shadow-sm px-8 py-12 text-center">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 mb-4">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-purple-600 border-t-transparent" />
+            </div>
+            <p className="text-sm font-medium text-slate-600">{t("loading")}</p>
+          </div>
+        ) : filteredAndSorted.length === 0 ? (
+          <div className="rounded-3xl bg-gradient-to-br from-slate-50 to-purple-50 border border-purple-100 shadow-sm px-8 py-12 text-center">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 mb-4">
+              <Search className="h-6 w-6 text-purple-600" />
+            </div>
+            <p className="text-sm font-medium text-slate-700">
+              {searchQuery.trim() || statusFilter !== "all" ? "No se encontraron resultados con los filtros aplicados" : t("empty")}
+            </p>
+          </div>
         ) : (
-          sorted.map((r) => {
+          filteredAndSorted.map((r) => {
             const displayName = r.name || r.email || r.userId;
             const isEditing = editing === r.userId;
             const goalValue = isEditing ? tmp : r.goal;
             const monthly = goalValue / 3;
+            const perfColor = getPerformanceColor(r.pct);
+            const pctSafe = Number.isFinite(r.pct) ? r.pct : 0;
+            const progressWidth = Math.min(100, Math.max(0, pctSafe));
+
             return (
               <div
                 key={r.userId}
-                className="grid grid-cols-1 gap-5 px-5 py-6 text-sm text-[#2f0f5d] transition hover:bg-[#f9f6ff] md:grid-cols-[minmax(0,2.3fr),minmax(0,1.1fr),minmax(0,1.1fr),minmax(0,0.9fr),minmax(0,1.4fr),minmax(0,1.1fr)] md:items-center md:px-6"
+                className="rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-purple-200 hover:shadow-lg transition-all duration-300 p-4 space-y-4"
               >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#ede9fe] text-base font-semibold text-[#5b21b6]">
-                    {initialsFor(r.name, r.email)}
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-6">
+                  <div className="flex items-center gap-3 min-w-[220px] flex-1">
+                    <UserAvatar
+                      name={displayName}
+                      email={r.email ?? undefined}
+                      image={r.image ?? undefined}
+                      size={56}
+                      className={`shadow-sm ring-4 ${perfColor.ring}`}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-base font-semibold text-slate-900 truncate">{displayName}</p>
+                      {r.email && <p className="text-sm text-slate-500 truncate">{r.email}</p>}
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-[#2f0f5d]">{displayName}</div>
-                    {r.email && <div className="truncate text-xs text-[#7c3aed]">{r.email}</div>}
-                  </div>
-                </div>
 
-                <div className="text-right md:text-left">
-                  <div className="text-sm font-semibold text-[#2f0f5d]">
+                  <div className="min-w-[160px]">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Objetivo</p>
                     {isEditing ? (
                       <input
-                        className="h-10 w-full max-w-[140px] rounded-xl border border-[#d8c7ff] bg-white px-3 text-right text-sm font-semibold text-[#4c1d95] focus:outline-none focus:ring-2 focus:ring-[#a855f7]"
+                        className="w-full rounded-lg border-2 border-purple-200 px-3 py-1.5 text-base font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
                         type="number"
                         min={0}
                         value={Number.isFinite(tmp) ? tmp : 0}
                         onChange={(e) => setTmp(Number(e.target.value || 0))}
+                        autoFocus
                       />
                     ) : (
-                      formatUSD(r.goal)
+                      <>
+                        <p className="text-lg font-bold text-slate-900">{formatUSD(r.goal)}</p>
+                        <p className="text-xs text-slate-500">{labelsT("monthly")}: {formatUSD(Number.isFinite(monthly) ? monthly : 0)}</p>
+                      </>
                     )}
                   </div>
-                  <div className="text-xs font-medium text-[#7c3aed]">
-                    {labelsT("monthly")}: {formatUSD(Number.isFinite(monthly) ? monthly : 0)}
+
+                  <div className="min-w-[150px]">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-purple-600 mb-1">Avance</p>
+                    <p className="text-lg font-bold text-purple-900">{formatUSD(r.progress)}</p>
+                    <p className="text-xs text-purple-600">
+                      {r.dealsCount !== undefined ? `${r.dealsCount} deal${r.dealsCount !== 1 ? "s" : ""}` : "-"}
+                    </p>
+                  </div>
+
+                  <div className="flex w-full gap-2 sm:w-auto sm:min-w-[140px]">
+                    <div className="flex w-full flex-col gap-2">
+                      {isEditing ? (
+                        <>
+                          <button
+                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                            onClick={() => saveEdit(r.userId)}
+                          >
+                            {actionsT("save")}
+                          </button>
+                          <button
+                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white/80 shadow-sm transition hover:shadow-md"
+                            onClick={cancelEdit}
+                          >
+                            {actionsT("cancel")}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                            onClick={() =>
+                              onOpenProfile({
+                                id: r.userId,
+                                email: r.email,
+                                name: r.name,
+                                role: r.role,
+                                team: r.team,
+                                image: r.image ?? null,
+                              })
+                            }
+                          >
+                            {actionsT("profile")}
+                          </button>
+                          {canAddManual && (
+                            <button
+                              className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                              onClick={() => onAddManual({ id: r.userId, email: r.email, name: r.name })}
+                            >
+                              {billingT("manualCta")}
+                            </button>
+                          )}
+                          <button
+                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                            onClick={() => {
+                              if (!canEdit) {
+                                toast.info(toastT("restrictedEdit"));
+                                return;
+                              }
+                              startEdit(r);
+                            }}
+                          >
+                            {actionsT("edit")}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className={`flex flex-col items-center justify-center rounded-xl px-4 py-2 ${perfColor.bg} shadow-sm`}>
+                    <span className="text-2xl font-bold text-white leading-none">{pctSafe.toFixed(0)}%</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-white/80 mt-1">
+                      Cumpl.
+                    </span>
                   </div>
                 </div>
 
-                <div className="text-right text-sm font-semibold text-[#2f0f5d] md:text-right">
-                  {formatUSD(r.progress)}
-                </div>
-
-                <div className="text-right text-sm font-semibold text-[#6d28d9] md:text-right">
-                  {r.pct.toFixed(1)}%
-                </div>
-
-                <div className="md:px-2">
-                  <ProgressChip pct={r.pct} />
-                </div>
-
-                <div className="flex flex-col items-stretch gap-2 text-sm font-semibold text-[#6d28d9] md:flex-row md:flex-wrap md:justify-end">
-                  {isEditing ? (
-                    <>
-                      <button
-                        className={`${actionButtonBase} border border-[#d8c7ff] bg-white text-[#6d28d9] shadow-sm hover:bg-[#f4edff] focus:ring-[#c4b5fd]`}
-                        onClick={cancelEdit}
-                      >
-                        {actionsT("cancel")}
-                      </button>
-                      <button
-                        className={`${actionButtonBase} bg-gradient-to-r from-[#7c3aed] via-[#6d28d9] to-[#4c1d95] text-white shadow-md hover:brightness-110 focus:ring-[#7c3aed]`}
-                        onClick={() => saveEdit(r.userId)}
-                      >
-                        {actionsT("save")}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        className={`${actionButtonBase} border border-[#d8c7ff] bg-white text-[#6d28d9] shadow-sm hover:bg-[#f4edff] focus:ring-[#c4b5fd]`}
-                        onClick={() => onOpenProfile({ id: r.userId, email: r.email, name: r.name })}
-                      >
-                        {actionsT("profile")}
-                      </button>
-                      {canAddManual && (
-                        <button
-                          className={`${actionButtonBase} bg-gradient-to-r from-[#8b5cf6] via-[#7c3aed] to-[#5b21b6] text-white shadow-md hover:brightness-110 focus:ring-[#7c3aed]`}
-                          onClick={() => onAddManual({ id: r.userId, email: r.email, name: r.name })}
-                        >
-                          {billingT("manualCta")}
-                        </button>
-                      )}
-                      <button
-                        className={`${actionButtonBase} border border-[#c084fc] bg-[#f5f0ff] text-[#4c1d95] shadow-sm hover:bg-[#ede9fe] focus:ring-[#c4b5fd]`}
-                        onClick={() => {
-                          if (!canEdit) {
-                            toast.info(toastT("restrictedEdit"));
-                            return;
-                          }
-                          startEdit(r);
-                        }}
-                      >
-                        {actionsT("edit")}
-                      </button>
-                    </>
-                  )}
+                <div>
+                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                    <span>Progreso visual</span>
+                    <span className="font-semibold text-purple-700">{pctSafe.toFixed(1)}%</span>
+                  </div>
+                  <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 transition-all duration-500"
+                      style={{ width: `${progressWidth}%` }}
+                    />
+                    {pctSafe > 100 && (
+                      <div className="absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-amber-400 to-transparent opacity-70" />
+                    )}
+                  </div>
                 </div>
               </div>
             );

@@ -43,16 +43,16 @@ function CatalogToolbar({
   resetTitle,
 }: CatalogToolbarProps) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center gap-3 mb-3">
+    <div className="flex flex-col md:flex-row md:items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
       <div className="flex items-center gap-3 flex-1">
         {isAdmin && (
           <button
             onClick={onAddItem}
-            className="btn-bar px-2 py-2 w-9 h-9 rounded-full"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-purple-700 text-white shadow-md transition hover:from-purple-700 hover:to-purple-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400/50"
             title={actionsT("addItem")}
             aria-label={actionsT("addItem")}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-5 w-5" />
           </button>
         )}
 
@@ -68,9 +68,9 @@ function CatalogToolbar({
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-700">{orderT("label")}</span>
+          <span className="text-sm font-medium text-slate-700">{orderT("label")}</span>
           <select
-            className="select h-9"
+            className="h-10 rounded-lg border border-slate-300 bg-white px-3 pr-8 text-sm text-slate-900 shadow-sm transition focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20"
             value={sortKey}
             onChange={(event) => onSortChange(event.target.value)}
           >
@@ -82,10 +82,18 @@ function CatalogToolbar({
           </select>
         </div>
 
-        <button onClick={onGenerate} className="btn-bar" disabled={disabled}>
+        <button 
+          onClick={onGenerate} 
+          className="rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:from-purple-700 hover:to-purple-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400/50 disabled:opacity-50 disabled:cursor-not-allowed" 
+          disabled={disabled}
+        >
           {actionsT("generate")}
         </button>
-        <button onClick={onReset} className="btn-bar" title={resetTitle}>
+        <button 
+          onClick={onReset} 
+          className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/20" 
+          title={resetTitle}
+        >
           {actionsT("reset")}
         </button>
       </div>

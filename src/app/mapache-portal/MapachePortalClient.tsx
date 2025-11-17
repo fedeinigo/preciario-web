@@ -1,12 +1,12 @@
 ﻿"use client";
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import * as React from "react";
 
 import {
   draggable,
   dropTargetForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { Loader2, Settings, Wand2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -41,7 +41,6 @@ import {
   sortStatuses,
   upsertStatus,
 } from "./status-management";
-import { MAPACHE_PORTAL_DEFAULT_SECTION } from "./section-events";
 import { useTasksQuery } from "./hooks/useTasksQuery";
 import { useFilterPresets } from "./hooks/useFilterPresets";
 import { useBoardManager } from "./hooks/useBoardManager";
@@ -71,7 +70,6 @@ import {
   formatPercentage,
   normalizeAssignmentWeights,
   parsePercentageInput,
-  ratioToPercentageInput,
   type AssignmentWeight,
 } from "./utils/assignment";
 import type { MapacheUser } from "./user-types";
@@ -81,27 +79,6 @@ const MapachePortalFilters = dynamic(
     loading: () => (
       <div className="flex h-24 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/60 text-sm text-slate-500">
         Cargando filtros...
-      </div>
-    ),
-  },
-);
-
-const TaskDataGrid = dynamic(() => import("./components/TaskDataGrid"), {
-  ssr: false,
-  loading: () => (
-    <div className="grid h-40 place-items-center rounded-2xl border border-dashed border-slate-200 bg-white/60 text-sm text-slate-500">
-      Preparando tabla...
-    </div>
-  ),
-});
-
-const MapachePortalInsights = dynamic(
-  () => import("./MapachePortalInsights"),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="grid h-60 place-items-center rounded-3xl border border-dashed border-violet-200 bg-white/70 text-sm text-violet-600/80">
-        Calculando metricas...
       </div>
     ),
   },
@@ -1024,7 +1001,6 @@ export default function MapachePortalClient({
   const formT = useTranslations("mapachePortal.form");
   const toastT = useTranslations("mapachePortal.toast");
   const validationT = useTranslations("mapachePortal.validation");
-  const emptyT = useTranslations("mapachePortal.empty");
   const actionsT = useTranslations("mapachePortal.actions");
   const filtersT = useTranslations("mapachePortal.filters");
   const assignmentT = useTranslations("mapachePortal.assignment");
@@ -1127,44 +1103,6 @@ export default function MapachePortalClient({
       return humanizeStatusKey(status);
     },
     [statusIndex],
-  );
-
-  const formatSubstatusLabel = React.useCallback(
-    (substatus: MapacheTaskSubstatus) =>
-      substatusT(getSubstatusKey(substatus)),
-    [substatusT],
-  );
-
-  const taskGridMessages = React.useMemo(
-    () => ({
-      title: formT("titleLabel"),
-      presentationDate: filtersT("presentationDate"),
-      status: actionsT("statusLabel"),
-      substatus: actionsT("substatusLabel"),
-      assignee: filtersT("assignee"),
-      actions: actionsT("delete"),
-      delete: actionsT("delete"),
-      deleting: actionsT("deleting"),
-      exportCsv: "Exportar CSV",
-      density: "Densidad",
-      densityComfortable: "Comoda",
-      densityCompact: "Compacta",
-      densitySpacious: "Amplia",
-      columns: "Columnas",
-      columnManagerTitle: "Columnas visibles",
-      columnManagerCloseLabel: "Cerrar gestor de columnas",
-      columnVisibilityLabel: "Alternar columna",
-      emptyState: "No hay tareas para mostrar",
-      virtualization: "Virtualizacion",
-      virtualizationHint:
-        "Activa la virtualizacion para mejorar el rendimiento con listados extensos.",
-      rowsPerPage: "Filas por pagina",
-      page: "Pagina",
-      of: "de",
-      previousPage: "Pagina anterior",
-      nextPage: "Pagina siguiente",
-    }),
-    [actionsT, filtersT, formT],
   );
 
   const [tasks, setTasks] = React.useState<MapacheTask[]>(() => {
@@ -1308,8 +1246,6 @@ export default function MapachePortalClient({
   });
   const [showSettingsModal, setShowSettingsModal] = React.useState(false);
   const [assignmentDraft, setAssignmentDraft] = React.useState<Record<string, string>>({});
-  const [autoAssigning, setAutoAssigning] = React.useState(false);
-
   const [settingsTab, setSettingsTab] = React.useState<
     "assignment" | "boards" | "statuses"
   >(
@@ -1431,9 +1367,6 @@ export default function MapachePortalClient({
     null,
   );
 
-  const [updatingTaskId, setUpdatingTaskId] = React.useState<string | null>(
-    null,
-  );
   const [deletingTaskId, setDeletingTaskId] = React.useState<string | null>(
     null,
   );
@@ -1514,27 +1447,6 @@ export default function MapachePortalClient({
   }, [statusIndex, statusPendingDeletion]);
 
   const assigneesErrorMessage = formT("assigneeLoadError");
-
-  const assigneeLabelMap = React.useMemo(() => {
-    const entries = new Map<string, string>();
-
-    mapacheUsers.forEach((user) => {
-      const name = typeof user.name === "string" ? user.name.trim() : "";
-      if (name) {
-        entries.set(user.id, name);
-        return;
-      }
-      const email = typeof user.email === "string" ? user.email.trim() : "";
-      entries.set(user.id, email || user.id);
-    });
-
-    return entries;
-  }, [mapacheUsers]);
-
-  const mapacheTeamMemberIds = React.useMemo(
-    () => new Set(mapacheUsers.map((user) => user.id)),
-    [mapacheUsers],
-  );
 
   useBrowserLayoutEffect(() => {
     if (viewMode !== null) return;
@@ -1885,32 +1797,10 @@ export default function MapachePortalClient({
     return buckets;
   }, [deferredFilteredTasks]);
 
-  const boardColumnsWithTasks = React.useMemo(() => {
-    if (!activeBoard) return [];
-    return activeBoard.columns.map((column) => {
-      const statuses = column.filters.statuses;
-      const tasksForColumn = statuses.reduce<MapacheTask[]>((acc, status) => {
-        const bucket = tasksByStatus.get(status);
-        if (bucket && bucket.length > 0) {
-          acc.push(...bucket);
-        }
-        return acc;
-      }, []);
-      return {
-        id: column.id,
-        title: column.title,
-        statuses,
-        tasks: tasksForColumn,
-      };
-    });
-  }, [activeBoard, tasksByStatus]);
-
   const hasActiveAdvancedFilters = normalizedAdvancedFilters.hasAny;
   const advancedFiltersCount = normalizedAdvancedFilters.activeCount;
   const hasActiveQuickFilter =
     activeFilter.status !== "all" || activeFilter.ownership !== "all";
-  const showFilteredEmptyMessage =
-    hasActiveQuickFilter || hasActiveAdvancedFilters;
 
   const assigneeOptions = React.useMemo(() => {
     const entries = new Map<string, string>();
@@ -1935,50 +1825,6 @@ export default function MapachePortalClient({
   const statusSegmentLabel = formT("statusLabel");
   const ownershipSegmentLabel = filtersT("assignee");
   const statusAllLabel = statusT("all");
-  const filtersApplyingLabel = React.useMemo(() => {
-    try {
-      const value = filtersT("applying");
-      return value && value !== "applying" ? value : "Aplicando filtros";
-    } catch {
-      return "Aplicando filtros";
-    }
-  }, [filtersT]);
-
-  const renderFilterBar = (className?: string) => (
-    <MapachePortalFilters
-      activeFilter={activeFilter}
-      setActiveFilter={updateActiveFilter}
-      advancedFilters={advancedFilters}
-      setAdvancedFilters={updateAdvancedFilters}
-      statusOptions={statusIndex.ordered}
-      statusLabel={statusSegmentLabel}
-      statusAllLabel={statusAllLabel}
-      formatStatusLabel={formatStatusLabel}
-      needOptions={NEED_OPTIONS}
-      directnessOptions={DIRECTNESS_OPTIONS}
-      integrationTypeOptions={INTEGRATION_TYPE_OPTIONS}
-      originOptions={ORIGIN_OPTIONS}
-      assigneeOptions={assigneeOptions}
-      filtersT={filtersT}
-      needFromTeamT={needFromTeamT}
-      directnessT={directnessT}
-      integrationTypeT={integrationTypeT}
-      originT={originT}
-      hasActiveAdvancedFilters={hasActiveAdvancedFilters}
-      advancedFiltersCount={advancedFiltersCount}
-      ownershipLabel={ownershipSegmentLabel}
-      filterPresets={filterPresets}
-      filterPresetsLoading={filterPresetsLoading}
-      savingFilterPreset={savingFilterPreset}
-      onSaveCurrentFilters={handleSaveCurrentFilters}
-      onApplyPreset={handleApplyPreset}
-      selectedPresetId={selectedPresetId}
-      setSelectedPresetId={setSelectedPresetId}
-      className={className}
-      filtering={filtersPending}
-    />
-  );
-
   const assignmentDraftTotal = React.useMemo(() => {
     return mapacheUsers.reduce((sum, user) => {
       const raw = assignmentDraft[user.id];
@@ -1987,73 +1833,6 @@ export default function MapachePortalClient({
       return sum + parsed;
     }, 0);
   }, [assignmentDraft, mapacheUsers]);
-
-  const renderViewModeToggle = () => (
-    <div className="flex items-center gap-1 rounded-full border border-white/20 bg-white/5 p-1 text-xs font-medium text-white/70">
-      <button
-        type="button"
-        onClick={() => setViewMode("lista")}
-        className={`rounded-full px-3 py-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
-          viewMode === "lista"
-            ? "bg-[rgb(var(--primary))] text-white shadow-soft"
-            : "text-white/70 hover:bg-white/10"
-        }`}
-        disabled={viewMode === null}
-        aria-pressed={viewMode === "lista"}
-      >
-        Lista
-      </button>
-      <button
-        type="button"
-        onClick={() => setViewMode("tablero")}
-        className={`rounded-full px-3 py-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
-          viewMode === "tablero"
-            ? "bg-[rgb(var(--primary))] text-white shadow-soft"
-            : "text-white/70 hover:bg-white/10"
-        }`}
-        disabled={viewMode === null}
-        aria-pressed={viewMode === "tablero"}
-      >
-        Tablero
-      </button>
-    </div>
-  );
-
-  const renderBoardSelector = () => {
-    if (viewMode !== "tablero") return null;
-    if (boardsLoading) {
-      return (
-        <div className="rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs text-white/60">
-          {boardsT("loading")}
-        </div>
-      );
-    }
-    if (boards.length === 0) {
-      return (
-        <div className="rounded-full border border-dashed border-white/20 bg-white/5 px-3 py-1 text-xs text-white/60">
-          {boardsT("selector.empty")}
-        </div>
-      );
-    }
-    return (
-      <label className="flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs text-white/70">
-        <span className="uppercase tracking-[0.2em] text-white/50">
-          {boardsT("selector.label")}
-        </span>
-        <select
-          value={activeBoardId ?? ""}
-          onChange={(event) => handleBoardSelectorChange(event.target.value)}
-          className="rounded-md border border-white/20 bg-black/20 px-2 py-1 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-        >
-          {boards.map((board) => (
-            <option key={board.id} value={board.id}>
-              {board.name}
-            </option>
-          ))}
-        </select>
-      </label>
-    );
-  };
 
   const handleCloseSettingsModal = React.useCallback(() => {
     setShowSettingsModal(false);
@@ -2243,60 +2022,6 @@ export default function MapachePortalClient({
       setStatusPendingDeletion(null);
     }
   }, [statusPendingDeletion, statusSettingsT]);
-
-  const handleAutoAssign = React.useCallback(async () => {
-    if (autoAssigning) return;
-    const unassignedTasks = tasks.filter((task) => !task.assigneeId);
-    if (unassignedTasks.length === 0) {
-      toast.info(toastT("autoAssignNone"));
-      return;
-    }
-
-    const weights = normalizeAssignmentWeights(assignmentRatios, mapacheUsers);
-    if (weights.length === 0) {
-      toast.error(toastT("autoAssignNoUsers"));
-      return;
-    }
-
-    const plan = createAssignmentSequence(unassignedTasks.length, weights);
-    if (plan.length === 0) {
-      toast.error(toastT("autoAssignNoUsers"));
-      return;
-    }
-
-    setAutoAssigning(true);
-    try {
-      for (let index = 0; index < unassignedTasks.length; index += 1) {
-        const task = unassignedTasks[index]!;
-        const assigneeId = plan[index % plan.length]!;
-        const response = await fetch(`/api/mapache/tasks`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ id: task.id, assigneeId }),
-        });
-        if (!response.ok) {
-          throw new Error(`Request failed with status ${response.status}`);
-        }
-      }
-
-      await refetchTasks();
-      toast.success(toastT("autoAssignSuccess"));
-    } catch (error) {
-      console.error(error);
-      toast.error(toastT("autoAssignError"));
-    } finally {
-      setAutoAssigning(false);
-    }
-  }, [
-    assignmentRatios,
-    autoAssigning,
-    refetchTasks,
-    mapacheUsers,
-    tasks,
-    toastT,
-  ]);
 
   const assignmentModalFooter = (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
@@ -2613,7 +2338,6 @@ export default function MapachePortalClient({
     async (task: MapacheTask, nextStatus: MapacheTaskStatus) => {
       if (task.status === nextStatus) return;
 
-      setUpdatingTaskId(task.id);
       try {
         const response = await fetch(`/api/mapache/tasks`, {
           method: "PATCH",
@@ -2643,59 +2367,9 @@ export default function MapachePortalClient({
       } catch (error) {
         console.error(error);
         toast.error(toastT("updateError"));
-      } finally {
-        setUpdatingTaskId(null);
       }
     },
     [statusIndex, toastT],
-  );
-
-  const handleSubstatusChange = React.useCallback(
-    async (task: MapacheTask, nextSubstatus: MapacheTaskSubstatus) => {
-      if (task.substatus === nextSubstatus) return;
-
-      setUpdatingTaskId(task.id);
-      try {
-        const response = await fetch(`/api/mapache/tasks`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ id: task.id, substatus: nextSubstatus }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Request failed with status ${response.status}`);
-        }
-
-        await refetchTasks();
-        toast.success(toastT("updateSuccess"));
-      } catch (error) {
-        console.error(error);
-        toast.error(toastT("updateError"));
-      } finally {
-        setUpdatingTaskId(null);
-      }
-    },
-    [refetchTasks, toastT],
-  );
-
-  const handleTaskDroppedOnStatus = React.useCallback(
-    (
-      taskId: string,
-      fromStatus: MapacheTaskStatus,
-      nextStatus: MapacheTaskStatus,
-    ) => {
-      if (viewMode !== "tablero") return;
-      if (fromStatus === nextStatus) return;
-      if (!statusKeys.includes(nextStatus)) return;
-
-      const task = tasks.find((item) => item.id === taskId);
-      if (!task) return;
-
-      void handleStatusChange(task, nextStatus);
-    },
-    [handleStatusChange, statusKeys, tasks, viewMode],
   );
 
   const handleDeleteTask = React.useCallback(

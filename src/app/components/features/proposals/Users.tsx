@@ -7,6 +7,7 @@ import { toast } from "@/app/components/ui/toast";
 import { Copy, MoreHorizontal, UserRound, X } from "lucide-react";
 import { copyToClipboard } from "./lib/clipboard";
 import UserProfileModal from "@/app/components/ui/UserProfileModal";
+import UserAvatar from "@/app/components/ui/UserAvatar";
 import { useTranslations } from "@/app/LanguageProvider";
 import { normalizeSearchText } from "@/lib/normalize-search-text";
 import { fetchActiveUsersCount } from "./lib/proposals-response";
@@ -15,6 +16,8 @@ import type { PortalAccessId } from "@/constants/portals";
 import { MUTABLE_PORTAL_ACCESS, includeDefaultPortal } from "@/constants/portals";
 
 type Role = "admin" | "lider" | "usuario";
+
+type TeamRow = { id: string; name: string };
 
 type UserRow = {
   id: string;
@@ -30,41 +33,14 @@ type UserRow = {
   lastLoginAt?: string | null;
 };
 
-type TeamRow = { id: string; name: string };
-
-/* ---------- helpers de UI ---------- */
-function getInitials(nameOrEmail: string): string {
-  const s = (nameOrEmail || "").trim();
-  if (!s) return "U";
-  const parts = s.includes("@")
-    ? s.split("@")[0].replace(/[\W_]+/g, " ").trim().split(" ")
-    : s.replace(/\s+/g, " ").trim().split(" ");
-  const first = parts[0]?.[0] ?? "";
-  const last = parts[1]?.[0] ?? "";
-  return (first + last || first || "U").toUpperCase();
-}
-
-function stringHue(input: string): number {
-  let h = 0;
-  for (let i = 0; i < input.length; i++) h = (h * 31 + input.charCodeAt(i)) % 360;
-  return h;
-}
-
-function Avatar({ label }: { label: string }) {
-  const hue = stringHue(label || "user");
-  const bg = `hsl(${hue} 70% 92%)`;
-  const fg = `hsl(${hue} 38% 28%)`;
-  return (
-    <div
-      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-semibold shadow-soft ring-1 ring-black/5"
-      style={{ backgroundColor: bg, color: fg }}
-      aria-hidden
-      title={label}
-    >
-      {getInitials(label)}
-    </div>
-  );
-}
+type ProfileModalUser = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  role?: Role;
+  team?: string | null;
+  image?: string | null;
+};
 
 /** Chip de filtro */
 function FilterChip({
@@ -312,10 +288,17 @@ export default function Users() {
   };
 
   const [profileOpen, setProfileOpen] = useState(false);
-  const [profileUser, setProfileUser] = useState<{ id: string; email: string | null; name: string | null } | null>(null);
+  const [profileUser, setProfileUser] = useState<ProfileModalUser | null>(null);
 
   const openProfile = (u: UserRow) => {
-    setProfileUser({ id: u.id, email: u.email, name: u.name });
+    setProfileUser({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      team: u.team,
+      image: u.image,
+    });
     setProfileOpen(true);
   };
 
@@ -565,7 +548,13 @@ export default function Users() {
                             className="rounded-full focus:outline-none"
                             title={tableT("openProfile")}
                           >
-                            <Avatar label={u.name || u.email || "U"} />
+                            <UserAvatar
+                              name={u.name ?? undefined}
+                              email={u.email ?? undefined}
+                              image={u.image ?? undefined}
+                              size={40}
+                              className="shadow-soft ring-1 ring-black/5"
+                            />
                           </button>
                           <div className="flex flex-col">
                             <div className="flex items-center gap-2">
@@ -749,7 +738,7 @@ export default function Users() {
         <UserProfileModal
           open={profileOpen}
           onClose={() => setProfileOpen(false)}
-          viewer={{ role: "admin", team: null }}
+          viewer={{ role: "admin", team: null, email: null, name: null, image: null, positionName: null, leaderEmail: null }}
           targetUser={profileUser}
           appearance="light"
         />
