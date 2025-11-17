@@ -989,6 +989,13 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
         <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_300px] gap-6">
           <aside className="hidden xl:block">
             <div className="space-y-6">
+              <GlossarySidebar
+                isAdmin={isAdmin}
+                glossary={glossary}
+                addLink={addLink}
+                editLink={editLink}
+                removeLink={removeLink}
+              />
               <FilialesSidebar
                 isAdmin={isAdmin}
                 filiales={filiales}
@@ -998,13 +1005,6 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
                 addCountry={addCountry}
                 editCountry={editCountry}
                 removeCountry={removeCountry}
-              />
-              <GlossarySidebar
-                isAdmin={isAdmin}
-                glossary={glossary}
-                addLink={addLink}
-                editLink={editLink}
-                removeLink={removeLink}
               />
             </div>
           </aside>

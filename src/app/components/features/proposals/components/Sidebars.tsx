@@ -130,12 +130,14 @@ function CollapsibleSidebarCard({
   title,
   labels,
   children,
+  defaultExpanded = true,
 }: {
   title: string;
   labels: ToggleLabels;
   children: React.ReactNode;
+  defaultExpanded?: boolean;
 }) {
-  const [expanded, setExpanded] = React.useState(true);
+  const [expanded, setExpanded] = React.useState(defaultExpanded);
   const label = expanded ? labels.collapse : labels.expand;
   return (
     <div className="rounded-2xl border border-slate-200 bg-white/90 shadow-lg backdrop-blur-sm overflow-hidden">
@@ -223,6 +225,7 @@ export function FilialesSidebar({
           collapse: filialesT("toggle.collapse"),
           expand: filialesT("toggle.expand"),
         }}
+        defaultExpanded={false}
       >
         <>
           {isAdmin && (
@@ -500,6 +503,7 @@ export function GlossarySidebar({
           collapse: glossaryT("toggle.collapse"),
           expand: glossaryT("toggle.expand"),
         }}
+        defaultExpanded={false}
       >
         <>
           {isAdmin && (
