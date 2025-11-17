@@ -122,8 +122,6 @@ function TabBtn({
   const inactiveClass =
     variant === "marketing" ? marketingInactive : normalInactive;
 
-  const logoSrc = isMarketingPortal ? "/logo_color.png" : "/logo.png";
-
   return (
     <Link
       href={href}
@@ -264,20 +262,22 @@ export default function NavbarClient({ session }: NavbarClientProps) {
         : "dark";
 
   React.useEffect(() => {
-    if (typeof document === "undefined") return;
-    const html = document.documentElement;
-    const body = document.body;
-    if (isMarketingPortal) {
-      html.classList.add("marketing-theme");
-      body.classList.add("marketing-theme");
-      return () => {
-        html.classList.remove("marketing-theme");
-        body.classList.remove("marketing-theme");
-      };
-    }
-    html.classList.remove("marketing-theme");
-    body.classList.remove("marketing-theme");
-  }, [isMarketingPortal]);
+  if (typeof document === "undefined") return;
+  const html = document.documentElement;
+  const body = document.body;
+  if (isMarketingPortal) {
+    html.classList.add("marketing-theme");
+    body.classList.add("marketing-theme");
+    return () => {
+      html.classList.remove("marketing-theme");
+      body.classList.remove("marketing-theme");
+    };
+  }
+  html.classList.remove("marketing-theme");
+  body.classList.remove("marketing-theme");
+}, [isMarketingPortal]);
+
+  const logoSrc = isMarketingPortal ? "/logo_color.png" : "/logo.png";
 
   const logoSrc = isMarketingPortal ? "/logo_color.png" : "/logo.png";
 
