@@ -250,7 +250,7 @@ export default function UserProfileModal({
   const panelClassName = [
     "max-w-full",
     isLightAppearance
-      ? "bg-white text-slate-900 border border-slate-200 shadow-[0_35px_110px_rgba(15,23,42,0.15)]"
+      ? "bg-white text-[#0f406d] border border-[#cce8ff] shadow-[0_40px_120px_rgba(15,23,42,0.18)]"
       : isMapacheAppearance
         ? "bg-[rgb(var(--mapache-surface-strong))]/95 text-white border border-white/10 shadow-[0_45px_130px_rgba(2,6,23,0.8)]"
         : isDirectAppearance
@@ -259,7 +259,7 @@ export default function UserProfileModal({
   ].join(" ");
 
   const headerClassName = isLightAppearance
-    ? "bg-white border-b border-slate-100 text-slate-900"
+    ? "bg-white border-b border-[#cce8ff] text-[#0f406d]"
     : isMapacheAppearance
       ? "bg-slate-950/70 border-b border-white/10 text-white"
       : isDirectAppearance
@@ -267,43 +267,46 @@ export default function UserProfileModal({
         : "bg-slate-950/70 border-b border-white/10 text-white";
 
   const titleClassName = isLightAppearance
-    ? "text-lg font-semibold text-slate-900"
+    ? "text-lg font-semibold text-[#0f406d]"
     : isDirectAppearance
       ? "text-lg font-semibold text-[#4c1d95]"
       : "text-lg font-semibold text-white";
-  const bodyTextClass =
-    isLightAppearance || isDirectAppearance ? "text-slate-900" : "text-white";
+  const bodyTextClass = isLightAppearance
+    ? "text-[#0f406d]"
+    : isDirectAppearance
+      ? "text-slate-900"
+      : "text-white";
   const subtleTextClass = isLightAppearance
     ? "text-slate-600"
     : isDirectAppearance
       ? "text-slate-600"
       : "text-white/90";
   const labelTextClass = isLightAppearance
-    ? "text-slate-500"
+    ? "text-[#4b81b8]"
     : isDirectAppearance
       ? "text-[#4c1d95]"
       : "text-white/80";
 
   const secondaryButtonClass = isLightAppearance
-    ? "rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+    ? "rounded-full border border-[#cce8ff] bg-white px-6 py-2.5 text-sm font-semibold text-[#0f406d] transition hover:bg-[#ecf5ff]"
     : isDirectAppearance
       ? "rounded-full border border-[#c4b5fd] bg-white px-6 py-2.5 text-sm font-semibold text-[#4c1d95] transition hover:bg-[#ede9fe]"
       : "rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15";
 
   const statCardClass = isLightAppearance
-    ? "rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm"
+    ? "rounded-2xl border border-[#cce8ff] bg-gradient-to-br from-white to-[#f5fbff] p-6 shadow-sm"
     : isDirectAppearance
       ? "rounded-2xl border border-[#ede9fe] bg-white p-6 shadow-sm"
       : "rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-xl";
 
   const infoCardClass = isLightAppearance
-    ? "rounded-xl border border-slate-200 bg-white p-4"
+    ? "rounded-xl border border-[#cce8ff] bg-[#f5fbff] p-4"
     : isDirectAppearance
       ? "rounded-xl border border-[#ede9fe] bg-[#faf5ff] p-4"
       : "rounded-xl border border-white/20 bg-white/10 p-4";
 
   const backdropClassName = isLightAppearance
-    ? "bg-black/30"
+    ? "bg-[#0f172a]/30"
     : isMapacheAppearance
       ? "bg-slate-950/75"
       : isDirectAppearance
@@ -337,7 +340,7 @@ export default function UserProfileModal({
             email={resolvedTarget.email ?? undefined}
             image={profileImage}
             size={88}
-            className={`shadow-xl ${isLightAppearance ? "ring-4 ring-white/70" : "ring-4 ring-white/20"}`}
+            className={`shadow-xl ${isLightAppearance ? "ring-4 ring-[#b8dcff]" : "ring-4 ring-white/20"}`}
           />
           <div className="space-y-2">
             <h2 className="text-2xl font-bold">{name}</h2>
@@ -403,12 +406,12 @@ export default function UserProfileModal({
               </span>
             </div>
             <div className={`h-4 w-full rounded-full overflow-hidden ${
-              isLightAppearance ? "bg-slate-200" : isDirectAppearance ? "bg-[#ede9fe]" : "bg-white/20"
+              isLightAppearance ? "bg-[#dbeeff]" : isDirectAppearance ? "bg-[#ede9fe]" : "bg-white/20"
             }`}>
               <div 
                 className={`h-full transition-all duration-500 ${
                   isLightAppearance 
-                    ? 'bg-gradient-to-r from-[rgb(var(--primary))] to-[rgb(var(--primary))]/70'
+                    ? 'bg-gradient-to-r from-[#1d6ee3] via-[#5ba5f6] to-[#9dd7ff]'
                     : isDirectAppearance
                       ? 'bg-gradient-to-r from-[#4c1d95] via-[#6d28d9] to-[#7c3aed]'
                       : 'bg-gradient-to-r from-white to-white/80'
@@ -433,8 +436,8 @@ export default function UserProfileModal({
 
         {/* Period & Goal Overview */}
         <div className={`space-y-4 p-5 rounded-2xl border ${
-          isLightAppearance 
-            ? 'border-slate-200 bg-slate-50/50' 
+          isLightAppearance
+            ? 'border-[#cce8ff] bg-[#f5fbff]'
             : isDirectAppearance
               ? 'border-[#ede9fe] bg-[#faf5ff]'
               : 'border-white/10 bg-white/5'

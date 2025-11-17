@@ -165,7 +165,9 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const isMarketingPortal =
     normalizedPath.startsWith("/marketing-portal") || normalizedPath.startsWith("/portal/marketing");
   const marketingView =
-    isMarketingPortal && searchParams?.get("view") === "history"
+    isMarketingPortal &&
+    (normalizedPath.startsWith("/portal/marketing/history") ||
+      (normalizedPath.startsWith("/marketing-portal") && searchParams?.get("view") === "history"))
       ? "history"
       : "generator";
   const { locale, setLocale } = useLanguage();
@@ -252,19 +254,20 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const navTheme = React.useMemo<NavTheme>(() => {
     if (navbarAppearance === "light") {
       return {
-        surface: "border-b border-slate-200 bg-white/80 text-slate-900 backdrop-blur supports-[backdrop-filter]:bg-opacity-80",
+        surface:
+          "border-b border-[#cde6ff] bg-white/85 text-[#0f406d] backdrop-blur supports-[backdrop-filter]:bg-opacity-80",
         configButton: (active: boolean) =>
           `inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[13px] transition ${
             active
-              ? "border-transparent bg-[rgb(var(--primary))] text-white shadow-sm"
-              : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
+              ? "border-transparent bg-[#1d6ee3] text-white shadow-sm"
+              : "border-[#cce8ff] bg-white/80 text-[#0f406d] hover:bg-[#ecf5ff]"
           }`,
         profileButton:
-          "inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] text-slate-900 hover:bg-slate-50 transition",
+          "inline-flex items-center rounded-full border border-[#cce8ff] bg-white px-3 py-1.5 text-[13px] text-[#0f406d] hover:bg-[#ecf5ff] transition",
         languageSelect:
-          "rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 focus:border-[rgb(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--primary))]/30",
+          "rounded-md border border-[#cce8ff] bg-white px-2 py-1 text-sm text-[#0f406d] focus:border-[#1d6ee3] focus:outline-none focus:ring-2 focus:ring-[#1d6ee3]/30",
         signOutButton:
-          "inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-[rgb(var(--primary))] text-white hover:bg-[rgb(var(--primary))]/90",
+          "inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-[#1d6ee3] text-white hover:bg-[#1452c5]",
         portalVariant: "light",
         profileAppearance: "light",
       };
@@ -646,22 +649,22 @@ export default function NavbarClient({ session }: NavbarClientProps) {
           ) : isMarketingPortal ? (
             <div className="flex items-center gap-2">
               <Link
-                href="/marketing-portal"
+                href="/portal/marketing/generator"
                 className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
                   marketingView === "generator"
-                    ? "border-transparent bg-[rgb(var(--primary))] text-white shadow-sm"
-                    : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
+                    ? "border-transparent bg-[#1d6ee3] text-white shadow-sm"
+                    : "border-[#cce8ff] bg-white/80 text-[#0f406d] hover:bg-[#ecf5ff]"
                 }`}
                 aria-current={marketingView === "generator" ? "page" : undefined}
               >
                 {tabsT("generator")}
               </Link>
               <Link
-                href="/marketing-portal?view=history"
+                href="/portal/marketing/history"
                 className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
                   marketingView === "history"
-                    ? "border-transparent bg-[rgb(var(--primary))] text-white shadow-sm"
-                    : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
+                    ? "border-transparent bg-[#1d6ee3] text-white shadow-sm"
+                    : "border-[#cce8ff] bg-white/80 text-[#0f406d] hover:bg-[#ecf5ff]"
                 }`}
                 aria-current={marketingView === "history" ? "page" : undefined}
               >

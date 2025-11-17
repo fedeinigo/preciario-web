@@ -642,3 +642,14 @@ html.mapache-theme body .text-white strong {
   background-color: rgba(10, 12, 20, 0.92);
 }
 
+.marketing-portal-theme {
+  --marketing-primary: 32 94 179;
+  --marketing-primary-strong: 21 72 168;
+  --marketing-accent: 56 189 248;
+  --marketing-surface: 237 247 255;
+  --marketing-surface-strong: 221 238 255;
+  --marketing-card: 249 253 255;
+  --marketing-muted: 13 82 139;
+  --marketing-ring: 173 216 255;
+}
+

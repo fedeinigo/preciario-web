@@ -30,7 +30,7 @@ const PORTAL_ROUTES: Record<PortalAccessId, string> = {
   direct: "/portal/directo",
   mapache: "/portal/mapache/generator",
   partner: "/partner-portal",
-  marketing: "/marketing-portal",
+  marketing: "/portal/marketing/generator",
 };
 
 type PortalLauncherVariant = NonNullable<PortalLauncherProps["variant"]>;
@@ -111,22 +111,22 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
   },
   light: {
     trigger:
-      "inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] text-slate-900 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-300",
+      "inline-flex items-center gap-2 rounded-full border border-[#b8dcff] bg-white px-3 py-1.5 text-[13px] font-semibold text-[#0f406d] shadow-sm transition hover:bg-[#ecf5ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#93c5fd]",
     panel:
-      "rounded-[28px] border border-slate-200 bg-white text-slate-900 shadow-[0_35px_90px_rgba(15,23,42,0.15)]",
-    header: "bg-white border-b border-slate-100 px-6 py-4 text-slate-900",
-    title: "text-lg font-semibold text-slate-900",
-    description: "text-sm text-slate-500",
+      "rounded-[32px] border border-[#cce8ff] bg-white text-slate-900 shadow-[0_45px_130px_rgba(15,23,42,0.18)]",
+    header: "bg-white border-b border-[#cce8ff] px-6 py-4 text-[#0f406d]",
+    title: "text-lg font-semibold text-[#0f406d]",
+    description: "text-sm text-slate-600",
     card:
-      "flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-[0_15px_40px_rgba(15,23,42,0.08)]",
+      "flex items-center justify-between gap-4 rounded-2xl border border-[#cce8ff] bg-[#f5fbff] px-4 py-3 shadow-[0_15px_40px_rgba(15,23,42,0.08)]",
     cardTitle: "text-sm font-semibold text-slate-900",
     cardDescription: "text-xs text-slate-500",
     action:
-      "rounded-full border border-transparent bg-[rgb(var(--primary))] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-[rgb(var(--primary))]/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--primary))]/40",
-    overlay: "bg-white/90 text-slate-900",
-    overlaySpinner: "text-slate-600",
-    overlayText: "text-slate-900",
-    backdrop: "bg-black/30",
+      "rounded-full border border-transparent bg-[#1d6ee3] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-[#1452c5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#93c5fd]",
+    overlay: "bg-white/95 text-[#0f406d]",
+    overlaySpinner: "text-[#1d6ee3]",
+    overlayText: "text-[#0f406d]",
+    backdrop: "bg-[#0f172a]/30",
   },
 };
 

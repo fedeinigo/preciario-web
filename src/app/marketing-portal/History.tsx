@@ -69,6 +69,9 @@ const DEFAULT_FILTERS: Filters = {
   to: "",
 };
 
+const QUICK_RANGE_BUTTON_CLASS =
+  "rounded-full border border-transparent bg-[rgb(var(--marketing-surface-strong))]/80 px-3 py-1.5 text-xs font-semibold text-[rgb(var(--marketing-primary))] transition hover:bg-[rgb(var(--marketing-primary))]/15";
+
 function QuickRanges({ setFrom, setTo }: { setFrom: (value: string) => void; setTo: (value: string) => void }) {
   const year = new Date().getFullYear();
   const apply = (range: { from: string; to: string }) => {
@@ -93,12 +96,22 @@ function QuickRanges({ setFrom, setTo }: { setFrom: (value: string) => void; set
   return (
     <div className="flex flex-wrap gap-2">
       {ranges.map((range) => (
-        <button key={range.label} type="button" className="btn-ghost !py-1" onClick={() => apply(range.get())}>
+        <button
+          key={range.label}
+          type="button"
+          className={QUICK_RANGE_BUTTON_CLASS}
+          onClick={() => apply(range.get())}
+        >
           {range.label}
         </button>
       ))}
       {quarters.map((q) => (
-        <button key={q.label} type="button" className="btn-ghost !py-1" onClick={() => apply(q.get())}>
+        <button
+          key={q.label}
+          type="button"
+          className={QUICK_RANGE_BUTTON_CLASS}
+          onClick={() => apply(q.get())}
+        >
           {q.label}
         </button>
       ))}
@@ -115,6 +128,17 @@ export default function MarketingHistory() {
   const [error, setError] = React.useState<string | null>(null);
   const [confirmId, setConfirmId] = React.useState<string | null>(null);
   const [refreshKey, setRefreshKey] = React.useState(0);
+
+  const filterFieldClass =
+    "rounded-2xl border border-[rgb(var(--marketing-ring))]/70 bg-white/90 px-4 py-2 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-[rgb(var(--marketing-primary))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--marketing-primary))]/25";
+  const actionButtonClass =
+    "inline-flex items-center justify-center rounded-full bg-[rgb(var(--marketing-primary))] px-6 py-2 text-sm font-semibold text-white shadow-[0_10px_25px_rgba(15,23,42,0.18)] transition hover:bg-[rgb(var(--marketing-primary))]/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--marketing-primary))] disabled:opacity-50";
+  const ghostButtonClass =
+    "rounded-full border border-[rgb(var(--marketing-ring))]/70 px-5 py-2 text-sm font-semibold text-[rgb(var(--marketing-primary))] transition hover:bg-[rgb(var(--marketing-primary))]/10";
+  const tableActionClass =
+    "inline-flex items-center gap-2 rounded-full border border-[rgb(var(--marketing-ring))]/70 bg-white px-3 py-1.5 text-xs font-semibold text-[rgb(var(--marketing-primary))] transition hover:bg-[rgb(var(--marketing-primary))]/10";
+  const dangerButtonClass =
+    "inline-flex items-center justify-center rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white shadow-[0_10px_25px_rgba(220,38,38,0.25)] transition hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300";
 
   const isAdmin = Boolean(meta?.isAdmin);
   const isLeader = Boolean(meta?.isLeader);
@@ -207,17 +231,17 @@ export default function MarketingHistory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white/85 p-6 shadow-sm">
+      <div className="flex flex-col gap-4 rounded-[32px] border border-[rgb(var(--marketing-ring))]/70 bg-white/85 p-6 shadow-[0_25px_80px_rgba(15,23,42,0.08)]">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-slate-900">Histórico de informes</h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-600">
               Consulta todos los documentos generados desde este portal y filtra por equipo, segmento, país y fechas.
             </p>
           </div>
           <button
             type="button"
-            className="btn-primary inline-flex items-center gap-2"
+            className={actionButtonClass}
             onClick={() => setRefreshKey((key) => key + 1)}
             disabled={loading}
           >
@@ -231,7 +255,7 @@ export default function MarketingHistory() {
             <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
               Equipo
               <select
-                className="select"
+                className={filterFieldClass}
                 value={draftFilters.team}
                 onChange={(event) => applyFilterChange("team", event.target.value)}
               >
@@ -249,7 +273,7 @@ export default function MarketingHistory() {
             Nombre del documento
             <input
               type="text"
-              className="input"
+              className={filterFieldClass}
               value={draftFilters.name}
               onChange={(event) => applyFilterChange("name", event.target.value)}
               placeholder="Ej: Análisis de Acme..."
@@ -260,7 +284,7 @@ export default function MarketingHistory() {
             Empresa
             <input
               type="text"
-              className="input"
+              className={filterFieldClass}
               value={draftFilters.company}
               onChange={(event) => applyFilterChange("company", event.target.value)}
               placeholder="Filtra por empresa"
@@ -271,7 +295,7 @@ export default function MarketingHistory() {
             Email del creador
             <input
               type="email"
-              className="input"
+              className={filterFieldClass}
               value={draftFilters.email}
               onChange={(event) => applyFilterChange("email", event.target.value)}
               placeholder="usuario@dominio.com"
@@ -281,7 +305,7 @@ export default function MarketingHistory() {
           <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
             País
             <select
-              className="select"
+              className={filterFieldClass}
               value={draftFilters.country}
               onChange={(event) => applyFilterChange("country", event.target.value)}
             >
@@ -297,7 +321,7 @@ export default function MarketingHistory() {
           <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
             Segmento
             <select
-              className="select"
+              className={filterFieldClass}
               value={draftFilters.segment}
               onChange={(event) => applyFilterChange("segment", event.target.value)}
             >
@@ -314,7 +338,7 @@ export default function MarketingHistory() {
             Desde
             <input
               type="date"
-              className="input"
+              className={filterFieldClass}
               value={draftFilters.from}
               max={draftFilters.to || undefined}
               onChange={(event) => applyFilterChange("from", event.target.value)}
@@ -325,7 +349,7 @@ export default function MarketingHistory() {
             Hasta
             <input
               type="date"
-              className="input"
+              className={filterFieldClass}
               value={draftFilters.to}
               min={draftFilters.from || undefined}
               onChange={(event) => applyFilterChange("to", event.target.value)}
@@ -333,7 +357,7 @@ export default function MarketingHistory() {
           </label>
         </div>
 
-        <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+        <div className="flex flex-col gap-3 rounded-3xl border border-[rgb(var(--marketing-ring))]/70 bg-[rgb(var(--marketing-surface-strong))]/80 p-4 shadow-inner shadow-sky-100/40">
           <span className="text-sm font-medium text-slate-700">Atajos de fechas</span>
           <QuickRanges
             setFrom={(value) => applyFilterChange("from", value)}
@@ -344,23 +368,23 @@ export default function MarketingHistory() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            className="btn-primary"
+            className={actionButtonClass}
             onClick={() => setAppliedFilters(() => ({ ...draftFilters }))}
             disabled={loading}
           >
             Aplicar filtros
           </button>
-          <button type="button" className="btn-ghost" onClick={resetFilters} disabled={loading}>
+          <button type="button" className={ghostButtonClass} onClick={resetFilters} disabled={loading}>
             Limpiar filtros
           </button>
           {error && <span className="text-sm text-red-600">{error}</span>}
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-[32px] border border-[rgb(var(--marketing-ring))]/70 bg-white/95 shadow-[0_25px_80px_rgba(15,23,42,0.12)]">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-100">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <table className="min-w-full divide-y divide-[rgb(var(--marketing-ring))]/60">
+            <thead className="bg-[rgb(var(--marketing-surface-strong))] text-xs uppercase tracking-wide text-[rgb(var(--marketing-muted))]">
               <tr>
                 <th className="px-4 py-3 text-left">Nombre</th>
                 <th className="px-4 py-3 text-left">País</th>
@@ -382,7 +406,7 @@ export default function MarketingHistory() {
                   </tr>
                 ) : (
                   reports.map((report) => (
-                    <tr key={report.id} className="hover:bg-slate-50/80">
+                  <tr key={report.id} className="hover:bg-[rgb(var(--marketing-surface))]/80">
                       <td className="px-4 py-3">
                         <div className="flex flex-col">
                           <span className="font-medium text-slate-900">{report.name}</span>
@@ -399,14 +423,14 @@ export default function MarketingHistory() {
                             href={report.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="btn-bar inline-flex items-center gap-2 !py-1"
+                            className={tableActionClass}
                           >
                             <ExternalLink className="h-4 w-4" />
                             Ver
                           </a>
                           <button
                             type="button"
-                            className="btn-bar inline-flex items-center gap-2 !py-1"
+                            className={tableActionClass}
                             onClick={() => handleCopyLink(report.url)}
                           >
                             <Copy className="h-4 w-4" />
@@ -414,7 +438,7 @@ export default function MarketingHistory() {
                           </button>
                           <button
                             type="button"
-                            className="btn-ghost inline-flex items-center gap-2 !py-1 text-red-600 hover:bg-red-50"
+                            className="inline-flex items-center gap-2 rounded-full border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
                             onClick={() => setConfirmId(report.id)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -435,16 +459,17 @@ export default function MarketingHistory() {
         open={Boolean(confirmId)}
         onClose={() => setConfirmId(null)}
         title="Eliminar informe"
+        containerClassName="marketing-portal-theme"
+        panelClassName="border-[rgb(var(--marketing-ring))]/80 bg-white/95 text-slate-900 shadow-[0_35px_110px_rgba(15,23,42,0.25)]"
+        headerClassName="bg-[rgb(var(--marketing-card))] border-b border-[rgb(var(--marketing-ring))]/60 text-slate-900"
+        titleClassName="text-lg font-semibold text-[rgb(var(--marketing-primary-strong))]"
+        backdropClassName="bg-[rgba(12,74,110,0.35)]"
         footer={
           <div className="flex items-center justify-end gap-2">
-            <button type="button" className="btn-ghost" onClick={() => setConfirmId(null)}>
+            <button type="button" className={ghostButtonClass} onClick={() => setConfirmId(null)}>
               Cancelar
             </button>
-            <button
-              type="button"
-              className="btn-primary bg-red-600 hover:bg-red-700"
-              onClick={handleDelete}
-            >
+            <button type="button" className={dangerButtonClass} onClick={handleDelete}>
               Eliminar
             </button>
           </div>
