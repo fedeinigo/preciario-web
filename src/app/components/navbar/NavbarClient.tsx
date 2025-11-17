@@ -61,8 +61,8 @@ type AnyRole =
   | string
   | undefined;
 
-type NavbarAppearance = "dark" | "light" | "mapache" | "direct";
-type PortalLauncherVariant = "dark" | "light" | "mapache" | "direct";
+type NavbarAppearance = "dark" | "light" | "mapache" | "direct" | "marketing";
+type PortalLauncherVariant = "dark" | "light" | "mapache" | "direct" | "marketing";
 
 type NavTheme = {
   surface: string;
@@ -246,20 +246,20 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const navbarAppearance: NavbarAppearance = isMapachePortal
     ? "mapache"
     : isMarketingPortal
-      ? "light"
+      ? "marketing"
       : navbarVariant === "direct" || navbarVariant === "config" || navbarVariant === "home"
         ? "direct"
         : "dark";
 
   const navTheme = React.useMemo<NavTheme>(() => {
-    if (navbarAppearance === "light") {
+    if (navbarAppearance === "marketing") {
       return {
         surface:
-          "border-b border-[#cde6ff] bg-white/85 text-[#0f406d] backdrop-blur supports-[backdrop-filter]:bg-opacity-80",
+          "border-b border-[#cde6ff] bg-white/90 text-[#0f406d] backdrop-blur supports-[backdrop-filter]:bg-opacity-80 shadow-[0_6px_24px_rgba(15,76,139,0.08)]",
         configButton: (active: boolean) =>
           `inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[13px] transition ${
             active
-              ? "border-transparent bg-[#1d6ee3] text-white shadow-sm"
+              ? "border-transparent bg-[#1d6ee3] text-white shadow"
               : "border-[#cce8ff] bg-white/80 text-[#0f406d] hover:bg-[#ecf5ff]"
           }`,
         profileButton:
@@ -268,6 +268,26 @@ export default function NavbarClient({ session }: NavbarClientProps) {
           "rounded-md border border-[#cce8ff] bg-white px-2 py-1 text-sm text-[#0f406d] focus:border-[#1d6ee3] focus:outline-none focus:ring-2 focus:ring-[#1d6ee3]/30",
         signOutButton:
           "inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-[#1d6ee3] text-white hover:bg-[#1452c5]",
+        portalVariant: "marketing",
+        profileAppearance: "light",
+      };
+    }
+    if (navbarAppearance === "light") {
+      return {
+        surface:
+          "border-b border-slate-200 bg-white/85 text-slate-900 backdrop-blur supports-[backdrop-filter]:bg-opacity-80",
+        configButton: (active: boolean) =>
+          `inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[13px] transition ${
+            active
+              ? "border-transparent bg-slate-900 text-white shadow-sm"
+              : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
+          }`,
+        profileButton:
+          "inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] text-slate-900 hover:bg-slate-50 transition",
+        languageSelect:
+          "rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200",
+        signOutButton:
+          "inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-slate-900 text-white hover:bg-slate-800",
         portalVariant: "light",
         profileAppearance: "light",
       };
@@ -652,8 +672,8 @@ export default function NavbarClient({ session }: NavbarClientProps) {
                 href="/portal/marketing/generator"
                 className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
                   marketingView === "generator"
-                    ? "border-transparent bg-[#1d6ee3] text-white shadow-sm"
-                    : "border-[#cce8ff] bg-white/80 text-[#0f406d] hover:bg-[#ecf5ff]"
+                    ? "border-transparent bg-[#1d6ee3] text-white shadow shadow-[0_8px_20px_rgba(32,94,179,0.35)]"
+                    : "border-[#cce8ff] bg-white/80 text-[#0f406d] hover:bg-[#f7fbff]"
                 }`}
                 aria-current={marketingView === "generator" ? "page" : undefined}
               >
@@ -663,8 +683,8 @@ export default function NavbarClient({ session }: NavbarClientProps) {
                 href="/portal/marketing/history"
                 className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
                   marketingView === "history"
-                    ? "border-transparent bg-[#1d6ee3] text-white shadow-sm"
-                    : "border-[#cce8ff] bg-white/80 text-[#0f406d] hover:bg-[#ecf5ff]"
+                    ? "border-transparent bg-[#1d6ee3] text-white shadow shadow-[0_8px_20px_rgba(32,94,179,0.35)]"
+                    : "border-[#cce8ff] bg-white/80 text-[#0f406d] hover:bg-[#f7fbff]"
                 }`}
                 aria-current={marketingView === "history" ? "page" : undefined}
               >

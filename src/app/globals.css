@@ -653,3 +653,20 @@ html.mapache-theme body .text-white strong {
   --marketing-ring: 173 216 255;
 }
 
+.marketing-portal-surface {
+  background: radial-gradient(circle at top right, rgba(173, 216, 255, 0.6), transparent 45%),
+    radial-gradient(circle at 20% 20%, rgba(155, 218, 255, 0.45), transparent 35%),
+    linear-gradient(180deg, #edf5ff 0%, #e2f0ff 40%, #d7e8ff 100%);
+}
+
+.marketing-portal-hero {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(230, 244, 255, 0.9));
+  box-shadow: 0 30px 80px rgba(13, 82, 139, 0.12);
+}
+
+.marketing-portal-cta {
+  background: linear-gradient(135deg, rgb(32 94 179), rgb(15 76 139));
+  color: #fff;
+  box-shadow: 0 20px 45px rgba(32, 94, 179, 0.35);
+}
+

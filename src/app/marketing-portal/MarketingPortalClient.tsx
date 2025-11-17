@@ -440,9 +440,13 @@ function GeneratorSection() {
 
 function MarketingPortalFallback() {
   return (
-    <main className="marketing-portal-theme min-h-[calc(100vh-var(--nav-h))] bg-gradient-to-b from-[#e5f3ff] via-[#f0f7ff] to-[#e6f2ff] px-4 py-16 text-slate-900 md:px-8 lg:px-12">
-      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-10">
-        <div className="flex flex-col gap-4 rounded-[28px] border border-[rgb(var(--marketing-ring))]/80 bg-white/80 px-6 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:flex-row sm:items-center sm:justify-between">
+    <main className="marketing-portal-theme marketing-portal-surface relative isolate overflow-hidden min-h-[calc(100vh-var(--nav-h))] px-4 py-16 text-slate-900 md:px-8 lg:px-12">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-32 right-10 h-64 w-64 rounded-full bg-[#74c1ff]/40 blur-[120px]" />
+        <div className="absolute bottom-0 left-1/4 h-48 w-96 rounded-[999px] bg-[#a7d8ff]/40 blur-[120px]" />
+      </div>
+      <div className="relative mx-auto flex w-full max-w-[1400px] flex-col gap-10">
+        <div className="marketing-portal-hero flex flex-col gap-4 rounded-[28px] border border-[rgb(var(--marketing-ring))]/80 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
             <div className="h-8 w-40 animate-pulse rounded-full bg-slate-200" />
             <div className="h-4 w-64 animate-pulse rounded-full bg-slate-200" />
@@ -466,9 +470,9 @@ function MarketingPortalContent({ view }: { view: MarketingPortalView }) {
       : "Consulta y filtra los informes creados por tu equipo directamente desde este portal.";
 
   return (
-    <main className="marketing-portal-theme min-h-[calc(100vh-var(--nav-h))] bg-gradient-to-b from-[#e5f3ff] via-[#f0f7ff] to-[#e6f2ff] px-4 py-16 text-slate-900 md:px-8 lg:px-12">
+    <main className="marketing-portal-theme marketing-portal-surface min-h-[calc(100vh-var(--nav-h))] px-4 py-16 text-slate-900 md:px-8 lg:px-12">
       <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-10">
-        <div className="flex flex-col gap-4 rounded-[28px] border border-[rgb(var(--marketing-ring))]/80 bg-white/80 px-6 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:flex-row sm:items-center sm:justify-between">
+        <div className="marketing-portal-hero flex flex-col gap-4 rounded-[28px] border border-[rgb(var(--marketing-ring))]/80 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[rgb(var(--marketing-muted))]">
               Portal marketing

@@ -33,7 +33,7 @@ type TargetUser = {
   leaderEmail?: string | null;
 };
 
-type ProfileAppearance = "dark" | "light" | "mapache" | "direct";
+type ProfileAppearance = "dark" | "light" | "mapache" | "direct" | "marketing";
 
 export default function UserProfileModal({
   open,
@@ -244,81 +244,98 @@ export default function UserProfileModal({
       : profileT("fallbacks.leader");
 
   const isLightAppearance = appearance === "light";
+  const isMarketingAppearance = appearance === "marketing";
   const isMapacheAppearance = appearance === "mapache";
   const isDirectAppearance = appearance === "direct";
 
   const panelClassName = [
     "max-w-full",
-    isLightAppearance
+    isMarketingAppearance
       ? "bg-white text-[#0f406d] border border-[#cce8ff] shadow-[0_40px_120px_rgba(15,23,42,0.18)]"
-      : isMapacheAppearance
-        ? "bg-[rgb(var(--mapache-surface-strong))]/95 text-white border border-white/10 shadow-[0_45px_130px_rgba(2,6,23,0.8)]"
-        : isDirectAppearance
-          ? "bg-white text-slate-900 border border-[#ede9fe] shadow-[0_35px_110px_rgba(76,29,149,0.2)]"
-          : "bg-slate-950/90 text-white border border-white/10 shadow-[0_35px_110px_rgba(2,6,23,0.65)]",
+      : isLightAppearance
+        ? "bg-white text-slate-900 border border-slate-200 shadow-[0_35px_110px_rgba(15,23,42,0.12)]"
+        : isMapacheAppearance
+          ? "bg-[rgb(var(--mapache-surface-strong))]/95 text-white border border-white/10 shadow-[0_45px_130px_rgba(2,6,23,0.8)]"
+          : isDirectAppearance
+            ? "bg-white text-slate-900 border border-[#ede9fe] shadow-[0_35px_110px_rgba(76,29,149,0.2)]"
+            : "bg-slate-950/90 text-white border border-white/10 shadow-[0_35px_110px_rgba(2,6,23,0.65)]",
   ].join(" ");
 
-  const headerClassName = isLightAppearance
+  const headerClassName = isMarketingAppearance
     ? "bg-white border-b border-[#cce8ff] text-[#0f406d]"
-    : isMapacheAppearance
-      ? "bg-slate-950/70 border-b border-white/10 text-white"
-      : isDirectAppearance
-        ? "bg-white border-b border-[#ede9fe] text-[#4c1d95]"
-        : "bg-slate-950/70 border-b border-white/10 text-white";
+    : isLightAppearance
+      ? "bg-white border-b border-slate-100 text-slate-900"
+      : isMapacheAppearance
+        ? "bg-slate-950/70 border-b border-white/10 text-white"
+        : isDirectAppearance
+          ? "bg-white border-b border-[#ede9fe] text-[#4c1d95]"
+          : "bg-slate-950/70 border-b border-white/10 text-white";
 
-  const titleClassName = isLightAppearance
+  const titleClassName = isMarketingAppearance
     ? "text-lg font-semibold text-[#0f406d]"
-    : isDirectAppearance
-      ? "text-lg font-semibold text-[#4c1d95]"
-      : "text-lg font-semibold text-white";
-  const bodyTextClass = isLightAppearance
+    : isLightAppearance
+      ? "text-lg font-semibold text-slate-900"
+      : isDirectAppearance
+        ? "text-lg font-semibold text-[#4c1d95]"
+        : "text-lg font-semibold text-white";
+  const bodyTextClass = isMarketingAppearance
     ? "text-[#0f406d]"
-    : isDirectAppearance
+    : isLightAppearance || isDirectAppearance
       ? "text-slate-900"
       : "text-white";
-  const subtleTextClass = isLightAppearance
+  const subtleTextClass = isMarketingAppearance
     ? "text-slate-600"
-    : isDirectAppearance
+    : isLightAppearance || isDirectAppearance
       ? "text-slate-600"
       : "text-white/90";
-  const labelTextClass = isLightAppearance
+  const labelTextClass = isMarketingAppearance
     ? "text-[#4b81b8]"
-    : isDirectAppearance
-      ? "text-[#4c1d95]"
-      : "text-white/80";
-
-  const secondaryButtonClass = isLightAppearance
-    ? "rounded-full border border-[#cce8ff] bg-white px-6 py-2.5 text-sm font-semibold text-[#0f406d] transition hover:bg-[#ecf5ff]"
-    : isDirectAppearance
-      ? "rounded-full border border-[#c4b5fd] bg-white px-6 py-2.5 text-sm font-semibold text-[#4c1d95] transition hover:bg-[#ede9fe]"
-      : "rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15";
-
-  const statCardClass = isLightAppearance
-    ? "rounded-2xl border border-[#cce8ff] bg-gradient-to-br from-white to-[#f5fbff] p-6 shadow-sm"
-    : isDirectAppearance
-      ? "rounded-2xl border border-[#ede9fe] bg-white p-6 shadow-sm"
-      : "rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-xl";
-
-  const infoCardClass = isLightAppearance
-    ? "rounded-xl border border-[#cce8ff] bg-[#f5fbff] p-4"
-    : isDirectAppearance
-      ? "rounded-xl border border-[#ede9fe] bg-[#faf5ff] p-4"
-      : "rounded-xl border border-white/20 bg-white/10 p-4";
-
-  const backdropClassName = isLightAppearance
-    ? "bg-[#0f172a]/30"
-    : isMapacheAppearance
-      ? "bg-slate-950/75"
+    : isLightAppearance
+      ? "text-slate-500"
       : isDirectAppearance
-        ? "bg-black/50"
-        : "bg-black/60";
+        ? "text-[#4c1d95]"
+        : "text-white/80";
+
+  const secondaryButtonClass = isMarketingAppearance
+    ? "rounded-full border border-[#cce8ff] bg-white px-6 py-2.5 text-sm font-semibold text-[#0f406d] transition hover:bg-[#ecf5ff]"
+    : isLightAppearance
+      ? "rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+      : isDirectAppearance
+        ? "rounded-full border border-[#c4b5fd] bg-white px-6 py-2.5 text-sm font-semibold text-[#4c1d95] transition hover:bg-[#ede9fe]"
+        : "rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15";
+
+  const statCardClass = isMarketingAppearance
+    ? "rounded-2xl border border-[#cce8ff] bg-gradient-to-br from-white to-[#f5fbff] p-6 shadow-sm"
+    : isLightAppearance
+      ? "rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm"
+      : isDirectAppearance
+        ? "rounded-2xl border border-[#ede9fe] bg-white p-6 shadow-sm"
+        : "rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-xl";
+
+  const infoCardClass = isMarketingAppearance
+    ? "rounded-xl border border-[#cce8ff] bg-[#f5fbff] p-4"
+    : isLightAppearance
+      ? "rounded-xl border border-slate-200 bg-white p-4"
+      : isDirectAppearance
+        ? "rounded-xl border border-[#ede9fe] bg-[#faf5ff] p-4"
+        : "rounded-xl border border-white/20 bg-white/10 p-4";
+
+  const backdropClassName = isMarketingAppearance
+    ? "bg-[#0f172a]/30"
+    : isLightAppearance
+      ? "bg-black/30"
+      : isMapacheAppearance
+        ? "bg-slate-950/75"
+        : isDirectAppearance
+          ? "bg-black/50"
+          : "bg-black/60";
 
   return (
     <Modal
       open={open}
       onClose={onClose}
       title={profileT("title")}
-      variant={isLightAppearance || isDirectAppearance ? "default" : "inverted"}
+      variant={isMarketingAppearance || isLightAppearance || isDirectAppearance ? "default" : "inverted"}
       headerClassName={headerClassName}
       titleClassName={titleClassName}
       panelClassName={panelClassName}
@@ -340,7 +357,9 @@ export default function UserProfileModal({
             email={resolvedTarget.email ?? undefined}
             image={profileImage}
             size={88}
-            className={`shadow-xl ${isLightAppearance ? "ring-4 ring-[#b8dcff]" : "ring-4 ring-white/20"}`}
+            className={`shadow-xl ${
+              isMarketingAppearance ? "ring-4 ring-[#b8dcff]" : isLightAppearance ? "ring-4 ring-white/70" : "ring-4 ring-white/20"
+            }`}
           />
           <div className="space-y-2">
             <h2 className="text-2xl font-bold">{name}</h2>
@@ -406,12 +425,14 @@ export default function UserProfileModal({
               </span>
             </div>
             <div className={`h-4 w-full rounded-full overflow-hidden ${
-              isLightAppearance ? "bg-[#dbeeff]" : isDirectAppearance ? "bg-[#ede9fe]" : "bg-white/20"
+              isMarketingAppearance ? "bg-[#dbeeff]" : isLightAppearance ? "bg-slate-200" : isDirectAppearance ? "bg-[#ede9fe]" : "bg-white/20"
             }`}>
               <div 
                 className={`h-full transition-all duration-500 ${
-                  isLightAppearance 
+                  isMarketingAppearance
                     ? 'bg-gradient-to-r from-[#1d6ee3] via-[#5ba5f6] to-[#9dd7ff]'
+                    : isLightAppearance
+                      ? 'bg-gradient-to-r from-slate-900 to-slate-600'
                     : isDirectAppearance
                       ? 'bg-gradient-to-r from-[#4c1d95] via-[#6d28d9] to-[#7c3aed]'
                       : 'bg-gradient-to-r from-white to-white/80'
@@ -436,11 +457,13 @@ export default function UserProfileModal({
 
         {/* Period & Goal Overview */}
         <div className={`space-y-4 p-5 rounded-2xl border ${
-          isLightAppearance
+          isMarketingAppearance
             ? 'border-[#cce8ff] bg-[#f5fbff]'
-            : isDirectAppearance
-              ? 'border-[#ede9fe] bg-[#faf5ff]'
-              : 'border-white/10 bg-white/5'
+            : isLightAppearance
+              ? 'border-slate-200 bg-white'
+              : isDirectAppearance
+                ? 'border-[#ede9fe] bg-[#faf5ff]'
+                : 'border-white/10 bg-white/5'
         }`}>
           <div className="flex items-center gap-2 mb-3">
             <Calendar className={`h-4 w-4 ${labelTextClass}`} />

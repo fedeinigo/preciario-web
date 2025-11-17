@@ -16,7 +16,7 @@ type PortalLauncherProps = {
   onMapacheNavigate?: () => void;
   className?: string;
   buttonClassName?: string;
-  variant?: "dark" | "light" | "mapache" | "direct";
+  variant?: "dark" | "light" | "mapache" | "direct" | "marketing";
 };
 
 type PortalOption = {
@@ -110,6 +110,25 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
     backdrop: "bg-slate-950/75",
   },
   light: {
+    trigger:
+      "inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] text-slate-900 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-300",
+    panel:
+      "rounded-[28px] border border-slate-200 bg-white text-slate-900 shadow-[0_35px_90px_rgba(15,23,42,0.15)]",
+    header: "bg-white border-b border-slate-100 px-6 py-4 text-slate-900",
+    title: "text-lg font-semibold text-slate-900",
+    description: "text-sm text-slate-500",
+    card:
+      "flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-[0_15px_40px_rgba(15,23,42,0.08)]",
+    cardTitle: "text-sm font-semibold text-slate-900",
+    cardDescription: "text-xs text-slate-500",
+    action:
+      "rounded-full border border-transparent bg-[rgb(var(--primary))] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-[rgb(var(--primary))]/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--primary))]/40",
+    overlay: "bg-white/90 text-slate-900",
+    overlaySpinner: "text-slate-600",
+    overlayText: "text-slate-900",
+    backdrop: "bg-black/30",
+  },
+  marketing: {
     trigger:
       "inline-flex items-center gap-2 rounded-full border border-[#b8dcff] bg-white px-3 py-1.5 text-[13px] font-semibold text-[#0f406d] shadow-sm transition hover:bg-[#ecf5ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#93c5fd]",
     panel:
@@ -303,7 +322,7 @@ export default function PortalLauncher({
         titleClassName={theme.title}
         panelWidthClassName="max-w-lg"
         panelClassName={theme.panel}
-        variant={appearance === "light" ? "default" : "inverted"}
+        variant={appearance === "light" || appearance === "marketing" ? "default" : "inverted"}
       >
         <div className="space-y-3">
           <p className={theme.description}>{portalText("description")}</p>
