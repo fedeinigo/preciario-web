@@ -102,21 +102,33 @@ function TabBtn({
   active,
   href,
   Icon,
+  variant = "default",
 }: {
   label: string;
   active: boolean;
   href: string;
   Icon: React.ComponentType<{ className?: string }>;
+  variant?: "default" | "marketing";
 }) {
+  const marketingActive = "bg-white text-[rgb(var(--marketing-primary))] border-transparent shadow-sm";
+  const marketingInactive =
+    "bg-[rgb(var(--marketing-primary))] text-white border-transparent shadow-[0_8px_24px_rgba(32,94,179,0.35)]";
+
+  const normalActive = "bg-white text-[#1f2937] border-transparent";
+  const normalInactive = "bg-transparent text-white/90 border-white/20 hover:bg-white/10";
+
+  const activeClass =
+    variant === "marketing" ? marketingActive : normalActive;
+  const inactiveClass =
+    variant === "marketing" ? marketingInactive : normalInactive;
+
+  const logoSrc = isMarketingPortal ? "/logo_color.png" : "/logo.png";
+
   return (
     <Link
       href={href}
       className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition whitespace-nowrap shrink-0
-        ${
-          active
-            ? "bg-white text-[#1f2937] border-transparent"
-            : "bg-transparent text-white/90 border-white/20 hover:bg-white/10"
-        }`}
+        ${active ? activeClass : inactiveClass}`}
       aria-current={active ? "page" : undefined}
     >
       <Icon className="h-4 w-4" />
@@ -633,7 +645,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
         <div className="flex items-center gap-2">
           <Link href="/home" aria-label="Ir a Home" className="inline-flex">
             <Image
-              src="/logo.png"
+              src={logoSrc}
               alt="Wise CX"
               width={140}
               height={36}
@@ -664,28 +676,20 @@ export default function NavbarClient({ session }: NavbarClientProps) {
             </div>
           ) : isMarketingPortal ? (
             <div className="flex items-center gap-2">
-              <Link
+              <TabBtn
+                label={tabsT("generator")}
+                Icon={LayoutGrid}
                 href="/portal/marketing/generator"
-                className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                  marketingView === "generator"
-                    ? "border-transparent bg-[#1d6ee3] text-white shadow shadow-[0_8px_20px_rgba(32,94,179,0.35)]"
-                    : "border-[#cce8ff] bg-white/80 text-[#0f406d] hover:bg-[#f7fbff]"
-                }`}
-                aria-current={marketingView === "generator" ? "page" : undefined}
-              >
-                {tabsT("generator")}
-              </Link>
-              <Link
+                active={marketingView === "generator"}
+                variant="marketing"
+              />
+              <TabBtn
+                label={tabsT("history")}
+                Icon={Clock}
                 href="/portal/marketing/history"
-                className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                  marketingView === "history"
-                    ? "border-transparent bg-[#1d6ee3] text-white shadow shadow-[0_8px_20px_rgba(32,94,179,0.35)]"
-                    : "border-[#cce8ff] bg-white/80 text-[#0f406d] hover:bg-[#f7fbff]"
-                }`}
-                aria-current={marketingView === "history" ? "page" : undefined}
-              >
-                {tabsT("history")}
-              </Link>
+                active={marketingView === "history"}
+                variant="marketing"
+              />
             </div>
           ) : showDirectTabs ? (
             <div className="relative hidden w-full md:block">
