@@ -27,8 +27,8 @@ export default function CompanyCard({
 }: CompanyCardProps) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-md overflow-hidden">
-      <div className="bg-gradient-to-r from-slate-100 to-slate-50 px-4 py-3 border-b border-slate-200">
-        <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">{t("title")}</h3>
+      <div className="bg-[#4c1d95] px-4 py-3 border-b border-[#4c1d95]">
+        <h3 className="text-sm font-semibold text-white uppercase tracking-wide">{t("title")}</h3>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-5">
         <div className="rounded-lg border border-purple-200 bg-purple-50/30 p-4 transition hover:shadow-sm">
