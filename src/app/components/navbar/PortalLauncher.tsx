@@ -16,7 +16,7 @@ type PortalLauncherProps = {
   onMapacheNavigate?: () => void;
   className?: string;
   buttonClassName?: string;
-  variant?: "dark" | "light" | "mapache" | "direct";
+  variant?: "dark" | "light" | "mapache" | "direct" | "marketing";
 };
 
 type PortalOption = {
@@ -30,7 +30,7 @@ const PORTAL_ROUTES: Record<PortalAccessId, string> = {
   direct: "/portal/directo",
   mapache: "/portal/mapache/generator",
   partner: "/partner-portal",
-  marketing: "/marketing-portal",
+  marketing: "/portal/marketing/generator",
 };
 
 type PortalLauncherVariant = NonNullable<PortalLauncherProps["variant"]>;
@@ -127,6 +127,25 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
     overlaySpinner: "text-slate-600",
     overlayText: "text-slate-900",
     backdrop: "bg-black/30",
+  },
+  marketing: {
+    trigger:
+      "inline-flex items-center gap-2 rounded-full border border-[#b8dcff] bg-white px-3 py-1.5 text-[13px] font-semibold text-[#0f406d] shadow-sm transition hover:bg-[#ecf5ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#93c5fd]",
+    panel:
+      "rounded-[32px] border border-[#cce8ff] bg-white text-slate-900 shadow-[0_45px_130px_rgba(15,23,42,0.18)]",
+    header: "bg-white border-b border-[#cce8ff] px-6 py-4 text-[#0f406d]",
+    title: "text-lg font-semibold text-[#0f406d]",
+    description: "text-sm text-slate-600",
+    card:
+      "flex items-center justify-between gap-4 rounded-2xl border border-[#cce8ff] bg-[#f5fbff] px-4 py-3 shadow-[0_15px_40px_rgba(15,23,42,0.08)]",
+    cardTitle: "text-sm font-semibold text-slate-900",
+    cardDescription: "text-xs text-slate-500",
+    action:
+      "rounded-full border border-transparent bg-[#1d6ee3] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-[#1452c5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#93c5fd]",
+    overlay: "bg-white/95 text-[#0f406d]",
+    overlaySpinner: "text-[#1d6ee3]",
+    overlayText: "text-[#0f406d]",
+    backdrop: "bg-[#0f172a]/30",
   },
 };
 
@@ -303,7 +322,7 @@ export default function PortalLauncher({
         titleClassName={theme.title}
         panelWidthClassName="max-w-lg"
         panelClassName={theme.panel}
-        variant={appearance === "light" ? "default" : "inverted"}
+        variant={appearance === "light" || appearance === "marketing" ? "default" : "inverted"}
       >
         <div className="space-y-3">
           <p className={theme.description}>{portalText("description")}</p>

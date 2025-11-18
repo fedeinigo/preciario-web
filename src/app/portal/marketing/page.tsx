@@ -2,5 +2,5 @@
 import { redirect } from "next/navigation";
 
 export default function MarketingPortalRedirect() {
-  redirect("/marketing-portal");
+  redirect("/portal/marketing/generator");
 }
