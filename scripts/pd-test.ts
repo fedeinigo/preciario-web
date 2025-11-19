@@ -1,4 +1,4 @@
-import { searchDealsByMapacheAssigned } from "@/lib/pipedrive";
+import { searchDealsByMapacheAssigned } from "../src/lib/pipedrive";
 
 async function main() {
   const name = process.argv[2] ?? "Federico Iñigo";

@@ -333,6 +333,15 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
       }),
     );
 
+  log.info("pipedrive.mapache_filter", {
+    mapache: normalizedName,
+    optionId,
+    optionLabel,
+    candidateCount: candidates.length,
+    fetchedDeals: deals.length,
+    matched: summaries.length,
+  });
+
   log.info("pipedrive.mapache_search", {
     mapache: normalizedName,
     hits: summaries.length,
