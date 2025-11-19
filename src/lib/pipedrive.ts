@@ -317,14 +317,18 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
     return numericValue !== null && numericValue === optionId;
   });
 
-  const summaries = filtered.map((deal) =>
-    normalizeDealSummary({
+  const summaries = filtered.map((deal) => {
+    const stageId = ensureNumber(deal.stage_id);
+    const stageName =
+      stageId !== null ? stageNames.get(stageId) ?? null : null;
+
+    return normalizeDealSummary({
       deal,
-      stageName: stageNames.get(ensureNumber(deal.stage_id) ?? null) ?? null,
+      stageName,
       ownerName: extractString(deal.owner_name),
       mapacheOptions,
-    }),
-  );
+    });
+  });
 
   log.info("pipedrive.mapache_search", {
     mapache: normalizedName,
