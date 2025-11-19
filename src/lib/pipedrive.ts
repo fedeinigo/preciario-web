@@ -22,11 +22,19 @@ const FIELD_DOC_CONTEXT_DEAL =
   process.env.PIPEDRIVE_FIELD_DOC_CONTEXT_DEAL ??
   "0adac015f939871f8cabfe7f6d9392953193df17";
 
+const CUSTOM_FIELD_KEYS = [
+  FIELD_MAPACHE_ASSIGNED,
+  FIELD_FEE_MENSUAL,
+  FIELD_PROPOSAL_URL,
+  FIELD_DOC_CONTEXT_DEAL,
+].filter(Boolean).join(",");
+
 type MapacheFieldOptions = {
   optionById: Map<number, string>;
   optionIdByName: Map<string, number>;
 };
 let mapacheFieldOptionsCache: MapacheFieldOptions | null = null;
+let stageNameMapCache: Map<number, string> | null = null;
 
 function q(obj: Record<string, string | number | boolean | null | undefined>): string {
   const usp = new URLSearchParams();
@@ -157,18 +165,6 @@ export async function addDealProductV2(dealId: number | string, args: {
   await rawFetch<PdAddDealProductResp>(url, { method: "POST", body });
 }
 
-type PdDealSearchItem = {
-  id: number;
-  stage?: { id?: number | null; name?: string | null } | null;
-};
-
-type PdDealSearchResponse = {
-  success: boolean;
-  data?: {
-    items?: Array<{ item: PdDealSearchItem | null }>;
-  };
-};
-
 type PdDealRecord = {
   id: number;
   title?: string | null;
@@ -179,9 +175,17 @@ type PdDealRecord = {
   custom_fields?: Record<string, unknown> | null;
 };
 
-type PdDealDetailResponse = {
+type PdDealsListResponse = {
   success: boolean;
-  data?: (PdDealRecord & Record<string, unknown>) | null;
+  data?: PdDealRecord[];
+  additional_data?: {
+    pagination?: {
+      start?: number;
+      limit?: number;
+      more_items_in_collection?: boolean;
+      next_start?: number;
+    };
+  };
 };
 
 type PdDealFieldOption = {
@@ -199,6 +203,14 @@ type PdDealField = {
 type PdDealFieldsResponse = {
   success: boolean;
   data?: PdDealField[];
+};
+
+type PdStagesResponse = {
+  success: boolean;
+  data?: Array<{
+    id?: number | null;
+    name?: string | null;
+  }>;
 };
 
 /* ---------- API v1: actualizar campos del deal (PUT) ---------- */
@@ -294,53 +306,25 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
     return [];
   }
 
-  const optionLabel = mapacheOptions.optionById.get(optionId) ?? normalizedName;
+  const [stageNames, deals] = await Promise.all([
+    ensureStageNameMap(),
+    fetchDealsWithMapacheFields(),
+  ]);
 
-  const candidates = await searchDealCandidates(optionLabel, optionId, normalizedName);
-  if (candidates.length === 0) {
-    log.info("pipedrive.mapache_search", {
-      mapache: normalizedName,
-      hits: 0,
-      note: "no_candidates",
-    });
-    return [];
-  }
-
-  const ids = candidates.map((candidate) => candidate.id);
-  const deals = await fetchDealsByIds(ids);
-  if (deals.length === 0) {
-    log.info("pipedrive.mapache_search", {
-      mapache: normalizedName,
-      hits: 0,
-      note: "no_matching_deals",
-    });
-    return [];
-  }
-
-  const stageNameMap = new Map<number, string | null>();
-  for (const candidate of candidates) {
-    stageNameMap.set(candidate.id, candidate.stageName ?? null);
-  }
-
-  const summaries = deals
-    .filter((deal) => dealMatchesMapache(deal, optionId))
-    .map((deal) =>
-      normalizeDealSummary({
-        deal,
-        stageName: stageNameMap.get(deal.id) ?? null,
-        ownerName: deal.owner_name ? deal.owner_name : null,
-        mapacheOptions,
-      }),
-    );
-
-  log.info("pipedrive.mapache_filter", {
-    mapache: normalizedName,
-    optionId,
-    optionLabel,
-    candidateCount: candidates.length,
-    fetchedDeals: deals.length,
-    matched: summaries.length,
+  const filtered = deals.filter((deal) => {
+    const value = getCustomFieldValue(deal.custom_fields, FIELD_MAPACHE_ASSIGNED);
+    const numericValue = ensureNumber(value);
+    return numericValue !== null && numericValue === optionId;
   });
+
+  const summaries = filtered.map((deal) =>
+    normalizeDealSummary({
+      deal,
+      stageName: stageNames.get(ensureNumber(deal.stage_id) ?? null) ?? null,
+      ownerName: extractString(deal.owner_name),
+      mapacheOptions,
+    }),
+  );
 
   log.info("pipedrive.mapache_search", {
     mapache: normalizedName,
@@ -350,109 +334,51 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
   return summaries;
 }
 
-async function searchDealCandidates(label: string, optionId: number, normalizedName: string) {
-  const attempts = [label];
-  const normalizedLabel = normalizeForComparison(label);
-  if (normalizedLabel && normalizedLabel !== normalizeForComparison(label)) {
-    attempts.push(normalizedLabel);
-  }
-  if (normalizedName && normalizedName !== label) {
-    attempts.push(normalizedName);
-  }
-  if (Number.isFinite(optionId)) {
-    attempts.push(String(optionId));
-  }
-
-  const seen = new Set<string>();
-  for (const rawTerm of attempts) {
-    const term = rawTerm.trim();
-    if (!term || seen.has(term)) continue;
-    seen.add(term);
-    const payload = {
-      api_token: API_TOKEN,
-      term,
-      field_key: FIELD_MAPACHE_ASSIGNED,
-      exact_match: 1,
-      limit: 100,
-    };
-    const url = `${BASE_URL}/api/v1/deals/search?${q(payload)}`;
-    const json = await rawFetch<PdDealSearchResponse>(url, { method: "GET" });
-    const items = json.data?.items ?? [];
-    const list = items
-      .map((item) => item?.item)
-      .filter((item): item is PdDealSearchItem => Boolean(item?.id))
-      .map((item) => ({
-        id: item.id,
-        stageName: item.stage?.name ?? null,
-      }));
-    if (list.length > 0) {
-      return list;
-    }
-  }
-  return [];
-}
-
-async function fetchDealsByIds(ids: number[]) {
-  if (ids.length === 0) return [];
+async function fetchDealsWithMapacheFields(status: "open" | "won" | "lost" | "all_not_deleted" = "open") {
   const results: PdDealRecord[] = [];
-  const batchSize = 5;
-  for (let i = 0; i < ids.length; i += batchSize) {
-    const chunk = ids.slice(i, i + batchSize);
-    const chunkResults = await Promise.all(chunk.map((id) => fetchDealDetail(id)));
-    for (const detail of chunkResults) {
-      if (detail) {
-        results.push(detail);
-      }
+  let start = 0;
+  const limit = 100;
+  while (true) {
+    const payload: Record<string, string | number> = {
+      api_token: API_TOKEN,
+      status,
+      limit,
+      start,
+    };
+    if (CUSTOM_FIELD_KEYS) {
+      payload.custom_fields = CUSTOM_FIELD_KEYS;
     }
+    const url = `${BASE_URL}/api/v2/deals?${q(payload)}`;
+    const json = await rawFetch<PdDealsListResponse>(url, { method: "GET" });
+    if (Array.isArray(json.data)) {
+      results.push(...json.data);
+    }
+    const pagination = json.additional_data?.pagination;
+    if (!pagination?.more_items_in_collection) {
+      break;
+    }
+    start = pagination.next_start ?? start + (pagination.limit ?? limit);
   }
   return results;
 }
 
-async function fetchDealDetail(dealId: number) {
-  const url = `${BASE_URL}/api/v1/deals/${dealId}?${q({ api_token: API_TOKEN })}`;
-  const json = await rawFetch<PdDealDetailResponse>(url, { method: "GET" });
-  const data = json.data;
-  if (!data) return null;
-
-  const custom: Record<string, unknown> = {};
-  for (const key of [
-    FIELD_MAPACHE_ASSIGNED,
-    FIELD_FEE_MENSUAL,
-    FIELD_PROPOSAL_URL,
-    FIELD_DOC_CONTEXT_DEAL,
-  ]) {
-    if (key) {
-      custom[key] = (data as Record<string, unknown>)[key];
+async function ensureStageNameMap() {
+  if (stageNameMapCache) {
+    return stageNameMapCache;
+  }
+  const url = `${BASE_URL}/api/v1/stages?${q({ api_token: API_TOKEN })}`;
+  const json = await rawFetch<PdStagesResponse>(url, { method: "GET" });
+  const map = new Map<number, string>();
+  for (const stage of json.data ?? []) {
+    const id = ensureNumber(stage?.id ?? null);
+    if (id === null) continue;
+    const name = extractString(stage?.name) ?? null;
+    if (name) {
+      map.set(id, name);
     }
   }
-
-  return {
-    id: data.id,
-    title: data.title,
-    value: data.value,
-    stage_id: ensureNumber(data.stage_id),
-    owner_id: resolveOwnerId(data.owner_id),
-    owner_name: extractString((data as { owner_name?: unknown }).owner_name),
-    custom_fields: custom,
-  };
-}
-
-function resolveOwnerId(owner: unknown): number | null {
-  if (typeof owner === "number") {
-    return Number.isFinite(owner) ? owner : null;
-  }
-  if (owner && typeof owner === "object" && "id" in owner) {
-    return ensureNumber((owner as { id?: unknown }).id ?? null);
-  }
-  return null;
-}
-
-function dealMatchesMapache(deal: PdDealRecord, targetOptionId: number) {
-  if (!FIELD_MAPACHE_ASSIGNED) return false;
-  const raw = getCustomFieldValue(deal.custom_fields, FIELD_MAPACHE_ASSIGNED);
-  const numericValue = ensureNumber(raw);
-  if (numericValue === null) return false;
-  return numericValue === targetOptionId;
+  stageNameMapCache = map;
+  return map;
 }
 
 function normalizeDealSummary({
