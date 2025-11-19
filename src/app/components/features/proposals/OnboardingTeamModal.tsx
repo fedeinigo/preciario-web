@@ -36,18 +36,19 @@ export default function OnboardingTeamModal() {
         const sessionRes = await fetch("/api/auth/session", { cache: "no-store" });
         if (!sessionRes.ok) return;
         const session = (await sessionRes.json()) as SessionShape;
-        const hasTeam = Boolean(session?.user?.team);
-        const hasPosition = Boolean(session?.user?.positionName);
-        const hasLeader = Boolean(session?.user?.leaderEmail);
-        if (hasTeam && hasPosition && hasLeader) {
+        if (!session?.user) {
+          return;
+        }
+        const hasTeam = Boolean(session.user.team);
+        if (hasTeam) {
           return;
         }
         const teamsRes = await fetch("/api/teams", { cache: "no-store" });
         if (!active) return;
         setTeams(teamsRes.ok ? await teamsRes.json() : []);
-        setTeamValue(session?.user?.team ?? "");
-        setPositionName(session?.user?.positionName ?? "");
-        setLeaderEmail(session?.user?.leaderEmail ?? "");
+        setTeamValue(session.user.team ?? "");
+        setPositionName(session.user.positionName ?? "");
+        setLeaderEmail(session.user.leaderEmail ?? "");
         setOpen(true);
       } catch {
         // Ignore errors silently
@@ -119,74 +120,84 @@ export default function OnboardingTeamModal() {
   if (!open || checking) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 px-4 py-6">
-      <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="heading-bar-sm">{t("title")}</div>
-        <div className="space-y-5 p-5">
-          <p className="text-sm text-slate-600">{t("intro")}</p>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/70 px-4 py-8 backdrop-blur-sm">
+      <div className="w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-white shadow-2xl ring-1 ring-black/10">
+        <div className="flex flex-col gap-2 border-b border-white/10 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-7 py-6 text-white">
+          <span className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">
+            Onboarding
+          </span>
+          <h2 className="text-2xl font-semibold leading-tight">{t("title")}</h2>
+          <p className="text-sm text-white/80">{t("intro")}</p>
+        </div>
+        <div className="space-y-6 px-7 py-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
+              <span>{t("teamLabel")}</span>
+              <select
+                className="select w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-base shadow-sm transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+                value={teamValue}
+                onChange={(event) => {
+                  setTeamValue(event.target.value);
+                  if (event.target.value !== CUSTOM_OPTION) {
+                    setCustomTeam("");
+                  }
+                }}
+              >
+                <option value="">{t("selectPlaceholder")}</option>
+                {teamOptions.map((team) => (
+                  <option key={team.id} value={team.name}>
+                    {team.name}
+                  </option>
+                ))}
+                <option value={CUSTOM_OPTION}>{t("teamOtherOption")}</option>
+              </select>
+            </label>
 
-          <label className="space-y-1 text-sm font-medium text-slate-800">
-            {t("teamLabel")}
-            <select
-              className="select w-full"
-              value={teamValue}
-              onChange={(event) => {
-                setTeamValue(event.target.value);
-                if (event.target.value !== CUSTOM_OPTION) {
-                  setCustomTeam("");
-                }
-              }}
-            >
-              <option value="">{t("selectPlaceholder")}</option>
-              {teamOptions.map((team) => (
-                <option key={team.id} value={team.name}>
-                  {team.name}
-                </option>
-              ))}
-              <option value={CUSTOM_OPTION}>{t("teamOtherOption")}</option>
-            </select>
-          </label>
+            {requiresCustomTeam ? (
+              <label className="flex flex-col gap-2 text-sm font-medium text-slate-800 md:col-span-2">
+                <span>{t("customTeamLabel")}</span>
+                <input
+                  className="input w-full rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:border-slate-900 focus-visible:ring-2 focus-visible:ring-slate-200"
+                  value={customTeam}
+                  onChange={(event) => setCustomTeam(event.target.value)}
+                  placeholder={t("customTeamPlaceholder")}
+                />
+              </label>
+            ) : null}
 
-          {requiresCustomTeam ? (
-            <label className="space-y-1 text-sm font-medium text-slate-800">
-              {t("customTeamLabel")}
+            <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
+              <span>{t("positionLabel")}</span>
               <input
-                className="input w-full"
-                value={customTeam}
-                onChange={(event) => setCustomTeam(event.target.value)}
-                placeholder={t("customTeamPlaceholder")}
+                className="input w-full rounded-2xl border border-slate-200 px-4 py-3 text-base shadow-sm focus:border-slate-900 focus-visible:ring-2 focus-visible:ring-slate-200"
+                value={positionName}
+                onChange={(event) => setPositionName(event.target.value)}
+                placeholder={t("positionPlaceholder")}
               />
             </label>
-          ) : null}
 
-          <label className="space-y-1 text-sm font-medium text-slate-800">
-            {t("positionLabel")}
-            <input
-              className="input w-full"
-              value={positionName}
-              onChange={(event) => setPositionName(event.target.value)}
-              placeholder={t("positionPlaceholder")}
-            />
-          </label>
-
-          <label className="space-y-1 text-sm font-medium text-slate-800">
-            {t("leaderEmailLabel")}
-            <input
-              className={`input w-full ${showLeaderError ? "border-red-400 focus-visible:ring-red-200" : ""}`}
-              value={leaderEmail}
-              onChange={(event) => setLeaderEmail(event.target.value)}
-              placeholder="nombre@wisecx.com"
-              inputMode="email"
-            />
-            <span className="text-xs text-slate-500">{t("leaderEmailHint")}</span>
-            {showLeaderError ? (
-              <span className="text-xs font-medium text-red-600">{t("errors.leaderEmail")}</span>
-            ) : null}
-          </label>
+            <label className="flex flex-col gap-2 text-sm font-medium text-slate-800 md:col-span-2">
+              <span>{t("leaderEmailLabel")}</span>
+              <input
+                className={`input w-full rounded-2xl border px-4 py-3 text-base shadow-sm focus-visible:ring-2 focus-visible:ring-slate-200 ${
+                  showLeaderError
+                    ? "border-red-400 focus-visible:ring-red-200"
+                    : "border-slate-200 focus:border-slate-900"
+                }`}
+                value={leaderEmail}
+                onChange={(event) => setLeaderEmail(event.target.value)}
+                placeholder="nombre@wisecx.com"
+                inputMode="email"
+              />
+              <span className="text-xs text-slate-500">{t("leaderEmailHint")}</span>
+              {showLeaderError ? (
+                <span className="text-xs font-semibold text-red-600">{t("errors.leaderEmail")}</span>
+              ) : null}
+            </label>
+          </div>
         </div>
-        <div className="flex justify-end border-t bg-slate-50 px-5 py-4">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-7 py-5">
           <button
-            className="btn-primary min-w-[140px]"
+            className="btn-primary min-w-[160px] rounded-2xl px-6 py-2.5 text-base shadow-sm disabled:opacity-60"
             disabled={!canSave}
             onClick={handleSave}
           >

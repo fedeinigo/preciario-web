@@ -2,6 +2,7 @@
 
 //* eslint-disable no-console */
 
+import type { PipedriveDealSummary } from "@/types/pipedrive";
 import logger from "@/lib/logger";
 
 const log = logger.child({ service: "pipedrive" });
@@ -11,6 +12,15 @@ const API_TOKEN = process.env.PIPEDRIVE_API_TOKEN ?? "";
 
 const FIELD_ONESHOT = process.env.PIPEDRIVE_FIELD_ONESHOT ?? ""; // id del campo OneShot (numérico $)
 const FIELD_PROPOSAL_URL = process.env.PIPEDRIVE_FIELD_PROPOSAL_URL ?? ""; // id del campo Propuesta Comercial (URL)
+const FIELD_MAPACHE_ASSIGNED =
+  process.env.PIPEDRIVE_FIELD_MAPACHE_ASSIGNED ??
+  "e2d185431fb620ed330b8a77a0b090cd28e20c32";
+const FIELD_FEE_MENSUAL =
+  process.env.PIPEDRIVE_FIELD_FEE_MENSUAL ??
+  "5cc64655a798c1cff20311078bc3f87c6296446f";
+const FIELD_DOC_CONTEXT_DEAL =
+  process.env.PIPEDRIVE_FIELD_DOC_CONTEXT_DEAL ??
+  "0adac015f939871f8cabfe7f6d9392953193df17";
 
 function q(obj: Record<string, string | number | boolean | null | undefined>): string {
   const usp = new URLSearchParams();
@@ -141,6 +151,36 @@ export async function addDealProductV2(dealId: number | string, args: {
   await rawFetch<PdAddDealProductResp>(url, { method: "POST", body });
 }
 
+type PdDealOwner =
+  | {
+      id?: number | null;
+      name?: string | null;
+    }
+  | number;
+
+type PdDealStage =
+  | {
+      id?: number | null;
+      name?: string | null;
+    }
+  | number;
+
+type PdDealItem = {
+  id: number;
+  title?: string | null;
+  value?: number | null;
+  stage_id?: PdDealStage | null;
+  owner_id?: PdDealOwner | null;
+  [key: string]: unknown;
+};
+
+type PdDealSearchResponse = {
+  success: boolean;
+  data?: {
+    items?: Array<{ item: PdDealItem }>;
+  };
+};
+
 /* ---------- API v1: actualizar campos del deal (PUT) ---------- */
 
 export async function updateOneShotAndUrl(dealId: number | string, opts: {
@@ -214,4 +254,105 @@ export async function replaceDealProducts(
   const result = { deleted: current.length, added, missingSkus, failedSkus };
   log.info("pipedrive.replace_deal_products", result);
   return result;
+}
+
+export async function searchDealsByMapacheAssigned(mapacheName: string) {
+  const normalizedName = mapacheName.trim();
+  if (!normalizedName) {
+    return [];
+  }
+
+  if (!FIELD_MAPACHE_ASSIGNED) {
+    throw new Error("Falta PIPEDRIVE_FIELD_MAPACHE_ASSIGNED en config");
+  }
+
+  const payload = {
+    api_token: API_TOKEN,
+    field_key: FIELD_MAPACHE_ASSIGNED,
+    term: normalizedName,
+    exact_match: 1,
+    status: "all_not_deleted",
+    limit: 200,
+    start: 0,
+  };
+
+  const url = `${BASE_URL}/api/v1/deals/search?${q(payload)}`;
+  const json = await rawFetch<PdDealSearchResponse>(url, { method: "GET" });
+  const items = json.data?.items ?? [];
+  const deals = items.map(({ item }) => normalizeDealItem(item));
+  log.info("pipedrive.mapache_search", {
+    mapache: normalizedName,
+    hits: deals.length,
+  });
+  return deals;
+}
+
+function normalizeDealItem(deal: PdDealItem): PipedriveDealSummary {
+  const stage = resolveStage(deal.stage_id);
+  const owner = resolveOwner(deal.owner_id);
+
+  return {
+    id: deal.id,
+    title: extractString(deal.title) ?? "",
+    value: ensureNumber(deal.value),
+    stageId: stage.id,
+    stageName: stage.name,
+    ownerId: owner.id,
+    ownerName: owner.name,
+    mapacheAssigned: extractString(deal[FIELD_MAPACHE_ASSIGNED]),
+    feeMensual: ensureNumber(deal[FIELD_FEE_MENSUAL]),
+    proposalUrl: extractString(deal[FIELD_PROPOSAL_URL]),
+    docContextDeal: extractString(deal[FIELD_DOC_CONTEXT_DEAL]),
+    dealUrl: buildDealUrl(deal.id),
+  };
+}
+
+function resolveStage(stage: PdDealStage | null | undefined) {
+  if (!stage) {
+    return { id: null, name: null };
+  }
+  if (typeof stage === "number") {
+    return { id: Number.isFinite(stage) ? stage : null, name: null };
+  }
+  const stageObj = stage as { id?: unknown; name?: unknown };
+  return {
+    id: ensureNumber(stageObj.id ?? null),
+    name: extractString(stageObj.name),
+  };
+}
+
+function resolveOwner(owner: PdDealOwner | null | undefined) {
+  if (!owner) {
+    return { id: null, name: null };
+  }
+  if (typeof owner === "number") {
+    return { id: Number.isFinite(owner) ? owner : null, name: null };
+  }
+  const ownerObj = owner as { id?: unknown; name?: unknown };
+  return {
+    id: ensureNumber(ownerObj.id ?? null),
+    name: extractString(ownerObj.name),
+  };
+}
+
+function ensureNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function extractString(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === "number") {
+    return String(value);
+  }
+  return null;
+}
+
+function buildDealUrl(dealId: number): string {
+  const base = BASE_URL.replace(/\/+$/, "");
+  return `${base}/deal/${dealId}`;
 }
