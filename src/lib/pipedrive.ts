@@ -348,7 +348,7 @@ async function searchDealCandidates(mapacheName: string) {
     fields: "custom_fields",
     exact_match: 1,
     status: "open",
-    limit: 200,
+    limit: 100,
   };
   const url = `${BASE_URL}/api/v2/deals/search?${q(payload)}`;
   const json = await rawFetch<PdDealSearchResponse>(url, { method: "GET" });
