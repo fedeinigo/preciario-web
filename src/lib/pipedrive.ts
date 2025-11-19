@@ -271,7 +271,6 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
     field_key: FIELD_MAPACHE_ASSIGNED,
     term: normalizedName,
     exact_match: 1,
-    status: "all_not_deleted",
     limit: 200,
     start: 0,
   };
