@@ -296,7 +296,7 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
 
   const optionLabel = mapacheOptions.optionById.get(optionId) ?? normalizedName;
 
-  const candidates = await searchDealCandidates(optionLabel, optionId);
+  const candidates = await searchDealCandidates(optionLabel, optionId, normalizedName);
   if (candidates.length === 0) {
     log.info("pipedrive.mapache_search", {
       mapache: normalizedName,
@@ -350,33 +350,46 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
   return summaries;
 }
 
-async function searchDealCandidates(term: string, optionId: number) {
-  const attempt = async (searchTerm: string) => {
+async function searchDealCandidates(label: string, optionId: number, normalizedName: string) {
+  const attempts = [label];
+  const normalizedLabel = normalizeForComparison(label);
+  if (normalizedLabel && normalizedLabel !== normalizeForComparison(label)) {
+    attempts.push(normalizedLabel);
+  }
+  if (normalizedName && normalizedName !== label) {
+    attempts.push(normalizedName);
+  }
+  if (Number.isFinite(optionId)) {
+    attempts.push(String(optionId));
+  }
+
+  const seen = new Set<string>();
+  for (const rawTerm of attempts) {
+    const term = rawTerm.trim();
+    if (!term || seen.has(term)) continue;
+    seen.add(term);
     const payload = {
       api_token: API_TOKEN,
-      term: searchTerm,
-      fields: "custom_fields",
+      term,
+      field_key: FIELD_MAPACHE_ASSIGNED,
       exact_match: 1,
-      status: "open",
       limit: 100,
     };
-    const url = `${BASE_URL}/api/v2/deals/search?${q(payload)}`;
+    const url = `${BASE_URL}/api/v1/deals/search?${q(payload)}`;
     const json = await rawFetch<PdDealSearchResponse>(url, { method: "GET" });
     const items = json.data?.items ?? [];
-    return items
+    const list = items
       .map((item) => item?.item)
       .filter((item): item is PdDealSearchItem => Boolean(item?.id))
       .map((item) => ({
         id: item.id,
         stageName: item.stage?.name ?? null,
       }));
-  };
-
-  let results = await attempt(term);
-  if (results.length === 0 && Number.isFinite(optionId)) {
-    results = await attempt(String(optionId));
+    if (list.length > 0) {
+      return list;
+    }
   }
-  return results;
+  return [];
 }
 
 async function fetchDealsByIds(ids: number[]) {
