@@ -37,7 +37,10 @@ export default function MapachePortalPipedrivePage() {
     try {
       const response = await fetch("/api/pipedrive/deals");
       const payload = (await response.json()) as ApiResponse;
-      if (!response.ok || !payload.ok) {
+      if (!response.ok) {
+        throw new Error("Error de red");
+      }
+      if (!payload.ok) {
         throw new Error(payload.error ?? "Respuesta inválida");
       }
       setDeals(payload.deals ?? []);
