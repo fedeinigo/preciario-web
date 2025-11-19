@@ -30,6 +30,11 @@ const CUSTOM_FIELD_KEYS = [
 ].filter(Boolean).join(",");
 
 const ownerNameCache = new Map<number, string | null>();
+type MapacheFieldOptions = {
+  optionById: Map<number, string>;
+  optionIdByName: Map<string, number>;
+};
+let mapacheFieldOptionsCache: MapacheFieldOptions | null = null;
 
 function q(obj: Record<string, string | number | boolean | null | undefined>): string {
   const usp = new URLSearchParams();
@@ -186,6 +191,23 @@ type PdDealsListResponse = {
   data?: PdDealRecord[];
 };
 
+type PdDealFieldOption = {
+  id?: number | null;
+  label?: string | null;
+};
+
+type PdDealField = {
+  id: number;
+  key: string;
+  field_type: string;
+  options?: PdDealFieldOption[] | null;
+};
+
+type PdDealFieldsResponse = {
+  success: boolean;
+  data?: PdDealField[];
+};
+
 type PdUserResponse = {
   success: boolean;
   data?: {
@@ -278,7 +300,18 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
     throw new Error("Falta PIPEDRIVE_FIELD_MAPACHE_ASSIGNED en config");
   }
 
-  const candidates = await searchDealCandidates(normalizedName);
+  const mapacheOptions = await ensureMapacheFieldOptions();
+  const normalizedInput = normalizeForComparison(normalizedName);
+  const optionId = mapacheOptions.optionIdByName.get(normalizedInput);
+
+  if (!optionId) {
+    log.warn("pipedrive.mapache_option_not_found", { mapache: normalizedName });
+    return [];
+  }
+
+  const optionLabel = mapacheOptions.optionById.get(optionId) ?? normalizedName;
+
+  const candidates = await searchDealCandidates(optionLabel);
   if (candidates.length === 0) {
     log.info("pipedrive.mapache_search", {
       mapache: normalizedName,
@@ -313,15 +346,15 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
   );
   const ownerNames = await resolveOwnerNames(ownerIds);
 
-  const normalizedTarget = normalizedName.toLowerCase();
   const summaries = deals
-    .filter((deal) => dealMatchesMapache(deal, normalizedTarget))
+    .filter((deal) => dealMatchesMapache(deal, optionId))
     .map((deal) => {
       const ownerId = ensureNumber(deal.owner_id);
       return normalizeDealSummary({
         deal,
         stageName: stageNameMap.get(deal.id) ?? null,
         ownerName: ownerId !== null ? ownerNames.get(ownerId) ?? null : null,
+        mapacheOptions,
       });
     });
 
@@ -416,23 +449,31 @@ async function fetchOwnerName(ownerId: number) {
   return name ?? null;
 }
 
-function dealMatchesMapache(deal: PdDealRecord, normalizedTarget: string) {
+function dealMatchesMapache(deal: PdDealRecord, targetOptionId: number) {
   if (!FIELD_MAPACHE_ASSIGNED) return false;
-  const value = getCustomFieldString(deal.custom_fields, FIELD_MAPACHE_ASSIGNED);
-  if (!value) return false;
-  return value.toLowerCase() === normalizedTarget;
+  const raw = getCustomFieldValue(deal.custom_fields, FIELD_MAPACHE_ASSIGNED);
+  const numericValue = ensureNumber(raw);
+  if (numericValue === null) return false;
+  return numericValue === targetOptionId;
 }
 
 function normalizeDealSummary({
   deal,
   stageName,
   ownerName,
+  mapacheOptions,
 }: {
   deal: PdDealRecord;
   stageName: string | null;
   ownerName: string | null;
+  mapacheOptions: MapacheFieldOptions;
 }): PipedriveDealSummary {
   const customFields = deal.custom_fields ?? {};
+  const rawMapache = getCustomFieldValue(customFields, FIELD_MAPACHE_ASSIGNED);
+  const mapacheOptionId = ensureNumber(rawMapache);
+  const mapacheAssigned =
+    mapacheOptionId !== null ? mapacheOptions.optionById.get(mapacheOptionId) ?? null : null;
+
   return {
     id: deal.id,
     title: extractString(deal.title) ?? "",
@@ -441,7 +482,7 @@ function normalizeDealSummary({
     stageName,
     ownerId: ensureNumber(deal.owner_id),
     ownerName,
-    mapacheAssigned: getCustomFieldString(customFields, FIELD_MAPACHE_ASSIGNED),
+    mapacheAssigned,
     feeMensual: getCustomFieldMoney(customFields, FIELD_FEE_MENSUAL),
     proposalUrl: getCustomFieldString(customFields, FIELD_PROPOSAL_URL),
     docContextDeal: getCustomFieldString(customFields, FIELD_DOC_CONTEXT_DEAL),
@@ -474,6 +515,14 @@ function getCustomFieldMoney(
   return null;
 }
 
+function getCustomFieldValue(
+  fields: Record<string, unknown> | null | undefined,
+  key: string,
+): unknown {
+  if (!fields || !key) return null;
+  return fields[key];
+}
+
 function ensureNumber(value: unknown): number | null {
   if (value === null || value === undefined) return null;
   const parsed = Number(value);
@@ -494,4 +543,39 @@ function extractString(value: unknown): string | null {
 function buildDealUrl(dealId: number): string {
   const base = BASE_URL.replace(/\/+$/, "");
   return `${base}/deal/${dealId}`;
+}
+
+async function ensureMapacheFieldOptions(): Promise<MapacheFieldOptions> {
+  if (mapacheFieldOptionsCache) {
+    return mapacheFieldOptionsCache;
+  }
+
+  const url = `${BASE_URL}/api/v1/dealFields?${q({ api_token: API_TOKEN })}`;
+  const json = await rawFetch<PdDealFieldsResponse>(url, { method: "GET" });
+  const fields = json.data ?? [];
+  const field = fields.find((item) => item.key === FIELD_MAPACHE_ASSIGNED);
+  if (!field) {
+    throw new Error("No se encontró el campo Mapache Asignado en Pipedrive");
+  }
+
+  const optionById = new Map<number, string>();
+  const optionIdByName = new Map<string, number>();
+  for (const option of field.options ?? []) {
+    const id = ensureNumber(option?.id);
+    const label = extractString(option?.label);
+    if (id === null || !label) continue;
+    optionById.set(id, label);
+    optionIdByName.set(normalizeForComparison(label), id);
+  }
+
+  mapacheFieldOptionsCache = { optionById, optionIdByName };
+  return mapacheFieldOptionsCache;
+}
+
+function normalizeForComparison(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
