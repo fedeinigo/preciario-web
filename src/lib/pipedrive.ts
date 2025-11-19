@@ -296,7 +296,7 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
 
   const optionLabel = mapacheOptions.optionById.get(optionId) ?? normalizedName;
 
-  const candidates = await searchDealCandidates(optionLabel);
+  const candidates = await searchDealCandidates(optionLabel, optionId);
   if (candidates.length === 0) {
     log.info("pipedrive.mapache_search", {
       mapache: normalizedName,
@@ -350,25 +350,33 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
   return summaries;
 }
 
-async function searchDealCandidates(mapacheName: string) {
-  const payload = {
-    api_token: API_TOKEN,
-    term: mapacheName,
-    fields: "custom_fields",
-    exact_match: 1,
-    status: "open",
-    limit: 100,
+async function searchDealCandidates(term: string, optionId: number) {
+  const attempt = async (searchTerm: string) => {
+    const payload = {
+      api_token: API_TOKEN,
+      term: searchTerm,
+      fields: "custom_fields",
+      exact_match: 1,
+      status: "open",
+      limit: 100,
+    };
+    const url = `${BASE_URL}/api/v2/deals/search?${q(payload)}`;
+    const json = await rawFetch<PdDealSearchResponse>(url, { method: "GET" });
+    const items = json.data?.items ?? [];
+    return items
+      .map((item) => item?.item)
+      .filter((item): item is PdDealSearchItem => Boolean(item?.id))
+      .map((item) => ({
+        id: item.id,
+        stageName: item.stage?.name ?? null,
+      }));
   };
-  const url = `${BASE_URL}/api/v2/deals/search?${q(payload)}`;
-  const json = await rawFetch<PdDealSearchResponse>(url, { method: "GET" });
-  const items = json.data?.items ?? [];
-  return items
-    .map((item) => item?.item)
-    .filter((item): item is PdDealSearchItem => Boolean(item?.id))
-    .map((item) => ({
-      id: item.id,
-      stageName: item.stage?.name ?? null,
-    }));
+
+  let results = await attempt(term);
+  if (results.length === 0 && Number.isFinite(optionId)) {
+    results = await attempt(String(optionId));
+  }
+  return results;
 }
 
 async function fetchDealsByIds(ids: number[]) {
