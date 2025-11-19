@@ -179,12 +179,7 @@ type PdDealsListResponse = {
   success: boolean;
   data?: PdDealRecord[];
   additional_data?: {
-    pagination?: {
-      start?: number;
-      limit?: number;
-      more_items_in_collection?: boolean;
-      next_start?: number;
-    };
+    next_cursor?: string | null;
   };
 };
 
@@ -340,15 +335,18 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
 
 async function fetchDealsWithMapacheFields(status: "open" | "won" | "lost" | "all_not_deleted" = "open") {
   const results: PdDealRecord[] = [];
-  let start = 0;
   const limit = 100;
+  let cursor: string | null = null;
+
   while (true) {
     const payload: Record<string, string | number> = {
       api_token: API_TOKEN,
       status,
       limit,
-      start,
     };
+    if (cursor) {
+      payload.cursor = cursor;
+    }
     if (CUSTOM_FIELD_KEYS) {
       payload.custom_fields = CUSTOM_FIELD_KEYS;
     }
@@ -357,11 +355,10 @@ async function fetchDealsWithMapacheFields(status: "open" | "won" | "lost" | "al
     if (Array.isArray(json.data)) {
       results.push(...json.data);
     }
-    const pagination = json.additional_data?.pagination;
-    if (!pagination?.more_items_in_collection) {
+    cursor = json.additional_data?.next_cursor ?? null;
+    if (!cursor) {
       break;
     }
-    start = pagination.next_start ?? start + (pagination.limit ?? limit);
   }
   return results;
 }
