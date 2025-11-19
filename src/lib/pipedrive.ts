@@ -22,14 +22,6 @@ const FIELD_DOC_CONTEXT_DEAL =
   process.env.PIPEDRIVE_FIELD_DOC_CONTEXT_DEAL ??
   "0adac015f939871f8cabfe7f6d9392953193df17";
 
-const CUSTOM_FIELD_KEYS = [
-  FIELD_MAPACHE_ASSIGNED,
-  FIELD_FEE_MENSUAL,
-  FIELD_PROPOSAL_URL,
-  FIELD_DOC_CONTEXT_DEAL,
-].filter(Boolean).join(",");
-
-const ownerNameCache = new Map<number, string | null>();
 type MapacheFieldOptions = {
   optionById: Map<number, string>;
   optionIdByName: Map<string, number>;
@@ -183,12 +175,13 @@ type PdDealRecord = {
   value?: number | string | null;
   stage_id?: number | null;
   owner_id?: number | null;
+  owner_name?: string | null;
   custom_fields?: Record<string, unknown> | null;
 };
 
-type PdDealsListResponse = {
+type PdDealDetailResponse = {
   success: boolean;
-  data?: PdDealRecord[];
+  data?: (PdDealRecord & Record<string, unknown>) | null;
 };
 
 type PdDealFieldOption = {
@@ -206,14 +199,6 @@ type PdDealField = {
 type PdDealFieldsResponse = {
   success: boolean;
   data?: PdDealField[];
-};
-
-type PdUserResponse = {
-  success: boolean;
-  data?: {
-    id: number;
-    name?: string | null;
-  } | null;
 };
 
 /* ---------- API v1: actualizar campos del deal (PUT) ---------- */
@@ -337,26 +322,16 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
     stageNameMap.set(candidate.id, candidate.stageName ?? null);
   }
 
-  const ownerIds = Array.from(
-    new Set(
-      deals
-        .map((deal) => ensureNumber(deal.owner_id))
-        .filter((id): id is number => typeof id === "number" && Number.isFinite(id)),
-    ),
-  );
-  const ownerNames = await resolveOwnerNames(ownerIds);
-
   const summaries = deals
     .filter((deal) => dealMatchesMapache(deal, optionId))
-    .map((deal) => {
-      const ownerId = ensureNumber(deal.owner_id);
-      return normalizeDealSummary({
+    .map((deal) =>
+      normalizeDealSummary({
         deal,
         stageName: stageNameMap.get(deal.id) ?? null,
-        ownerName: ownerId !== null ? ownerNames.get(ownerId) ?? null : null,
+        ownerName: deal.owner_name ? deal.owner_name : null,
         mapacheOptions,
-      });
-    });
+      }),
+    );
 
   log.info("pipedrive.mapache_search", {
     mapache: normalizedName,
@@ -389,64 +364,57 @@ async function searchDealCandidates(mapacheName: string) {
 
 async function fetchDealsByIds(ids: number[]) {
   if (ids.length === 0) return [];
-  const chunks: number[][] = [];
-  const maxBatch = 100;
-  for (let i = 0; i < ids.length; i += maxBatch) {
-    chunks.push(ids.slice(i, i + maxBatch));
-  }
-
   const results: PdDealRecord[] = [];
-  for (const chunk of chunks) {
-    const payload: Record<string, string | number> = {
-      api_token: API_TOKEN,
-      ids: chunk.join(","),
-      limit: chunk.length,
-    };
-    if (CUSTOM_FIELD_KEYS) {
-      payload.custom_fields = CUSTOM_FIELD_KEYS;
-    }
-    const url = `${BASE_URL}/api/v2/deals?${q(payload)}`;
-    const json = await rawFetch<PdDealsListResponse>(url, { method: "GET" });
-    if (Array.isArray(json.data)) {
-      results.push(...json.data);
+  const batchSize = 5;
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const chunk = ids.slice(i, i + batchSize);
+    const chunkResults = await Promise.all(chunk.map((id) => fetchDealDetail(id)));
+    for (const detail of chunkResults) {
+      if (detail) {
+        results.push(detail);
+      }
     }
   }
   return results;
 }
 
-async function resolveOwnerNames(ownerIds: number[]) {
-  const map = new Map<number, string | null>();
-  const pending: Array<Promise<void>> = [];
+async function fetchDealDetail(dealId: number) {
+  const url = `${BASE_URL}/api/v1/deals/${dealId}?${q({ api_token: API_TOKEN })}`;
+  const json = await rawFetch<PdDealDetailResponse>(url, { method: "GET" });
+  const data = json.data;
+  if (!data) return null;
 
-  for (const ownerId of ownerIds) {
-    if (ownerNameCache.has(ownerId)) {
-      map.set(ownerId, ownerNameCache.get(ownerId) ?? null);
-      continue;
+  const custom: Record<string, unknown> = {};
+  for (const key of [
+    FIELD_MAPACHE_ASSIGNED,
+    FIELD_FEE_MENSUAL,
+    FIELD_PROPOSAL_URL,
+    FIELD_DOC_CONTEXT_DEAL,
+  ]) {
+    if (key) {
+      custom[key] = (data as Record<string, unknown>)[key];
     }
-    const promise = fetchOwnerName(ownerId)
-      .then((name) => {
-        ownerNameCache.set(ownerId, name);
-        map.set(ownerId, name);
-      })
-      .catch((error) => {
-        log.error("pipedrive.owner_fetch_failed", { ownerId, error: error instanceof Error ? error.message : String(error) });
-        ownerNameCache.set(ownerId, null);
-        map.set(ownerId, null);
-      });
-    pending.push(promise);
   }
 
-  if (pending.length > 0) {
-    await Promise.all(pending);
-  }
-  return map;
+  return {
+    id: data.id,
+    title: data.title,
+    value: data.value,
+    stage_id: ensureNumber(data.stage_id),
+    owner_id: resolveOwnerId(data.owner_id),
+    owner_name: extractString((data as { owner_name?: unknown }).owner_name),
+    custom_fields: custom,
+  };
 }
 
-async function fetchOwnerName(ownerId: number) {
-  const url = `${BASE_URL}/api/v1/users/${ownerId}?${q({ api_token: API_TOKEN })}`;
-  const json = await rawFetch<PdUserResponse>(url, { method: "GET" });
-  const name = extractString(json.data?.name);
-  return name ?? null;
+function resolveOwnerId(owner: unknown): number | null {
+  if (typeof owner === "number") {
+    return Number.isFinite(owner) ? owner : null;
+  }
+  if (owner && typeof owner === "object" && "id" in owner) {
+    return ensureNumber((owner as { id?: unknown }).id ?? null);
+  }
+  return null;
 }
 
 function dealMatchesMapache(deal: PdDealRecord, targetOptionId: number) {
