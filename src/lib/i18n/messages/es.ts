@@ -254,6 +254,8 @@ const messages: DeepRecord = {
 
       mapachePortalSections: {
 
+        pipedrive: "Pipedrive",
+
         generator: "Generador",
 
         tasks: "Tareas",

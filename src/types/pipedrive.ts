@@ -1,0 +1,18 @@
+export type PipedriveDealSummary = {
+  id: number;
+  title: string;
+  value: number | null;
+  stageId: number | null;
+  stageName: string | null;
+  ownerId: number | null;
+  ownerName: string | null;
+  status: string | null;
+  createdAt: string | null;
+  wonAt: string | null;
+  wonQuarter: number | null;
+  mapacheAssigned: string | null;
+  feeMensual: number | null;
+  proposalUrl: string | null;
+  docContextDeal: string | null;
+  dealUrl: string;
+};

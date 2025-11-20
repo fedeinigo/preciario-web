@@ -97,6 +97,11 @@ const DIRECT_PORTAL_TAB_ROUTES: Record<DirectTab, string> = {
   goals: "/portal/directo/goals",
 };
 
+const MAPACHE_SECTION_ROUTES: Record<MapachePortalSection, string> = {
+  generator: "/portal/mapache/generator",
+  pipedrive: "/portal/mapache/pipedrive",
+};
+
 function TabBtn({
   label,
   active,
@@ -580,8 +585,20 @@ export default function NavbarClient({ session }: NavbarClientProps) {
       setMapacheSection(MAPACHE_PORTAL_DEFAULT_SECTION);
       return;
     }
-    if (pathname?.startsWith("/portal/mapache")) {
+    if (!pathname) {
+      setMapacheSection(MAPACHE_PORTAL_DEFAULT_SECTION);
+      return;
+    }
+    if (pathname.startsWith("/portal/mapache/pipedrive")) {
+      setMapacheSection("pipedrive");
+      return;
+    }
+    if (pathname.startsWith("/portal/mapache/generator")) {
       setMapacheSection("generator");
+      return;
+    }
+    if (pathname.startsWith("/portal/mapache")) {
+      setMapacheSection(MAPACHE_PORTAL_DEFAULT_SECTION);
     }
   }, [isMapachePortal, pathname]);
 
@@ -622,7 +639,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     (next: MapachePortalSection) => {
       setMapacheSection(next);
       if (!isMapachePortal) return;
-      const target = "/portal/mapache/generator";
+      const target = MAPACHE_SECTION_ROUTES[next];
       if (pathname !== target) {
         router.push(target);
       }
@@ -667,6 +684,12 @@ export default function NavbarClient({ session }: NavbarClientProps) {
         <div className="flex flex-1 items-center justify-center">
           {isMapachePortal ? (
             <div className="flex items-center gap-2 px-2 py-1">
+              <MapacheSectionBtn
+                id="pipedrive"
+                label={mapacheSectionsT("pipedrive")}
+                active={mapacheSection === "pipedrive"}
+                onClick={handleMapacheSectionChange}
+              />
               <MapacheSectionBtn
                 id="generator"
                 label={mapacheSectionsT("generator")}
