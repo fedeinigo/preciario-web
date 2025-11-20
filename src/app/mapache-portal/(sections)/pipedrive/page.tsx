@@ -260,7 +260,7 @@ export default function MapachePortalPipedrivePage() {
   }, [assignLink, handleRefresh]);
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-[#0a0e16] via-[#090c1a] to-[#05060d] px-6 py-12">
+    <div className="min-h-screen w-full bg-gradient-to-b from-[#0a0e16] via-[#090c1a] to-[#05060d] px-6 pb-12">
       <main className="mx-auto w-full max-w-[1200px] space-y-8">
         <section className="rounded-[32px] border border-white/10 bg-white/[0.03] p-6 shadow-[0_30px_100px_rgba(2,6,23,0.85)] backdrop-blur-3xl">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
