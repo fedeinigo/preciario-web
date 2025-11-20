@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { Loader2 } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpWideNarrow, Loader2 } from "lucide-react";
 
 import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
@@ -31,6 +31,8 @@ const STATUS_OPTIONS: Array<{ value: "all" | "open" | "won"; label: string }> = 
   { value: "won", label: "Ganados" },
 ];
 
+type SortKey = "title" | "stageName" | "ownerName" | "value";
+
 export default function MapachePortalPipedrivePage() {
   const [deals, setDeals] = React.useState<PipedriveDealSummary[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -40,6 +42,8 @@ export default function MapachePortalPipedrivePage() {
   const [ownerFilter, setOwnerFilter] = React.useState("all");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "open" | "won">("all");
   const [scopeDealTitle, setScopeDealTitle] = React.useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [sortConfig, setSortConfig] = React.useState<{ key: SortKey; direction: "asc" | "desc" } | null>(null);
 
   const handleRefresh = React.useCallback(async () => {
     if (isLoading) return;
@@ -83,23 +87,53 @@ export default function MapachePortalPipedrivePage() {
   }, [deals]);
 
   const filteredDeals = React.useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
     return deals.filter((deal) => {
       const matchesStage = stageFilter === "all" || deal.stageName === stageFilter;
       const matchesOwner = ownerFilter === "all" || deal.ownerName === ownerFilter;
       const matchesStatus =
         statusFilter === "all" || (deal.status ? deal.status === statusFilter : false);
-      return matchesStage && matchesOwner && matchesStatus;
+      const matchesSearch =
+        !normalizedSearch ||
+        deal.title.toLowerCase().includes(normalizedSearch) ||
+        (deal.ownerName?.toLowerCase().includes(normalizedSearch) ?? false);
+      return matchesStage && matchesOwner && matchesStatus && matchesSearch;
     });
-  }, [deals, ownerFilter, stageFilter, statusFilter]);
+  }, [deals, ownerFilter, searchTerm, stageFilter, statusFilter]);
+
+  const sortedDeals = React.useMemo(() => {
+    if (!sortConfig) return filteredDeals;
+    const { key, direction } = sortConfig;
+    const copy = [...filteredDeals];
+    copy.sort((a, b) => {
+      const multiplier = direction === "asc" ? 1 : -1;
+      if (key === "value") {
+        const aVal = a.value ?? 0;
+        const bVal = b.value ?? 0;
+        return (aVal - bVal) * multiplier;
+      }
+      const aText = (a[key] ?? "").toString().toLowerCase();
+      const bText = (b[key] ?? "").toString().toLowerCase();
+      return aText.localeCompare(bText) * multiplier;
+    });
+    return copy;
+  }, [filteredDeals, sortConfig]);
 
   const hasFiltersApplied = React.useMemo(() => {
-    return stageFilter !== "all" || ownerFilter !== "all" || statusFilter !== "all";
-  }, [ownerFilter, stageFilter, statusFilter]);
+    return (
+      stageFilter !== "all" ||
+      ownerFilter !== "all" ||
+      statusFilter !== "all" ||
+      Boolean(searchTerm.trim())
+    );
+  }, [ownerFilter, searchTerm, stageFilter, statusFilter]);
 
   const handleClearFilters = React.useCallback(() => {
     setStageFilter("all");
     setOwnerFilter("all");
     setStatusFilter("all");
+    setSearchTerm("");
+    setSortConfig(null);
   }, []);
 
   const openExternalLink = React.useCallback(
@@ -118,6 +152,21 @@ export default function MapachePortalPipedrivePage() {
     event.stopPropagation();
     setScopeDealTitle(dealTitle);
   }, []);
+
+  const handleSort = React.useCallback(
+    (key: SortKey) => {
+      setSortConfig((prev) => {
+        if (!prev || prev.key !== key) {
+          return { key, direction: "asc" };
+        }
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      });
+    },
+    [],
+  );
+
+  const stageStats = React.useMemo(() => aggregateStats(deals, "stageName"), [deals]);
+  const statusStats = React.useMemo(() => aggregateStats(deals, "status"), [deals]);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-[#0a0e16] via-[#090c1a] to-[#05060d] px-6 py-12">
@@ -149,7 +198,7 @@ export default function MapachePortalPipedrivePage() {
             </div>
           </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-4">
+          <div className="mt-6 grid gap-3 md:grid-cols-5">
             <FilterSelect
               label="Estado"
               value={statusFilter}
@@ -181,17 +230,53 @@ export default function MapachePortalPipedrivePage() {
             >
               Limpiar filtros
             </button>
+            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
+              Buscar deal
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Escribe el nombre del deal..."
+                className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:border-white/40 focus:outline-none"
+              />
+            </label>
           </div>
+
+          <SummarySection
+            total={deals.length}
+            stageStats={stageStats}
+            statusStats={statusStats}
+          />
 
           <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-white">
                 <thead>
                   <tr className="text-[11px] uppercase tracking-[0.4em] text-white/50">
-                    <th className="px-4 py-4">Nombre deal</th>
-                    <th className="px-4 py-4">Etapa</th>
-                    <th className="px-4 py-4">Propietario</th>
-                    <th className="px-4 py-4">Valor</th>
+                    <SortableHeader
+                      label="Nombre deal"
+                      active={sortConfig?.key === "title"}
+                      direction={sortConfig?.direction}
+                      onClick={() => handleSort("title")}
+                    />
+                    <SortableHeader
+                      label="Etapa"
+                      active={sortConfig?.key === "stageName"}
+                      direction={sortConfig?.direction}
+                      onClick={() => handleSort("stageName")}
+                    />
+                    <SortableHeader
+                      label="Propietario"
+                      active={sortConfig?.key === "ownerName"}
+                      direction={sortConfig?.direction}
+                      onClick={() => handleSort("ownerName")}
+                    />
+                    <SortableHeader
+                      label="Valor"
+                      active={sortConfig?.key === "value"}
+                      direction={sortConfig?.direction}
+                      onClick={() => handleSort("value")}
+                    />
                     <th className="px-4 py-4">Acciones</th>
                   </tr>
                 </thead>
@@ -211,7 +296,7 @@ export default function MapachePortalPipedrivePage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredDeals.map((deal) => (
+                    sortedDeals.map((deal) => (
                       <tr
                         key={deal.id}
                         role="button"
@@ -410,7 +495,8 @@ function FilterSelect({ label, value, onChange, options }: FilterSelectProps) {
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white focus:border-white/40 focus:outline-none"
+        className="rounded-2xl border border-white/15 bg-[#101626] px-3 py-2 text-sm text-white focus:border-white/40 focus:outline-none"
+        style={{ colorScheme: "dark" }}
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -419,5 +505,110 @@ function FilterSelect({ label, value, onChange, options }: FilterSelectProps) {
         ))}
       </select>
     </label>
+  );
+}
+
+function SortableHeader({
+  label,
+  active,
+  direction,
+  onClick,
+}: {
+  label: string;
+  active?: boolean;
+  direction?: "asc" | "desc";
+  onClick: () => void;
+}) {
+  return (
+    <th className="px-4 py-4">
+      <button
+        type="button"
+        onClick={onClick}
+        className={`inline-flex items-center gap-2 ${
+          active ? "text-white" : "text-white/60"
+        }`}
+      >
+        <span>{label}</span>
+        {active ? (
+          direction === "asc" ? (
+            <ArrowUpWideNarrow className="h-3.5 w-3.5" />
+          ) : (
+            <ArrowDownWideNarrow className="h-3.5 w-3.5" />
+          )
+        ) : null}
+      </button>
+    </th>
+  );
+}
+
+function aggregateStats(
+  deals: PipedriveDealSummary[],
+  key: "stageName" | "status",
+) {
+  const stats = new Map<
+    string,
+    { count: number; value: number }
+  >();
+  deals.forEach((deal) => {
+    const name =
+      key === "status" ? formatStatus(deal.status) : deal.stageName ?? "—";
+    const value = deal.value ?? 0;
+    if (!stats.has(name)) {
+      stats.set(name, { count: 0, value: 0 });
+    }
+    const current = stats.get(name)!;
+    current.count += 1;
+    current.value += value;
+  });
+  return Array.from(stats.entries()).map(([label, info]) => ({
+    label,
+    ...info,
+  }));
+}
+
+function SummarySection({
+  total,
+  stageStats,
+  statusStats,
+}: {
+  total: number;
+  stageStats: Array<{ label: string; count: number; value: number }>;
+  statusStats: Array<{ label: string; count: number; value: number }>;
+}) {
+  return (
+    <div className="mt-6 grid gap-4 rounded-3xl border border-white/10 bg-white/[0.02] p-5 text-white/80 md:grid-cols-2">
+      <div>
+        <p className="text-xs uppercase tracking-[0.3em] text-white/50">Resumen</p>
+        <p className="mt-1 text-3xl font-semibold text-white">{total} deals</p>
+      </div>
+      <div className="grid gap-3 text-sm md:grid-cols-2">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-white/50">Por etapa</p>
+          <ul className="mt-1 space-y-1">
+            {stageStats.map((stat) => (
+              <li key={`stage-${stat.label}`} className="flex justify-between text-white/80">
+                <span>{stat.label}</span>
+                <span>
+                  {stat.count} · {formatCurrency(stat.value)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-white/50">Por estado</p>
+          <ul className="mt-1 space-y-1">
+            {statusStats.map((stat) => (
+              <li key={`status-${stat.label}`} className="flex justify-between text-white/80">
+                <span>{stat.label}</span>
+                <span>
+                  {stat.count} · {formatCurrency(stat.value)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
   );
 }
