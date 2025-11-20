@@ -43,6 +43,7 @@ export default function MapachePortalPipedrivePage() {
   const [statusFilter, setStatusFilter] = React.useState<"all" | "open" | "won">("all");
   const [scopeDealTitle, setScopeDealTitle] = React.useState<string | null>(null);
   const [searchTerm, setSearchTerm] = React.useState("");
+  const [quarterFilter, setQuarterFilter] = React.useState<number | null>(null);
   const [sortConfig, setSortConfig] = React.useState<{ key: SortKey; direction: "asc" | "desc" } | null>(null);
 
   const handleRefresh = React.useCallback(async () => {
@@ -72,9 +73,17 @@ export default function MapachePortalPipedrivePage() {
 
   const availableStages = React.useMemo(() => {
     const set = new Set<string>();
+    let hasUnknown = false;
     deals.forEach((deal) => {
-      if (deal.stageName) set.add(deal.stageName);
+      if (deal.stageName) {
+        set.add(deal.stageName);
+      } else {
+        hasUnknown = true;
+      }
     });
+    if (hasUnknown) {
+      set.add("—");
+    }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [deals]);
 
@@ -89,17 +98,27 @@ export default function MapachePortalPipedrivePage() {
   const filteredDeals = React.useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     return deals.filter((deal) => {
-      const matchesStage = stageFilter === "all" || deal.stageName === stageFilter;
+      const matchesStage =
+        stageFilter === "all" ||
+        (stageFilter === "—" ? !deal.stageName : deal.stageName === stageFilter);
       const matchesOwner = ownerFilter === "all" || deal.ownerName === ownerFilter;
       const matchesStatus =
         statusFilter === "all" || (deal.status ? deal.status === statusFilter : false);
+      const matchesQuarter =
+        quarterFilter === null || deal.wonQuarter === quarterFilter;
       const matchesSearch =
         !normalizedSearch ||
         deal.title.toLowerCase().includes(normalizedSearch) ||
         (deal.ownerName?.toLowerCase().includes(normalizedSearch) ?? false);
-      return matchesStage && matchesOwner && matchesStatus && matchesSearch;
+      return (
+        matchesStage &&
+        matchesOwner &&
+        matchesStatus &&
+        matchesQuarter &&
+        matchesSearch
+      );
     });
-  }, [deals, ownerFilter, searchTerm, stageFilter, statusFilter]);
+  }, [deals, ownerFilter, quarterFilter, searchTerm, stageFilter, statusFilter]);
 
   const sortedDeals = React.useMemo(() => {
     if (!sortConfig) return filteredDeals;
@@ -124,15 +143,23 @@ export default function MapachePortalPipedrivePage() {
       stageFilter !== "all" ||
       ownerFilter !== "all" ||
       statusFilter !== "all" ||
-      Boolean(searchTerm.trim())
+      Boolean(searchTerm.trim()) ||
+      quarterFilter !== null
     );
-  }, [ownerFilter, searchTerm, stageFilter, statusFilter]);
+  }, [ownerFilter, quarterFilter, searchTerm, stageFilter, statusFilter]);
+
+  React.useEffect(() => {
+    if (statusFilter !== "won") {
+      setQuarterFilter(null);
+    }
+  }, [statusFilter]);
 
   const handleClearFilters = React.useCallback(() => {
     setStageFilter("all");
     setOwnerFilter("all");
     setStatusFilter("all");
     setSearchTerm("");
+    setQuarterFilter(null);
     setSortConfig(null);
   }, []);
 
@@ -167,6 +194,7 @@ export default function MapachePortalPipedrivePage() {
 
   const stageStats = React.useMemo(() => aggregateStats(deals, "stageName"), [deals]);
   const statusStats = React.useMemo(() => aggregateStats(deals, "status"), [deals]);
+  const quarterStats = React.useMemo(() => aggregateQuarterStats(deals), [deals]);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-[#0a0e16] via-[#090c1a] to-[#05060d] px-6 py-12">
@@ -199,6 +227,16 @@ export default function MapachePortalPipedrivePage() {
           </div>
 
           <div className="mt-6 grid gap-3 md:grid-cols-5">
+            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
+              Buscar deal
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Escribe el nombre del deal..."
+                className="rounded-2xl border border-white/15 bg-[#101626] px-3 py-2 text-sm text-white placeholder:text-white/50 focus:border-white/40 focus:outline-none"
+              />
+            </label>
             <FilterSelect
               label="Estado"
               value={statusFilter}
@@ -211,7 +249,10 @@ export default function MapachePortalPipedrivePage() {
               onChange={setStageFilter}
               options={[
                 { value: "all", label: "Todas" },
-                ...availableStages.map((stage) => ({ value: stage, label: stage })),
+                ...availableStages.map((stage) => ({
+                  value: stage,
+                  label: stage === "—" ? "Sin etapa" : stage,
+                })),
               ]}
             />
             <FilterSelect
@@ -230,22 +271,26 @@ export default function MapachePortalPipedrivePage() {
             >
               Limpiar filtros
             </button>
-            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
-              Buscar deal
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Escribe el nombre del deal..."
-                className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:border-white/40 focus:outline-none"
-              />
-            </label>
           </div>
 
           <SummarySection
             total={deals.length}
             stageStats={stageStats}
             statusStats={statusStats}
+            quarterStats={quarterStats}
+            onStageSelect={(stage) => setStageFilter(stage)}
+            onStatusSelect={(statusKey) => {
+              setQuarterFilter(null);
+              if (statusKey === "open" || statusKey === "won") {
+                setStatusFilter(statusKey);
+              } else {
+                setStatusFilter("all");
+              }
+            }}
+            onQuarterSelect={(quarter) => {
+              setStatusFilter("won");
+              setQuarterFilter((prev) => (prev === quarter ? null : quarter));
+            }}
           />
 
           <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60">
@@ -383,6 +428,8 @@ export default function MapachePortalPipedrivePage() {
         {selectedDeal ? (
           <dl className="grid gap-4 text-sm text-white/80 sm:grid-cols-2">
             <DetailRow label="ID" value={`#${selectedDeal.id}`} />
+            <DetailRow label="Creado" value={formatDateTime(selectedDeal.createdAt)} />
+            <DetailRow label="Ganado" value={formatDateTime(selectedDeal.wonAt)} />
             <DetailRow label="Nombre del negocio" value={selectedDeal.title || "—"} />
             <DetailRow label="Etapa del funnel" value={selectedDeal.stageName ?? "—"} />
             <DetailRow label="Propietario" value={selectedDeal.ownerName ?? "—"} />
@@ -466,6 +513,13 @@ function formatStatus(status: string | null | undefined) {
   return status;
 }
 
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return DATE_FORMATTER.format(date);
+}
+
 function DetailRow({
   label,
   value,
@@ -543,72 +597,147 @@ function SortableHeader({
 
 function aggregateStats(
   deals: PipedriveDealSummary[],
-  key: "stageName" | "status",
-) {
-  const stats = new Map<
-    string,
-    { count: number; value: number }
-  >();
+  type: "stageName" | "status",
+): SummaryStat[] {
+  const stats = new Map<string, SummaryStat>();
   deals.forEach((deal) => {
-    const name =
-      key === "status" ? formatStatus(deal.status) : deal.stageName ?? "—";
+    const rawKey = type === "status" ? deal.status ?? "all" : deal.stageName ?? "—";
+    const label = type === "status" ? formatStatus(deal.status) : rawKey;
     const value = deal.value ?? 0;
-    if (!stats.has(name)) {
-      stats.set(name, { count: 0, value: 0 });
+    if (!stats.has(rawKey)) {
+      stats.set(rawKey, { key: rawKey, label, count: 0, value: 0 });
     }
-    const current = stats.get(name)!;
+    const current = stats.get(rawKey)!;
     current.count += 1;
     current.value += value;
   });
-  return Array.from(stats.entries()).map(([label, info]) => ({
-    label,
-    ...info,
-  }));
+  return Array.from(stats.values());
+}
+
+function aggregateQuarterStats(deals: PipedriveDealSummary[]): QuarterStat[] {
+  const currentYear = new Date().getFullYear();
+  const stats = new Map<number, QuarterStat>();
+  deals.forEach((deal) => {
+    if (!deal.wonAt || deal.status !== "won" || deal.wonQuarter === null) return;
+    const date = new Date(deal.wonAt);
+    if (Number.isNaN(date.getTime()) || date.getFullYear() !== currentYear) return;
+    const quarter = deal.wonQuarter;
+    if (!stats.has(quarter)) {
+      stats.set(quarter, {
+        quarter,
+        label: `Ganados Q${quarter}`,
+        count: 0,
+        value: 0,
+      });
+    }
+    const current = stats.get(quarter)!;
+    current.count += 1;
+    current.value += deal.value ?? 0;
+  });
+  return Array.from(stats.values()).sort((a, b) => a.quarter - b.quarter);
 }
 
 function SummarySection({
   total,
   stageStats,
   statusStats,
+  quarterStats,
+  onStageSelect,
+  onStatusSelect,
+  onQuarterSelect,
 }: {
   total: number;
-  stageStats: Array<{ label: string; count: number; value: number }>;
-  statusStats: Array<{ label: string; count: number; value: number }>;
+  stageStats: SummaryStat[];
+  statusStats: SummaryStat[];
+  quarterStats: QuarterStat[];
+  onStageSelect: (stage: string) => void;
+  onStatusSelect: (status: string) => void;
+  onQuarterSelect: (quarter: number) => void;
 }) {
   return (
-    <div className="mt-6 grid gap-4 rounded-3xl border border-white/10 bg-white/[0.02] p-5 text-white/80 md:grid-cols-2">
-      <div>
+    <div className="mt-6 space-y-4 rounded-3xl border border-white/10 bg-white/[0.02] p-5 text-white/80">
+      <div className="flex flex-col gap-1">
         <p className="text-xs uppercase tracking-[0.3em] text-white/50">Resumen</p>
-        <p className="mt-1 text-3xl font-semibold text-white">{total} deals</p>
+        <p className="text-3xl font-semibold text-white">{total} deals</p>
       </div>
-      <div className="grid gap-3 text-sm md:grid-cols-2">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-white/50">Por etapa</p>
-          <ul className="mt-1 space-y-1">
-            {stageStats.map((stat) => (
-              <li key={`stage-${stat.label}`} className="flex justify-between text-white/80">
-                <span>{stat.label}</span>
-                <span>
-                  {stat.count} · {formatCurrency(stat.value)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-white/50">Por estado</p>
-          <ul className="mt-1 space-y-1">
-            {statusStats.map((stat) => (
-              <li key={`status-${stat.label}`} className="flex justify-between text-white/80">
-                <span>{stat.label}</span>
-                <span>
-                  {stat.count} · {formatCurrency(stat.value)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <SummaryList
+          title="Por etapa"
+          stats={stageStats}
+          onSelect={(stat) => onStageSelect(stat.key)}
+        />
+        <SummaryList
+          title="Por estado"
+          stats={statusStats}
+          onSelect={(stat) => onStatusSelect(stat.key)}
+        />
+        <QuarterSummary stats={quarterStats} onSelect={onQuarterSelect} />
       </div>
+    </div>
+  );
+}
+
+type SummaryStat = { key: string; label: string; count: number; value: number };
+type QuarterStat = { quarter: number; label: string; count: number; value: number };
+
+function SummaryList({
+  title,
+  stats,
+  onSelect,
+}: {
+  title: string;
+  stats: SummaryStat[];
+  onSelect: (stat: SummaryStat) => void;
+}) {
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-[0.3em] text-white/50">{title}</p>
+      <ul className="mt-1 space-y-1">
+        {stats.map((stat) => (
+          <li key={`${title}-${stat.key}`}>
+            <button
+              type="button"
+              onClick={() => onSelect(stat)}
+              className="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-white/80 hover:bg-white/10"
+            >
+              <span>{stat.label}</span>
+              <span>
+                {stat.count} · {formatCurrency(stat.value)}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function QuarterSummary({
+  stats,
+  onSelect,
+}: {
+  stats: QuarterStat[];
+  onSelect: (quarter: number) => void;
+}) {
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-[0.3em] text-white/50">Ganados por trimestre</p>
+      <ul className="mt-1 space-y-1">
+        {stats.map((stat) => (
+          <li key={`quarter-${stat.quarter}`}>
+            <button
+              type="button"
+              onClick={() => onSelect(stat.quarter)}
+              className="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-white/80 hover:bg-white/10"
+            >
+              <span>{stat.label}</span>
+              <span>
+                {stat.count} · {formatCurrency(stat.value)}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

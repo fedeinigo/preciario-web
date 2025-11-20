@@ -7,6 +7,9 @@ export type PipedriveDealSummary = {
   ownerId: number | null;
   ownerName: string | null;
   status: string | null;
+  createdAt: string | null;
+  wonAt: string | null;
+  wonQuarter: number | null;
   mapacheAssigned: string | null;
   feeMensual: number | null;
   proposalUrl: string | null;

@@ -170,10 +170,12 @@ type PdDealRecord = {
   id: number;
   title?: string | null;
   value?: number | string | null;
+  add_time?: string | null;
+  won_time?: string | null;
   stage_id?: number | null;
   owner_id?: number | null;
   owner_name?: string | null;
-   status?: string | null;
+  status?: string | null;
   custom_fields?: Record<string, unknown> | null;
 };
 
@@ -467,6 +469,9 @@ function normalizeDealSummary({
     id: deal.id,
     title: extractString(deal.title) ?? "",
     value: ensureNumber(deal.value),
+    createdAt: extractString(deal.add_time),
+    wonAt: extractString(deal.won_time),
+    wonQuarter: determineQuarter(deal.won_time),
     stageId: ensureNumber(deal.stage_id),
     stageName,
     ownerId: ensureNumber(deal.owner_id),
@@ -533,6 +538,14 @@ function extractString(value: unknown): string | null {
 function buildDealUrl(dealId: number): string {
   const base = BASE_URL.replace(/\/+$/, "");
   return `${base}/deal/${dealId}`;
+}
+
+function determineQuarter(dateStr: string | null | undefined): number | null {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+  const month = date.getMonth(); // 0-11
+  return Math.floor(month / 3) + 1;
 }
 
 async function ensureMapacheFieldOptions(): Promise<MapacheFieldOptions> {
