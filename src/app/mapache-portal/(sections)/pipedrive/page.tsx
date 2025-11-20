@@ -23,13 +23,23 @@ type ApiResponse =
   | { ok: false; error?: string };
 
 const ACTION_BUTTON_CLASSES =
-  "rounded-full border border-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80 transition hover:border-white/50 hover:text-white";
+  "rounded-full border border-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80 transition hover:border-white/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
+
+const STATUS_OPTIONS: Array<{ value: "all" | "open" | "won"; label: string }> = [
+  { value: "all", label: "Todos" },
+  { value: "open", label: "Abiertos" },
+  { value: "won", label: "Ganados" },
+];
 
 export default function MapachePortalPipedrivePage() {
   const [deals, setDeals] = React.useState<PipedriveDealSummary[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [lastSyncedAt, setLastSyncedAt] = React.useState<Date | null>(null);
   const [selectedDeal, setSelectedDeal] = React.useState<PipedriveDealSummary | null>(null);
+  const [stageFilter, setStageFilter] = React.useState("all");
+  const [ownerFilter, setOwnerFilter] = React.useState("all");
+  const [statusFilter, setStatusFilter] = React.useState<"all" | "open" | "won">("all");
+  const [scopeDealTitle, setScopeDealTitle] = React.useState<string | null>(null);
 
   const handleRefresh = React.useCallback(async () => {
     if (isLoading) return;
@@ -55,6 +65,59 @@ export default function MapachePortalPipedrivePage() {
   }, [isLoading]);
 
   const lastSyncedLabel = lastSyncedAt ? DATE_FORMATTER.format(lastSyncedAt) : "—";
+
+  const availableStages = React.useMemo(() => {
+    const set = new Set<string>();
+    deals.forEach((deal) => {
+      if (deal.stageName) set.add(deal.stageName);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [deals]);
+
+  const availableOwners = React.useMemo(() => {
+    const set = new Set<string>();
+    deals.forEach((deal) => {
+      if (deal.ownerName) set.add(deal.ownerName);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [deals]);
+
+  const filteredDeals = React.useMemo(() => {
+    return deals.filter((deal) => {
+      const matchesStage = stageFilter === "all" || deal.stageName === stageFilter;
+      const matchesOwner = ownerFilter === "all" || deal.ownerName === ownerFilter;
+      const matchesStatus =
+        statusFilter === "all" || (deal.status ? deal.status === statusFilter : false);
+      return matchesStage && matchesOwner && matchesStatus;
+    });
+  }, [deals, ownerFilter, stageFilter, statusFilter]);
+
+  const hasFiltersApplied = React.useMemo(() => {
+    return stageFilter !== "all" || ownerFilter !== "all" || statusFilter !== "all";
+  }, [ownerFilter, stageFilter, statusFilter]);
+
+  const handleClearFilters = React.useCallback(() => {
+    setStageFilter("all");
+    setOwnerFilter("all");
+    setStatusFilter("all");
+  }, []);
+
+  const openExternalLink = React.useCallback(
+    (event: React.MouseEvent, url: string | null | undefined, label: string) => {
+      event.stopPropagation();
+      if (!url) {
+        toast.error(`No hay ${label.toLowerCase()} disponible.`);
+        return;
+      }
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
+    [],
+  );
+
+  const handleViewScope = React.useCallback((event: React.MouseEvent, dealTitle: string) => {
+    event.stopPropagation();
+    setScopeDealTitle(dealTitle);
+  }, []);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-[#0a0e16] via-[#090c1a] to-[#05060d] px-6 py-12">
@@ -86,6 +149,40 @@ export default function MapachePortalPipedrivePage() {
             </div>
           </div>
 
+          <div className="mt-6 grid gap-3 md:grid-cols-4">
+            <FilterSelect
+              label="Estado"
+              value={statusFilter}
+              onChange={(value) => setStatusFilter(value as "all" | "open" | "won")}
+              options={STATUS_OPTIONS}
+            />
+            <FilterSelect
+              label="Etapa"
+              value={stageFilter}
+              onChange={setStageFilter}
+              options={[
+                { value: "all", label: "Todas" },
+                ...availableStages.map((stage) => ({ value: stage, label: stage })),
+              ]}
+            />
+            <FilterSelect
+              label="Propietario"
+              value={ownerFilter}
+              onChange={setOwnerFilter}
+              options={[
+                { value: "all", label: "Todos" },
+                ...availableOwners.map((owner) => ({ value: owner, label: owner })),
+              ]}
+            />
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="rounded-2xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+
           <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-white">
@@ -93,7 +190,7 @@ export default function MapachePortalPipedrivePage() {
                   <tr className="text-[11px] uppercase tracking-[0.4em] text-white/50">
                     <th className="px-4 py-4">Nombre deal</th>
                     <th className="px-4 py-4">Etapa</th>
-                    <th className="px-4 py-4">Owner comercial</th>
+                    <th className="px-4 py-4">Propietario</th>
                     <th className="px-4 py-4">Valor</th>
                     <th className="px-4 py-4">Acciones</th>
                   </tr>
@@ -105,8 +202,16 @@ export default function MapachePortalPipedrivePage() {
                         Presiona “Actualizar” para sincronizar los deals asignados a tu nombre.
                       </td>
                     </tr>
+                  ) : filteredDeals.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-sm text-white/60">
+                        {hasFiltersApplied
+                          ? "No hay deals que coincidan con los filtros seleccionados."
+                          : "No se encontraron deals para mostrar."}
+                      </td>
+                    </tr>
                   ) : (
-                    deals.map((deal) => (
+                    filteredDeals.map((deal) => (
                       <tr
                         key={deal.id}
                         role="button"
@@ -134,16 +239,33 @@ export default function MapachePortalPipedrivePage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-2">
-                            {["Ver en pipe", "Ver propuesta", "Ver alcance"].map((label) => (
-                              <button
-                                key={label}
-                                type="button"
-                                onClick={(event) => event.stopPropagation()}
-                                className={ACTION_BUTTON_CLASSES}
-                              >
-                                {label}
-                              </button>
-                            ))}
+                            <button
+                              type="button"
+                              onClick={(event) =>
+                                openExternalLink(event, deal.dealUrl, "el enlace de Pipedrive")
+                              }
+                              className={ACTION_BUTTON_CLASSES}
+                            >
+                              Ver en pipe
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(event) =>
+                                openExternalLink(event, deal.proposalUrl, "la propuesta comercial")
+                              }
+                              className={ACTION_BUTTON_CLASSES}
+                            >
+                              Ver propuesta
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(event) =>
+                                handleViewScope(event, deal.title || `Deal ${deal.id}`)
+                              }
+                              className={ACTION_BUTTON_CLASSES}
+                            >
+                              Ver alcance
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -178,11 +300,27 @@ export default function MapachePortalPipedrivePage() {
             <DetailRow label="ID" value={`#${selectedDeal.id}`} />
             <DetailRow label="Nombre del negocio" value={selectedDeal.title || "—"} />
             <DetailRow label="Etapa del funnel" value={selectedDeal.stageName ?? "—"} />
-            <DetailRow label="Owner comercial" value={selectedDeal.ownerName ?? "—"} />
+            <DetailRow label="Propietario" value={selectedDeal.ownerName ?? "—"} />
+            <DetailRow label="Estado" value={formatStatus(selectedDeal.status)} />
             <DetailRow label="Valor" value={formatCurrency(selectedDeal.value)} />
-            <DetailRow label="Fee mensual" value={formatCurrency(selectedDeal.feeMensual)} />
             <DetailRow label="Mapache asignado" value={selectedDeal.mapacheAssigned ?? "—"} />
-            <DetailRow label="Propuesta comercial" value={selectedDeal.proposalUrl ?? "—"} />
+            <DetailRow
+              label="Propuesta comercial"
+              value={
+                selectedDeal.proposalUrl ? (
+                  <a
+                    href={selectedDeal.proposalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-semibold uppercase tracking-[0.25em] text-white/80 underline"
+                  >
+                    Abrir propuesta comercial
+                  </a>
+                ) : (
+                  "—"
+                )
+              }
+            />
             <DetailRow label="Doc contexto deal" value={selectedDeal.docContextDeal ?? "—"} />
             <DetailRow
               label="Ver en Pipedrive"
@@ -200,6 +338,32 @@ export default function MapachePortalPipedrivePage() {
           </dl>
         ) : null}
       </Modal>
+
+      <Modal
+        open={Boolean(scopeDealTitle)}
+        onClose={() => setScopeDealTitle(null)}
+        title="Ver alcance"
+        panelWidthClassName="max-w-md"
+        footer={
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setScopeDealTitle(null)}
+              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/20"
+            >
+              Cerrar
+            </button>
+          </div>
+        }
+      >
+        <div className="text-sm text-white/80">
+          <p className="font-semibold text-white">En desarrollo</p>
+          <p className="mt-1">
+            Esta funcionalidad se encuentra en construcción. Pronto podrás ver el alcance del deal
+            {scopeDealTitle ? ` “${scopeDealTitle}”.` : "."}
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -207,6 +371,14 @@ export default function MapachePortalPipedrivePage() {
 function formatCurrency(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
   return CURRENCY_FORMATTER.format(value);
+}
+
+function formatStatus(status: string | null | undefined) {
+  if (!status) return "—";
+  if (status === "open") return "Abierto";
+  if (status === "won") return "Ganado";
+  if (status === "lost") return "Perdido";
+  return status;
 }
 
 function DetailRow({
@@ -221,5 +393,31 @@ function DetailRow({
       <dt className="text-[11px] uppercase tracking-[0.35em] text-white/50">{label}</dt>
       <dd className="text-sm text-white">{value}</dd>
     </div>
+  );
+}
+
+type FilterSelectProps = {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+};
+
+function FilterSelect({ label, value, onChange, options }: FilterSelectProps) {
+  return (
+    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
+      {label}
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white focus:border-white/40 focus:outline-none"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

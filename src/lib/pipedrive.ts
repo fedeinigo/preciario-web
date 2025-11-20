@@ -34,6 +34,7 @@ type MapacheFieldOptions = {
   optionIdByName: Map<string, number>;
 };
 let mapacheFieldOptionsCache: MapacheFieldOptions | null = null;
+const ownerNameCache = new Map<number, string | null>();
 let stageNameMapCache: Map<number, string> | null = null;
 
 function q(obj: Record<string, string | number | boolean | null | undefined>): string {
@@ -172,6 +173,7 @@ type PdDealRecord = {
   stage_id?: number | null;
   owner_id?: number | null;
   owner_name?: string | null;
+   status?: string | null;
   custom_fields?: Record<string, unknown> | null;
 };
 
@@ -207,6 +209,16 @@ type PdStagesResponse = {
     name?: string | null;
   }>;
 };
+
+type PdUserResponse = {
+  success: boolean;
+  data?: {
+    id: number;
+    name?: string | null;
+  } | null;
+};
+
+type DealStatus = "open" | "won" | "lost" | "all_not_deleted";
 
 /* ---------- API v1: actualizar campos del deal (PUT) ---------- */
 
@@ -303,7 +315,7 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
 
   const [stageNames, deals] = await Promise.all([
     ensureStageNameMap(),
-    fetchDealsWithMapacheFields(),
+    fetchDealsWithMapacheFields(["open", "won"]),
   ]);
 
   const filtered = deals.filter((deal) => {
@@ -312,15 +324,25 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
     return numericValue !== null && numericValue === optionId;
   });
 
+  const ownerIds = Array.from(
+    new Set(
+      filtered
+        .map((deal) => ensureNumber(deal.owner_id))
+        .filter((id): id is number => typeof id === "number" && Number.isFinite(id)),
+    ),
+  );
+  const ownerNames = await resolveOwnerNames(ownerIds);
+
   const summaries = filtered.map((deal) => {
     const stageId = ensureNumber(deal.stage_id);
-    const stageName =
-      stageId !== null ? stageNames.get(stageId) ?? null : null;
+    const stageName = stageId !== null ? stageNames.get(stageId) ?? null : null;
+    const ownerId = ensureNumber(deal.owner_id);
+    const ownerName = ownerId !== null ? ownerNames.get(ownerId) ?? null : null;
 
     return normalizeDealSummary({
       deal,
       stageName,
-      ownerName: extractString(deal.owner_name),
+      ownerName,
       mapacheOptions,
     });
   });
@@ -333,33 +355,35 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
   return summaries;
 }
 
-async function fetchDealsWithMapacheFields(status: "open" | "won" | "lost" | "all_not_deleted" = "open") {
+async function fetchDealsWithMapacheFields(
+  statuses: DealStatus[] = ["open"],
+) {
   const results: PdDealRecord[] = [];
   const limit = 100;
-  let cursor: string | null = null;
 
-  while (true) {
-    const payload: Record<string, string | number> = {
-      api_token: API_TOKEN,
-      status,
-      limit,
-    };
-    if (cursor) {
-      payload.cursor = cursor;
-    }
-    if (CUSTOM_FIELD_KEYS) {
-      payload.custom_fields = CUSTOM_FIELD_KEYS;
-    }
-    const url = `${BASE_URL}/api/v2/deals?${q(payload)}`;
-    const json = await rawFetch<PdDealsListResponse>(url, { method: "GET" });
-    if (Array.isArray(json.data)) {
-      results.push(...json.data);
-    }
-    cursor = json.additional_data?.next_cursor ?? null;
-    if (!cursor) {
-      break;
-    }
+  for (const status of statuses) {
+    let cursor: string | null = null;
+    do {
+      const payload: Record<string, string | number> = {
+        api_token: API_TOKEN,
+        status,
+        limit,
+      };
+      if (cursor) {
+        payload.cursor = cursor;
+      }
+      if (CUSTOM_FIELD_KEYS) {
+        payload.custom_fields = CUSTOM_FIELD_KEYS;
+      }
+      const url = `${BASE_URL}/api/v2/deals?${q(payload)}`;
+      const json = await rawFetch<PdDealsListResponse>(url, { method: "GET" });
+      if (Array.isArray(json.data)) {
+        results.push(...json.data);
+      }
+      cursor = json.additional_data?.next_cursor ?? null;
+    } while (cursor);
   }
+
   return results;
 }
 
@@ -380,6 +404,46 @@ async function ensureStageNameMap() {
   }
   stageNameMapCache = map;
   return map;
+}
+
+async function resolveOwnerNames(ownerIds: number[]) {
+  const map = new Map<number, string | null>();
+  const missing: number[] = [];
+
+  for (const ownerId of ownerIds) {
+    if (ownerNameCache.has(ownerId)) {
+      map.set(ownerId, ownerNameCache.get(ownerId) ?? null);
+    } else {
+      missing.push(ownerId);
+    }
+  }
+
+  const promises = missing.map(async (ownerId) => {
+    const name = await fetchOwnerName(ownerId);
+    ownerNameCache.set(ownerId, name);
+    map.set(ownerId, name);
+  });
+
+  if (promises.length > 0) {
+    await Promise.allSettled(promises);
+  }
+
+  return map;
+}
+
+async function fetchOwnerName(ownerId: number) {
+  const url = `${BASE_URL}/api/v1/users/${ownerId}?${q({ api_token: API_TOKEN })}`;
+  try {
+    const json = await rawFetch<PdUserResponse>(url, { method: "GET" });
+    const name = extractString(json.data?.name);
+    return name ?? null;
+  } catch (error) {
+    log.error("pipedrive.fetch_owner_failed", {
+      ownerId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }
 
 function normalizeDealSummary({
@@ -407,6 +471,7 @@ function normalizeDealSummary({
     stageName,
     ownerId: ensureNumber(deal.owner_id),
     ownerName,
+    status: typeof deal.status === "string" ? deal.status : null,
     mapacheAssigned,
     feeMensual: getCustomFieldMoney(customFields, FIELD_FEE_MENSUAL),
     proposalUrl: getCustomFieldString(customFields, FIELD_PROPOSAL_URL),
