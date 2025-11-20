@@ -31,6 +31,8 @@ const STATUS_OPTIONS: Array<{ value: "all" | "open" | "won"; label: string }> = 
   { value: "won", label: "Ganados" },
 ];
 
+const STORAGE_KEY = "mapache_pipedrive_cache";
+
 type SortKey = "title" | "stageName" | "ownerName" | "value";
 
 export default function MapachePortalPipedrivePage() {
@@ -45,6 +47,30 @@ export default function MapachePortalPipedrivePage() {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [quarterFilter, setQuarterFilter] = React.useState<number | null>(null);
   const [sortConfig, setSortConfig] = React.useState<{ key: SortKey; direction: "asc" | "desc" } | null>(null);
+  const [assignLink, setAssignLink] = React.useState("");
+  const [assigning, setAssigning] = React.useState(false);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as {
+        timestamp?: string;
+        deals?: PipedriveDealSummary[];
+      };
+      if (Array.isArray(parsed?.deals)) {
+        setDeals(parsed.deals);
+        if (parsed.timestamp) {
+          const parsedDate = new Date(parsed.timestamp);
+          if (!Number.isNaN(parsedDate.getTime())) {
+            setLastSyncedAt(parsedDate);
+          }
+        }
+      }
+    } catch {
+      // ignore malformed cache
+    }
+  }, []);
 
   const handleRefresh = React.useCallback(async () => {
     if (isLoading) return;
@@ -59,7 +85,16 @@ export default function MapachePortalPipedrivePage() {
         throw new Error(payload.error ?? "Respuesta inválida");
       }
       setDeals(payload.deals ?? []);
-      setLastSyncedAt(new Date());
+      const now = new Date();
+      setLastSyncedAt(now);
+      try {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ timestamp: now.toISOString(), deals: payload.deals ?? [] }),
+        );
+      } catch {
+        // ignore localStorage errors
+      }
       toast.success("Deals actualizados");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -196,6 +231,34 @@ export default function MapachePortalPipedrivePage() {
   const statusStats = React.useMemo(() => aggregateStats(deals, "status"), [deals]);
   const quarterStats = React.useMemo(() => aggregateQuarterStats(deals), [deals]);
 
+  const handleAssign = React.useCallback(async () => {
+    const trimmed = assignLink.trim();
+    if (!trimmed) {
+      toast.error("Pegá el link del deal de Pipedrive.");
+      return;
+    }
+    setAssigning(true);
+    try {
+      const response = await fetch("/api/pipedrive/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dealLink: trimmed }),
+      });
+      const payload = (await response.json()) as { ok?: boolean; error?: string };
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error ?? "No se pudo asignar el deal.");
+      }
+      toast.success("Deal asignado y sincronizado.");
+      setAssignLink("");
+      await handleRefresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(message);
+    } finally {
+      setAssigning(false);
+    }
+  }, [assignLink, handleRefresh]);
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-[#0a0e16] via-[#090c1a] to-[#05060d] px-6 py-12">
       <main className="mx-auto w-full max-w-[1200px] space-y-8">
@@ -224,6 +287,35 @@ export default function MapachePortalPipedrivePage() {
                 Actualizar
               </button>
             </div>
+          </div>
+
+          <div className="mt-6 space-y-3 rounded-3xl border border-white/10 bg-white/[0.02] p-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end">
+              <label className="flex-1 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
+                Link de Pipedrive
+                <input
+                  type="text"
+                  value={assignLink}
+                  onChange={(event) => setAssignLink(event.target.value)}
+                  placeholder="https://wcx.pipedrive.com/deal/12345"
+                  className="mt-2 w-full rounded-2xl border border-white/15 bg-[#101626] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={handleAssign}
+                disabled={assigning}
+                className="inline-flex items-center justify-center rounded-2xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.3em] text-white transition hover:border-white/60 hover:bg-white/20 disabled:cursor-wait disabled:opacity-60"
+              >
+                {assigning ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : null}
+                Asignarme y sincronizar
+              </button>
+            </div>
+            <p className="text-xs text-white/50">
+              Pegá el enlace del deal que quieras tomar. Lo asignaremos a tu nombre y actualizaremos la lista.
+            </p>
           </div>
 
           <div className="mt-6 grid gap-3 md:grid-cols-5">

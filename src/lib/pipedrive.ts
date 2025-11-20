@@ -321,6 +321,12 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
   ]);
 
   const filtered = deals.filter((deal) => {
+    const stageId = ensureNumber(deal.stage_id);
+    const stageName =
+      stageId !== null ? stageNames.get(stageId)?.trim().toLowerCase() ?? null : null;
+    if (stageName === "qualified - sql") {
+      return false;
+    }
     const value = getCustomFieldValue(deal.custom_fields, FIELD_MAPACHE_ASSIGNED);
     const numericValue = ensureNumber(value);
     return numericValue !== null && numericValue === optionId;
@@ -446,6 +452,34 @@ async function fetchOwnerName(ownerId: number) {
     });
     return null;
   }
+}
+
+export async function assignDealToMapache(
+  dealId: number | string,
+  mapacheName: string,
+) {
+  const normalized = normalizeForComparison(mapacheName);
+  if (!normalized) {
+    throw new Error("Nombre del usuario inválido");
+  }
+  const mapacheOptions = await ensureMapacheFieldOptions();
+  const optionId = mapacheOptions.optionIdByName.get(normalized);
+  if (!optionId) {
+    throw new Error("No se encontró tu opción en Pipedrive");
+  }
+  if (!FIELD_MAPACHE_ASSIGNED) {
+    throw new Error("Falta configurar el campo Mapache Asignado");
+  }
+  const payload: Record<string, number> = {
+    [FIELD_MAPACHE_ASSIGNED]: optionId,
+  };
+  const url = `${BASE_URL}/api/v1/deals/${dealId}?${q({ api_token: API_TOKEN })}`;
+  await rawFetch<{ success: boolean }>(url, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  log.info("pipedrive.assign_mapache", { dealId, mapache: mapacheName, optionId });
+  return { optionId };
 }
 
 function normalizeDealSummary({
