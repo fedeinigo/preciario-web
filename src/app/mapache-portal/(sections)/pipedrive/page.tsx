@@ -26,6 +26,7 @@ const ACTION_BUTTON_CLASSES =
   "rounded-full border border-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80 transition hover:border-white/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
 
 type StatusFilter = "all" | "open" | "won" | "lost";
+type YearFilter = number | "all";
 
 const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
   { value: "all", label: "Todos" },
@@ -49,11 +50,12 @@ export default function MapachePortalPipedrivePage() {
   const [ownerFilter, setOwnerFilter] = React.useState("all");
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const [searchTerm, setSearchTerm] = React.useState("");
-  const [quarterFilter, setQuarterFilter] = React.useState<number | null>(null);
+  const [wonQuarterFilter, setWonQuarterFilter] = React.useState<number | null>(null);
+  const [createdQuarterFilter, setCreatedQuarterFilter] = React.useState<number | null>(null);
   const [sortConfig, setSortConfig] = React.useState<{ key: SortKey; direction: "asc" | "desc" } | null>(null);
   const [assignLink, setAssignLink] = React.useState("");
   const [assigning, setAssigning] = React.useState(false);
-  const [yearFilter, setYearFilter] = React.useState(DEFAULT_YEAR);
+  const [yearFilter, setYearFilter] = React.useState<YearFilter>(DEFAULT_YEAR);
   const [scopeModalDeal, setScopeModalDeal] = React.useState<PipedriveDealSummary | null>(null);
   const [scopeUrlInput, setScopeUrlInput] = React.useState("");
   const [isSubmittingScope, setIsSubmittingScope] = React.useState(false);
@@ -154,6 +156,7 @@ export default function MapachePortalPipedrivePage() {
 
   React.useEffect(() => {
     if (availableYears.length === 0) return;
+    if (yearFilter === "all") return;
     if (!availableYears.includes(yearFilter)) {
       setYearFilter(availableYears[0]!);
     }
@@ -163,15 +166,18 @@ export default function MapachePortalPipedrivePage() {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     return deals.filter((deal) => {
       const createdYear = extractYear(deal.createdAt);
-      const matchesYear = createdYear === yearFilter;
+      const matchesYear = yearFilter === "all" || createdYear === yearFilter;
+      const createdQuarter = extractQuarter(deal.createdAt);
+      const matchesCreatedQuarter =
+        createdQuarterFilter === null || createdQuarter === createdQuarterFilter;
       const matchesStage =
         stageFilter === "all" ||
         (stageFilter === "—" ? !deal.stageName : deal.stageName === stageFilter);
       const matchesOwner = ownerFilter === "all" || deal.ownerName === ownerFilter;
       const matchesStatus =
         statusFilter === "all" || (deal.status ? deal.status === statusFilter : false);
-      const matchesQuarter =
-        quarterFilter === null || deal.wonQuarter === quarterFilter;
+      const matchesWonQuarter =
+        wonQuarterFilter === null || deal.wonQuarter === wonQuarterFilter;
       const matchesSearch =
         !normalizedSearch ||
         deal.title.toLowerCase().includes(normalizedSearch) ||
@@ -180,12 +186,22 @@ export default function MapachePortalPipedrivePage() {
         matchesStage &&
         matchesOwner &&
         matchesStatus &&
-        matchesQuarter &&
+        matchesWonQuarter &&
+        matchesCreatedQuarter &&
         matchesYear &&
         matchesSearch
       );
     });
-  }, [deals, ownerFilter, quarterFilter, searchTerm, stageFilter, statusFilter, yearFilter]);
+  }, [
+    createdQuarterFilter,
+    deals,
+    ownerFilter,
+    searchTerm,
+    stageFilter,
+    statusFilter,
+    wonQuarterFilter,
+    yearFilter,
+  ]);
 
   const sortedDeals = React.useMemo(() => {
     if (!sortConfig) return filteredDeals;
@@ -205,21 +221,31 @@ export default function MapachePortalPipedrivePage() {
     return copy;
   }, [filteredDeals, sortConfig]);
 
-  const defaultYear = availableYears[0] ?? yearFilter;
+  const defaultYear = availableYears[0] ?? DEFAULT_YEAR;
   const hasFiltersApplied = React.useMemo(() => {
     return (
       stageFilter !== "all" ||
       ownerFilter !== "all" ||
       statusFilter !== "all" ||
       Boolean(searchTerm.trim()) ||
-      quarterFilter !== null ||
+      wonQuarterFilter !== null ||
+      createdQuarterFilter !== null ||
       yearFilter !== defaultYear
     );
-  }, [defaultYear, ownerFilter, quarterFilter, searchTerm, stageFilter, statusFilter, yearFilter]);
+  }, [
+    createdQuarterFilter,
+    defaultYear,
+    ownerFilter,
+    searchTerm,
+    stageFilter,
+    statusFilter,
+    wonQuarterFilter,
+    yearFilter,
+  ]);
 
   React.useEffect(() => {
     if (statusFilter !== "won") {
-      setQuarterFilter(null);
+      setWonQuarterFilter(null);
     }
   }, [statusFilter]);
 
@@ -228,7 +254,8 @@ export default function MapachePortalPipedrivePage() {
     setOwnerFilter("all");
     setStatusFilter("all");
     setSearchTerm("");
-    setQuarterFilter(null);
+    setWonQuarterFilter(null);
+    setCreatedQuarterFilter(null);
     setSortConfig(null);
     setYearFilter(defaultYear);
   }, [defaultYear]);
@@ -465,15 +492,23 @@ export default function MapachePortalPipedrivePage() {
               ]}
             />
             <FilterSelect
-              label="Año"
-              value={String(yearFilter)}
+            <FilterSelect
+              label="A?o"
+              value={yearFilter === "all" ? "all" : String(yearFilter)}
               onChange={(value) => {
+                if (value === "all") {
+                  setYearFilter("all");
+                  return;
+                }
                 const parsed = Number(value);
                 if (!Number.isNaN(parsed)) {
                   setYearFilter(parsed);
                 }
               }}
-              options={availableYears.map((year) => ({ value: String(year), label: String(year) }))}
+              options={[
+                { value: "all", label: "Todos" },
+                ...availableYears.map((year) => ({ value: String(year), label: String(year) })),
+              ]}
             />
             <button
               type="button"
@@ -490,20 +525,23 @@ export default function MapachePortalPipedrivePage() {
             statusStats={statusStats}
             wonQuarterStats={wonQuarterStats}
             createdQuarterStats={createdQuarterStats}
-            selectedYear={yearFilter}
+            selectedYear={yearFilter === "all" ? "Todos" : String(yearFilter)}
             onStageSelect={(stage) => setStageFilter(stage)}
             onStatusSelect={(statusKey) => {
-              setQuarterFilter(null);
+              setWonQuarterFilter(null);
               if (statusKey === "open" || statusKey === "won" || statusKey === "lost") {
                 setStatusFilter(statusKey as StatusFilter);
               } else {
                 setStatusFilter("all");
               }
             }}
-            onQuarterSelect={(quarter) => {
+            onWonQuarterSelect={(quarter) => {
               setStatusFilter("won");
-              setQuarterFilter((prev) => (prev === quarter ? null : quarter));
+              setWonQuarterFilter((prev) => (prev === quarter ? null : quarter));
             }}
+            onCreatedQuarterSelect={(quarter) =>
+              setCreatedQuarterFilter((prev) => (prev === quarter ? null : quarter))
+            }
           />
 
           <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60">
@@ -905,13 +943,13 @@ function aggregateStats(
 
 function aggregateWonQuarterStats(
   deals: PipedriveDealSummary[],
-  year: number,
+  year: YearFilter,
 ): QuarterStat[] {
   const stats = new Map<number, QuarterStat>();
   deals.forEach((deal) => {
     if (!deal.wonAt || deal.status !== "won" || deal.wonQuarter === null) return;
     const wonYear = extractYear(deal.wonAt);
-    if (wonYear !== year) return;
+    if (year !== "all" && wonYear !== year) return;
     const quarter = deal.wonQuarter;
     if (!stats.has(quarter)) {
       stats.set(quarter, {
@@ -930,12 +968,12 @@ function aggregateWonQuarterStats(
 
 function aggregateCreatedQuarterStats(
   deals: PipedriveDealSummary[],
-  year: number,
+  year: YearFilter,
 ): QuarterStat[] {
   const stats = new Map<number, QuarterStat>();
   deals.forEach((deal) => {
     const createdYear = extractYear(deal.createdAt);
-    if (createdYear !== year) return;
+    if (year !== "all" && createdYear !== year) return;
     const quarter = extractQuarter(deal.createdAt);
     if (quarter === null) return;
     if (!stats.has(quarter)) {
@@ -977,17 +1015,19 @@ function SummarySection({
   selectedYear,
   onStageSelect,
   onStatusSelect,
-  onQuarterSelect,
+  onWonQuarterSelect,
+  onCreatedQuarterSelect,
 }: {
   total: number;
   stageStats: SummaryStat[];
   statusStats: SummaryStat[];
   wonQuarterStats: QuarterStat[];
   createdQuarterStats: QuarterStat[];
-  selectedYear: number;
+  selectedYear: string;
   onStageSelect: (stage: string) => void;
   onStatusSelect: (status: string) => void;
-  onQuarterSelect: (quarter: number) => void;
+  onWonQuarterSelect: (quarter: number) => void;
+  onCreatedQuarterSelect: (quarter: number) => void;
 }) {
   return (
     <div className="mt-6 space-y-4 rounded-3xl border border-white/10 bg-white/[0.02] p-5 text-white/80">
@@ -1009,11 +1049,12 @@ function SummarySection({
         <QuarterSummary
           title={`Ganados por trimestre ${selectedYear}`}
           stats={wonQuarterStats}
-          onSelect={onQuarterSelect}
+          onSelect={onWonQuarterSelect}
         />
         <QuarterSummary
           title={`Deals por trimestre ${selectedYear}`}
           stats={createdQuarterStats}
+          onSelect={onCreatedQuarterSelect}
         />
       </div>
     </div>
@@ -1081,7 +1122,7 @@ function QuarterSummary({
             >
               <span>{stat.label}</span>
               <span>
-                {stat.count} x {formatCurrency(stat.value)}
+                {stat.count} × {formatCurrency(stat.value)}
               </span>
             </button>
           </li>
