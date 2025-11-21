@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowDownWideNarrow, ArrowUpWideNarrow, Loader2 } from "lucide-react";
 
 import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
@@ -51,6 +51,9 @@ export default function MapachePortalPipedrivePage() {
   const [sortConfig, setSortConfig] = React.useState<{ key: SortKey; direction: "asc" | "desc" } | null>(null);
   const [assignLink, setAssignLink] = React.useState("");
   const [assigning, setAssigning] = React.useState(false);
+  const [scopeModalDeal, setScopeModalDeal] = React.useState<PipedriveDealSummary | null>(null);
+  const [scopeUrlInput, setScopeUrlInput] = React.useState("");
+  const [isSubmittingScope, setIsSubmittingScope] = React.useState(false);
 
   React.useEffect(() => {
     try {
@@ -211,6 +214,71 @@ export default function MapachePortalPipedrivePage() {
     },
     [],
   );
+
+  const handleOpenScopeModal = React.useCallback((deal: PipedriveDealSummary) => {
+    setScopeModalDeal(deal);
+    setScopeUrlInput("");
+  }, []);
+
+  const handleCloseScopeModal = React.useCallback(() => {
+    if (isSubmittingScope) return;
+    setScopeModalDeal(null);
+    setScopeUrlInput("");
+  }, [isSubmittingScope]);
+
+  const handleSubmitScope = React.useCallback(async () => {
+    if (!scopeModalDeal) return;
+    const trimmed = scopeUrlInput.trim();
+    if (!trimmed) {
+      toast.error("Pegá el enlace del alcance.");
+      return;
+    }
+
+    let normalizedUrl: string;
+    try {
+      normalizedUrl = new URL(trimmed).toString();
+    } catch {
+      toast.error("El enlace del alcance es inválido.");
+      return;
+    }
+
+    setIsSubmittingScope(true);
+    try {
+      const response = await fetch("/api/pipedrive/tech-sale-scope", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dealId: scopeModalDeal.id, scopeUrl: normalizedUrl }),
+      });
+      const payload = (await response.json()) as { ok: boolean; error?: string; scopeUrl?: string };
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error ?? "No se pudo guardar el alcance.");
+      }
+      const resolvedUrl = payload.scopeUrl ?? normalizedUrl;
+      setDeals((prev) => {
+        const next = prev.map((deal) =>
+          deal.id === scopeModalDeal.id ? { ...deal, techSaleScopeUrl: resolvedUrl } : deal,
+        );
+        try {
+          const timestamp = (lastSyncedAt ?? new Date()).toISOString();
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ timestamp, deals: next }));
+        } catch {
+          // ignore storage errors
+        }
+        return next;
+      });
+      setSelectedDeal((prev) =>
+        prev && prev.id === scopeModalDeal.id ? { ...prev, techSaleScopeUrl: resolvedUrl } : prev,
+      );
+      toast.success("Alcance entregado.");
+      setScopeModalDeal(null);
+      setScopeUrlInput("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(message);
+    } finally {
+      setIsSubmittingScope(false);
+    }
+  }, [lastSyncedAt, scopeModalDeal, scopeUrlInput]);
 
   const handleSort = React.useCallback(
     (key: SortKey) => {
@@ -485,15 +553,30 @@ export default function MapachePortalPipedrivePage() {
                             >
                               Ver propuesta
                             </button>
-                            <button
-                              type="button"
-                              onClick={(event) =>
-                                openExternalLink(event, deal.techSaleScopeUrl, "el alcance Tech Sale")
-                              }
-                              className={ACTION_BUTTON_CLASSES}
-                            >
-                              Ver alcance
-                            </button>
+                            {deal.techSaleScopeUrl ? (
+                              <button
+                                type="button"
+                                onClick={(event) =>
+                                  openExternalLink(event, deal.techSaleScopeUrl, "el alcance Tech Sale")
+                                }
+                                className={ACTION_BUTTON_CLASSES}
+                              >
+                                Ver alcance
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleOpenScopeModal(deal);
+                                }}
+                                className={`${ACTION_BUTTON_CLASSES} inline-flex items-center gap-1 border-amber-300 text-amber-200 hover:border-amber-200 hover:text-amber-50`}
+                                aria-label="Entregar alcance"
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
+                                Entregar alcance
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -599,6 +682,60 @@ export default function MapachePortalPipedrivePage() {
               }
             />
           </dl>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={Boolean(scopeModalDeal)}
+        onClose={handleCloseScopeModal}
+        title="Entregar alcance"
+        panelWidthClassName="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleCloseScopeModal}
+              disabled={isSubmittingScope}
+              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitScope}
+              disabled={isSubmittingScope}
+              className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white px-4 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-[#0f1b2a] transition hover:border-white hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmittingScope ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+              Entregar alcance
+            </button>
+          </div>
+        }
+      >
+        {scopeModalDeal ? (
+          <div className="space-y-4 text-sm text-white/80">
+            <p>
+              Pegá el enlace del alcance para el deal{" "}
+              <span className="font-semibold text-white">
+                {scopeModalDeal.title || `#${scopeModalDeal.id}`}
+              </span>
+              . Lo guardaremos en Pipedrive.
+            </p>
+            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
+              Enlace del alcance
+              <input
+                type="url"
+                placeholder="https://..."
+                value={scopeUrlInput}
+                onChange={(event) => setScopeUrlInput(event.target.value)}
+                disabled={isSubmittingScope}
+                className="rounded-2xl border border-white/20 bg-[#101626] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </label>
+            <p className="text-xs text-white/50">
+              Este enlace se guardará en el campo “Alcance Tech Sale” para que todo el equipo pueda verlo.
+            </p>
+          </div>
         ) : null}
       </Modal>
     </div>

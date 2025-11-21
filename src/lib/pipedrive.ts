@@ -259,6 +259,32 @@ export async function updateOneShotAndUrl(dealId: number | string, opts: {
   return { skipped: false };
 }
 
+export async function updateTechSaleScope(
+  dealId: number | string,
+  scopeUrl: string,
+) {
+  if (!FIELD_TECH_SALE_SCOPE) {
+    throw new Error("Falta PIPEDRIVE_FIELD_TECH_SALE_SCOPE en config");
+  }
+  const trimmed = scopeUrl?.trim();
+  if (!trimmed) {
+    throw new Error("El enlace del alcance no puede estar vacío");
+  }
+
+  const payload: Record<string, string> = {
+    [FIELD_TECH_SALE_SCOPE]: trimmed,
+  };
+
+  const url = `${BASE_URL}/api/v1/deals/${dealId}?${q({ api_token: API_TOKEN })}`;
+  await rawFetch<{ success: boolean }>(url, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+  log.info("pipedrive.update_tech_sale_scope", { dealId });
+  return { success: true };
+}
+
 /* ---------- Orquestador: reemplazar productos ---------- */
 
 export async function replaceDealProducts(
