@@ -38,6 +38,8 @@ const STORAGE_KEY = "mapache_pipedrive_cache";
 
 type SortKey = "title" | "stageName" | "ownerName" | "value";
 
+const DEFAULT_YEAR = new Date().getFullYear();
+
 export default function MapachePortalPipedrivePage() {
   const [deals, setDeals] = React.useState<PipedriveDealSummary[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -51,6 +53,7 @@ export default function MapachePortalPipedrivePage() {
   const [sortConfig, setSortConfig] = React.useState<{ key: SortKey; direction: "asc" | "desc" } | null>(null);
   const [assignLink, setAssignLink] = React.useState("");
   const [assigning, setAssigning] = React.useState(false);
+  const [yearFilter, setYearFilter] = React.useState(DEFAULT_YEAR);
   const [scopeModalDeal, setScopeModalDeal] = React.useState<PipedriveDealSummary | null>(null);
   const [scopeUrlInput, setScopeUrlInput] = React.useState("");
   const [isSubmittingScope, setIsSubmittingScope] = React.useState(false);
@@ -135,9 +138,32 @@ export default function MapachePortalPipedrivePage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [deals]);
 
+  const availableYears = React.useMemo(() => {
+    const years = new Set<number>();
+    deals.forEach((deal) => {
+      const createdYear = extractYear(deal.createdAt);
+      if (createdYear !== null) {
+        years.add(createdYear);
+      }
+    });
+    if (years.size === 0) {
+      years.add(DEFAULT_YEAR);
+    }
+    return Array.from(years).sort((a, b) => b - a);
+  }, [deals]);
+
+  React.useEffect(() => {
+    if (availableYears.length === 0) return;
+    if (!availableYears.includes(yearFilter)) {
+      setYearFilter(availableYears[0]!);
+    }
+  }, [availableYears, yearFilter]);
+
   const filteredDeals = React.useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     return deals.filter((deal) => {
+      const createdYear = extractYear(deal.createdAt);
+      const matchesYear = createdYear === yearFilter;
       const matchesStage =
         stageFilter === "all" ||
         (stageFilter === "—" ? !deal.stageName : deal.stageName === stageFilter);
@@ -155,10 +181,11 @@ export default function MapachePortalPipedrivePage() {
         matchesOwner &&
         matchesStatus &&
         matchesQuarter &&
+        matchesYear &&
         matchesSearch
       );
     });
-  }, [deals, ownerFilter, quarterFilter, searchTerm, stageFilter, statusFilter]);
+  }, [deals, ownerFilter, quarterFilter, searchTerm, stageFilter, statusFilter, yearFilter]);
 
   const sortedDeals = React.useMemo(() => {
     if (!sortConfig) return filteredDeals;
@@ -178,15 +205,17 @@ export default function MapachePortalPipedrivePage() {
     return copy;
   }, [filteredDeals, sortConfig]);
 
+  const defaultYear = availableYears[0] ?? yearFilter;
   const hasFiltersApplied = React.useMemo(() => {
     return (
       stageFilter !== "all" ||
       ownerFilter !== "all" ||
       statusFilter !== "all" ||
       Boolean(searchTerm.trim()) ||
-      quarterFilter !== null
+      quarterFilter !== null ||
+      yearFilter !== defaultYear
     );
-  }, [ownerFilter, quarterFilter, searchTerm, stageFilter, statusFilter]);
+  }, [defaultYear, ownerFilter, quarterFilter, searchTerm, stageFilter, statusFilter, yearFilter]);
 
   React.useEffect(() => {
     if (statusFilter !== "won") {
@@ -201,7 +230,8 @@ export default function MapachePortalPipedrivePage() {
     setSearchTerm("");
     setQuarterFilter(null);
     setSortConfig(null);
-  }, []);
+    setYearFilter(defaultYear);
+  }, [defaultYear]);
 
   const openExternalLink = React.useCallback(
     (event: React.MouseEvent, url: string | null | undefined, label: string) => {
@@ -300,9 +330,13 @@ export default function MapachePortalPipedrivePage() {
     () => aggregateStats(filteredDeals, "status"),
     [filteredDeals],
   );
-  const quarterStats = React.useMemo(
-    () => aggregateQuarterStats(filteredDeals),
-    [filteredDeals],
+  const wonQuarterStats = React.useMemo(
+    () => aggregateWonQuarterStats(filteredDeals, yearFilter),
+    [filteredDeals, yearFilter],
+  );
+  const createdQuarterStats = React.useMemo(
+    () => aggregateCreatedQuarterStats(filteredDeals, yearFilter),
+    [filteredDeals, yearFilter],
   );
 
   const handleAssign = React.useCallback(async () => {
@@ -392,7 +426,7 @@ export default function MapachePortalPipedrivePage() {
             </p>
           </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-5">
+          <div className="mt-6 grid gap-3 md:grid-cols-6">
             <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
               Buscar deal
               <input
@@ -430,6 +464,17 @@ export default function MapachePortalPipedrivePage() {
                 ...availableOwners.map((owner) => ({ value: owner, label: owner })),
               ]}
             />
+            <FilterSelect
+              label="Año"
+              value={String(yearFilter)}
+              onChange={(value) => {
+                const parsed = Number(value);
+                if (!Number.isNaN(parsed)) {
+                  setYearFilter(parsed);
+                }
+              }}
+              options={availableYears.map((year) => ({ value: String(year), label: String(year) }))}
+            />
             <button
               type="button"
               onClick={handleClearFilters}
@@ -443,7 +488,9 @@ export default function MapachePortalPipedrivePage() {
             total={filteredDeals.length}
             stageStats={stageStats}
             statusStats={statusStats}
-            quarterStats={quarterStats}
+            wonQuarterStats={wonQuarterStats}
+            createdQuarterStats={createdQuarterStats}
+            selectedYear={yearFilter}
             onStageSelect={(stage) => setStageFilter(stage)}
             onStatusSelect={(statusKey) => {
               setQuarterFilter(null);
@@ -856,13 +903,15 @@ function aggregateStats(
   return Array.from(stats.values());
 }
 
-function aggregateQuarterStats(deals: PipedriveDealSummary[]): QuarterStat[] {
-  const currentYear = new Date().getFullYear();
+function aggregateWonQuarterStats(
+  deals: PipedriveDealSummary[],
+  year: number,
+): QuarterStat[] {
   const stats = new Map<number, QuarterStat>();
   deals.forEach((deal) => {
     if (!deal.wonAt || deal.status !== "won" || deal.wonQuarter === null) return;
-    const date = new Date(deal.wonAt);
-    if (Number.isNaN(date.getTime()) || date.getFullYear() !== currentYear) return;
+    const wonYear = extractYear(deal.wonAt);
+    if (wonYear !== year) return;
     const quarter = deal.wonQuarter;
     if (!stats.has(quarter)) {
       stats.set(quarter, {
@@ -879,11 +928,53 @@ function aggregateQuarterStats(deals: PipedriveDealSummary[]): QuarterStat[] {
   return Array.from(stats.values()).sort((a, b) => a.quarter - b.quarter);
 }
 
+function aggregateCreatedQuarterStats(
+  deals: PipedriveDealSummary[],
+  year: number,
+): QuarterStat[] {
+  const stats = new Map<number, QuarterStat>();
+  deals.forEach((deal) => {
+    const createdYear = extractYear(deal.createdAt);
+    if (createdYear !== year) return;
+    const quarter = extractQuarter(deal.createdAt);
+    if (quarter === null) return;
+    if (!stats.has(quarter)) {
+      stats.set(quarter, {
+        quarter,
+        label: `Deals Q${quarter}`,
+        count: 0,
+        value: 0,
+      });
+    }
+    const current = stats.get(quarter)!;
+    current.count += 1;
+    current.value += deal.value ?? 0;
+  });
+  return Array.from(stats.values()).sort((a, b) => a.quarter - b.quarter);
+}
+
+function extractYear(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.getFullYear();
+}
+
+function extractQuarter(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const month = date.getMonth();
+  return Math.floor(month / 3) + 1;
+}
+
 function SummarySection({
   total,
   stageStats,
   statusStats,
-  quarterStats,
+  wonQuarterStats,
+  createdQuarterStats,
+  selectedYear,
   onStageSelect,
   onStatusSelect,
   onQuarterSelect,
@@ -891,7 +982,9 @@ function SummarySection({
   total: number;
   stageStats: SummaryStat[];
   statusStats: SummaryStat[];
-  quarterStats: QuarterStat[];
+  wonQuarterStats: QuarterStat[];
+  createdQuarterStats: QuarterStat[];
+  selectedYear: number;
   onStageSelect: (stage: string) => void;
   onStatusSelect: (status: string) => void;
   onQuarterSelect: (quarter: number) => void;
@@ -902,7 +995,7 @@ function SummarySection({
         <p className="text-xs uppercase tracking-[0.3em] text-white/50">Resumen</p>
         <p className="text-3xl font-semibold text-white">{total} deals</p>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-4">
         <SummaryList
           title="Por etapa"
           stats={stageStats}
@@ -913,7 +1006,15 @@ function SummarySection({
           stats={statusStats}
           onSelect={(stat) => onStatusSelect(stat.key)}
         />
-        <QuarterSummary stats={quarterStats} onSelect={onQuarterSelect} />
+        <QuarterSummary
+          title={`Ganados por trimestre ${selectedYear}`}
+          stats={wonQuarterStats}
+          onSelect={onQuarterSelect}
+        />
+        <QuarterSummary
+          title={`Deals por trimestre ${selectedYear}`}
+          stats={createdQuarterStats}
+        />
       </div>
     </div>
   );
@@ -955,26 +1056,32 @@ function SummaryList({
 }
 
 function QuarterSummary({
+  title,
   stats,
   onSelect,
 }: {
+  title: string;
   stats: QuarterStat[];
-  onSelect: (quarter: number) => void;
+  onSelect?: (quarter: number) => void;
 }) {
+  const isInteractive = typeof onSelect === "function";
   return (
     <div>
-      <p className="text-xs uppercase tracking-[0.3em] text-white/50">Ganados por trimestre</p>
+      <p className="text-xs uppercase tracking-[0.3em] text-white/50">{title}</p>
       <ul className="mt-1 space-y-1">
         {stats.map((stat) => (
           <li key={`quarter-${stat.quarter}`}>
             <button
               type="button"
-              onClick={() => onSelect(stat.quarter)}
-              className="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-white/80 hover:bg-white/10"
+              onClick={isInteractive ? () => onSelect?.(stat.quarter) : undefined}
+              disabled={!isInteractive}
+              className={`flex w-full items-center justify-between rounded-lg px-2 py-1 text-left ${
+                isInteractive ? "text-white/80 hover:bg-white/10" : "cursor-default text-white/60"
+              }`}
             >
               <span>{stat.label}</span>
               <span>
-                {stat.count} · {formatCurrency(stat.value)}
+                {stat.count} x {formatCurrency(stat.value)}
               </span>
             </button>
           </li>
