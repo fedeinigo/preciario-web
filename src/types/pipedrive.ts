@@ -14,5 +14,6 @@ export type PipedriveDealSummary = {
   feeMensual: number | null;
   proposalUrl: string | null;
   docContextDeal: string | null;
+  techSaleScopeUrl: string | null;
   dealUrl: string;
 };

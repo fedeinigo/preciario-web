@@ -25,10 +25,13 @@ type ApiResponse =
 const ACTION_BUTTON_CLASSES =
   "rounded-full border border-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80 transition hover:border-white/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
 
-const STATUS_OPTIONS: Array<{ value: "all" | "open" | "won"; label: string }> = [
+type StatusFilter = "all" | "open" | "won" | "lost";
+
+const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
   { value: "all", label: "Todos" },
   { value: "open", label: "Abiertos" },
   { value: "won", label: "Ganados" },
+  { value: "lost", label: "Perdidos" },
 ];
 
 const STORAGE_KEY = "mapache_pipedrive_cache";
@@ -42,8 +45,7 @@ export default function MapachePortalPipedrivePage() {
   const [selectedDeal, setSelectedDeal] = React.useState<PipedriveDealSummary | null>(null);
   const [stageFilter, setStageFilter] = React.useState("all");
   const [ownerFilter, setOwnerFilter] = React.useState("all");
-  const [statusFilter, setStatusFilter] = React.useState<"all" | "open" | "won">("all");
-  const [scopeDealTitle, setScopeDealTitle] = React.useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const [searchTerm, setSearchTerm] = React.useState("");
   const [quarterFilter, setQuarterFilter] = React.useState<number | null>(null);
   const [sortConfig, setSortConfig] = React.useState<{ key: SortKey; direction: "asc" | "desc" } | null>(null);
@@ -210,11 +212,6 @@ export default function MapachePortalPipedrivePage() {
     [],
   );
 
-  const handleViewScope = React.useCallback((event: React.MouseEvent, dealTitle: string) => {
-    event.stopPropagation();
-    setScopeDealTitle(dealTitle);
-  }, []);
-
   const handleSort = React.useCallback(
     (key: SortKey) => {
       setSortConfig((prev) => {
@@ -227,9 +224,18 @@ export default function MapachePortalPipedrivePage() {
     [],
   );
 
-  const stageStats = React.useMemo(() => aggregateStats(deals, "stageName"), [deals]);
-  const statusStats = React.useMemo(() => aggregateStats(deals, "status"), [deals]);
-  const quarterStats = React.useMemo(() => aggregateQuarterStats(deals), [deals]);
+  const stageStats = React.useMemo(
+    () => aggregateStats(filteredDeals, "stageName"),
+    [filteredDeals],
+  );
+  const statusStats = React.useMemo(
+    () => aggregateStats(filteredDeals, "status"),
+    [filteredDeals],
+  );
+  const quarterStats = React.useMemo(
+    () => aggregateQuarterStats(filteredDeals),
+    [filteredDeals],
+  );
 
   const handleAssign = React.useCallback(async () => {
     const trimmed = assignLink.trim();
@@ -332,7 +338,7 @@ export default function MapachePortalPipedrivePage() {
             <FilterSelect
               label="Estado"
               value={statusFilter}
-              onChange={(value) => setStatusFilter(value as "all" | "open" | "won")}
+              onChange={(value) => setStatusFilter(value as StatusFilter)}
               options={STATUS_OPTIONS}
             />
             <FilterSelect
@@ -366,15 +372,15 @@ export default function MapachePortalPipedrivePage() {
           </div>
 
           <SummarySection
-            total={deals.length}
+            total={filteredDeals.length}
             stageStats={stageStats}
             statusStats={statusStats}
             quarterStats={quarterStats}
             onStageSelect={(stage) => setStageFilter(stage)}
             onStatusSelect={(statusKey) => {
               setQuarterFilter(null);
-              if (statusKey === "open" || statusKey === "won") {
-                setStatusFilter(statusKey);
+              if (statusKey === "open" || statusKey === "won" || statusKey === "lost") {
+                setStatusFilter(statusKey as StatusFilter);
               } else {
                 setStatusFilter("all");
               }
@@ -482,7 +488,7 @@ export default function MapachePortalPipedrivePage() {
                             <button
                               type="button"
                               onClick={(event) =>
-                                handleViewScope(event, deal.title || `Deal ${deal.id}`)
+                                openExternalLink(event, deal.techSaleScopeUrl, "el alcance Tech Sale")
                               }
                               className={ACTION_BUTTON_CLASSES}
                             >
@@ -545,7 +551,40 @@ export default function MapachePortalPipedrivePage() {
                 )
               }
             />
-            <DetailRow label="Doc contexto deal" value={selectedDeal.docContextDeal ?? "—"} />
+            <DetailRow
+              label="Doc contexto deal"
+              value={
+                selectedDeal.docContextDeal ? (
+                  <a
+                    href={selectedDeal.docContextDeal}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-semibold uppercase tracking-[0.25em] text-white/80 underline"
+                  >
+                    Abrir contexto
+                  </a>
+                ) : (
+                  "—"
+                )
+              }
+            />
+            <DetailRow
+              label="Alcance Tech Sale"
+              value={
+                selectedDeal.techSaleScopeUrl ? (
+                  <a
+                    href={selectedDeal.techSaleScopeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-semibold uppercase tracking-[0.25em] text-white/80 underline"
+                  >
+                    Abrir alcance Tech Sale
+                  </a>
+                ) : (
+                  "—"
+                )
+              }
+            />
             <DetailRow
               label="Ver en Pipedrive"
               value={
@@ -561,32 +600,6 @@ export default function MapachePortalPipedrivePage() {
             />
           </dl>
         ) : null}
-      </Modal>
-
-      <Modal
-        open={Boolean(scopeDealTitle)}
-        onClose={() => setScopeDealTitle(null)}
-        title="Ver alcance"
-        panelWidthClassName="max-w-md"
-        footer={
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => setScopeDealTitle(null)}
-              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/20"
-            >
-              Cerrar
-            </button>
-          </div>
-        }
-      >
-        <div className="text-sm text-white/80">
-          <p className="font-semibold text-white">En desarrollo</p>
-          <p className="mt-1">
-            Esta funcionalidad se encuentra en construcción. Pronto podrás ver el alcance del deal
-            {scopeDealTitle ? ` “${scopeDealTitle}”.` : "."}
-          </p>
-        </div>
       </Modal>
     </div>
   );
