@@ -492,8 +492,7 @@ export default function MapachePortalPipedrivePage() {
               ]}
             />
             <FilterSelect
-            <FilterSelect
-              label="A?o"
+              label="Año"
               value={yearFilter === "all" ? "all" : String(yearFilter)}
               onChange={(value) => {
                 if (value === "all") {
