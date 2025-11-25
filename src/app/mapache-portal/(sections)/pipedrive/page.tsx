@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowDownWideNarrow, ArrowUpWideNarrow, Loader2 } from "lucide-react";
 
 import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
@@ -25,15 +25,21 @@ type ApiResponse =
 const ACTION_BUTTON_CLASSES =
   "rounded-full border border-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80 transition hover:border-white/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
 
-const STATUS_OPTIONS: Array<{ value: "all" | "open" | "won"; label: string }> = [
+type StatusFilter = "all" | "open" | "won" | "lost";
+type YearFilter = number | "all";
+
+const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
   { value: "all", label: "Todos" },
   { value: "open", label: "Abiertos" },
   { value: "won", label: "Ganados" },
+  { value: "lost", label: "Perdidos" },
 ];
 
 const STORAGE_KEY = "mapache_pipedrive_cache";
 
 type SortKey = "title" | "stageName" | "ownerName" | "value";
+
+const DEFAULT_YEAR = new Date().getFullYear();
 
 export default function MapachePortalPipedrivePage() {
   const [deals, setDeals] = React.useState<PipedriveDealSummary[]>([]);
@@ -42,13 +48,17 @@ export default function MapachePortalPipedrivePage() {
   const [selectedDeal, setSelectedDeal] = React.useState<PipedriveDealSummary | null>(null);
   const [stageFilter, setStageFilter] = React.useState("all");
   const [ownerFilter, setOwnerFilter] = React.useState("all");
-  const [statusFilter, setStatusFilter] = React.useState<"all" | "open" | "won">("all");
-  const [scopeDealTitle, setScopeDealTitle] = React.useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const [searchTerm, setSearchTerm] = React.useState("");
-  const [quarterFilter, setQuarterFilter] = React.useState<number | null>(null);
+  const [wonQuarterFilter, setWonQuarterFilter] = React.useState<number | null>(null);
+  const [createdQuarterFilter, setCreatedQuarterFilter] = React.useState<number | null>(null);
   const [sortConfig, setSortConfig] = React.useState<{ key: SortKey; direction: "asc" | "desc" } | null>(null);
   const [assignLink, setAssignLink] = React.useState("");
   const [assigning, setAssigning] = React.useState(false);
+  const [yearFilter, setYearFilter] = React.useState<YearFilter>(DEFAULT_YEAR);
+  const [scopeModalDeal, setScopeModalDeal] = React.useState<PipedriveDealSummary | null>(null);
+  const [scopeUrlInput, setScopeUrlInput] = React.useState("");
+  const [isSubmittingScope, setIsSubmittingScope] = React.useState(false);
 
   React.useEffect(() => {
     try {
@@ -130,17 +140,44 @@ export default function MapachePortalPipedrivePage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [deals]);
 
+  const availableYears = React.useMemo(() => {
+    const years = new Set<number>();
+    deals.forEach((deal) => {
+      const createdYear = extractYear(deal.createdAt);
+      if (createdYear !== null) {
+        years.add(createdYear);
+      }
+    });
+    if (years.size === 0) {
+      years.add(DEFAULT_YEAR);
+    }
+    return Array.from(years).sort((a, b) => b - a);
+  }, [deals]);
+
+  React.useEffect(() => {
+    if (availableYears.length === 0) return;
+    if (yearFilter === "all") return;
+    if (!availableYears.includes(yearFilter)) {
+      setYearFilter(availableYears[0]!);
+    }
+  }, [availableYears, yearFilter]);
+
   const filteredDeals = React.useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     return deals.filter((deal) => {
+      const createdYear = extractYear(deal.createdAt);
+      const matchesYear = yearFilter === "all" || createdYear === yearFilter;
+      const createdQuarter = extractQuarter(deal.createdAt);
+      const matchesCreatedQuarter =
+        createdQuarterFilter === null || createdQuarter === createdQuarterFilter;
       const matchesStage =
         stageFilter === "all" ||
         (stageFilter === "—" ? !deal.stageName : deal.stageName === stageFilter);
       const matchesOwner = ownerFilter === "all" || deal.ownerName === ownerFilter;
       const matchesStatus =
         statusFilter === "all" || (deal.status ? deal.status === statusFilter : false);
-      const matchesQuarter =
-        quarterFilter === null || deal.wonQuarter === quarterFilter;
+      const matchesWonQuarter =
+        wonQuarterFilter === null || deal.wonQuarter === wonQuarterFilter;
       const matchesSearch =
         !normalizedSearch ||
         deal.title.toLowerCase().includes(normalizedSearch) ||
@@ -149,11 +186,22 @@ export default function MapachePortalPipedrivePage() {
         matchesStage &&
         matchesOwner &&
         matchesStatus &&
-        matchesQuarter &&
+        matchesWonQuarter &&
+        matchesCreatedQuarter &&
+        matchesYear &&
         matchesSearch
       );
     });
-  }, [deals, ownerFilter, quarterFilter, searchTerm, stageFilter, statusFilter]);
+  }, [
+    createdQuarterFilter,
+    deals,
+    ownerFilter,
+    searchTerm,
+    stageFilter,
+    statusFilter,
+    wonQuarterFilter,
+    yearFilter,
+  ]);
 
   const sortedDeals = React.useMemo(() => {
     if (!sortConfig) return filteredDeals;
@@ -173,19 +221,31 @@ export default function MapachePortalPipedrivePage() {
     return copy;
   }, [filteredDeals, sortConfig]);
 
+  const defaultYear = availableYears[0] ?? DEFAULT_YEAR;
   const hasFiltersApplied = React.useMemo(() => {
     return (
       stageFilter !== "all" ||
       ownerFilter !== "all" ||
       statusFilter !== "all" ||
       Boolean(searchTerm.trim()) ||
-      quarterFilter !== null
+      wonQuarterFilter !== null ||
+      createdQuarterFilter !== null ||
+      yearFilter !== defaultYear
     );
-  }, [ownerFilter, quarterFilter, searchTerm, stageFilter, statusFilter]);
+  }, [
+    createdQuarterFilter,
+    defaultYear,
+    ownerFilter,
+    searchTerm,
+    stageFilter,
+    statusFilter,
+    wonQuarterFilter,
+    yearFilter,
+  ]);
 
   React.useEffect(() => {
     if (statusFilter !== "won") {
-      setQuarterFilter(null);
+      setWonQuarterFilter(null);
     }
   }, [statusFilter]);
 
@@ -194,9 +254,11 @@ export default function MapachePortalPipedrivePage() {
     setOwnerFilter("all");
     setStatusFilter("all");
     setSearchTerm("");
-    setQuarterFilter(null);
+    setWonQuarterFilter(null);
+    setCreatedQuarterFilter(null);
     setSortConfig(null);
-  }, []);
+    setYearFilter(defaultYear);
+  }, [defaultYear]);
 
   const openExternalLink = React.useCallback(
     (event: React.MouseEvent, url: string | null | undefined, label: string) => {
@@ -210,10 +272,70 @@ export default function MapachePortalPipedrivePage() {
     [],
   );
 
-  const handleViewScope = React.useCallback((event: React.MouseEvent, dealTitle: string) => {
-    event.stopPropagation();
-    setScopeDealTitle(dealTitle);
+  const handleOpenScopeModal = React.useCallback((deal: PipedriveDealSummary) => {
+    setScopeModalDeal(deal);
+    setScopeUrlInput("");
   }, []);
+
+  const handleCloseScopeModal = React.useCallback(() => {
+    if (isSubmittingScope) return;
+    setScopeModalDeal(null);
+    setScopeUrlInput("");
+  }, [isSubmittingScope]);
+
+  const handleSubmitScope = React.useCallback(async () => {
+    if (!scopeModalDeal) return;
+    const trimmed = scopeUrlInput.trim();
+    if (!trimmed) {
+      toast.error("Pegá el enlace del alcance.");
+      return;
+    }
+
+    let normalizedUrl: string;
+    try {
+      normalizedUrl = new URL(trimmed).toString();
+    } catch {
+      toast.error("El enlace del alcance es inválido.");
+      return;
+    }
+
+    setIsSubmittingScope(true);
+    try {
+      const response = await fetch("/api/pipedrive/tech-sale-scope", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dealId: scopeModalDeal.id, scopeUrl: normalizedUrl }),
+      });
+      const payload = (await response.json()) as { ok: boolean; error?: string; scopeUrl?: string };
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error ?? "No se pudo guardar el alcance.");
+      }
+      const resolvedUrl = payload.scopeUrl ?? normalizedUrl;
+      setDeals((prev) => {
+        const next = prev.map((deal) =>
+          deal.id === scopeModalDeal.id ? { ...deal, techSaleScopeUrl: resolvedUrl } : deal,
+        );
+        try {
+          const timestamp = (lastSyncedAt ?? new Date()).toISOString();
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ timestamp, deals: next }));
+        } catch {
+          // ignore storage errors
+        }
+        return next;
+      });
+      setSelectedDeal((prev) =>
+        prev && prev.id === scopeModalDeal.id ? { ...prev, techSaleScopeUrl: resolvedUrl } : prev,
+      );
+      toast.success("Alcance entregado.");
+      setScopeModalDeal(null);
+      setScopeUrlInput("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(message);
+    } finally {
+      setIsSubmittingScope(false);
+    }
+  }, [lastSyncedAt, scopeModalDeal, scopeUrlInput]);
 
   const handleSort = React.useCallback(
     (key: SortKey) => {
@@ -227,9 +349,22 @@ export default function MapachePortalPipedrivePage() {
     [],
   );
 
-  const stageStats = React.useMemo(() => aggregateStats(deals, "stageName"), [deals]);
-  const statusStats = React.useMemo(() => aggregateStats(deals, "status"), [deals]);
-  const quarterStats = React.useMemo(() => aggregateQuarterStats(deals), [deals]);
+  const stageStats = React.useMemo(
+    () => aggregateStats(filteredDeals, "stageName"),
+    [filteredDeals],
+  );
+  const statusStats = React.useMemo(
+    () => aggregateStats(filteredDeals, "status"),
+    [filteredDeals],
+  );
+  const wonQuarterStats = React.useMemo(
+    () => aggregateWonQuarterStats(filteredDeals, yearFilter),
+    [filteredDeals, yearFilter],
+  );
+  const createdQuarterStats = React.useMemo(
+    () => aggregateCreatedQuarterStats(filteredDeals, yearFilter),
+    [filteredDeals, yearFilter],
+  );
 
   const handleAssign = React.useCallback(async () => {
     const trimmed = assignLink.trim();
@@ -318,7 +453,7 @@ export default function MapachePortalPipedrivePage() {
             </p>
           </div>
 
-          <div className="mt-6 grid gap-3 md:grid-cols-5">
+          <div className="mt-6 grid gap-3 md:grid-cols-6">
             <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
               Buscar deal
               <input
@@ -332,7 +467,7 @@ export default function MapachePortalPipedrivePage() {
             <FilterSelect
               label="Estado"
               value={statusFilter}
-              onChange={(value) => setStatusFilter(value as "all" | "open" | "won")}
+              onChange={(value) => setStatusFilter(value as StatusFilter)}
               options={STATUS_OPTIONS}
             />
             <FilterSelect
@@ -356,6 +491,24 @@ export default function MapachePortalPipedrivePage() {
                 ...availableOwners.map((owner) => ({ value: owner, label: owner })),
               ]}
             />
+            <FilterSelect
+              label="Año"
+              value={yearFilter === "all" ? "all" : String(yearFilter)}
+              onChange={(value) => {
+                if (value === "all") {
+                  setYearFilter("all");
+                  return;
+                }
+                const parsed = Number(value);
+                if (!Number.isNaN(parsed)) {
+                  setYearFilter(parsed);
+                }
+              }}
+              options={[
+                { value: "all", label: "Todos" },
+                ...availableYears.map((year) => ({ value: String(year), label: String(year) })),
+              ]}
+            />
             <button
               type="button"
               onClick={handleClearFilters}
@@ -366,23 +519,28 @@ export default function MapachePortalPipedrivePage() {
           </div>
 
           <SummarySection
-            total={deals.length}
+            total={filteredDeals.length}
             stageStats={stageStats}
             statusStats={statusStats}
-            quarterStats={quarterStats}
+            wonQuarterStats={wonQuarterStats}
+            createdQuarterStats={createdQuarterStats}
+            selectedYear={yearFilter === "all" ? "Todos" : String(yearFilter)}
             onStageSelect={(stage) => setStageFilter(stage)}
             onStatusSelect={(statusKey) => {
-              setQuarterFilter(null);
-              if (statusKey === "open" || statusKey === "won") {
-                setStatusFilter(statusKey);
+              setWonQuarterFilter(null);
+              if (statusKey === "open" || statusKey === "won" || statusKey === "lost") {
+                setStatusFilter(statusKey as StatusFilter);
               } else {
                 setStatusFilter("all");
               }
             }}
-            onQuarterSelect={(quarter) => {
+            onWonQuarterSelect={(quarter) => {
               setStatusFilter("won");
-              setQuarterFilter((prev) => (prev === quarter ? null : quarter));
+              setWonQuarterFilter((prev) => (prev === quarter ? null : quarter));
             }}
+            onCreatedQuarterSelect={(quarter) =>
+              setCreatedQuarterFilter((prev) => (prev === quarter ? null : quarter))
+            }
           />
 
           <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60">
@@ -479,15 +637,30 @@ export default function MapachePortalPipedrivePage() {
                             >
                               Ver propuesta
                             </button>
-                            <button
-                              type="button"
-                              onClick={(event) =>
-                                handleViewScope(event, deal.title || `Deal ${deal.id}`)
-                              }
-                              className={ACTION_BUTTON_CLASSES}
-                            >
-                              Ver alcance
-                            </button>
+                            {deal.techSaleScopeUrl ? (
+                              <button
+                                type="button"
+                                onClick={(event) =>
+                                  openExternalLink(event, deal.techSaleScopeUrl, "el alcance Tech Sale")
+                                }
+                                className={ACTION_BUTTON_CLASSES}
+                              >
+                                Ver alcance
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleOpenScopeModal(deal);
+                                }}
+                                className={`${ACTION_BUTTON_CLASSES} inline-flex items-center gap-1 border-amber-300 text-amber-200 hover:border-amber-200 hover:text-amber-50`}
+                                aria-label="Entregar alcance"
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
+                                Entregar alcance
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -545,7 +718,40 @@ export default function MapachePortalPipedrivePage() {
                 )
               }
             />
-            <DetailRow label="Doc contexto deal" value={selectedDeal.docContextDeal ?? "—"} />
+            <DetailRow
+              label="Doc contexto deal"
+              value={
+                selectedDeal.docContextDeal ? (
+                  <a
+                    href={selectedDeal.docContextDeal}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-semibold uppercase tracking-[0.25em] text-white/80 underline"
+                  >
+                    Abrir contexto
+                  </a>
+                ) : (
+                  "—"
+                )
+              }
+            />
+            <DetailRow
+              label="Alcance Tech Sale"
+              value={
+                selectedDeal.techSaleScopeUrl ? (
+                  <a
+                    href={selectedDeal.techSaleScopeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-semibold uppercase tracking-[0.25em] text-white/80 underline"
+                  >
+                    Abrir alcance Tech Sale
+                  </a>
+                ) : (
+                  "—"
+                )
+              }
+            />
             <DetailRow
               label="Ver en Pipedrive"
               value={
@@ -564,29 +770,57 @@ export default function MapachePortalPipedrivePage() {
       </Modal>
 
       <Modal
-        open={Boolean(scopeDealTitle)}
-        onClose={() => setScopeDealTitle(null)}
-        title="Ver alcance"
+        open={Boolean(scopeModalDeal)}
+        onClose={handleCloseScopeModal}
+        title="Entregar alcance"
         panelWidthClassName="max-w-md"
         footer={
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => setScopeDealTitle(null)}
-              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/20"
+              onClick={handleCloseScopeModal}
+              disabled={isSubmittingScope}
+              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Cerrar
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitScope}
+              disabled={isSubmittingScope}
+              className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white px-4 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-[#0f1b2a] transition hover:border-white hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmittingScope ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+              Entregar alcance
             </button>
           </div>
         }
       >
-        <div className="text-sm text-white/80">
-          <p className="font-semibold text-white">En desarrollo</p>
-          <p className="mt-1">
-            Esta funcionalidad se encuentra en construcción. Pronto podrás ver el alcance del deal
-            {scopeDealTitle ? ` “${scopeDealTitle}”.` : "."}
-          </p>
-        </div>
+        {scopeModalDeal ? (
+          <div className="space-y-4 text-sm text-white/80">
+            <p>
+              Pegá el enlace del alcance para el deal{" "}
+              <span className="font-semibold text-white">
+                {scopeModalDeal.title || `#${scopeModalDeal.id}`}
+              </span>
+              . Lo guardaremos en Pipedrive.
+            </p>
+            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
+              Enlace del alcance
+              <input
+                type="url"
+                placeholder="https://..."
+                value={scopeUrlInput}
+                onChange={(event) => setScopeUrlInput(event.target.value)}
+                disabled={isSubmittingScope}
+                className="rounded-2xl border border-white/20 bg-[#101626] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </label>
+            <p className="text-xs text-white/50">
+              Este enlace se guardará en el campo “Alcance Tech Sale” para que todo el equipo pueda verlo.
+            </p>
+          </div>
+        ) : null}
       </Modal>
     </div>
   );
@@ -706,13 +940,15 @@ function aggregateStats(
   return Array.from(stats.values());
 }
 
-function aggregateQuarterStats(deals: PipedriveDealSummary[]): QuarterStat[] {
-  const currentYear = new Date().getFullYear();
+function aggregateWonQuarterStats(
+  deals: PipedriveDealSummary[],
+  year: YearFilter,
+): QuarterStat[] {
   const stats = new Map<number, QuarterStat>();
   deals.forEach((deal) => {
     if (!deal.wonAt || deal.status !== "won" || deal.wonQuarter === null) return;
-    const date = new Date(deal.wonAt);
-    if (Number.isNaN(date.getTime()) || date.getFullYear() !== currentYear) return;
+    const wonYear = extractYear(deal.wonAt);
+    if (year !== "all" && wonYear !== year) return;
     const quarter = deal.wonQuarter;
     if (!stats.has(quarter)) {
       stats.set(quarter, {
@@ -729,22 +965,68 @@ function aggregateQuarterStats(deals: PipedriveDealSummary[]): QuarterStat[] {
   return Array.from(stats.values()).sort((a, b) => a.quarter - b.quarter);
 }
 
+function aggregateCreatedQuarterStats(
+  deals: PipedriveDealSummary[],
+  year: YearFilter,
+): QuarterStat[] {
+  const stats = new Map<number, QuarterStat>();
+  deals.forEach((deal) => {
+    const createdYear = extractYear(deal.createdAt);
+    if (year !== "all" && createdYear !== year) return;
+    const quarter = extractQuarter(deal.createdAt);
+    if (quarter === null) return;
+    if (!stats.has(quarter)) {
+      stats.set(quarter, {
+        quarter,
+        label: `Deals Q${quarter}`,
+        count: 0,
+        value: 0,
+      });
+    }
+    const current = stats.get(quarter)!;
+    current.count += 1;
+    current.value += deal.value ?? 0;
+  });
+  return Array.from(stats.values()).sort((a, b) => a.quarter - b.quarter);
+}
+
+function extractYear(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.getFullYear();
+}
+
+function extractQuarter(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const month = date.getMonth();
+  return Math.floor(month / 3) + 1;
+}
+
 function SummarySection({
   total,
   stageStats,
   statusStats,
-  quarterStats,
+  wonQuarterStats,
+  createdQuarterStats,
+  selectedYear,
   onStageSelect,
   onStatusSelect,
-  onQuarterSelect,
+  onWonQuarterSelect,
+  onCreatedQuarterSelect,
 }: {
   total: number;
   stageStats: SummaryStat[];
   statusStats: SummaryStat[];
-  quarterStats: QuarterStat[];
+  wonQuarterStats: QuarterStat[];
+  createdQuarterStats: QuarterStat[];
+  selectedYear: string;
   onStageSelect: (stage: string) => void;
   onStatusSelect: (status: string) => void;
-  onQuarterSelect: (quarter: number) => void;
+  onWonQuarterSelect: (quarter: number) => void;
+  onCreatedQuarterSelect: (quarter: number) => void;
 }) {
   return (
     <div className="mt-6 space-y-4 rounded-3xl border border-white/10 bg-white/[0.02] p-5 text-white/80">
@@ -752,7 +1034,7 @@ function SummarySection({
         <p className="text-xs uppercase tracking-[0.3em] text-white/50">Resumen</p>
         <p className="text-3xl font-semibold text-white">{total} deals</p>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-4">
         <SummaryList
           title="Por etapa"
           stats={stageStats}
@@ -763,7 +1045,16 @@ function SummarySection({
           stats={statusStats}
           onSelect={(stat) => onStatusSelect(stat.key)}
         />
-        <QuarterSummary stats={quarterStats} onSelect={onQuarterSelect} />
+        <QuarterSummary
+          title={`Ganados por trimestre ${selectedYear}`}
+          stats={wonQuarterStats}
+          onSelect={onWonQuarterSelect}
+        />
+        <QuarterSummary
+          title={`Deals por trimestre ${selectedYear}`}
+          stats={createdQuarterStats}
+          onSelect={onCreatedQuarterSelect}
+        />
       </div>
     </div>
   );
@@ -805,26 +1096,32 @@ function SummaryList({
 }
 
 function QuarterSummary({
+  title,
   stats,
   onSelect,
 }: {
+  title: string;
   stats: QuarterStat[];
-  onSelect: (quarter: number) => void;
+  onSelect?: (quarter: number) => void;
 }) {
+  const isInteractive = typeof onSelect === "function";
   return (
     <div>
-      <p className="text-xs uppercase tracking-[0.3em] text-white/50">Ganados por trimestre</p>
+      <p className="text-xs uppercase tracking-[0.3em] text-white/50">{title}</p>
       <ul className="mt-1 space-y-1">
         {stats.map((stat) => (
           <li key={`quarter-${stat.quarter}`}>
             <button
               type="button"
-              onClick={() => onSelect(stat.quarter)}
-              className="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-white/80 hover:bg-white/10"
+              onClick={isInteractive ? () => onSelect?.(stat.quarter) : undefined}
+              disabled={!isInteractive}
+              className={`flex w-full items-center justify-between rounded-lg px-2 py-1 text-left ${
+                isInteractive ? "text-white/80 hover:bg-white/10" : "cursor-default text-white/60"
+              }`}
             >
               <span>{stat.label}</span>
               <span>
-                {stat.count} · {formatCurrency(stat.value)}
+                {stat.count} × {formatCurrency(stat.value)}
               </span>
             </button>
           </li>

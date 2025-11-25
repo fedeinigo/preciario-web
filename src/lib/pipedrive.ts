@@ -21,12 +21,16 @@ const FIELD_FEE_MENSUAL =
 const FIELD_DOC_CONTEXT_DEAL =
   process.env.PIPEDRIVE_FIELD_DOC_CONTEXT_DEAL ??
   "0adac015f939871f8cabfe7f6d9392953193df17";
+const FIELD_TECH_SALE_SCOPE =
+  process.env.PIPEDRIVE_FIELD_TECH_SALE_SCOPE ??
+  "9ee77b4dd02806af96053ef2f30a76ebd98208c6";
 
 const CUSTOM_FIELD_KEYS = [
   FIELD_MAPACHE_ASSIGNED,
   FIELD_FEE_MENSUAL,
   FIELD_PROPOSAL_URL,
   FIELD_DOC_CONTEXT_DEAL,
+  FIELD_TECH_SALE_SCOPE,
 ].filter(Boolean).join(",");
 
 type MapacheFieldOptions = {
@@ -255,6 +259,32 @@ export async function updateOneShotAndUrl(dealId: number | string, opts: {
   return { skipped: false };
 }
 
+export async function updateTechSaleScope(
+  dealId: number | string,
+  scopeUrl: string,
+) {
+  if (!FIELD_TECH_SALE_SCOPE) {
+    throw new Error("Falta PIPEDRIVE_FIELD_TECH_SALE_SCOPE en config");
+  }
+  const trimmed = scopeUrl?.trim();
+  if (!trimmed) {
+    throw new Error("El enlace del alcance no puede estar vacío");
+  }
+
+  const payload: Record<string, string> = {
+    [FIELD_TECH_SALE_SCOPE]: trimmed,
+  };
+
+  const url = `${BASE_URL}/api/v1/deals/${dealId}?${q({ api_token: API_TOKEN })}`;
+  await rawFetch<{ success: boolean }>(url, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+  log.info("pipedrive.update_tech_sale_scope", { dealId });
+  return { success: true };
+}
+
 /* ---------- Orquestador: reemplazar productos ---------- */
 
 export async function replaceDealProducts(
@@ -317,7 +347,7 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
 
   const [stageNames, deals] = await Promise.all([
     ensureStageNameMap(),
-    fetchDealsWithMapacheFields(["open", "won"]),
+    fetchDealsWithMapacheFields(["open", "won", "lost"]),
   ]);
 
   const filtered = deals.filter((deal) => {
@@ -515,6 +545,7 @@ function normalizeDealSummary({
     feeMensual: getCustomFieldMoney(customFields, FIELD_FEE_MENSUAL),
     proposalUrl: getCustomFieldString(customFields, FIELD_PROPOSAL_URL),
     docContextDeal: getCustomFieldString(customFields, FIELD_DOC_CONTEXT_DEAL),
+    techSaleScopeUrl: getCustomFieldString(customFields, FIELD_TECH_SALE_SCOPE),
     dealUrl: buildDealUrl(deal.id),
   };
 }

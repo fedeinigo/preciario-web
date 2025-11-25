@@ -19,7 +19,7 @@ export default function MapachePortalSectionLayout({
   return (
     <MapachePortalQueryProvider>
       <MapachePortalReadySignal />
-      <div className="space-y-6 px-4 pb-10">
+      <div className="space-y-6 px-4 pb-10 -mt-[var(--nav-h)] pt-[var(--nav-h)]">
         <MapachePortalClient initialBootstrap={initialBootstrap} />
       </div>
       {children}
