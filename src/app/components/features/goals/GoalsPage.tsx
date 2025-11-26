@@ -559,6 +559,17 @@ export default function GoalsPage({
   const kpiCardBg = isMapache
     ? "bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-4 py-3"
     : "bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3";
+  const tableCardClass = isMapache
+    ? "bg-[#0f0f17] border border-white/10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.45)] overflow-hidden"
+    : "bg-white rounded-3xl border border-slate-200/60 shadow-[0_18px_40px_rgba(15,23,42,0.08)] overflow-hidden";
+  const tableHeaderClass = isMapache
+    ? "flex items-center justify-between gap-4 px-6 sm:px-8 py-6 border-b border-white/10 bg-gradient-to-r from-[#0c0c14] via-[#11111c] to-[#161626]"
+    : "flex items-center justify-between gap-4 px-6 sm:px-8 py-6 border-b border-slate-200/70 bg-gradient-to-r from-purple-50 via-purple-50 to-white";
+  const tableIconShell = isMapache
+    ? "h-12 w-12 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/15 flex items-center justify-center shadow-inner"
+    : "h-12 w-12 rounded-2xl bg-purple-100 border border-purple-200 flex items-center justify-center shadow-inner";
+  const tableSubtitleClass = isMapache ? "text-sm font-medium text-white/70" : "text-sm font-semibold text-purple-700";
+  const tableTitleClass = isMapache ? "text-2xl font-bold text-white" : "text-2xl font-bold text-slate-900";
 
   return (
     <div className={containerBg}>
