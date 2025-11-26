@@ -685,6 +685,7 @@ export default function GoalsPage({
             onEditBilling={disableManualWins ? () => undefined : openBillingEditor}
             onAddManual={canAddSelfManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
             onDeleteDeal={canAddManual ? handleDeleteManualWon : undefined}
+            theme={theme}
           />
           <TeamRankingCard rows={rows} loading={loadingTeam} effectiveTeam={effectiveTeam} theme={theme} />
         </div>
