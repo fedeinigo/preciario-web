@@ -109,6 +109,59 @@ export default function GoalsPage({
   const [billingEditorDeal, setBillingEditorDeal] = React.useState<UserWonDeal | null>(null);
   const [deleteConfirmDeal, setDeleteConfirmDeal] = React.useState<UserWonDeal | null>(null);
 
+  const winsCacheKey = React.useMemo(
+    () => `goals:pipedrive:${currentEmail || "unknown"}:${year}:Q${quarter}`,
+    [currentEmail, quarter, year]
+  );
+
+  const loadWinsFromCache = React.useCallback(() => {
+    if (winsSource !== "pipedrive") return false;
+    if (typeof window === "undefined") return false;
+    try {
+      const raw = window.localStorage.getItem(winsCacheKey);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw) as {
+        deals?: UserWonDeal[];
+        progress?: number;
+        monthlyProgress?: number;
+        totals?: { monthlyFees?: number; billed?: number; pending?: number };
+        lastSyncedAt?: string | null;
+      };
+      if (!Array.isArray(parsed.deals)) return false;
+      setMyDeals(parsed.deals);
+      setMyProgress(Number(parsed.progress ?? 0));
+      setMyMonthlyProgress(Number(parsed.monthlyProgress ?? 0));
+      setMyTotals({
+        monthlyFees: Number(parsed.totals?.monthlyFees ?? 0),
+        billed: Number(parsed.totals?.billed ?? 0),
+        pending: Number(parsed.totals?.pending ?? 0),
+      });
+      setLastSyncedAt(parsed.lastSyncedAt ? new Date(parsed.lastSyncedAt) : null);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [winsCacheKey, winsSource]);
+
+  const persistWinsCache = React.useCallback(
+    (payload: {
+      deals: UserWonDeal[];
+      progress: number;
+      monthlyProgress: number;
+      totals: { monthlyFees: number; billed: number; pending: number };
+      lastSyncedAt: string;
+    }) => {
+      if (winsSource !== "pipedrive") return;
+      if (typeof window === "undefined") return;
+      try {
+        window.localStorage.setItem(winsCacheKey, JSON.stringify(payload));
+      } catch {
+        // ignore cache errors
+      }
+    },
+    [winsCacheKey, winsSource]
+  );
+
   const loadMyGoal = React.useCallback(async () => {
     try {
       const r = await fetch(`/api/goals/user?year=${year}&quarter=${quarter}`);
@@ -119,65 +172,86 @@ export default function GoalsPage({
     }
   }, [year, quarter]);
 
-  const loadMyWins = React.useCallback(async () => {
-    setLoadingDeals(true);
-    try {
-      if (winsSource === "pipedrive") {
-        const response = await fetch("/api/pipedrive/deals", { cache: "no-store" });
-        if (!response.ok) throw new Error("Failed to load wins");
-        const payload = (await response.json()) as { ok: boolean; deals?: Array<{ [key: string]: unknown }> };
-        if (!payload.ok || !Array.isArray(payload.deals)) throw new Error("Invalid deals payload");
-        const filteredDeals = payload.deals.filter((deal) => {
-          const status = String((deal as { status?: string }).status ?? "").toLowerCase();
-          if (status !== "won") return false;
-          const wonQuarter = Number((deal as { wonQuarter?: number | null }).wonQuarter ?? null);
-          const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
-          const wonYear = wonAt ? new Date(wonAt).getFullYear() : null;
-          return wonQuarter === quarter && wonYear === year;
-        });
-        const normalizedDeals: UserWonDeal[] = filteredDeals.map((deal) => {
-          const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
-          const value = Number((deal as { value?: number | null }).value ?? 0);
-          const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
-          const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
-          const createdAt = wonAt || (deal as { createdAt?: string | null }).createdAt || new Date().toISOString();
-          return {
-            id: String((deal as { id?: string | number }).id ?? ""),
-            type: "auto",
-            companyName: String((deal as { title?: string }).title ?? ""),
-            monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
-            billedAmount: 0,
-            pendingAmount: Number.isFinite(monthlyFee) ? monthlyFee : 0,
-            billingPct: 0,
-            link: ((deal as { dealUrl?: string }).dealUrl ?? null) as string | null,
-            createdAt,
-            proposalId: undefined,
-            manualDealId: undefined,
-            docId: null,
-            docUrl: ((deal as { techSaleScopeUrl?: string | null; proposalUrl?: string | null }).techSaleScopeUrl ??
-              (deal as { proposalUrl?: string | null }).proposalUrl ??
-              null) as string | null,
-            wonType: "NEW_CUSTOMER",
-          };
-        });
-        const totalFees = normalizedDeals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
-        setMyProgress(totalFees);
-        setMyDeals(normalizedDeals);
-        const currentDate = new Date();
-        const currentMonth = currentDate.getMonth();
-        const currentYear = currentDate.getFullYear();
-        const monthlyProgress = normalizedDeals.reduce((acc, deal) => {
-          const createdDate = new Date(deal.createdAt);
-          if (!Number.isNaN(createdDate.getTime()) && createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear) {
-            return acc + Number(deal.monthlyFee ?? 0);
-          }
-          return acc;
-        }, 0);
-        setMyMonthlyProgress(monthlyProgress);
-        setMyTotals({ monthlyFees: totalFees, billed: 0, pending: totalFees });
-        setLastSyncedAt(new Date());
+  const loadMyWins = React.useCallback(
+    async (options?: { force?: boolean }) => {
+      const shouldUseCacheOnly = winsSource === "pipedrive" && !options?.force;
+      if (shouldUseCacheOnly) {
+        const restored = loadWinsFromCache();
+        if (restored) return;
+        setLastSyncedAt(null);
+        setMyDeals([]);
+        setMyProgress(0);
+        setMyMonthlyProgress(0);
+        setMyTotals({ monthlyFees: 0, billed: 0, pending: 0 });
         return;
       }
+      setLoadingDeals(true);
+      try {
+        if (winsSource === "pipedrive") {
+          const response = await fetch("/api/pipedrive/deals", { cache: "no-store" });
+          if (!response.ok) throw new Error("Failed to load wins");
+          const payload = (await response.json()) as { ok: boolean; deals?: Array<{ [key: string]: unknown }> };
+          if (!payload.ok || !Array.isArray(payload.deals)) throw new Error("Invalid deals payload");
+          const filteredDeals = payload.deals.filter((deal) => {
+            const status = String((deal as { status?: string }).status ?? "").toLowerCase();
+            if (status !== "won") return false;
+            const wonQuarter = Number((deal as { wonQuarter?: number | null }).wonQuarter ?? null);
+            const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
+            const wonYear = wonAt ? new Date(wonAt).getFullYear() : null;
+            return wonQuarter === quarter && wonYear === year;
+          });
+          const normalizedDeals: UserWonDeal[] = filteredDeals.map((deal) => {
+            const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
+            const value = Number((deal as { value?: number | null }).value ?? 0);
+            const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
+            const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
+            const createdAt = wonAt || (deal as { createdAt?: string | null }).createdAt || new Date().toISOString();
+            return {
+              id: String((deal as { id?: string | number }).id ?? ""),
+              type: "auto",
+              companyName: String((deal as { title?: string }).title ?? ""),
+              monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+              billedAmount: 0,
+              pendingAmount: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+              billingPct: 0,
+              link: ((deal as { dealUrl?: string }).dealUrl ?? null) as string | null,
+              createdAt,
+              proposalId: undefined,
+              manualDealId: undefined,
+              docId: null,
+              docUrl: ((deal as { techSaleScopeUrl?: string | null; proposalUrl?: string | null }).techSaleScopeUrl ??
+                (deal as { proposalUrl?: string | null }).proposalUrl ??
+                null) as string | null,
+              wonType: "NEW_CUSTOMER",
+            };
+          });
+          const totalFees = normalizedDeals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
+          setMyProgress(totalFees);
+          setMyDeals(normalizedDeals);
+          const currentDate = new Date();
+          const currentMonth = currentDate.getMonth();
+          const currentYear = currentDate.getFullYear();
+          const monthlyProgress = normalizedDeals.reduce((acc, deal) => {
+            const createdDate = new Date(deal.createdAt);
+            if (!Number.isNaN(createdDate.getTime()) && createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear) {
+              return acc + Number(deal.monthlyFee ?? 0);
+            }
+            return acc;
+          }, 0);
+          setMyMonthlyProgress(monthlyProgress);
+          const totals = { monthlyFees: totalFees, billed: 0, pending: totalFees };
+          setMyTotals(totals);
+          const syncMoment = new Date();
+          setLastSyncedAt(syncMoment);
+          persistWinsCache({
+            deals: normalizedDeals,
+            progress: totalFees,
+            monthlyProgress,
+            totals,
+            lastSyncedAt: syncMoment.toISOString(),
+          });
+          return;
+        }
 
       const params = new URLSearchParams({ year: String(year), quarter: String(quarter) });
       const response = await fetch(`/api/goals/wins?${params.toString()}`, { cache: "no-store" });
@@ -235,12 +309,23 @@ export default function GoalsPage({
     } finally {
       setLoadingDeals(false);
     }
-  }, [quarter, winsSource, year]);
+  }, [loadWinsFromCache, persistWinsCache, quarter, winsSource, year]);
 
   React.useEffect(() => {
     loadMyGoal();
+    if (winsSource === "pipedrive") {
+      const restored = loadWinsFromCache();
+      if (!restored) {
+        setLastSyncedAt(null);
+        setMyDeals([]);
+        setMyProgress(0);
+        setMyMonthlyProgress(0);
+        setMyTotals({ monthlyFees: 0, billed: 0, pending: 0 });
+      }
+      return;
+    }
     loadMyWins();
-  }, [loadMyGoal, loadMyWins]);
+  }, [loadMyGoal, loadMyWins, loadWinsFromCache, winsSource]);
 
   const handleSaveMyGoal = async (amount: number) => {
     const r = await fetch("/api/goals/user", {
@@ -257,6 +342,9 @@ export default function GoalsPage({
   const teams = React.useMemo(() => {
     if (!isSuperAdmin && role !== "admin") return [] as string[];
     const counts = new Map<string, number>();
+    if (leaderTeam) {
+      counts.set(leaderTeam, (counts.get(leaderTeam) || 0) + 1);
+    }
     adminUsers.forEach((u) => {
       const t = (u.team || "").trim();
       if (!t) return;
@@ -266,9 +354,9 @@ export default function GoalsPage({
       .filter(([, count]) => count > 0)
       .map(([name]) => name)
       .sort((a, b) => a.localeCompare(b));
-  }, [adminUsers, isSuperAdmin, role]);
+  }, [adminUsers, isSuperAdmin, leaderTeam, role]);
 
-  const [teamFilter, setTeamFilter] = React.useState<string>("");
+  const [teamFilter, setTeamFilter] = React.useState<string>(leaderTeam ?? "");
   const effectiveTeam = (isSuperAdmin || role === "admin") ? teamFilter : (leaderTeam ?? "");
 
   const [teamGoal, setTeamGoal] = React.useState<number>(0);
@@ -603,7 +691,7 @@ export default function GoalsPage({
                   {winsSource === "pipedrive" && (
                     <button
                       className="inline-flex items-center justify-center rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/20 hover:scale-[1.01]"
-                      onClick={loadMyWins}
+                      onClick={() => loadMyWins({ force: true })}
                       disabled={loadingDeals}
                     >
                       {loadingDeals ? "Sincronizando..." : "Sincronizar"}
