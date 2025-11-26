@@ -133,7 +133,7 @@ export default function BillingSummaryCard({
         </div>
       </div>
 
-      <div className="p-6 flex-1 overflow-y-auto">
+      <div className={contentClass}>
         <div className="space-y-4">
           {loading ? (
             <div className={emptyCardClass}>
@@ -172,15 +172,25 @@ export default function BillingSummaryCard({
                   </p>
                   </div>
                   <div className="flex items-center gap-2">
-                  {deal.type === "manual" && onDeleteDeal && (
+                    {deal.type === "manual" && onDeleteDeal && (
+                      <button
+                        className={pillDeleteClass}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteDeal(deal);
+                        }}
+                      >
+                        {t("deleteManual")}
+                      </button>
+                    )}
                     <button
                       className={pillDeleteClass}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDeleteDeal(deal);
+                        onEditBilling(deal);
                       }}
                     >
-                      {t("deleteManual")}
+                      {t("editBilling")}
                     </button>
                   )}
                   <button
