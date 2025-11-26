@@ -86,6 +86,9 @@ export default function BillingSummaryCard({
   const emptyCardClass = isMapache
     ? "rounded-2xl border-2 border-dashed border-white/20 bg-white/5 p-8 text-center text-white"
     : "rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-8 text-center";
+  const contentClass = isMapache
+    ? "flex-1 space-y-6 px-6 py-5 bg-[#0b0e16]"
+    : "flex-1 space-y-6 px-6 py-5 bg-white";
   const dealCardClass = isMapache
     ? "rounded-2xl border border-white/10 bg-gradient-to-br from-[#121520] to-[#0c0e17] px-5 py-4 shadow-sm hover:shadow-[0_16px_40px_rgba(0,0,0,0.35)] transition-all cursor-pointer group"
     : "rounded-2xl border border-slate-200/60 bg-gradient-to-br from-white to-slate-50/30 px-5 py-4 shadow-sm hover:shadow-md transition-all cursor-pointer group";
@@ -184,7 +187,7 @@ export default function BillingSummaryCard({
                       </button>
                     )}
                     <button
-                      className={pillDeleteClass}
+                      className={pillEditClass}
                       onClick={(e) => {
                         e.stopPropagation();
                         onEditBilling(deal);
@@ -192,16 +195,6 @@ export default function BillingSummaryCard({
                     >
                       {t("editBilling")}
                     </button>
-                  )}
-                  <button
-                    className={pillEditClass}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditBilling(deal);
-                    }}
-                  >
-                    {t("editBilling")}
-                  </button>
                   </div>
                 </div>
 
