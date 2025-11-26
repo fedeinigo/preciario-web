@@ -575,7 +575,7 @@ export default function GoalsPage({
                   </div>
                   <div>
                     <h1 className="text-3xl font-bold text-white tracking-tight">{pageT("title")}</h1>
-                    <p className="text-purple-200 text-sm mt-0.5">
+                    <p className="text-white/70 text-sm mt-0.5">
                       {rangeForQuarter.from} - {rangeForQuarter.to}
                     </p>
                   </div>
@@ -641,6 +641,7 @@ export default function GoalsPage({
             monthlyProgress={myMonthlyProgress}
             onSave={handleSaveMyGoal}
             onAddManual={canAddSelfManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
+            theme={theme}
           />
           )}
           {loadingTeam && teamGoal === 0 ? (
@@ -658,6 +659,7 @@ export default function GoalsPage({
             teamProgress={teamProgress}
             sumMembersGoal={sumMembersGoal}
             onSaveTeamGoal={saveTeamGoal}
+            theme={theme}
           />
           )}
         </div>
@@ -673,27 +675,31 @@ export default function GoalsPage({
             onAddManual={canAddSelfManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
             onDeleteDeal={canAddManual ? handleDeleteManualWon : undefined}
           />
-          <TeamRankingCard rows={rows} loading={loadingTeam} effectiveTeam={effectiveTeam} />
+          <TeamRankingCard rows={rows} loading={loadingTeam} effectiveTeam={effectiveTeam} theme={theme} />
         </div>
 
         {/* Team Members Table - Enhanced */}
-        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden">
-          <div className="flex flex-col gap-4 border-b border-slate-100 px-6 sm:px-8 py-6 md:flex-row md:items-center md:justify-between bg-gradient-to-r from-slate-50 to-purple-50/20">
+        <div className={tableCardClass}>
+          <div className={tableHeaderClass}>
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-100 to-purple-50 border border-purple-200/50">
-                <Users2 className="h-6 w-6 text-purple-700" />
+              <div className={tableIconShell}>
+                <Users2 className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">
+                <p className={tableSubtitleClass}>
                   {pageT("teamTitle")}
                 </p>
-                <p className="text-xl font-bold text-slate-900 mt-0.5">
+                <p className={tableTitleClass}>
                   {effectiveTeam ? pageT("teamTitleWithName", { team: effectiveTeam }) : pageT("teamTitle")}
                 </p>
               </div>
             </div>
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+              className={
+                isMapache
+                  ? "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#8b5cf6] to-[#6366f1] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(99,102,241,0.35)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                  : "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+              }
               onClick={exportCsv}
               disabled={!effectiveTeam || loadingTeam}
             >
