@@ -559,27 +559,13 @@ export default function GoalsPage({
   const kpiCardBg = isMapache
     ? "bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-4 py-3"
     : "bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3";
-  const headerShell = isMapache
-    ? "rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden bg-[#0d0f16]"
-    : "bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden";
-  const tableCardClass = isMapache
-    ? "rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden bg-[#0d0f16]"
-    : "bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden";
-  const tableHeaderClass = isMapache
-    ? "flex flex-col gap-4 border-b border-white/5 px-6 sm:px-8 py-6 md:flex-row md:items-center md:justify-between bg-gradient-to-r from-[#10121d] to-[#0b0d14]"
-    : "flex flex-col gap-4 border-b border-slate-100 px-6 sm:px-8 py-6 md:flex-row md:items-center md:justify-between bg-gradient-to-r from-slate-50 to-purple-50/20";
-  const tableTitleClass = isMapache ? "text-xl font-bold text-white" : "text-xl font-bold text-slate-900";
-  const tableSubtitleClass = isMapache ? "text-xs font-semibold uppercase tracking-wider text-white/60" : "text-xs font-semibold uppercase tracking-wider text-purple-600";
-  const tableIconShell = isMapache
-    ? "flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 border border-white/10"
-    : "flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-100 to-purple-50 border border-purple-200/50";
 
   return (
     <div className={containerBg}>
       <div className="max-w-[1600px] mx-auto space-y-8">
         
         {/* Modern Header with KPIs */}
-        <div className={headerShell}>
+        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden">
           <div className={headerBg}>
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between flex-wrap gap-4">
@@ -688,7 +674,6 @@ export default function GoalsPage({
             onEditBilling={disableManualWins ? () => undefined : openBillingEditor}
             onAddManual={canAddSelfManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
             onDeleteDeal={canAddManual ? handleDeleteManualWon : undefined}
-            theme={theme}
           />
           <TeamRankingCard rows={rows} loading={loadingTeam} effectiveTeam={effectiveTeam} theme={theme} />
         </div>
