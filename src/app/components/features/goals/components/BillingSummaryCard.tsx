@@ -83,9 +83,6 @@ export default function BillingSummaryCard({
   const ctaClass = isMapache
     ? "inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-[#8b5cf6] to-[#6366f1] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(99,102,241,0.35)] transition-all hover:scale-[1.02]"
     : "inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.02]";
-  const contentClass = isMapache
-    ? "p-6 flex-1 overflow-y-auto bg-gradient-to-b from-[#0f1118] via-[#0c0e16] to-[#0a0c13] text-white"
-    : "p-6 flex-1 overflow-y-auto";
   const emptyCardClass = isMapache
     ? "rounded-2xl border-2 border-dashed border-white/20 bg-white/5 p-8 text-center text-white"
     : "rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-8 text-center";
@@ -154,29 +151,25 @@ export default function BillingSummaryCard({
                 onClick={() => setSelectedDeal(deal)}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div
-                    className={`min-w-0 flex-1 transition ${
-                      isMapache ? "group-hover:text-[#a78bfa]" : "group-hover:text-purple-600"
-                    }`}
-                  >
+                  <div className="min-w-0 flex-1 group-hover:text-purple-600 transition">
                     <p className={dealTitleClass}>{deal.companyName}</p>
-                    <p className={dealMetaMuted}>
-                      {deal.type === "auto" ? t("autoLabel") : t("manualLabel")}
-                      <span className="mx-1 text-slate-300">·</span>
-                      <span
-                        className={
-                          deal.wonType === "UPSELL"
-                            ? isMapache
-                              ? "text-amber-300"
-                              : "text-amber-600"
-                            : isMapache
-                              ? "text-sky-300"
-                              : "text-blue-600"
-                        }
-                      >
-                        {deal.wonType === "UPSELL" ? t("wonTypeUpsell") : t("wonTypeNew")}
-                      </span>
-                    </p>
+                  <p className={dealMetaMuted}>
+                    {deal.type === "auto" ? t("autoLabel") : t("manualLabel")}
+                    <span className="mx-1 text-slate-300">·</span>
+                    <span
+                      className={
+                        deal.wonType === "UPSELL"
+                          ? isMapache
+                            ? "text-amber-300"
+                            : "text-amber-600"
+                          : isMapache
+                            ? "text-sky-300"
+                            : "text-blue-600"
+                      }
+                    >
+                      {deal.wonType === "UPSELL" ? t("wonTypeUpsell") : t("wonTypeNew")}
+                    </span>
+                  </p>
                   </div>
                   <div className="flex items-center gap-2">
                     {deal.type === "manual" && onDeleteDeal && (
@@ -191,7 +184,7 @@ export default function BillingSummaryCard({
                       </button>
                     )}
                     <button
-                      className={pillEditClass}
+                      className={pillDeleteClass}
                       onClick={(e) => {
                         e.stopPropagation();
                         onEditBilling(deal);
@@ -199,6 +192,16 @@ export default function BillingSummaryCard({
                     >
                       {t("editBilling")}
                     </button>
+                  )}
+                  <button
+                    className={pillEditClass}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditBilling(deal);
+                    }}
+                  >
+                    {t("editBilling")}
+                  </button>
                   </div>
                 </div>
 
