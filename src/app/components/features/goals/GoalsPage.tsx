@@ -29,6 +29,9 @@ type Props = {
   isSuperAdmin: boolean;
   viewerImage?: string | null;
   viewerId?: string | null;
+  theme?: "direct" | "mapache";
+  winsSource?: "goals" | "pipedrive";
+  disableManualWins?: boolean;
 };
 
 type TeamMemberResponse = {
@@ -51,6 +54,9 @@ export default function GoalsPage({
   isSuperAdmin,
   viewerImage = null,
   viewerId = null,
+  theme = "direct",
+  winsSource = "goals",
+  disableManualWins = false,
 }: Props) {
   const pageT = useTranslations("goals.page");
   const toastT = useTranslations("goals.toast");
@@ -93,6 +99,7 @@ export default function GoalsPage({
     billed: 0,
     pending: 0,
   });
+  const [lastSyncedAt, setLastSyncedAt] = React.useState<Date | null>(null);
   const [loadingDeals, setLoadingDeals] = React.useState<boolean>(false);
   const [manualDialogTarget, setManualDialogTarget] = React.useState<
     { userId?: string; email?: string | null; name?: string | null } | null
@@ -115,6 +122,63 @@ export default function GoalsPage({
   const loadMyWins = React.useCallback(async () => {
     setLoadingDeals(true);
     try {
+      if (winsSource === "pipedrive") {
+        const response = await fetch("/api/pipedrive/deals", { cache: "no-store" });
+        if (!response.ok) throw new Error("Failed to load wins");
+        const payload = (await response.json()) as { ok: boolean; deals?: Array<{ [key: string]: unknown }> };
+        if (!payload.ok || !Array.isArray(payload.deals)) throw new Error("Invalid deals payload");
+        const filteredDeals = payload.deals.filter((deal) => {
+          const status = String((deal as { status?: string }).status ?? "").toLowerCase();
+          if (status !== "won") return false;
+          const wonQuarter = Number((deal as { wonQuarter?: number | null }).wonQuarter ?? null);
+          const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
+          const wonYear = wonAt ? new Date(wonAt).getFullYear() : null;
+          return wonQuarter === quarter && wonYear === year;
+        });
+        const normalizedDeals: UserWonDeal[] = filteredDeals.map((deal) => {
+          const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
+          const value = Number((deal as { value?: number | null }).value ?? 0);
+          const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
+          const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
+          const createdAt = wonAt || (deal as { createdAt?: string | null }).createdAt || new Date().toISOString();
+          return {
+            id: String((deal as { id?: string | number }).id ?? ""),
+            type: "auto",
+            companyName: String((deal as { title?: string }).title ?? ""),
+            monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+            billedAmount: 0,
+            pendingAmount: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+            billingPct: 0,
+            link: ((deal as { dealUrl?: string }).dealUrl ?? null) as string | null,
+            createdAt,
+            proposalId: undefined,
+            manualDealId: undefined,
+            docId: null,
+            docUrl: ((deal as { techSaleScopeUrl?: string | null; proposalUrl?: string | null }).techSaleScopeUrl ??
+              (deal as { proposalUrl?: string | null }).proposalUrl ??
+              null) as string | null,
+            wonType: "NEW_CUSTOMER",
+          };
+        });
+        const totalFees = normalizedDeals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
+        setMyProgress(totalFees);
+        setMyDeals(normalizedDeals);
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+        const monthlyProgress = normalizedDeals.reduce((acc, deal) => {
+          const createdDate = new Date(deal.createdAt);
+          if (!Number.isNaN(createdDate.getTime()) && createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear) {
+            return acc + Number(deal.monthlyFee ?? 0);
+          }
+          return acc;
+        }, 0);
+        setMyMonthlyProgress(monthlyProgress);
+        setMyTotals({ monthlyFees: totalFees, billed: 0, pending: totalFees });
+        setLastSyncedAt(new Date());
+        return;
+      }
+
       const params = new URLSearchParams({ year: String(year), quarter: String(quarter) });
       const response = await fetch(`/api/goals/wins?${params.toString()}`, { cache: "no-store" });
       if (!response.ok) throw new Error("Failed to load wins");
@@ -171,7 +235,7 @@ export default function GoalsPage({
     } finally {
       setLoadingDeals(false);
     }
-  }, [quarter, year]);
+  }, [quarter, winsSource, year]);
 
   React.useEffect(() => {
     loadMyGoal();
@@ -211,8 +275,8 @@ export default function GoalsPage({
   const [teamProgress, setTeamProgress] = React.useState<number>(0);
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);
   const [loadingTeam, setLoadingTeam] = React.useState<boolean>(false);
-  const canAddManual = isSuperAdmin || role === "lider" || role === "admin";
-  const canAddSelfManual = true;
+  const canAddManual = !disableManualWins && (isSuperAdmin || role === "lider" || role === "admin");
+  const canAddSelfManual = !disableManualWins;
 
   const loadTeam = React.useCallback(async () => {
     const canSelectTeam = isSuperAdmin || role === "admin";
@@ -485,13 +549,38 @@ export default function GoalsPage({
     [rows]
   );
 
+  const isMapache = theme === "mapache";
+  const containerBg = isMapache
+    ? "min-h-screen bg-gradient-to-b from-[#0a0a0f] via-[#0e0e14] to-[#11111a] px-4 sm:px-6 lg:px-8 py-8"
+    : "min-h-screen bg-gradient-to-br from-slate-50 via-slate-100/50 to-purple-50/30 px-4 sm:px-6 lg:px-8 py-8";
+  const headerBg = isMapache
+    ? "bg-gradient-to-r from-[#0c0c14] via-[#11111c] to-[#161626] px-6 sm:px-8 py-6"
+    : "bg-gradient-to-r from-[#311160] via-[#4c1d95] to-[#5b21b6] px-6 sm:px-8 py-6";
+  const kpiCardBg = isMapache
+    ? "bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-4 py-3"
+    : "bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3";
+  const headerShell = isMapache
+    ? "rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden bg-[#0d0f16]"
+    : "bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden";
+  const tableCardClass = isMapache
+    ? "rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden bg-[#0d0f16]"
+    : "bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden";
+  const tableHeaderClass = isMapache
+    ? "flex flex-col gap-4 border-b border-white/5 px-6 sm:px-8 py-6 md:flex-row md:items-center md:justify-between bg-gradient-to-r from-[#10121d] to-[#0b0d14]"
+    : "flex flex-col gap-4 border-b border-slate-100 px-6 sm:px-8 py-6 md:flex-row md:items-center md:justify-between bg-gradient-to-r from-slate-50 to-purple-50/20";
+  const tableTitleClass = isMapache ? "text-xl font-bold text-white" : "text-xl font-bold text-slate-900";
+  const tableSubtitleClass = isMapache ? "text-xs font-semibold uppercase tracking-wider text-white/60" : "text-xs font-semibold uppercase tracking-wider text-purple-600";
+  const tableIconShell = isMapache
+    ? "flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 border border-white/10"
+    : "flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-100 to-purple-50 border border-purple-200/50";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100/50 to-purple-50/30 px-4 sm:px-6 lg:px-8 py-8">
+    <div className={containerBg}>
       <div className="max-w-[1600px] mx-auto space-y-8">
         
         {/* Modern Header with KPIs */}
-        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden">
-          <div className="bg-gradient-to-r from-[#311160] via-[#4c1d95] to-[#5b21b6] px-6 sm:px-8 py-6">
+        <div className={headerShell}>
+          <div className={headerBg}>
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-4">
@@ -500,31 +589,47 @@ export default function GoalsPage({
                   </div>
                   <div>
                     <h1 className="text-3xl font-bold text-white tracking-tight">{pageT("title")}</h1>
-                    <p className="text-purple-200 text-sm mt-0.5">
+                    <p className="text-white/70 text-sm mt-0.5">
                       {rangeForQuarter.from} - {rangeForQuarter.to}
                     </p>
                   </div>
                 </div>
-                <div className="flex-shrink-0">
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+                  {winsSource === "pipedrive" && (
+                    <div className="text-xs font-medium text-white/80">
+                      {lastSyncedAt
+                        ? `Última sincronización: ${lastSyncedAt.toLocaleString("es-AR")}`
+                        : "Aún no sincronizaste"}
+                    </div>
+                  )}
                   <QuarterPicker year={year} quarter={quarter} onYear={setYear} onQuarter={setQuarter} />
+                  {winsSource === "pipedrive" && (
+                    <button
+                      className="inline-flex items-center justify-center rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/20 hover:scale-[1.01]"
+                      onClick={loadMyWins}
+                      disabled={loadingDeals}
+                    >
+                      {loadingDeals ? "Sincronizando..." : "Sincronizar"}
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3">
+                <div className={kpiCardBg}>
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">Objetivo</p>
                     <Tooltip content="Tu meta de ventas para este trimestre" />
                   </div>
                   <p className="text-2xl font-bold text-white mt-1">${myGoal.toLocaleString()}</p>
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3">
+                <div className={kpiCardBg}>
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">Progreso</p>
                     <Tooltip content="Total acumulado de ventas cerradas hasta ahora" />
                   </div>
                   <p className="text-2xl font-bold text-white mt-1">${myProgress.toLocaleString()}</p>
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3">
+                <div className={kpiCardBg}>
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">% Cumplimiento</p>
                     <Tooltip content="Porcentaje de tu objetivo alcanzado" />
@@ -550,6 +655,7 @@ export default function GoalsPage({
             monthlyProgress={myMonthlyProgress}
             onSave={handleSaveMyGoal}
             onAddManual={canAddSelfManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
+            theme={theme}
           />
           )}
           {loadingTeam && teamGoal === 0 ? (
@@ -567,6 +673,7 @@ export default function GoalsPage({
             teamProgress={teamProgress}
             sumMembersGoal={sumMembersGoal}
             onSaveTeamGoal={saveTeamGoal}
+            theme={theme}
           />
           )}
         </div>
@@ -578,31 +685,36 @@ export default function GoalsPage({
             totals={myTotals}
             loading={loadingDeals}
             goal={myGoal}
-            onEditBilling={openBillingEditor}
+            onEditBilling={disableManualWins ? () => undefined : openBillingEditor}
             onAddManual={canAddSelfManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
-            onDeleteDeal={handleDeleteManualWon}
+            onDeleteDeal={canAddManual ? handleDeleteManualWon : undefined}
+            theme={theme}
           />
-          <TeamRankingCard rows={rows} loading={loadingTeam} effectiveTeam={effectiveTeam} />
+          <TeamRankingCard rows={rows} loading={loadingTeam} effectiveTeam={effectiveTeam} theme={theme} />
         </div>
 
         {/* Team Members Table - Enhanced */}
-        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden">
-          <div className="flex flex-col gap-4 border-b border-slate-100 px-6 sm:px-8 py-6 md:flex-row md:items-center md:justify-between bg-gradient-to-r from-slate-50 to-purple-50/20">
+        <div className={tableCardClass}>
+          <div className={tableHeaderClass}>
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-100 to-purple-50 border border-purple-200/50">
-                <Users2 className="h-6 w-6 text-purple-700" />
+              <div className={tableIconShell}>
+                <Users2 className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">
+                <p className={tableSubtitleClass}>
                   {pageT("teamTitle")}
                 </p>
-                <p className="text-xl font-bold text-slate-900 mt-0.5">
+                <p className={tableTitleClass}>
                   {effectiveTeam ? pageT("teamTitleWithName", { team: effectiveTeam }) : pageT("teamTitle")}
                 </p>
               </div>
             </div>
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+              className={
+                isMapache
+                  ? "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#8b5cf6] to-[#6366f1] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(99,102,241,0.35)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                  : "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+              }
               onClick={exportCsv}
               disabled={!effectiveTeam || loadingTeam}
             >

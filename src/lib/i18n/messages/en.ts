@@ -256,6 +256,8 @@ const messages: DeepRecord = {
 
         pipedrive: "Pipedrive",
 
+        goals: "Goals",
+
         generator: "Generator",
 
         tasks: "Tasks",
