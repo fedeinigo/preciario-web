@@ -618,7 +618,7 @@ export default function GoalsPage({
 
   const handleSync = React.useCallback(async () => {
     await loadMyWins({ force: true });
-    await loadTeam();
+    await loadTeam({ force: true });
   }, [loadMyWins, loadTeam]);
 
   const handleManualWon = React.useCallback(
