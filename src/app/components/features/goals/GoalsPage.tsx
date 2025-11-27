@@ -364,130 +364,45 @@ export default function GoalsPage({
   const [teamProgressRaw, setTeamProgressRaw] = React.useState<number>(0);
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);
   const [baseRows, setBaseRows] = React.useState<TeamGoalRow[]>([]);
-  const [teamPipedriveStats, setTeamPipedriveStats] = React.useState<Map<string, { progress: number; dealsCount: number }>>(
-    () => new Map()
-  );
   const [loadingTeam, setLoadingTeam] = React.useState<boolean>(false);
   const canManageTeam = isSuperAdmin || role === "lider" || role === "admin";
   const canAddManual = !disableManualWins && (isSuperAdmin || role === "lider" || role === "admin");
   const canAddSelfManual = !disableManualWins;
 
-  const normalizeName = React.useCallback((value: string | null | undefined) => {
-    return (value || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .trim();
-  }, []);
-
-  const refreshTeamPipedriveWins = React.useCallback(
-    async (memberNames: Array<string | null | undefined>) => {
-      if (winsSource !== "pipedrive") {
-        const empty = new Map<string, { progress: number; dealsCount: number }>();
-        setTeamPipedriveStats(empty);
-        return empty;
-      }
-
-      const names = memberNames
-        .map((name) => (name ? String(name) : ""))
-        .filter((name) => !!normalizeName(name));
-
-      if (names.length === 0) {
-        const empty = new Map<string, { progress: number; dealsCount: number }>();
-        setTeamPipedriveStats(empty);
-        return empty;
-      }
-
-      try {
-        const response = await fetch("/api/pipedrive/team-deals", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ names }),
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          throw new Error("Failed to load team deals");
-        }
-        const payload = (await response.json()) as { ok: boolean; deals?: Array<{ [key: string]: unknown }> };
-        if (!payload.ok || !Array.isArray(payload.deals)) {
-          throw new Error("Invalid team deals payload");
-        }
-
-        const stats = payload.deals.reduce((acc, deal) => {
-          const status = String((deal as { status?: string }).status ?? "").toLowerCase();
-          if (status !== "won") return acc;
-          const wonQuarter = Number((deal as { wonQuarter?: number | null }).wonQuarter ?? null);
-          const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
-          const wonYear = wonAt ? new Date(wonAt).getFullYear() : null;
-          if (wonQuarter !== quarter || wonYear !== year) return acc;
-
-          const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
-          const value = Number((deal as { value?: number | null }).value ?? 0);
-          const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
-          const assigned = normalizeName((deal as { mapacheAssigned?: string | null }).mapacheAssigned ?? "");
-          if (!assigned) return acc;
-
-          const current = acc.get(assigned) ?? { progress: 0, dealsCount: 0 };
-          current.progress += Number.isFinite(monthlyFee) ? monthlyFee : 0;
-          current.dealsCount += 1;
-          acc.set(assigned, current);
-          return acc;
-        }, new Map<string, { progress: number; dealsCount: number }>());
-
-        setTeamPipedriveStats(stats);
-        return stats;
-      } catch {
-        const empty = new Map<string, { progress: number; dealsCount: number }>();
-        setTeamPipedriveStats(empty);
-        return empty;
-      }
-    },
-    [normalizeName, quarter, winsSource, year]
-  );
-
-  const mergePipedriveProgress = React.useCallback(
-    (
-      incomingRows: TeamGoalRow[],
-      incomingProgress: number,
-      pipedriveStatsOverride?: Map<string, { progress: number; dealsCount: number }>
-    ) => {
+  const mergePipedriveSelfProgress = React.useCallback(
+    (incomingRows: TeamGoalRow[], incomingProgress: number) => {
       if (winsSource !== "pipedrive") {
         return { rows: incomingRows, teamProgress: incomingProgress };
       }
 
-      const stats = pipedriveStatsOverride ?? teamPipedriveStats;
       const normalizedEmail = (currentEmail || "").trim().toLowerCase();
-      const updatedRows = incomingRows.map((row) => {
-        const key = normalizeName(row.name ?? row.email ?? "");
-        const pipedriveStats = key ? stats.get(key) : undefined;
-        if (pipedriveStats) {
-          const progress = pipedriveStats.progress;
-          return {
-            ...row,
-            progress,
-            pct: row.goal > 0 ? (progress / row.goal) * 100 : row.pct,
-            dealsCount: pipedriveStats.dealsCount,
-          };
-        }
 
+      const matchIndex = incomingRows.findIndex((row) => {
         const rowEmail = (row.email || "").trim().toLowerCase();
-        if (rowEmail === normalizedEmail && myDeals.length > 0) {
-          return {
-            ...row,
-            progress: myProgress,
-            pct: row.goal > 0 ? (myProgress / row.goal) * 100 : row.pct,
-            dealsCount: Math.max(myDeals.length, row.dealsCount || 0),
-          };
-        }
-
-        return row;
+        return (viewerId && row.userId === viewerId) || (!!normalizedEmail && rowEmail === normalizedEmail);
       });
 
-      const adjustedTeamProgress = updatedRows.reduce((acc, row) => acc + row.progress, 0);
+      if (matchIndex === -1) {
+        return { rows: incomingRows, teamProgress: incomingProgress };
+      }
+
+      const matched = incomingRows[matchIndex];
+      const updatedRows = incomingRows.map((row, idx) =>
+        idx === matchIndex
+          ? {
+              ...row,
+              progress: myProgress,
+              dealsCount: myDeals.length,
+              pct: row.goal > 0 ? (myProgress / row.goal) * 100 : 0,
+            }
+          : row
+      );
+
+      const adjustedTeamProgress = incomingProgress - matched.progress + myProgress;
 
       return { rows: updatedRows, teamProgress: adjustedTeamProgress };
     },
-    [currentEmail, myDeals.length, myProgress, normalizeName, teamPipedriveStats, winsSource]
+    [currentEmail, myDeals.length, myProgress, viewerId, winsSource]
   );
 
   const loadTeam = React.useCallback(async () => {
@@ -538,31 +453,25 @@ export default function GoalsPage({
       setBaseRows(normalizedRows);
       const baseProgress = normalizedRows.reduce((acc, row) => acc + row.progress, 0);
       setTeamProgressRaw(baseProgress);
-      if (winsSource === "pipedrive") {
-        const stats = await refreshTeamPipedriveWins(normalizedRows.map((row) => row.name ?? row.email ?? null));
-        const merged = mergePipedriveProgress(normalizedRows, baseProgress, stats);
-        setRows(merged.rows);
-        setTeamProgress(merged.teamProgress);
-      } else {
-        setRows(normalizedRows);
-        setTeamProgress(baseProgress);
-      }
+      const merged = mergePipedriveSelfProgress(normalizedRows, baseProgress);
+      setRows(merged.rows);
+      setTeamProgress(merged.teamProgress);
     } catch {
       setTeamGoal(0); setTeamProgress(0); setRows([]); setBaseRows([]); setTeamProgressRaw(0);
     } finally {
       setLoadingTeam(false);
     }
-  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveProgress, refreshTeamPipedriveWins, winsSource]);
+  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress]);
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
 
   React.useEffect(() => {
     if (winsSource !== "pipedrive") return;
     if (baseRows.length === 0) return;
-    const merged = mergePipedriveProgress(baseRows, teamProgressRaw);
+    const merged = mergePipedriveSelfProgress(baseRows, teamProgressRaw);
     setRows(merged.rows);
     setTeamProgress(merged.teamProgress);
-  }, [baseRows, mergePipedriveProgress, teamProgressRaw, winsSource]);
+  }, [baseRows, mergePipedriveSelfProgress, teamProgressRaw, winsSource]);
 
   React.useEffect(() => {
     const handleRefresh = () => {
