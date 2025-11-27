@@ -369,57 +369,6 @@ export default function GoalsPage({
   const canAddManual = !disableManualWins && (isSuperAdmin || role === "lider" || role === "admin");
   const canAddSelfManual = !disableManualWins;
 
-  const teamCacheKey = React.useMemo(
-    () => `goals:pipedrive:team:${currentEmail || "unknown"}:${year}:Q${quarter}:${effectiveTeam || "none"}`,
-    [currentEmail, effectiveTeam, quarter, year]
-  );
-
-  const loadTeamFromCache = React.useCallback(() => {
-    if (winsSource !== "pipedrive") return false;
-    if (typeof window === "undefined") return false;
-    try {
-      const raw = window.localStorage.getItem(teamCacheKey);
-      if (!raw) return false;
-      const parsed = JSON.parse(raw) as {
-        teamGoal: number;
-        teamProgress: number;
-        teamProgressRaw: number;
-        rows: TeamGoalRow[];
-        baseRows: TeamGoalRow[];
-        lastSyncedAt?: string | null;
-      };
-      setTeamGoal(Number(parsed.teamGoal || 0));
-      setTeamProgress(Number(parsed.teamProgress || 0));
-      setTeamProgressRaw(Number(parsed.teamProgressRaw || 0));
-      setRows(parsed.rows ?? []);
-      setBaseRows(parsed.baseRows ?? []);
-      if (parsed.lastSyncedAt) setLastSyncedAt(new Date(parsed.lastSyncedAt));
-      return true;
-    } catch {
-      return false;
-    }
-  }, [teamCacheKey, winsSource]);
-
-  const persistTeamCache = React.useCallback(
-    (payload: {
-      teamGoal: number;
-      teamProgress: number;
-      teamProgressRaw: number;
-      rows: TeamGoalRow[];
-      baseRows: TeamGoalRow[];
-      lastSyncedAt?: string;
-    }) => {
-      if (winsSource !== "pipedrive") return;
-      if (typeof window === "undefined") return;
-      try {
-        window.localStorage.setItem(teamCacheKey, JSON.stringify(payload));
-      } catch {
-        // ignore cache errors
-      }
-    },
-    [teamCacheKey, winsSource]
-  );
-
   const normalizeName = React.useCallback((value: string | null | undefined) => value?.trim().toLowerCase() ?? "", []);
 
   const mergePipedriveSelfProgress = React.useCallback(
@@ -595,7 +544,7 @@ export default function GoalsPage({
     } finally {
       setLoadingTeam(false);
     }
-  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName, loadTeamFromCache, persistTeamCache]);
+  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName]);
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
 
@@ -618,7 +567,7 @@ export default function GoalsPage({
 
   const handleSync = React.useCallback(async () => {
     await loadMyWins({ force: true });
-    await loadTeam({ force: true });
+    await loadTeam();
   }, [loadMyWins, loadTeam]);
 
   const handleManualWon = React.useCallback(
