@@ -407,7 +407,7 @@ export default function GoalsPage({
     [currentEmail, myDeals.length, myProgress, viewerId, winsSource]
   );
 
-  const loadTeam = React.useCallback(async () => {
+  const loadTeam = React.useCallback(async (options?: { force?: boolean }) => {
     const canSelectTeam = isSuperAdmin || role === "admin";
     if (!canSelectTeam && !effectiveTeam) {
       setRows([]);
@@ -419,6 +419,18 @@ export default function GoalsPage({
       setRows([]);
       setTeamGoal(0);
       setTeamProgress(0);
+      return;
+    }
+    const shouldUseCacheOnly = winsSource === "pipedrive" && !options?.force;
+    if (shouldUseCacheOnly) {
+      const restored = loadTeamFromCache();
+      if (restored) return;
+      setTeamGoal(0);
+      setTeamProgress(0);
+      setRows([]);
+      setBaseRows([]);
+      setTeamProgressRaw(0);
+      setLastSyncedAt(null);
       return;
     }
     setLoadingTeam(true);
@@ -515,6 +527,18 @@ export default function GoalsPage({
       const merged = mergePipedriveSelfProgress(resolvedRows, resolvedProgress);
       setRows(merged.rows);
       setTeamProgress(merged.teamProgress);
+      const syncMoment = new Date();
+      if (winsSource === "pipedrive") {
+        setLastSyncedAt(syncMoment);
+        persistTeamCache({
+          teamGoal: Number(j.teamGoal || 0),
+          teamProgress: merged.teamProgress,
+          teamProgressRaw: resolvedProgress,
+          rows: merged.rows,
+          baseRows: resolvedRows,
+          lastSyncedAt: syncMoment.toISOString(),
+        });
+      }
     } catch {
       setTeamGoal(0); setTeamProgress(0); setRows([]); setBaseRows([]); setTeamProgressRaw(0);
     } finally {
