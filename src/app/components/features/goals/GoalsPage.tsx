@@ -369,6 +369,8 @@ export default function GoalsPage({
   const canAddManual = !disableManualWins && (isSuperAdmin || role === "lider" || role === "admin");
   const canAddSelfManual = !disableManualWins;
 
+  const normalizeName = React.useCallback((value: string | null | undefined) => value?.trim().toLowerCase() ?? "", []);
+
   const mergePipedriveSelfProgress = React.useCallback(
     (incomingRows: TeamGoalRow[], incomingProgress: number) => {
       if (winsSource !== "pipedrive") {
@@ -450,10 +452,67 @@ export default function GoalsPage({
         };
       });
 
-      setBaseRows(normalizedRows);
-      const baseProgress = normalizedRows.reduce((acc, row) => acc + row.progress, 0);
-      setTeamProgressRaw(baseProgress);
-      const merged = mergePipedriveSelfProgress(normalizedRows, baseProgress);
+      let resolvedRows = normalizedRows;
+      let resolvedProgress = normalizedRows.reduce((acc, row) => acc + row.progress, 0);
+
+      if (winsSource === "pipedrive") {
+        const memberNames = normalizedRows.map((member) => member.name).filter((name): name is string => !!name?.trim());
+        try {
+          if (memberNames.length > 0) {
+            const pdRes = await fetch("/api/pipedrive/team-deals", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ names: memberNames }),
+            });
+            if (!pdRes.ok) throw new Error(`team-deals-${pdRes.status}`);
+            const pdPayload = (await pdRes.json()) as { ok?: boolean; deals?: Array<{ [key: string]: unknown }> };
+            if (!pdPayload.ok || !Array.isArray(pdPayload.deals)) throw new Error("team-deals-invalid");
+
+            const filteredDeals = pdPayload.deals.filter((deal) => {
+              const status = String((deal as { status?: string | null }).status ?? "").toLowerCase();
+              if (status !== "won") return false;
+              const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
+              const wonDate = wonAt ? new Date(wonAt) : null;
+              const wonYear = wonDate?.getFullYear() ?? null;
+              const wonQuarter = (deal as { wonQuarter?: number | null }).wonQuarter ?? null;
+              const wonMonthQuarter = wonDate ? (Math.floor(wonDate.getMonth() / 3) + 1) : null;
+              return wonYear === year && (wonQuarter === quarter || wonMonthQuarter === quarter);
+            });
+
+            const normalizedDeals = filteredDeals.map((deal) => {
+              const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
+              const value = Number((deal as { value?: number | null }).value ?? 0);
+              const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
+              return {
+                mapacheAssigned: String((deal as { mapacheAssigned?: string | null }).mapacheAssigned ?? ""),
+                monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+              };
+            });
+
+            resolvedRows = normalizedRows.map((row) => {
+              const rowName = normalizeName(row.name);
+              const deals = normalizedDeals.filter(
+                (deal) => rowName && normalizeName(deal.mapacheAssigned) === rowName
+              );
+              const progress = deals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
+              return {
+                ...row,
+                progress,
+                dealsCount: deals.length,
+                pct: row.goal > 0 ? (progress / row.goal) * 100 : 0,
+              };
+            });
+
+            resolvedProgress = resolvedRows.reduce((acc, row) => acc + row.progress, 0);
+          }
+        } catch (error) {
+          console.error("team-pipedrive-sync-failed", error);
+        }
+      }
+
+      setBaseRows(resolvedRows);
+      setTeamProgressRaw(resolvedProgress);
+      const merged = mergePipedriveSelfProgress(resolvedRows, resolvedProgress);
       setRows(merged.rows);
       setTeamProgress(merged.teamProgress);
     } catch {
@@ -461,7 +520,7 @@ export default function GoalsPage({
     } finally {
       setLoadingTeam(false);
     }
-  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress]);
+  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName]);
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
 
@@ -476,20 +535,16 @@ export default function GoalsPage({
   React.useEffect(() => {
     const handleRefresh = () => {
       loadMyWins();
-      if (canManageTeam) {
-        loadTeam();
-      }
+      loadTeam();
     };
     window.addEventListener("proposals:refresh", handleRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
-  }, [canManageTeam, loadMyWins, loadTeam]);
+  }, [loadMyWins, loadTeam]);
 
   const handleSync = React.useCallback(async () => {
     await loadMyWins({ force: true });
-    if (canManageTeam) {
-      await loadTeam();
-    }
-  }, [canManageTeam, loadMyWins, loadTeam]);
+    await loadTeam();
+  }, [loadMyWins, loadTeam]);
 
   const handleManualWon = React.useCallback(
     async (payload: {
