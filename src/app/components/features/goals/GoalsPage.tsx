@@ -363,6 +363,7 @@ export default function GoalsPage({
   const [teamProgress, setTeamProgress] = React.useState<number>(0);
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);
   const [loadingTeam, setLoadingTeam] = React.useState<boolean>(false);
+  const canManageTeam = isSuperAdmin || role === "lider" || role === "admin";
   const canAddManual = !disableManualWins && (isSuperAdmin || role === "lider" || role === "admin");
   const canAddSelfManual = !disableManualWins;
 
@@ -424,13 +425,20 @@ export default function GoalsPage({
   React.useEffect(() => {
     const handleRefresh = () => {
       loadMyWins();
-      if (isSuperAdmin || role === "lider" || role === "admin") {
+      if (canManageTeam) {
         loadTeam();
       }
     };
     window.addEventListener("proposals:refresh", handleRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
-  }, [isSuperAdmin, role, loadMyWins, loadTeam]);
+  }, [canManageTeam, loadMyWins, loadTeam]);
+
+  const handleSync = React.useCallback(async () => {
+    await loadMyWins({ force: true });
+    if (canManageTeam) {
+      await loadTeam();
+    }
+  }, [canManageTeam, loadMyWins, loadTeam]);
 
   const handleManualWon = React.useCallback(
     async (payload: {
@@ -691,7 +699,7 @@ export default function GoalsPage({
                   {winsSource === "pipedrive" && (
                     <button
                       className="inline-flex items-center justify-center rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/20 hover:scale-[1.01]"
-                      onClick={() => loadMyWins({ force: true })}
+                      onClick={handleSync}
                       disabled={loadingDeals}
                     >
                       {loadingDeals ? "Sincronizando..." : "Sincronizar"}
