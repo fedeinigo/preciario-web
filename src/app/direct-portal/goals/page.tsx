@@ -22,6 +22,9 @@ export default async function DirectPortalGoalsPage() {
       isSuperAdmin={isSuperAdmin}
       viewerImage={viewer.image}
       viewerId={viewer.id}
+      winsSource="pipedrive"
+      pipedriveMode="owner"
+      disableManualWins
     />
   );
 }
