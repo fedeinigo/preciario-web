@@ -361,10 +361,49 @@ export default function GoalsPage({
 
   const [teamGoal, setTeamGoal] = React.useState<number>(0);
   const [teamProgress, setTeamProgress] = React.useState<number>(0);
+  const [teamProgressRaw, setTeamProgressRaw] = React.useState<number>(0);
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);
+  const [baseRows, setBaseRows] = React.useState<TeamGoalRow[]>([]);
   const [loadingTeam, setLoadingTeam] = React.useState<boolean>(false);
+  const canManageTeam = isSuperAdmin || role === "lider" || role === "admin";
   const canAddManual = !disableManualWins && (isSuperAdmin || role === "lider" || role === "admin");
   const canAddSelfManual = !disableManualWins;
+
+  const mergePipedriveSelfProgress = React.useCallback(
+    (incomingRows: TeamGoalRow[], incomingProgress: number) => {
+      if (winsSource !== "pipedrive") {
+        return { rows: incomingRows, teamProgress: incomingProgress };
+      }
+
+      const normalizedEmail = (currentEmail || "").trim().toLowerCase();
+
+      const matchIndex = incomingRows.findIndex((row) => {
+        const rowEmail = (row.email || "").trim().toLowerCase();
+        return (viewerId && row.userId === viewerId) || (!!normalizedEmail && rowEmail === normalizedEmail);
+      });
+
+      if (matchIndex === -1) {
+        return { rows: incomingRows, teamProgress: incomingProgress };
+      }
+
+      const matched = incomingRows[matchIndex];
+      const updatedRows = incomingRows.map((row, idx) =>
+        idx === matchIndex
+          ? {
+              ...row,
+              progress: myProgress,
+              dealsCount: myDeals.length,
+              pct: row.goal > 0 ? (myProgress / row.goal) * 100 : 0,
+            }
+          : row
+      );
+
+      const adjustedTeamProgress = incomingProgress - matched.progress + myProgress;
+
+      return { rows: updatedRows, teamProgress: adjustedTeamProgress };
+    },
+    [currentEmail, myDeals.length, myProgress, viewerId, winsSource]
+  );
 
   const loadTeam = React.useCallback(async () => {
     const canSelectTeam = isSuperAdmin || role === "admin";
@@ -390,47 +429,67 @@ export default function GoalsPage({
       setTeamGoal(Number(j.teamGoal || 0));
       setTeamProgress(Number(j.teamProgress || 0));
       const members = (Array.isArray(j.members) ? j.members : []) as TeamMemberResponse[];
-      setRows(
-        members.map((member) => {
-          const memberId = String(member.userId ?? "");
-          const email = member.email ?? null;
-          let image = member.image ?? (email ? emailToAdminUser.get(email)?.image ?? null : null);
-          if (!image && viewerId && viewerId === memberId) {
-            image = viewerImage ?? null;
-          }
-          return {
-            userId: memberId,
-            email,
-            name: member.name ?? null,
-            role: member.role ?? null,
-            team: member.team ?? null,
-            image,
-            goal: Number(member.goal ?? 0),
-            progress: Number(member.progress ?? 0),
-            pct: Number(member.pct ?? 0),
-            dealsCount: Number(member.dealsCount ?? 0),
-          };
-        })
-      );
+      const normalizedRows = members.map((member) => {
+        const memberId = String(member.userId ?? "");
+        const email = member.email ?? null;
+        let image = member.image ?? (email ? emailToAdminUser.get(email)?.image ?? null : null);
+        if (!image && viewerId && viewerId === memberId) {
+          image = viewerImage ?? null;
+        }
+        return {
+          userId: memberId,
+          email,
+          name: member.name ?? null,
+          role: member.role ?? null,
+          team: member.team ?? null,
+          image,
+          goal: Number(member.goal ?? 0),
+          progress: Number(member.progress ?? 0),
+          pct: Number(member.pct ?? 0),
+          dealsCount: Number(member.dealsCount ?? 0),
+        };
+      });
+
+      setBaseRows(normalizedRows);
+      const baseProgress = normalizedRows.reduce((acc, row) => acc + row.progress, 0);
+      setTeamProgressRaw(baseProgress);
+      const merged = mergePipedriveSelfProgress(normalizedRows, baseProgress);
+      setRows(merged.rows);
+      setTeamProgress(merged.teamProgress);
     } catch {
-      setTeamGoal(0); setTeamProgress(0); setRows([]);
+      setTeamGoal(0); setTeamProgress(0); setRows([]); setBaseRows([]); setTeamProgressRaw(0);
     } finally {
       setLoadingTeam(false);
     }
-  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage]);
+  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress]);
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
 
   React.useEffect(() => {
+    if (winsSource !== "pipedrive") return;
+    if (baseRows.length === 0) return;
+    const merged = mergePipedriveSelfProgress(baseRows, teamProgressRaw);
+    setRows(merged.rows);
+    setTeamProgress(merged.teamProgress);
+  }, [baseRows, mergePipedriveSelfProgress, teamProgressRaw, winsSource]);
+
+  React.useEffect(() => {
     const handleRefresh = () => {
       loadMyWins();
-      if (isSuperAdmin || role === "lider" || role === "admin") {
+      if (canManageTeam) {
         loadTeam();
       }
     };
     window.addEventListener("proposals:refresh", handleRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
-  }, [isSuperAdmin, role, loadMyWins, loadTeam]);
+  }, [canManageTeam, loadMyWins, loadTeam]);
+
+  const handleSync = React.useCallback(async () => {
+    await loadMyWins({ force: true });
+    if (canManageTeam) {
+      await loadTeam();
+    }
+  }, [canManageTeam, loadMyWins, loadTeam]);
 
   const handleManualWon = React.useCallback(
     async (payload: {
@@ -691,7 +750,7 @@ export default function GoalsPage({
                   {winsSource === "pipedrive" && (
                     <button
                       className="inline-flex items-center justify-center rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/20 hover:scale-[1.01]"
-                      onClick={() => loadMyWins({ force: true })}
+                      onClick={handleSync}
                       disabled={loadingDeals}
                     >
                       {loadingDeals ? "Sincronizando..." : "Sincronizar"}
