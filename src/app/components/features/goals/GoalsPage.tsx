@@ -476,20 +476,16 @@ export default function GoalsPage({
   React.useEffect(() => {
     const handleRefresh = () => {
       loadMyWins();
-      if (canManageTeam) {
-        loadTeam();
-      }
+      loadTeam();
     };
     window.addEventListener("proposals:refresh", handleRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
-  }, [canManageTeam, loadMyWins, loadTeam]);
+  }, [loadMyWins, loadTeam]);
 
   const handleSync = React.useCallback(async () => {
     await loadMyWins({ force: true });
-    if (canManageTeam) {
-      await loadTeam();
-    }
-  }, [canManageTeam, loadMyWins, loadTeam]);
+    await loadTeam();
+  }, [loadMyWins, loadTeam]);
 
   const handleManualWon = React.useCallback(
     async (payload: {
