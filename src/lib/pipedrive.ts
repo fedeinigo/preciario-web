@@ -393,6 +393,59 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
   return summaries;
 }
 
+export async function searchDealsByOwnerName(ownerName: string) {
+  const normalizedName = normalizeForComparison(ownerName);
+  if (!normalizedName) {
+    return [];
+  }
+
+  const mapacheOptions = await ensureMapacheFieldOptions();
+  const [stageNames, deals] = await Promise.all([
+    ensureStageNameMap(),
+    fetchDealsWithMapacheFields(["open", "won", "lost"]),
+  ]);
+
+  const ownerIds = Array.from(
+    new Set(
+      deals
+        .map((deal) => ensureNumber(deal.owner_id))
+        .filter((id): id is number => typeof id === "number" && Number.isFinite(id)),
+    ),
+  );
+  const ownerNames = await resolveOwnerNames(ownerIds);
+
+  const summaries = deals
+    .filter((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId)?.trim().toLowerCase() ?? null : null;
+      if (stageName === "qualified - sql") {
+        return false;
+      }
+      const ownerId = ensureNumber(deal.owner_id);
+      const resolvedName = ownerId !== null ? ownerNames.get(ownerId) ?? null : null;
+      const rawName = extractString(deal.owner_name) ?? null;
+      const comparable = resolveComparisonName(resolvedName, rawName);
+      return comparable === normalizedName;
+    })
+    .map((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId) ?? null : null;
+      const ownerId = ensureNumber(deal.owner_id);
+      const owner = ownerId !== null ? ownerNames.get(ownerId) ?? null : null;
+
+      return normalizeDealSummary({
+        deal,
+        stageName,
+        ownerName: owner,
+        mapacheOptions,
+      });
+    });
+
+  log.info("pipedrive.owner_search", { owner: normalizedName, hits: summaries.length });
+
+  return summaries;
+}
+
 export async function searchDealsByMapacheAssignedMany(mapacheNames: string[]) {
   const normalizedNames = Array.from(
     new Set(
@@ -466,6 +519,67 @@ export async function searchDealsByMapacheAssignedMany(mapacheNames: string[]) {
     mapaches: normalizedNames,
     hits: summaries.length,
   });
+
+  return summaries;
+}
+
+export async function searchDealsByOwnerNames(ownerNames: string[]) {
+  const normalizedNames = Array.from(
+    new Set(
+      ownerNames
+        .map((name) => normalizeForComparison(name || ""))
+        .filter((name) => !!name),
+    ),
+  );
+
+  if (normalizedNames.length === 0) {
+    return [];
+  }
+
+  const mapacheOptions = await ensureMapacheFieldOptions();
+
+  const [stageNames, deals] = await Promise.all([
+    ensureStageNameMap(),
+    fetchDealsWithMapacheFields(["open", "won", "lost"]),
+  ]);
+
+  const ownerIds = Array.from(
+    new Set(
+      deals
+        .map((deal) => ensureNumber(deal.owner_id))
+        .filter((id): id is number => typeof id === "number" && Number.isFinite(id)),
+    ),
+  );
+  const ownerNamesMap = await resolveOwnerNames(ownerIds);
+
+  const summaries = deals
+    .filter((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId)?.trim().toLowerCase() ?? null : null;
+      if (stageName === "qualified - sql") {
+        return false;
+      }
+      const ownerId = ensureNumber(deal.owner_id);
+      const resolvedName = ownerId !== null ? ownerNamesMap.get(ownerId) ?? null : null;
+      const rawName = extractString(deal.owner_name) ?? null;
+      const comparable = resolveComparisonName(resolvedName, rawName);
+      return comparable !== null && normalizedNames.includes(comparable);
+    })
+    .map((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId) ?? null : null;
+      const ownerId = ensureNumber(deal.owner_id);
+      const owner = ownerId !== null ? ownerNamesMap.get(ownerId) ?? null : null;
+
+      return normalizeDealSummary({
+        deal,
+        stageName,
+        ownerName: owner,
+        mapacheOptions,
+      });
+    });
+
+  log.info("pipedrive.owner_team_search", { owners: normalizedNames, hits: summaries.length });
 
   return summaries;
 }
@@ -723,4 +837,10 @@ function normalizeForComparison(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+function resolveComparisonName(primary: string | null, fallback: string | null) {
+  const normalizedPrimary = primary ? normalizeForComparison(primary) : null;
+  const normalizedFallback = fallback ? normalizeForComparison(fallback) : null;
+  return normalizedPrimary || normalizedFallback;
 }
