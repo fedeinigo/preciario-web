@@ -100,6 +100,7 @@ const DIRECT_PORTAL_TAB_ROUTES: Record<DirectTab, string> = {
 const MAPACHE_SECTION_ROUTES: Record<MapachePortalSection, string> = {
   generator: "/portal/mapache/generator",
   pipedrive: "/portal/mapache/pipedrive",
+  goals: "/portal/mapache/goals",
 };
 
 function TabBtn({
@@ -593,6 +594,10 @@ export default function NavbarClient({ session }: NavbarClientProps) {
       setMapacheSection("pipedrive");
       return;
     }
+    if (pathname.startsWith("/portal/mapache/goals")) {
+      setMapacheSection("goals");
+      return;
+    }
     if (pathname.startsWith("/portal/mapache/generator")) {
       setMapacheSection("generator");
       return;
@@ -688,6 +693,12 @@ export default function NavbarClient({ session }: NavbarClientProps) {
                 id="pipedrive"
                 label={mapacheSectionsT("pipedrive")}
                 active={mapacheSection === "pipedrive"}
+                onClick={handleMapacheSectionChange}
+              />
+              <MapacheSectionBtn
+                id="goals"
+                label={mapacheSectionsT("goals")}
+                active={mapacheSection === "goals"}
                 onClick={handleMapacheSectionChange}
               />
               <MapacheSectionBtn

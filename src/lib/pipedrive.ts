@@ -393,6 +393,83 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
   return summaries;
 }
 
+export async function searchDealsByMapacheAssignedMany(mapacheNames: string[]) {
+  const normalizedNames = Array.from(
+    new Set(
+      mapacheNames
+        .map((name) => normalizeForComparison(name || ""))
+        .filter((name) => !!name),
+    ),
+  );
+
+  if (normalizedNames.length === 0) {
+    return [];
+  }
+
+  if (!FIELD_MAPACHE_ASSIGNED) {
+    throw new Error("Falta PIPEDRIVE_FIELD_MAPACHE_ASSIGNED en config");
+  }
+
+  const mapacheOptions = await ensureMapacheFieldOptions();
+
+  const requestedOptionIds = normalizedNames
+    .map((name) => mapacheOptions.optionIdByName.get(name))
+    .filter((id): id is number => typeof id === "number" && Number.isFinite(id));
+
+  if (requestedOptionIds.length === 0) {
+    log.warn("pipedrive.mapache_options_not_found", { mapaches: normalizedNames });
+    return [];
+  }
+
+  const [stageNames, deals] = await Promise.all([
+    ensureStageNameMap(),
+    fetchDealsWithMapacheFields(["open", "won", "lost"]),
+  ]);
+
+  const optionSet = new Set(requestedOptionIds);
+
+  const filtered = deals.filter((deal) => {
+    const stageId = ensureNumber(deal.stage_id);
+    const stageName = stageId !== null ? stageNames.get(stageId)?.trim().toLowerCase() ?? null : null;
+    if (stageName === "qualified - sql") {
+      return false;
+    }
+    const value = getCustomFieldValue(deal.custom_fields, FIELD_MAPACHE_ASSIGNED);
+    const numericValue = ensureNumber(value);
+    return numericValue !== null && optionSet.has(numericValue);
+  });
+
+  const ownerIds = Array.from(
+    new Set(
+      filtered
+        .map((deal) => ensureNumber(deal.owner_id))
+        .filter((id): id is number => typeof id === "number" && Number.isFinite(id)),
+    ),
+  );
+  const ownerNames = await resolveOwnerNames(ownerIds);
+
+  const summaries = filtered.map((deal) => {
+    const stageId = ensureNumber(deal.stage_id);
+    const stageName = stageId !== null ? stageNames.get(stageId) ?? null : null;
+    const ownerId = ensureNumber(deal.owner_id);
+    const ownerName = ownerId !== null ? ownerNames.get(ownerId) ?? null : null;
+
+    return normalizeDealSummary({
+      deal,
+      stageName,
+      ownerName,
+      mapacheOptions,
+    });
+  });
+
+  log.info("pipedrive.mapache_team_search", {
+    mapaches: normalizedNames,
+    hits: summaries.length,
+  });
+
+  return summaries;
+}
+
 async function fetchDealsWithMapacheFields(
   statuses: DealStatus[] = ["open"],
 ) {

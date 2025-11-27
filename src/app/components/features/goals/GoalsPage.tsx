@@ -29,6 +29,9 @@ type Props = {
   isSuperAdmin: boolean;
   viewerImage?: string | null;
   viewerId?: string | null;
+  theme?: "direct" | "mapache";
+  winsSource?: "goals" | "pipedrive";
+  disableManualWins?: boolean;
 };
 
 type TeamMemberResponse = {
@@ -51,6 +54,9 @@ export default function GoalsPage({
   isSuperAdmin,
   viewerImage = null,
   viewerId = null,
+  theme = "direct",
+  winsSource = "goals",
+  disableManualWins = false,
 }: Props) {
   const pageT = useTranslations("goals.page");
   const toastT = useTranslations("goals.toast");
@@ -93,6 +99,7 @@ export default function GoalsPage({
     billed: 0,
     pending: 0,
   });
+  const [lastSyncedAt, setLastSyncedAt] = React.useState<Date | null>(null);
   const [loadingDeals, setLoadingDeals] = React.useState<boolean>(false);
   const [manualDialogTarget, setManualDialogTarget] = React.useState<
     { userId?: string; email?: string | null; name?: string | null } | null
@@ -101,6 +108,59 @@ export default function GoalsPage({
 
   const [billingEditorDeal, setBillingEditorDeal] = React.useState<UserWonDeal | null>(null);
   const [deleteConfirmDeal, setDeleteConfirmDeal] = React.useState<UserWonDeal | null>(null);
+
+  const winsCacheKey = React.useMemo(
+    () => `goals:pipedrive:${currentEmail || "unknown"}:${year}:Q${quarter}`,
+    [currentEmail, quarter, year]
+  );
+
+  const loadWinsFromCache = React.useCallback(() => {
+    if (winsSource !== "pipedrive") return false;
+    if (typeof window === "undefined") return false;
+    try {
+      const raw = window.localStorage.getItem(winsCacheKey);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw) as {
+        deals?: UserWonDeal[];
+        progress?: number;
+        monthlyProgress?: number;
+        totals?: { monthlyFees?: number; billed?: number; pending?: number };
+        lastSyncedAt?: string | null;
+      };
+      if (!Array.isArray(parsed.deals)) return false;
+      setMyDeals(parsed.deals);
+      setMyProgress(Number(parsed.progress ?? 0));
+      setMyMonthlyProgress(Number(parsed.monthlyProgress ?? 0));
+      setMyTotals({
+        monthlyFees: Number(parsed.totals?.monthlyFees ?? 0),
+        billed: Number(parsed.totals?.billed ?? 0),
+        pending: Number(parsed.totals?.pending ?? 0),
+      });
+      setLastSyncedAt(parsed.lastSyncedAt ? new Date(parsed.lastSyncedAt) : null);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [winsCacheKey, winsSource]);
+
+  const persistWinsCache = React.useCallback(
+    (payload: {
+      deals: UserWonDeal[];
+      progress: number;
+      monthlyProgress: number;
+      totals: { monthlyFees: number; billed: number; pending: number };
+      lastSyncedAt: string;
+    }) => {
+      if (winsSource !== "pipedrive") return;
+      if (typeof window === "undefined") return;
+      try {
+        window.localStorage.setItem(winsCacheKey, JSON.stringify(payload));
+      } catch {
+        // ignore cache errors
+      }
+    },
+    [winsCacheKey, winsSource]
+  );
 
   const loadMyGoal = React.useCallback(async () => {
     try {
@@ -112,9 +172,87 @@ export default function GoalsPage({
     }
   }, [year, quarter]);
 
-  const loadMyWins = React.useCallback(async () => {
-    setLoadingDeals(true);
-    try {
+  const loadMyWins = React.useCallback(
+    async (options?: { force?: boolean }) => {
+      const shouldUseCacheOnly = winsSource === "pipedrive" && !options?.force;
+      if (shouldUseCacheOnly) {
+        const restored = loadWinsFromCache();
+        if (restored) return;
+        setLastSyncedAt(null);
+        setMyDeals([]);
+        setMyProgress(0);
+        setMyMonthlyProgress(0);
+        setMyTotals({ monthlyFees: 0, billed: 0, pending: 0 });
+        return;
+      }
+      setLoadingDeals(true);
+      try {
+        if (winsSource === "pipedrive") {
+          const response = await fetch("/api/pipedrive/deals", { cache: "no-store" });
+          if (!response.ok) throw new Error("Failed to load wins");
+          const payload = (await response.json()) as { ok: boolean; deals?: Array<{ [key: string]: unknown }> };
+          if (!payload.ok || !Array.isArray(payload.deals)) throw new Error("Invalid deals payload");
+          const filteredDeals = payload.deals.filter((deal) => {
+            const status = String((deal as { status?: string }).status ?? "").toLowerCase();
+            if (status !== "won") return false;
+            const wonQuarter = Number((deal as { wonQuarter?: number | null }).wonQuarter ?? null);
+            const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
+            const wonYear = wonAt ? new Date(wonAt).getFullYear() : null;
+            return wonQuarter === quarter && wonYear === year;
+          });
+          const normalizedDeals: UserWonDeal[] = filteredDeals.map((deal) => {
+            const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
+            const value = Number((deal as { value?: number | null }).value ?? 0);
+            const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
+            const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
+            const createdAt = wonAt || (deal as { createdAt?: string | null }).createdAt || new Date().toISOString();
+            return {
+              id: String((deal as { id?: string | number }).id ?? ""),
+              type: "auto",
+              companyName: String((deal as { title?: string }).title ?? ""),
+              monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+              billedAmount: 0,
+              pendingAmount: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+              billingPct: 0,
+              link: ((deal as { dealUrl?: string }).dealUrl ?? null) as string | null,
+              createdAt,
+              proposalId: undefined,
+              manualDealId: undefined,
+              docId: null,
+              docUrl: ((deal as { techSaleScopeUrl?: string | null; proposalUrl?: string | null }).techSaleScopeUrl ??
+                (deal as { proposalUrl?: string | null }).proposalUrl ??
+                null) as string | null,
+              wonType: "NEW_CUSTOMER",
+            };
+          });
+          const totalFees = normalizedDeals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
+          setMyProgress(totalFees);
+          setMyDeals(normalizedDeals);
+          const currentDate = new Date();
+          const currentMonth = currentDate.getMonth();
+          const currentYear = currentDate.getFullYear();
+          const monthlyProgress = normalizedDeals.reduce((acc, deal) => {
+            const createdDate = new Date(deal.createdAt);
+            if (!Number.isNaN(createdDate.getTime()) && createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear) {
+              return acc + Number(deal.monthlyFee ?? 0);
+            }
+            return acc;
+          }, 0);
+          setMyMonthlyProgress(monthlyProgress);
+          const totals = { monthlyFees: totalFees, billed: 0, pending: totalFees };
+          setMyTotals(totals);
+          const syncMoment = new Date();
+          setLastSyncedAt(syncMoment);
+          persistWinsCache({
+            deals: normalizedDeals,
+            progress: totalFees,
+            monthlyProgress,
+            totals,
+            lastSyncedAt: syncMoment.toISOString(),
+          });
+          return;
+        }
+
       const params = new URLSearchParams({ year: String(year), quarter: String(quarter) });
       const response = await fetch(`/api/goals/wins?${params.toString()}`, { cache: "no-store" });
       if (!response.ok) throw new Error("Failed to load wins");
@@ -171,12 +309,23 @@ export default function GoalsPage({
     } finally {
       setLoadingDeals(false);
     }
-  }, [quarter, year]);
+  }, [loadWinsFromCache, persistWinsCache, quarter, winsSource, year]);
 
   React.useEffect(() => {
     loadMyGoal();
+    if (winsSource === "pipedrive") {
+      const restored = loadWinsFromCache();
+      if (!restored) {
+        setLastSyncedAt(null);
+        setMyDeals([]);
+        setMyProgress(0);
+        setMyMonthlyProgress(0);
+        setMyTotals({ monthlyFees: 0, billed: 0, pending: 0 });
+      }
+      return;
+    }
     loadMyWins();
-  }, [loadMyGoal, loadMyWins]);
+  }, [loadMyGoal, loadMyWins, loadWinsFromCache, winsSource]);
 
   const handleSaveMyGoal = async (amount: number) => {
     const r = await fetch("/api/goals/user", {
@@ -193,6 +342,9 @@ export default function GoalsPage({
   const teams = React.useMemo(() => {
     if (!isSuperAdmin && role !== "admin") return [] as string[];
     const counts = new Map<string, number>();
+    if (leaderTeam) {
+      counts.set(leaderTeam, (counts.get(leaderTeam) || 0) + 1);
+    }
     adminUsers.forEach((u) => {
       const t = (u.team || "").trim();
       if (!t) return;
@@ -202,19 +354,111 @@ export default function GoalsPage({
       .filter(([, count]) => count > 0)
       .map(([name]) => name)
       .sort((a, b) => a.localeCompare(b));
-  }, [adminUsers, isSuperAdmin, role]);
+  }, [adminUsers, isSuperAdmin, leaderTeam, role]);
 
-  const [teamFilter, setTeamFilter] = React.useState<string>("");
+  const [teamFilter, setTeamFilter] = React.useState<string>(leaderTeam ?? "");
   const effectiveTeam = (isSuperAdmin || role === "admin") ? teamFilter : (leaderTeam ?? "");
 
   const [teamGoal, setTeamGoal] = React.useState<number>(0);
   const [teamProgress, setTeamProgress] = React.useState<number>(0);
+  const [teamProgressRaw, setTeamProgressRaw] = React.useState<number>(0);
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);
+  const [baseRows, setBaseRows] = React.useState<TeamGoalRow[]>([]);
   const [loadingTeam, setLoadingTeam] = React.useState<boolean>(false);
-  const canAddManual = isSuperAdmin || role === "lider" || role === "admin";
-  const canAddSelfManual = true;
+  const canAddManual = !disableManualWins && (isSuperAdmin || role === "lider" || role === "admin");
+  const canAddSelfManual = !disableManualWins;
 
-  const loadTeam = React.useCallback(async () => {
+  const teamCacheKey = React.useMemo(
+    () => `goals:pipedrive:team:${effectiveTeam || "unknown"}:${year}:Q${quarter}`,
+    [effectiveTeam, quarter, year]
+  );
+
+  const loadTeamFromCache = React.useCallback(() => {
+    if (winsSource !== "pipedrive") return false;
+    if (typeof window === "undefined") return false;
+    try {
+      const raw = window.localStorage.getItem(teamCacheKey);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw) as {
+        teamGoal?: number;
+        teamProgress?: number;
+        teamProgressRaw?: number;
+        rows?: TeamGoalRow[];
+        baseRows?: TeamGoalRow[];
+        lastSyncedAt?: string | null;
+      };
+      if (!Array.isArray(parsed.rows) || !Array.isArray(parsed.baseRows)) return false;
+      setTeamGoal(Number(parsed.teamGoal ?? 0));
+      setTeamProgress(Number(parsed.teamProgress ?? 0));
+      setTeamProgressRaw(Number(parsed.teamProgressRaw ?? 0));
+      setRows(parsed.rows);
+      setBaseRows(parsed.baseRows);
+      setLastSyncedAt(parsed.lastSyncedAt ? new Date(parsed.lastSyncedAt) : null);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [teamCacheKey, winsSource]);
+
+  const persistTeamCache = React.useCallback(
+    (payload: {
+      teamGoal: number;
+      teamProgress: number;
+      teamProgressRaw: number;
+      rows: TeamGoalRow[];
+      baseRows: TeamGoalRow[];
+      lastSyncedAt: string;
+    }) => {
+      if (winsSource !== "pipedrive") return;
+      if (typeof window === "undefined") return;
+      try {
+        window.localStorage.setItem(teamCacheKey, JSON.stringify(payload));
+      } catch {
+        // ignore cache errors
+      }
+    },
+    [teamCacheKey, winsSource]
+  );
+
+  const normalizeName = React.useCallback((value: string | null | undefined) => value?.trim().toLowerCase() ?? "", []);
+
+  const mergePipedriveSelfProgress = React.useCallback(
+    (incomingRows: TeamGoalRow[], incomingProgress: number) => {
+      if (winsSource !== "pipedrive") {
+        return { rows: incomingRows, teamProgress: incomingProgress };
+      }
+
+      const normalizedEmail = (currentEmail || "").trim().toLowerCase();
+
+      const matchIndex = incomingRows.findIndex((row) => {
+        const rowEmail = (row.email || "").trim().toLowerCase();
+        return (viewerId && row.userId === viewerId) || (!!normalizedEmail && rowEmail === normalizedEmail);
+      });
+
+      if (matchIndex === -1) {
+        return { rows: incomingRows, teamProgress: incomingProgress };
+      }
+
+      const matched = incomingRows[matchIndex];
+      const updatedRows = incomingRows.map((row, idx) =>
+        idx === matchIndex
+          ? {
+              ...row,
+              progress: myProgress,
+              dealsCount: myDeals.length,
+              pct: row.goal > 0 ? (myProgress / row.goal) * 100 : 0,
+            }
+          : row
+      );
+
+      const adjustedTeamProgress = incomingProgress - matched.progress + myProgress;
+
+      return { rows: updatedRows, teamProgress: adjustedTeamProgress };
+    },
+    [currentEmail, myDeals.length, myProgress, viewerId, winsSource]
+  );
+
+  const loadTeam = React.useCallback(async (options?: { force?: boolean }) => {
     const canSelectTeam = isSuperAdmin || role === "admin";
     if (!canSelectTeam && !effectiveTeam) {
       setRows([]);
@@ -228,6 +472,18 @@ export default function GoalsPage({
       setTeamProgress(0);
       return;
     }
+    const shouldUseCacheOnly = winsSource === "pipedrive" && !options?.force;
+    if (shouldUseCacheOnly) {
+      const restored = loadTeamFromCache();
+      if (restored) return;
+      setTeamGoal(0);
+      setTeamProgress(0);
+      setRows([]);
+      setBaseRows([]);
+      setTeamProgressRaw(0);
+      setLastSyncedAt(null);
+      return;
+    }
     setLoadingTeam(true);
     try {
       const r = await fetch(
@@ -238,47 +494,132 @@ export default function GoalsPage({
       setTeamGoal(Number(j.teamGoal || 0));
       setTeamProgress(Number(j.teamProgress || 0));
       const members = (Array.isArray(j.members) ? j.members : []) as TeamMemberResponse[];
-      setRows(
-        members.map((member) => {
-          const memberId = String(member.userId ?? "");
-          const email = member.email ?? null;
-          let image = member.image ?? (email ? emailToAdminUser.get(email)?.image ?? null : null);
-          if (!image && viewerId && viewerId === memberId) {
-            image = viewerImage ?? null;
+      const normalizedRows = members.map((member) => {
+        const memberId = String(member.userId ?? "");
+        const email = member.email ?? null;
+        let image = member.image ?? (email ? emailToAdminUser.get(email)?.image ?? null : null);
+        if (!image && viewerId && viewerId === memberId) {
+          image = viewerImage ?? null;
+        }
+        return {
+          userId: memberId,
+          email,
+          name: member.name ?? null,
+          role: member.role ?? null,
+          team: member.team ?? null,
+          image,
+          goal: Number(member.goal ?? 0),
+          progress: Number(member.progress ?? 0),
+          pct: Number(member.pct ?? 0),
+          dealsCount: Number(member.dealsCount ?? 0),
+        };
+      });
+
+      let resolvedRows = normalizedRows;
+      let resolvedProgress = normalizedRows.reduce((acc, row) => acc + row.progress, 0);
+
+      if (winsSource === "pipedrive") {
+        const memberNames = normalizedRows.map((member) => member.name).filter((name): name is string => !!name?.trim());
+        try {
+          if (memberNames.length > 0) {
+            const pdRes = await fetch("/api/pipedrive/team-deals", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ names: memberNames }),
+            });
+            if (!pdRes.ok) throw new Error(`team-deals-${pdRes.status}`);
+            const pdPayload = (await pdRes.json()) as { ok?: boolean; deals?: Array<{ [key: string]: unknown }> };
+            if (!pdPayload.ok || !Array.isArray(pdPayload.deals)) throw new Error("team-deals-invalid");
+
+            const filteredDeals = pdPayload.deals.filter((deal) => {
+              const status = String((deal as { status?: string | null }).status ?? "").toLowerCase();
+              if (status !== "won") return false;
+              const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
+              const wonDate = wonAt ? new Date(wonAt) : null;
+              const wonYear = wonDate?.getFullYear() ?? null;
+              const wonQuarter = (deal as { wonQuarter?: number | null }).wonQuarter ?? null;
+              const wonMonthQuarter = wonDate ? (Math.floor(wonDate.getMonth() / 3) + 1) : null;
+              return wonYear === year && (wonQuarter === quarter || wonMonthQuarter === quarter);
+            });
+
+            const normalizedDeals = filteredDeals.map((deal) => {
+              const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
+              const value = Number((deal as { value?: number | null }).value ?? 0);
+              const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
+              return {
+                mapacheAssigned: String((deal as { mapacheAssigned?: string | null }).mapacheAssigned ?? ""),
+                monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+              };
+            });
+
+            resolvedRows = normalizedRows.map((row) => {
+              const rowName = normalizeName(row.name);
+              const deals = normalizedDeals.filter(
+                (deal) => rowName && normalizeName(deal.mapacheAssigned) === rowName
+              );
+              const progress = deals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
+              return {
+                ...row,
+                progress,
+                dealsCount: deals.length,
+                pct: row.goal > 0 ? (progress / row.goal) * 100 : 0,
+              };
+            });
+
+            resolvedProgress = resolvedRows.reduce((acc, row) => acc + row.progress, 0);
           }
-          return {
-            userId: memberId,
-            email,
-            name: member.name ?? null,
-            role: member.role ?? null,
-            team: member.team ?? null,
-            image,
-            goal: Number(member.goal ?? 0),
-            progress: Number(member.progress ?? 0),
-            pct: Number(member.pct ?? 0),
-            dealsCount: Number(member.dealsCount ?? 0),
-          };
-        })
-      );
+        } catch (error) {
+          console.error("team-pipedrive-sync-failed", error);
+        }
+      }
+
+      setBaseRows(resolvedRows);
+      setTeamProgressRaw(resolvedProgress);
+      const merged = mergePipedriveSelfProgress(resolvedRows, resolvedProgress);
+      setRows(merged.rows);
+      setTeamProgress(merged.teamProgress);
+      const syncMoment = new Date();
+      if (winsSource === "pipedrive") {
+        setLastSyncedAt(syncMoment);
+        persistTeamCache({
+          teamGoal: Number(j.teamGoal || 0),
+          teamProgress: merged.teamProgress,
+          teamProgressRaw: resolvedProgress,
+          rows: merged.rows,
+          baseRows: resolvedRows,
+          lastSyncedAt: syncMoment.toISOString(),
+        });
+      }
     } catch {
-      setTeamGoal(0); setTeamProgress(0); setRows([]);
+      setTeamGoal(0); setTeamProgress(0); setRows([]); setBaseRows([]); setTeamProgressRaw(0);
     } finally {
       setLoadingTeam(false);
     }
-  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage]);
+  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName, loadTeamFromCache, persistTeamCache]);
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
 
   React.useEffect(() => {
+    if (winsSource !== "pipedrive") return;
+    if (baseRows.length === 0) return;
+    const merged = mergePipedriveSelfProgress(baseRows, teamProgressRaw);
+    setRows(merged.rows);
+    setTeamProgress(merged.teamProgress);
+  }, [baseRows, mergePipedriveSelfProgress, teamProgressRaw, winsSource]);
+
+  React.useEffect(() => {
     const handleRefresh = () => {
       loadMyWins();
-      if (isSuperAdmin || role === "lider" || role === "admin") {
-        loadTeam();
-      }
+      loadTeam();
     };
     window.addEventListener("proposals:refresh", handleRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
-  }, [isSuperAdmin, role, loadMyWins, loadTeam]);
+  }, [loadMyWins, loadTeam]);
+
+  const handleSync = React.useCallback(async () => {
+    await loadMyWins({ force: true });
+    await loadTeam({ force: true });
+  }, [loadMyWins, loadTeam]);
 
   const handleManualWon = React.useCallback(
     async (payload: {
@@ -485,13 +826,35 @@ export default function GoalsPage({
     [rows]
   );
 
+  const isMapache = theme === "mapache";
+  const containerBg = isMapache
+    ? "min-h-screen bg-gradient-to-b from-[#0a0a0f] via-[#0e0e14] to-[#11111a] px-4 sm:px-6 lg:px-8 py-8"
+    : "min-h-screen bg-gradient-to-br from-slate-50 via-slate-100/50 to-purple-50/30 px-4 sm:px-6 lg:px-8 py-8";
+  const headerBg = isMapache
+    ? "bg-gradient-to-r from-[#0c0c14] via-[#11111c] to-[#161626] px-6 sm:px-8 py-6"
+    : "bg-gradient-to-r from-[#311160] via-[#4c1d95] to-[#5b21b6] px-6 sm:px-8 py-6";
+  const kpiCardBg = isMapache
+    ? "bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-4 py-3"
+    : "bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3";
+  const tableCardClass = isMapache
+    ? "bg-[#0f0f17] border border-white/10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.45)] overflow-hidden"
+    : "bg-white rounded-3xl border border-slate-200/60 shadow-[0_18px_40px_rgba(15,23,42,0.08)] overflow-hidden";
+  const tableHeaderClass = isMapache
+    ? "flex items-center justify-between gap-4 px-6 sm:px-8 py-6 border-b border-white/10 bg-gradient-to-r from-[#0c0c14] via-[#11111c] to-[#161626]"
+    : "flex items-center justify-between gap-4 px-6 sm:px-8 py-6 border-b border-slate-200/70 bg-gradient-to-r from-purple-50 via-purple-50 to-white";
+  const tableIconShell = isMapache
+    ? "h-12 w-12 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/15 flex items-center justify-center shadow-inner"
+    : "h-12 w-12 rounded-2xl bg-purple-100 border border-purple-200 flex items-center justify-center shadow-inner";
+  const tableSubtitleClass = isMapache ? "text-sm font-medium text-white/70" : "text-sm font-semibold text-purple-700";
+  const tableTitleClass = isMapache ? "text-2xl font-bold text-white" : "text-2xl font-bold text-slate-900";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100/50 to-purple-50/30 px-4 sm:px-6 lg:px-8 py-8">
+    <div className={containerBg}>
       <div className="max-w-[1600px] mx-auto space-y-8">
         
         {/* Modern Header with KPIs */}
         <div className="bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden">
-          <div className="bg-gradient-to-r from-[#311160] via-[#4c1d95] to-[#5b21b6] px-6 sm:px-8 py-6">
+          <div className={headerBg}>
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-4">
@@ -500,31 +863,47 @@ export default function GoalsPage({
                   </div>
                   <div>
                     <h1 className="text-3xl font-bold text-white tracking-tight">{pageT("title")}</h1>
-                    <p className="text-purple-200 text-sm mt-0.5">
+                    <p className="text-white/70 text-sm mt-0.5">
                       {rangeForQuarter.from} - {rangeForQuarter.to}
                     </p>
                   </div>
                 </div>
-                <div className="flex-shrink-0">
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+                  {winsSource === "pipedrive" && (
+                    <div className="text-xs font-medium text-white/80">
+                      {lastSyncedAt
+                        ? `Última sincronización: ${lastSyncedAt.toLocaleString("es-AR")}`
+                        : "Aún no sincronizaste"}
+                    </div>
+                  )}
                   <QuarterPicker year={year} quarter={quarter} onYear={setYear} onQuarter={setQuarter} />
+                  {winsSource === "pipedrive" && (
+                    <button
+                      className="inline-flex items-center justify-center rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/20 hover:scale-[1.01]"
+                      onClick={handleSync}
+                      disabled={loadingDeals}
+                    >
+                      {loadingDeals ? "Sincronizando..." : "Sincronizar"}
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3">
+                <div className={kpiCardBg}>
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">Objetivo</p>
                     <Tooltip content="Tu meta de ventas para este trimestre" />
                   </div>
                   <p className="text-2xl font-bold text-white mt-1">${myGoal.toLocaleString()}</p>
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3">
+                <div className={kpiCardBg}>
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">Progreso</p>
                     <Tooltip content="Total acumulado de ventas cerradas hasta ahora" />
                   </div>
                   <p className="text-2xl font-bold text-white mt-1">${myProgress.toLocaleString()}</p>
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3">
+                <div className={kpiCardBg}>
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">% Cumplimiento</p>
                     <Tooltip content="Porcentaje de tu objetivo alcanzado" />
@@ -550,6 +929,7 @@ export default function GoalsPage({
             monthlyProgress={myMonthlyProgress}
             onSave={handleSaveMyGoal}
             onAddManual={canAddSelfManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
+            theme={theme}
           />
           )}
           {loadingTeam && teamGoal === 0 ? (
@@ -567,6 +947,7 @@ export default function GoalsPage({
             teamProgress={teamProgress}
             sumMembersGoal={sumMembersGoal}
             onSaveTeamGoal={saveTeamGoal}
+            theme={theme}
           />
           )}
         </div>
@@ -578,31 +959,36 @@ export default function GoalsPage({
             totals={myTotals}
             loading={loadingDeals}
             goal={myGoal}
-            onEditBilling={openBillingEditor}
+            onEditBilling={disableManualWins ? () => undefined : openBillingEditor}
             onAddManual={canAddSelfManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
-            onDeleteDeal={handleDeleteManualWon}
+            onDeleteDeal={canAddManual ? handleDeleteManualWon : undefined}
+            theme={theme}
           />
-          <TeamRankingCard rows={rows} loading={loadingTeam} effectiveTeam={effectiveTeam} />
+          <TeamRankingCard rows={rows} loading={loadingTeam} effectiveTeam={effectiveTeam} theme={theme} />
         </div>
 
         {/* Team Members Table - Enhanced */}
-        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden">
-          <div className="flex flex-col gap-4 border-b border-slate-100 px-6 sm:px-8 py-6 md:flex-row md:items-center md:justify-between bg-gradient-to-r from-slate-50 to-purple-50/20">
+        <div className={tableCardClass}>
+          <div className={tableHeaderClass}>
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-100 to-purple-50 border border-purple-200/50">
-                <Users2 className="h-6 w-6 text-purple-700" />
+              <div className={tableIconShell}>
+                <Users2 className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">
+                <p className={tableSubtitleClass}>
                   {pageT("teamTitle")}
                 </p>
-                <p className="text-xl font-bold text-slate-900 mt-0.5">
+                <p className={tableTitleClass}>
                   {effectiveTeam ? pageT("teamTitleWithName", { team: effectiveTeam }) : pageT("teamTitle")}
                 </p>
               </div>
             </div>
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+              className={
+                isMapache
+                  ? "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#8b5cf6] to-[#6366f1] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(99,102,241,0.35)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                  : "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+              }
               onClick={exportCsv}
               disabled={!effectiveTeam || loadingTeam}
             >
