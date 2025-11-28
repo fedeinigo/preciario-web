@@ -698,13 +698,25 @@ body.mapache-theme .mapache-modal-surface {
 }
 
 .mapache-surface-card,
-.mapache-modal-surface {
+.mapache-modal-surface,
+.mapache-profile-modal {
   color: #fff;
 }
 
 .mapache-surface-card *,
-.mapache-modal-surface * {
+.mapache-modal-surface *,
+.mapache-profile-modal * {
   color: inherit;
+}
+
+.mapache-profile-modal .text-slate-900,
+.mapache-profile-modal .text-slate-800,
+.mapache-profile-modal .text-slate-700,
+.mapache-profile-modal .text-slate-600,
+.mapache-profile-modal .text-slate-500,
+.mapache-profile-modal .text-slate-400,
+.mapache-profile-modal .text-black {
+  color: #fff !important;
 }
 .hero-bg::before {
   content: "";

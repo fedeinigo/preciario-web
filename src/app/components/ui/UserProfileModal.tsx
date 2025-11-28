@@ -255,7 +255,7 @@ export default function UserProfileModal({
       : isLightAppearance
         ? "bg-white text-slate-900 border border-slate-200 shadow-[0_35px_110px_rgba(15,23,42,0.12)]"
         : isMapacheAppearance
-          ? "mapache-surface-card rounded-[34px] border-white/18 text-white shadow-[0_60px_170px_rgba(0,0,0,0.85)] backdrop-blur-[30px]"
+          ? "mapache-profile-modal mapache-surface-card rounded-[34px] border-white/18 text-white shadow-[0_60px_170px_rgba(0,0,0,0.85)] backdrop-blur-[30px]"
           : isDirectAppearance
             ? "bg-white text-slate-900 border border-[#ede9fe] shadow-[0_35px_110px_rgba(76,29,149,0.2)]"
             : "bg-slate-950/90 text-white border border-white/10 shadow-[0_35px_110px_rgba(2,6,23,0.65)]",
