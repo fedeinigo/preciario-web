@@ -54,6 +54,25 @@ The Generator page (`/portal/directo/generator`) has been visually modernized wi
 - **Sidebars**: Modernized with Lucide chevron icons for collapse toggles
 - **Modals**: Updated with purple/red gradient buttons and improved spacing
 
+### Portal Mapache - Goals Section Modals (Nov 2025)
+
+Improved contrast and legibility for dark glassmorphism theme in `/portal/mapache/goals`:
+
+**UserProfileModal** (appearance="mapache"):
+- **Text Classes**: Changed from low-opacity whites to solid white with enhanced drop-shadows
+- **Labels**: Cyan-300 with drop-shadow for visibility (`text-cyan-300`)
+- **Subtle Text**: Cyan-200 for secondary information (`text-cyan-200`)
+- **Info Cards**: Slate/indigo gradient backgrounds with violet borders instead of `mapache-surface-card`
+- **Avatar Ring**: Cyan glow effect (`ring-cyan-400/50 shadow-[0_0_30px_rgba(34,211,238,0.3)]`)
+- **Section Borders**: Cyan accent borders (`border-cyan-400/30`)
+
+**MemberDealsModal** (theme="mapache"):
+- **Deal Cards**: Solid slate/indigo gradient backgrounds with violet borders for clear separation
+- **Labels**: Cyan-200 for muted text, solid white for values
+- **Badges**: Cyan-to-violet gradient with glow effect
+- **Panel**: Solid dark gradient with cyan border accent
+- **Button**: Cyan-violet gradient with hover glow effect
+
 # External Dependencies
 
 ## Third-Party Services
