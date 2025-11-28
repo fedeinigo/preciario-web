@@ -64,22 +64,25 @@
 
 html.mapache-theme,
 body.mapache-theme {
-  --bg: 12 13 20;
-  --paper: 27 29 40;
-  --ink: 226 232 240;
-  --muted: 148 163 184;
-  --border: 56 60 74;
-  --primary: 201 214 223;
-  --primary-ink: 16 19 27;
-  --primary-soft: 88 92 110;
-  --accent: 161 161 170;
-  --accent-ink: 13 14 19;
-  --brand-start-hex: #434854;
-  --brand-end-hex: #1c1f29;
-  --mapache-surface-muted: 44 47 61;
-  --mapache-border-strong: 90 96 114;
-  --mapache-shadow-soft: 0 28px 80px rgba(5, 9, 26, 0.45);
-  --mapache-shadow-strong: 0 45px 130px rgba(2, 6, 23, 0.65);
+  --bg: 8 10 20;
+  --paper: 20 23 36;
+  --ink: 244 247 255;
+  --muted: 193 202 221;
+  --border: 65 72 96;
+  --primary: 139 92 246;
+  --primary-ink: 8 10 18;
+  --primary-soft: 72 78 110;
+  --accent: 34 211 238;
+  --accent-ink: 8 11 20;
+  --brand-start-hex: #6d28d9;
+  --brand-end-hex: #0f172a;
+  --mapache-surface-muted: 30 34 58;
+  --mapache-border-strong: 98 106 134;
+  --mapache-shadow-soft: 0 32px 80px rgba(3, 7, 20, 0.6);
+  --mapache-shadow-strong: 0 55px 140px rgba(2, 6, 18, 0.8);
+  --mapache-glow-start: #8b5cf6;
+  --mapache-glow-mid: #6d28d9;
+  --mapache-glow-end: #22d3ee;
   color-scheme: dark;
 
   background-color: rgb(var(--bg));
@@ -101,9 +104,15 @@ html.mapache-theme body main {
 
 html.mapache-theme body .card,
 body.mapache-theme .card {
-  background: linear-gradient(150deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-  border-color: rgba(255, 255, 255, 0.12);
+  background: linear-gradient(
+      160deg,
+      rgba(17, 21, 35, 0.98),
+      rgba(7, 10, 20, 0.92)
+    ),
+    radial-gradient(120% 120% at 5% 0%, rgba(139, 92, 246, 0.18), transparent);
+  border-color: rgba(255, 255, 255, 0.16);
   box-shadow: var(--mapache-shadow-soft);
+  backdrop-filter: blur(12px);
   color: rgb(var(--ink));
 }
 
@@ -157,7 +166,7 @@ body.mapache-theme .chip {
 
 html.mapache-theme body,
 body.mapache-theme {
-  --mapache-surface-strong: 32 34 46;
+  --mapache-surface-strong: 20 24 44;
 }
 
 html.marketing-theme body,
@@ -301,17 +310,57 @@ html.mapache-theme body .text-slate-400 {
   color: rgba(148, 163, 184, 0.6) !important;
 }
 
+html.mapache-theme body .text-black,
+html.mapache-theme body .text-slate-950,
+html.mapache-theme body .text-gray-950,
+html.mapache-theme body .text-gray-900,
+html.mapache-theme body .text-neutral-900,
+html.mapache-theme body .text-zinc-900 {
+  color: rgba(248, 250, 252, 0.96) !important;
+}
+
+html.mapache-theme body .text-gray-800,
+html.mapache-theme body .text-neutral-800,
+html.mapache-theme body .text-zinc-800 {
+  color: rgba(233, 237, 249, 0.9) !important;
+}
+
+html.mapache-theme body .text-gray-700,
+html.mapache-theme body .text-neutral-700,
+html.mapache-theme body .text-zinc-700 {
+  color: rgba(208, 216, 237, 0.85) !important;
+}
+
+html.mapache-theme body .text-gray-600,
+html.mapache-theme body .text-neutral-600,
+html.mapache-theme body .text-zinc-600,
+html.mapache-theme body .text-gray-500,
+html.mapache-theme body .text-neutral-500,
+html.mapache-theme body .text-zinc-500,
+html.mapache-theme body .text-gray-400,
+html.mapache-theme body .text-neutral-400,
+html.mapache-theme body .text-zinc-400 {
+  color: rgba(180, 192, 216, 0.78) !important;
+}
+
 html.mapache-theme body .border-slate-100,
 html.mapache-theme body .border-slate-200,
 html.mapache-theme body .border-slate-200\/60,
 html.mapache-theme body .border-slate-200\/70,
 html.mapache-theme body .border-slate-200\/80,
-html.mapache-theme body .border-slate-200\/90 {
+html.mapache-theme body .border-slate-200\/90,
+html.mapache-theme body .border-gray-100,
+html.mapache-theme body .border-gray-200,
+html.mapache-theme body .border-gray-300,
+html.mapache-theme body .border-neutral-200,
+html.mapache-theme body .border-zinc-200 {
   border-color: rgba(148, 163, 184, 0.22) !important;
 }
 
 html.mapache-theme body .divide-slate-100,
-html.mapache-theme body .divide-slate-200 {
+html.mapache-theme body .divide-slate-200,
+html.mapache-theme body .divide-gray-100,
+html.mapache-theme body .divide-gray-200 {
   --tw-divide-opacity: 1 !important;
   border-color: rgba(148, 163, 184, 0.15) !important;
 }
@@ -321,6 +370,13 @@ html.mapache-theme body .bg-slate-50\/60,
 html.mapache-theme body .bg-slate-50\/70,
 html.mapache-theme body .bg-slate-100,
 html.mapache-theme body .bg-slate-200,
+html.mapache-theme body .bg-gray-50,
+html.mapache-theme body .bg-gray-100,
+html.mapache-theme body .bg-gray-200,
+html.mapache-theme body .bg-neutral-50,
+html.mapache-theme body .bg-neutral-100,
+html.mapache-theme body .bg-zinc-50,
+html.mapache-theme body .bg-zinc-100,
 html.mapache-theme body .bg-amber-50,
 html.mapache-theme body .bg-amber-50\/70,
 html.mapache-theme body .bg-amber-50\/80,
@@ -482,6 +538,36 @@ html.mapache-theme body .text-white strong {
 .mapache-modal-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+html.mapache-theme body .mapache-surface-card,
+body.mapache-theme .mapache-surface-card {
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.08),
+      rgb(var(--mapache-surface-strong) / 0.95)
+    ),
+    radial-gradient(120% 120% at 15% 0%, rgba(34, 211, 238, 0.12), transparent);
+  box-shadow: var(--mapache-shadow-soft);
+  color: rgb(var(--ink));
+}
+
+html.mapache-theme body .mapache-modal-surface,
+body.mapache-theme .mapache-modal-surface {
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(
+      155deg,
+      rgba(15, 20, 37, 0.92),
+      rgba(7, 9, 18, 0.88)
+    ),
+    radial-gradient(140% 140% at 0% 0%, rgba(139, 92, 246, 0.18), transparent 65%);
+  box-shadow: 0 45px 120px rgba(2, 6, 23, 0.75);
+  padding: 1.5rem;
+  backdrop-filter: blur(26px);
+  color: rgb(var(--ink));
 }
 
   /* --- Tabs --- */

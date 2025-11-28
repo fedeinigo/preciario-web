@@ -255,7 +255,7 @@ export default function UserProfileModal({
       : isLightAppearance
         ? "bg-white text-slate-900 border border-slate-200 shadow-[0_35px_110px_rgba(15,23,42,0.12)]"
         : isMapacheAppearance
-          ? "bg-gradient-to-br from-[#111827]/95 via-[#0b1224]/94 to-[#0a1322]/95 text-white border border-white/12 shadow-[0_52px_160px_rgba(0,0,0,0.88)] backdrop-blur-2xl"
+          ? "mapache-surface-card rounded-[34px] border-white/18 text-white shadow-[0_60px_170px_rgba(0,0,0,0.85)] backdrop-blur-[30px]"
           : isDirectAppearance
             ? "bg-white text-slate-900 border border-[#ede9fe] shadow-[0_35px_110px_rgba(76,29,149,0.2)]"
             : "bg-slate-950/90 text-white border border-white/10 shadow-[0_35px_110px_rgba(2,6,23,0.65)]",
@@ -266,7 +266,7 @@ export default function UserProfileModal({
     : isLightAppearance
       ? "bg-white border-b border-slate-100 text-slate-900"
       : isMapacheAppearance
-        ? "bg-gradient-to-r from-[#8b5cf6]/24 via-[#6d28d9]/18 to-[#22d3ee]/24 border-b border-white/12 text-white"
+        ? "bg-gradient-to-r from-[#8b5cf6]/22 via-[#6d28d9]/18 to-[#22d3ee]/24 border-b border-white/12 text-white px-6 py-5"
         : isDirectAppearance
           ? "bg-white border-b border-[#ede9fe] text-[#4c1d95]"
           : "bg-slate-950/70 border-b border-white/10 text-white";
@@ -313,7 +313,7 @@ export default function UserProfileModal({
       : isDirectAppearance
         ? "rounded-full border border-[#c4b5fd] bg-white px-6 py-2.5 text-sm font-semibold text-[#4c1d95] transition hover:bg-[#ede9fe]"
         : isMapacheAppearance
-          ? "rounded-full border border-white/25 bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_12px_38px_rgba(139,92,246,0.4)] transition hover:shadow-[0_16px_50px_rgba(139,92,246,0.55)]"
+          ? "rounded-2xl border border-white/25 bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(99,102,241,0.45)] transition hover:shadow-[0_22px_55px_rgba(99,102,241,0.55)]"
           : "rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15";
 
   const statCardClass = isMarketingAppearance
@@ -323,7 +323,7 @@ export default function UserProfileModal({
       : isDirectAppearance
         ? "rounded-2xl border border-[#ede9fe] bg-white p-6 shadow-sm"
         : isMapacheAppearance
-          ? "rounded-2xl border border-white/14 bg-gradient-to-br from-white/12 via-[#111827]/70 to-[#0b1221]/70 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+          ? "mapache-surface-card rounded-2xl border-white/15 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.55)] backdrop-blur-xl"
           : "rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-xl";
 
   const infoCardClass = isMarketingAppearance
@@ -333,7 +333,7 @@ export default function UserProfileModal({
       : isDirectAppearance
         ? "rounded-xl border border-[#ede9fe] bg-[#faf5ff] p-4"
         : isMapacheAppearance
-          ? "rounded-xl border border-white/14 bg-gradient-to-br from-white/10 via-[#0f172a]/55 to-[#0b1221]/55 p-4 shadow-[0_18px_48px_rgba(0,0,0,0.5)] backdrop-blur-lg"
+          ? "mapache-surface-card rounded-xl border-white/15 p-4 shadow-[0_18px_48px_rgba(0,0,0,0.5)] backdrop-blur-lg"
           : "rounded-xl border border-white/20 bg-white/10 p-4";
 
   const backdropClassName = isMarketingAppearance

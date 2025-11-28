@@ -30,7 +30,7 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
 
   const isMapache = theme === "mapache";
   const cardClass = isMapache
-    ? "rounded-2xl border border-white/10 bg-gradient-to-br from-[#121520] to-[#0c0e17] px-5 py-4 shadow-sm text-white"
+    ? "mapache-surface-card rounded-2xl border-white/15 px-5 py-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
     : "rounded-2xl border border-slate-200/60 bg-gradient-to-br from-white to-slate-50/30 px-5 py-4 shadow-sm";
   const labelMuted = isMapache
     ? "text-xs font-semibold text-white/75 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
@@ -42,16 +42,16 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
     ? "inline-flex rounded-full bg-gradient-to-r from-[#8b5cf6] to-[#6366f1] px-3 py-1 text-[11px] font-semibold text-white shadow-sm"
     : "inline-flex rounded-full bg-purple-100 text-purple-700 px-3 py-1 text-[11px] font-semibold";
   const emptyClass = isMapache
-    ? "rounded-2xl border-2 border-dashed border-white/20 bg-white/5 p-6 text-center text-white"
+    ? "mapache-surface-card rounded-2xl border-2 border-dashed border-white/25 p-6 text-center text-white"
     : "rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-6 text-center";
 
   const panelClass = isMapache
-    ? "border border-white/12 bg-gradient-to-br from-[#0f172a]/96 via-[#0b1221]/95 to-[#0a0f1a]/95 text-white shadow-[0_40px_120px_rgba(2,6,23,0.85)]"
+    ? "mapache-surface-card border-white/15 text-white shadow-[0_45px_130px_rgba(0,0,0,0.8)] backdrop-blur-[28px]"
     : "";
   const headerClass = isMapache
-    ? "bg-gradient-to-r from-[#8b5cf6]/18 via-[#6d28d9]/12 to-[#22d3ee]/18 border-b border-white/10 text-white"
+    ? "bg-gradient-to-r from-[#8b5cf6]/22 via-[#6d28d9]/16 to-[#22d3ee]/22 border-b border-white/12 text-white px-6 py-4"
     : "";
-  const titleClass = isMapache ? "text-lg font-semibold text-white" : "";
+  const titleClass = isMapache ? "text-lg font-semibold text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]" : "";
   const backdropClass = isMapache ? "bg-slate-950/75" : "";
 
   return (
