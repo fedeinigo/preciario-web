@@ -684,6 +684,18 @@ body.mapache-theme .mapache-modal-surface {
   overflow-x: clip;
   isolation: isolate;
 }
+
+.mapache-launcher {
+  color: #fff;
+}
+
+.mapache-launcher * {
+  color: inherit;
+}
+
+.mapache-launcher .mapache-launcher-muted {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
 .hero-bg::before {
   content: "";
   position: fixed;
