@@ -183,6 +183,7 @@ type PdDealRecord = {
   owner_id?: number | null;
   owner_name?: string | null;
   status?: string | null;
+  pipeline_id?: number | null;
   custom_fields?: Record<string, unknown> | null;
 };
 
@@ -682,7 +683,11 @@ async function fetchDealsWithMapacheFields(
       const url = `${BASE_URL}/api/v2/deals?${q(payload)}`;
       const json = await rawFetch<PdDealsListResponse>(url, { method: "GET" });
       if (Array.isArray(json.data)) {
-        results.push(...json.data);
+        const filteredByPipeline = json.data.filter((deal) => {
+          const pipelineId = ensureNumber(deal.pipeline_id);
+          return pipelineId !== null && pipelineId === PIPELINE_DEALS_ID;
+        });
+        results.push(...filteredByPipeline);
       }
       cursor = json.additional_data?.next_cursor ?? null;
     } while (cursor);
