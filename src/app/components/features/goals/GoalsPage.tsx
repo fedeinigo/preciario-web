@@ -32,6 +32,7 @@ type Props = {
   theme?: "direct" | "mapache";
   winsSource?: "goals" | "pipedrive";
   disableManualWins?: boolean;
+  pipedriveMode?: "mapache" | "owner";
 };
 
 type TeamMemberResponse = {
@@ -57,6 +58,7 @@ export default function GoalsPage({
   theme = "direct",
   winsSource = "goals",
   disableManualWins = false,
+  pipedriveMode = "mapache",
 }: Props) {
   const pageT = useTranslations("goals.page");
   const toastT = useTranslations("goals.toast");
@@ -188,7 +190,8 @@ export default function GoalsPage({
       setLoadingDeals(true);
       try {
         if (winsSource === "pipedrive") {
-          const response = await fetch("/api/pipedrive/deals", { cache: "no-store" });
+          const modeQuery = pipedriveMode === "owner" ? "?mode=owner" : "";
+          const response = await fetch(`/api/pipedrive/deals${modeQuery}` as const, { cache: "no-store" });
           if (!response.ok) throw new Error("Failed to load wins");
           const payload = (await response.json()) as { ok: boolean; deals?: Array<{ [key: string]: unknown }> };
           if (!payload.ok || !Array.isArray(payload.deals)) throw new Error("Invalid deals payload");
@@ -420,7 +423,18 @@ export default function GoalsPage({
     [teamCacheKey, winsSource]
   );
 
-  const normalizeName = React.useCallback((value: string | null | undefined) => value?.trim().toLowerCase() ?? "", []);
+  const normalizeName = React.useCallback((value: string | null | undefined) => {
+    const normalized = value
+      ?.normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+    return normalized ?? "";
+  }, []);
+
+  const normalizeEmail = React.useCallback((value: string | null | undefined) => {
+    return value?.trim().toLowerCase() ?? "";
+  }, []);
 
   const mergePipedriveSelfProgress = React.useCallback(
     (incomingRows: TeamGoalRow[], incomingProgress: number) => {
@@ -519,13 +533,19 @@ export default function GoalsPage({
       let resolvedProgress = normalizedRows.reduce((acc, row) => acc + row.progress, 0);
 
       if (winsSource === "pipedrive") {
-        const memberNames = normalizedRows.map((member) => member.name).filter((name): name is string => !!name?.trim());
+        const memberIdentifiers =
+          pipedriveMode === "owner"
+            ? normalizedRows
+                .map((member) => member.email)
+                .filter((email): email is string => !!email?.trim())
+            : normalizedRows.map((member) => member.name).filter((name): name is string => !!name?.trim());
         try {
-          if (memberNames.length > 0) {
-            const pdRes = await fetch("/api/pipedrive/team-deals", {
+          if (memberIdentifiers.length > 0) {
+            const modeQuery = pipedriveMode === "owner" ? "?mode=owner" : "";
+            const pdRes = await fetch(`/api/pipedrive/team-deals${modeQuery}` as const, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ names: memberNames }),
+              body: JSON.stringify({ names: memberIdentifiers }),
             });
             if (!pdRes.ok) throw new Error(`team-deals-${pdRes.status}`);
             const pdPayload = (await pdRes.json()) as { ok?: boolean; deals?: Array<{ [key: string]: unknown }> };
@@ -546,17 +566,25 @@ export default function GoalsPage({
               const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
               const value = Number((deal as { value?: number | null }).value ?? 0);
               const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
+              const ownerEmailRaw = (deal as { ownerEmail?: string | null }).ownerEmail ?? "";
               return {
                 mapacheAssigned: String((deal as { mapacheAssigned?: string | null }).mapacheAssigned ?? ""),
+                ownerName: String((deal as { ownerName?: string | null }).ownerName ?? ""),
+                ownerEmail: typeof ownerEmailRaw === "string" ? ownerEmailRaw : "",
                 monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
               };
             });
 
             resolvedRows = normalizedRows.map((row) => {
               const rowName = normalizeName(row.name);
-              const deals = normalizedDeals.filter(
-                (deal) => rowName && normalizeName(deal.mapacheAssigned) === rowName
-              );
+              const rowEmail = normalizeEmail(row.email);
+              const deals = normalizedDeals.filter((deal) => {
+                if (pipedriveMode === "owner") {
+                  const dealEmail = normalizeEmail(deal.ownerEmail);
+                  return !!rowEmail && !!dealEmail && dealEmail === rowEmail;
+                }
+                return rowName && normalizeName(deal.mapacheAssigned) === rowName;
+              });
               const progress = deals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
               return {
                 ...row,
@@ -595,7 +623,7 @@ export default function GoalsPage({
     } finally {
       setLoadingTeam(false);
     }
-  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName, loadTeamFromCache, persistTeamCache]);
+  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName, loadTeamFromCache, persistTeamCache, pipedriveMode]);
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
 
