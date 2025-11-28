@@ -17,13 +17,13 @@ export async function POST(req: Request) {
   try {
     const payload = (await req.json()) as { names?: unknown };
     if (Array.isArray(payload?.names)) {
-      names = payload.names.map((name) => String(name ?? ""));
+      identifiers = payload.names.map((name) => String(name ?? ""));
     }
   } catch (error) {
     log.warn("parse_error", { error: error instanceof Error ? error.message : String(error) });
   }
 
-  if (names.length === 0) {
+  if (identifiers.length === 0) {
     return NextResponse.json({ ok: false, error: "No se recibieron integrantes" }, { status: 400 });
   }
 

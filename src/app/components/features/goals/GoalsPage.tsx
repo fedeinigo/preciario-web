@@ -529,14 +529,19 @@ export default function GoalsPage({
       let resolvedProgress = normalizedRows.reduce((acc, row) => acc + row.progress, 0);
 
       if (winsSource === "pipedrive") {
-        const memberNames = normalizedRows.map((member) => member.name).filter((name): name is string => !!name?.trim());
+        const memberIdentifiers =
+          pipedriveMode === "owner"
+            ? normalizedRows
+                .map((member) => member.email)
+                .filter((email): email is string => !!email?.trim())
+            : normalizedRows.map((member) => member.name).filter((name): name is string => !!name?.trim());
         try {
           if (memberNames.length > 0) {
             const modeQuery = pipedriveMode === "owner" ? "?mode=owner" : "";
             const pdRes = await fetch(`/api/pipedrive/team-deals${modeQuery}` as const, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ names: memberNames }),
+              body: JSON.stringify({ names: memberIdentifiers }),
             });
             if (!pdRes.ok) throw new Error(`team-deals-${pdRes.status}`);
             const pdPayload = (await pdRes.json()) as { ok?: boolean; deals?: Array<{ [key: string]: unknown }> };
@@ -557,6 +562,7 @@ export default function GoalsPage({
               const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
               const value = Number((deal as { value?: number | null }).value ?? 0);
               const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
+              const ownerEmailRaw = (deal as { ownerEmail?: string | null }).ownerEmail ?? "";
               return {
                 mapacheAssigned: String((deal as { mapacheAssigned?: string | null }).mapacheAssigned ?? ""),
                 ownerName: String((deal as { ownerName?: string | null }).ownerName ?? ""),
