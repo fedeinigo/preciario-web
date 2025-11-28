@@ -2,7 +2,15 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { Loader2, RefreshCcw } from "lucide-react";
+import {
+  ArrowRight,
+  LayoutGrid,
+  Loader2,
+  Megaphone,
+  RefreshCcw,
+  ShieldCheck,
+  Users2,
+} from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
 import Modal from "@/app/components/ui/Modal";
@@ -165,6 +173,21 @@ export default function PortalLauncher({
   const portalOptionsText = useTranslations("navbar.portalSwitcher.options");
   const appearance: PortalLauncherVariant = variant ?? "dark";
   const theme = launcherThemes[appearance];
+  const isMapacheAppearance = appearance === "mapache";
+
+  const optionIcons: Record<PortalAccessId, React.ComponentType<{ className?: string }>> = {
+    direct: LayoutGrid,
+    mapache: Users2,
+    partner: ShieldCheck,
+    marketing: Megaphone,
+  };
+
+  const optionAccent: Record<PortalAccessId, string> = {
+    direct: "from-[#a855f7] to-[#7c3aed]",
+    mapache: "from-[#22d3ee] to-[#0ea5e9]",
+    partner: "from-[#f472b6] to-[#fb7185]",
+    marketing: "from-[#fbbf24] to-[#f97316]",
+  };
 
   const [modalOpen, setModalOpen] = React.useState(false);
   const [transitionVisible, setTransitionVisible] = React.useState(false);
@@ -303,6 +326,12 @@ export default function PortalLauncher({
     return null;
   }
 
+  const headerClassName = isMapacheAppearance
+    ? "border-none bg-transparent px-2 pt-2 pb-0"
+    : theme.header;
+  const titleClassName = isMapacheAppearance ? "sr-only" : theme.title;
+  const formattedOptionCount = new Intl.NumberFormat().format(options.length);
+
   return (
     <>
       <button
@@ -319,32 +348,104 @@ export default function PortalLauncher({
         onClose={() => setModalOpen(false)}
         title={portalText("title")}
         backdropClassName={theme.backdrop}
-        headerClassName={theme.header}
-        titleClassName={theme.title}
+        headerClassName={headerClassName}
+        titleClassName={titleClassName}
         panelWidthClassName="max-w-lg"
         panelClassName={theme.panel}
         variant={appearance === "light" || appearance === "marketing" ? "default" : "inverted"}
       >
-        <div className="space-y-3">
-          <p className={theme.description}>{portalText("description")}</p>
-          <div className="space-y-3">
-            {options.map((option) => (
-              <div key={option.id} className={theme.card}>
-                <div>
-                  <div className={theme.cardTitle}>{option.label}</div>
-                  <p className={theme.cardDescription}>{option.description}</p>
+        {isMapacheAppearance ? (
+          <div className="space-y-5 text-white">
+            <div className="relative overflow-hidden rounded-[32px] border border-white/15 bg-gradient-to-r from-[#4c1d95] via-[#7c3aed] to-[#22d3ee] p-6 shadow-[0_35px_120px_rgba(5,9,24,0.65)]">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15">
+                      <LayoutGrid className="h-7 w-7 text-white" aria-hidden="true" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-white/70">
+                        {portalText("title")}
+                      </p>
+                      <h2 className="text-2xl font-semibold text-white leading-tight">
+                        {portalOptionsText("mapache.label")}
+                      </h2>
+                      <p className="text-sm text-white/85 max-w-xl">
+                        {portalText("description")}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleNavigate(option)}
-                  className={theme.action}
-                >
-                  {portalText("action")}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <span className="inline-flex items-center rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80">
+                    {formattedOptionCount} {portalText("button")}
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80">
+                    {portalText("action")}
+                  </span>
+                </div>
               </div>
-            ))}
+            </div>
+            <div className="space-y-4">
+              {options.map((option) => {
+                const Icon = optionIcons[option.id] ?? LayoutGrid;
+                const accent = optionAccent[option.id] ?? "from-white/30 to-white/10";
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => handleNavigate(option)}
+                    className="group relative flex w-full flex-col gap-4 rounded-3xl border border-white/12 bg-gradient-to-br from-white/8 via-[#080b19]/70 to-[#04060d]/90 p-5 text-left shadow-[0_30px_90px_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={`rounded-2xl p-3 bg-gradient-to-br ${accent}`}>
+                        <Icon className="h-6 w-6 text-white" aria-hidden="true" />
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.4em] text-white/45">
+                          {portalText("button")}
+                        </p>
+                        <h3 className="text-lg font-semibold text-white">{option.label}</h3>
+                        <p className="text-sm text-white/70">{option.description}</p>
+                      </div>
+                      <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/70">
+                        {portalText("action")}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-white/60">
+                      <span>{portalText("loading")}</span>
+                      <span className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-[0_15px_40px_rgba(99,102,241,0.4)]">
+                        {portalText("action")}
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-3">
+            <p className={theme.description}>{portalText("description")}</p>
+            <div className="space-y-3">
+              {options.map((option) => (
+                <div key={option.id} className={theme.card}>
+                  <div>
+                    <div className={theme.cardTitle}>{option.label}</div>
+                    <p className={theme.cardDescription}>{option.description}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate(option)}
+                    className={theme.action}
+                  >
+                    {portalText("action")}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Modal>
 
       {transitionVisible
