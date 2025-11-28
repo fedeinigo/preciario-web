@@ -92,18 +92,19 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
   },
   mapache: {
     trigger:
-      "inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-[13px] text-white transition hover:border-white/45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60",
+      "inline-flex items-center gap-2 rounded-full border border-white/25 bg-gradient-to-r from-white/10 via-white/5 to-transparent px-3 py-1.5 text-[13px] font-semibold text-white shadow-[0_10px_35px_rgba(0,0,0,0.4)] transition hover:border-white/40 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60",
     panel:
-      "rounded-[28px] border border-white/10 bg-[rgb(var(--mapache-surface-strong))]/95 text-white shadow-[0_40px_120px_rgba(2,6,23,0.85)]",
-    header: "bg-transparent border-b border-white/10 px-6 py-4 text-white",
+      "rounded-[30px] border border-white/10 bg-gradient-to-br from-[#0f172a]/95 via-[#0b1221]/95 to-[#0a0f1a]/95 text-white shadow-[0_40px_140px_rgba(2,6,23,0.9)]",
+    header:
+      "bg-gradient-to-r from-[#8b5cf6]/15 via-[#6d28d9]/10 to-[#22d3ee]/15 border-b border-white/10 px-6 py-4 text-white",
     title: "text-lg font-semibold text-white",
-    description: "text-sm text-white/70",
+    description: "text-sm text-white/80",
     card:
-      "flex items-center justify-between gap-4 rounded-2xl border border-white/15 bg-[rgba(255,255,255,0.04)] px-4 py-3 shadow-[0_20px_45px_rgba(0,0,0,0.55)]",
+      "flex items-center justify-between gap-4 rounded-2xl border border-white/15 bg-gradient-to-br from-white/14 via-white/9 to-white/3 px-4 py-3 shadow-[0_22px_55px_rgba(0,0,0,0.55)] backdrop-blur-md",
     cardTitle: "text-sm font-semibold text-white",
-    cardDescription: "text-xs text-white/60",
+    cardDescription: "text-xs text-white/70",
     action:
-      "mapache-modal-btn rounded-full border px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40",
+      "mapache-modal-btn rounded-full border border-white/25 bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow-[0_12px_35px_rgba(139,92,246,0.35)] transition hover:shadow-[0_16px_45px_rgba(139,92,246,0.45)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40",
     overlay: "bg-slate-950/90 text-white",
     overlaySpinner: "text-white/80",
     overlayText: "text-white",
