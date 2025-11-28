@@ -536,7 +536,7 @@ export default function GoalsPage({
                 .filter((email): email is string => !!email?.trim())
             : normalizedRows.map((member) => member.name).filter((name): name is string => !!name?.trim());
         try {
-          if (memberNames.length > 0) {
+          if (memberIdentifiers.length > 0) {
             const modeQuery = pipedriveMode === "owner" ? "?mode=owner" : "";
             const pdRes = await fetch(`/api/pipedrive/team-deals${modeQuery}` as const, {
               method: "POST",
