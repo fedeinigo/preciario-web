@@ -696,6 +696,16 @@ body.mapache-theme .mapache-modal-surface {
 .mapache-launcher .mapache-launcher-muted {
   color: rgba(255, 255, 255, 0.8) !important;
 }
+
+.mapache-surface-card,
+.mapache-modal-surface {
+  color: #fff;
+}
+
+.mapache-surface-card *,
+.mapache-modal-surface * {
+  color: inherit;
+}
 .hero-bg::before {
   content: "";
   position: fixed;
