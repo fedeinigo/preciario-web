@@ -32,6 +32,7 @@ type Props = {
   theme?: "direct" | "mapache";
   winsSource?: "goals" | "pipedrive";
   disableManualWins?: boolean;
+  pipedriveMode?: "mapache" | "owner";
 };
 
 type TeamMemberResponse = {
@@ -57,6 +58,7 @@ export default function GoalsPage({
   theme = "direct",
   winsSource = "goals",
   disableManualWins = false,
+  pipedriveMode = "mapache",
 }: Props) {
   const pageT = useTranslations("goals.page");
   const toastT = useTranslations("goals.toast");
@@ -188,7 +190,8 @@ export default function GoalsPage({
       setLoadingDeals(true);
       try {
         if (winsSource === "pipedrive") {
-          const response = await fetch("/api/pipedrive/deals", { cache: "no-store" });
+          const modeQuery = pipedriveMode === "owner" ? "?mode=owner" : "";
+          const response = await fetch(`/api/pipedrive/deals${modeQuery}` as const, { cache: "no-store" });
           if (!response.ok) throw new Error("Failed to load wins");
           const payload = (await response.json()) as { ok: boolean; deals?: Array<{ [key: string]: unknown }> };
           if (!payload.ok || !Array.isArray(payload.deals)) throw new Error("Invalid deals payload");
@@ -522,7 +525,8 @@ export default function GoalsPage({
         const memberNames = normalizedRows.map((member) => member.name).filter((name): name is string => !!name?.trim());
         try {
           if (memberNames.length > 0) {
-            const pdRes = await fetch("/api/pipedrive/team-deals", {
+            const modeQuery = pipedriveMode === "owner" ? "?mode=owner" : "";
+            const pdRes = await fetch(`/api/pipedrive/team-deals${modeQuery}` as const, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ names: memberNames }),
@@ -548,15 +552,20 @@ export default function GoalsPage({
               const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
               return {
                 mapacheAssigned: String((deal as { mapacheAssigned?: string | null }).mapacheAssigned ?? ""),
+                ownerName: String((deal as { ownerName?: string | null }).ownerName ?? ""),
                 monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
               };
             });
 
             resolvedRows = normalizedRows.map((row) => {
               const rowName = normalizeName(row.name);
-              const deals = normalizedDeals.filter(
-                (deal) => rowName && normalizeName(deal.mapacheAssigned) === rowName
-              );
+              const deals = normalizedDeals.filter((deal) => {
+                if (!rowName) return false;
+                if (pipedriveMode === "owner") {
+                  return normalizeName(deal.ownerName) === rowName;
+                }
+                return normalizeName(deal.mapacheAssigned) === rowName;
+              });
               const progress = deals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
               return {
                 ...row,
@@ -595,7 +604,7 @@ export default function GoalsPage({
     } finally {
       setLoadingTeam(false);
     }
-  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName, loadTeamFromCache, persistTeamCache]);
+  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName, loadTeamFromCache, persistTeamCache, pipedriveMode]);
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
 

@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
 
 import logger from "@/lib/logger";
-import { searchDealsByMapacheAssigned } from "@/lib/pipedrive";
+import { searchDealsByMapacheAssigned, searchDealsByOwnerName } from "@/lib/pipedrive";
 import { requireApiSession } from "@/app/api/_utils/require-auth";
 
 const log = logger.child({ route: "api/pipedrive/deals" });
 
-export async function GET() {
+export async function GET(req: Request) {
   const { session, response } = await requireApiSession();
   if (response) return response;
 
-  const mapacheName = session?.user?.name?.trim() ?? "";
-  if (!mapacheName) {
+  const url = new URL(req.url);
+  const mode = url.searchParams.get("mode") ?? "mapache";
+
+  const userName = session?.user?.name?.trim() ?? "";
+  if (!userName) {
     return NextResponse.json(
       { ok: false, error: "No se pudo resolver tu nombre" },
       { status: 400 },
@@ -19,12 +22,13 @@ export async function GET() {
   }
 
   try {
-    const deals = await searchDealsByMapacheAssigned(mapacheName);
+    const deals = mode === "owner" ? await searchDealsByOwnerName(userName) : await searchDealsByMapacheAssigned(userName);
     return NextResponse.json({ ok: true, deals });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     log.error("search_failed", {
-      mapache: mapacheName,
+      mapache: userName,
+      mode,
       error: message,
       userId: session?.user?.id,
     });

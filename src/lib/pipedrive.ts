@@ -10,6 +10,8 @@ const log = logger.child({ service: "pipedrive" });
 const BASE_URL = process.env.PIPEDRIVE_BASE_URL ?? "https://wcx.pipedrive.com";
 const API_TOKEN = process.env.PIPEDRIVE_API_TOKEN ?? "";
 
+const PIPELINE_DEALS_ID = 1; // pipeline "Deals"
+
 const FIELD_ONESHOT = process.env.PIPEDRIVE_FIELD_ONESHOT ?? ""; // id del campo OneShot (numérico $)
 const FIELD_PROPOSAL_URL = process.env.PIPEDRIVE_FIELD_PROPOSAL_URL ?? ""; // id del campo Propuesta Comercial (URL)
 const FIELD_MAPACHE_ASSIGNED =
@@ -393,6 +395,59 @@ export async function searchDealsByMapacheAssigned(mapacheName: string) {
   return summaries;
 }
 
+export async function searchDealsByOwnerName(ownerName: string) {
+  const normalizedName = normalizeForComparison(ownerName);
+  if (!normalizedName) {
+    return [];
+  }
+
+  const mapacheOptions = await ensureMapacheFieldOptions();
+  const [stageNames, deals] = await Promise.all([
+    ensureStageNameMap(),
+    fetchDealsWithMapacheFields(["open", "won", "lost"]),
+  ]);
+
+  const ownerIds = Array.from(
+    new Set(
+      deals
+        .map((deal) => ensureNumber(deal.owner_id))
+        .filter((id): id is number => typeof id === "number" && Number.isFinite(id)),
+    ),
+  );
+  const ownerNames = await resolveOwnerNames(ownerIds);
+
+  const summaries = deals
+    .filter((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId)?.trim().toLowerCase() ?? null : null;
+      if (stageName === "qualified - sql") {
+        return false;
+      }
+      const ownerId = ensureNumber(deal.owner_id);
+      const resolvedName = ownerId !== null ? ownerNames.get(ownerId) ?? null : null;
+      const rawName = extractString(deal.owner_name) ?? null;
+      const comparable = resolveComparisonName(resolvedName, rawName);
+      return comparable === normalizedName;
+    })
+    .map((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId) ?? null : null;
+      const ownerId = ensureNumber(deal.owner_id);
+      const owner = ownerId !== null ? ownerNames.get(ownerId) ?? null : null;
+
+      return normalizeDealSummary({
+        deal,
+        stageName,
+        ownerName: owner,
+        mapacheOptions,
+      });
+    });
+
+  log.info("pipedrive.owner_search", { owner: normalizedName, hits: summaries.length });
+
+  return summaries;
+}
+
 export async function searchDealsByMapacheAssignedMany(mapacheNames: string[]) {
   const normalizedNames = Array.from(
     new Set(
@@ -470,6 +525,67 @@ export async function searchDealsByMapacheAssignedMany(mapacheNames: string[]) {
   return summaries;
 }
 
+export async function searchDealsByOwnerNames(ownerNames: string[]) {
+  const normalizedNames = Array.from(
+    new Set(
+      ownerNames
+        .map((name) => normalizeForComparison(name || ""))
+        .filter((name) => !!name),
+    ),
+  );
+
+  if (normalizedNames.length === 0) {
+    return [];
+  }
+
+  const mapacheOptions = await ensureMapacheFieldOptions();
+
+  const [stageNames, deals] = await Promise.all([
+    ensureStageNameMap(),
+    fetchDealsWithMapacheFields(["open", "won", "lost"]),
+  ]);
+
+  const ownerIds = Array.from(
+    new Set(
+      deals
+        .map((deal) => ensureNumber(deal.owner_id))
+        .filter((id): id is number => typeof id === "number" && Number.isFinite(id)),
+    ),
+  );
+  const ownerNamesMap = await resolveOwnerNames(ownerIds);
+
+  const summaries = deals
+    .filter((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId)?.trim().toLowerCase() ?? null : null;
+      if (stageName === "qualified - sql") {
+        return false;
+      }
+      const ownerId = ensureNumber(deal.owner_id);
+      const resolvedName = ownerId !== null ? ownerNamesMap.get(ownerId) ?? null : null;
+      const rawName = extractString(deal.owner_name) ?? null;
+      const comparable = resolveComparisonName(resolvedName, rawName);
+      return comparable !== null && normalizedNames.includes(comparable);
+    })
+    .map((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId) ?? null : null;
+      const ownerId = ensureNumber(deal.owner_id);
+      const owner = ownerId !== null ? ownerNamesMap.get(ownerId) ?? null : null;
+
+      return normalizeDealSummary({
+        deal,
+        stageName,
+        ownerName: owner,
+        mapacheOptions,
+      });
+    });
+
+  log.info("pipedrive.owner_team_search", { owners: normalizedNames, hits: summaries.length });
+
+  return summaries;
+}
+
 async function fetchDealsWithMapacheFields(
   statuses: DealStatus[] = ["open"],
 ) {
@@ -483,6 +599,7 @@ async function fetchDealsWithMapacheFields(
         api_token: API_TOKEN,
         status,
         limit,
+        pipeline_id: PIPELINE_DEALS_ID,
       };
       if (cursor) {
         payload.cursor = cursor;
@@ -723,4 +840,10 @@ function normalizeForComparison(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+function resolveComparisonName(primary: string | null, fallback: string | null) {
+  const normalizedPrimary = primary ? normalizeForComparison(primary) : null;
+  const normalizedFallback = fallback ? normalizeForComparison(fallback) : null;
+  return normalizedPrimary || normalizedFallback;
 }
