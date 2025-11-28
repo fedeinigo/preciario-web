@@ -30,10 +30,14 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
 
   const isMapache = theme === "mapache";
   const cardClass = isMapache
-    ? "rounded-2xl border border-white/10 bg-gradient-to-br from-[#121520] to-[#0c0e17] px-5 py-4 shadow-sm"
+    ? "rounded-2xl border border-white/10 bg-gradient-to-br from-[#121520] to-[#0c0e17] px-5 py-4 shadow-sm text-white"
     : "rounded-2xl border border-slate-200/60 bg-gradient-to-br from-white to-slate-50/30 px-5 py-4 shadow-sm";
-  const labelMuted = isMapache ? "text-xs font-semibold text-white/60" : "text-xs font-semibold text-slate-500";
-  const valueBold = isMapache ? "text-sm font-bold text-white" : "text-sm font-bold text-slate-900";
+  const labelMuted = isMapache
+    ? "text-xs font-semibold text-white/75 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)]"
+    : "text-xs font-semibold text-slate-500";
+  const valueBold = isMapache
+    ? "text-sm font-bold text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)]"
+    : "text-sm font-bold text-slate-900";
   const badgeClass = isMapache
     ? "inline-flex rounded-full bg-gradient-to-r from-[#8b5cf6] to-[#6366f1] px-3 py-1 text-[11px] font-semibold text-white shadow-sm"
     : "inline-flex rounded-full bg-purple-100 text-purple-700 px-3 py-1 text-[11px] font-semibold";
