@@ -277,7 +277,7 @@ export default function TeamMembersTable({
 
   return (
     <div className="space-y-5">
-      {/* Filters and Search */
+      {/* Filters and Search */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className={searchIconClass} />
