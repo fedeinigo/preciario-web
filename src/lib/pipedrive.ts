@@ -568,10 +568,11 @@ export async function searchDealsByOwnerEmails(ownerEmails: string[]) {
       }
       const ownerId = ensureNumber(deal.owner_id);
       const resolvedEmail = ownerId !== null ? ownerInfos.get(ownerId)?.email ?? null : null;
-      if (!resolvedEmail) {
+      const normalizedResolvedEmail = resolvedEmail?.trim().toLowerCase() ?? null;
+      if (!normalizedResolvedEmail) {
         return false;
       }
-      return emailSet.has(resolvedEmail);
+      return emailSet.has(normalizedResolvedEmail);
     })
     .map((deal) => {
       const stageId = ensureNumber(deal.stage_id);
