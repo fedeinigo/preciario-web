@@ -277,12 +277,12 @@ export default function UserProfileModal({
       ? "text-lg font-semibold text-slate-900"
       : isDirectAppearance
         ? "text-lg font-semibold text-[#4c1d95]"
-        : "text-lg font-semibold text-white";
+        : "text-lg font-semibold text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.35)]";
   const bodyTextClass = isMarketingAppearance
     ? "text-[#0f406d]"
     : isLightAppearance || isDirectAppearance
       ? "text-slate-900"
-      : "text-white";
+      : "text-white/95 drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)]";
   const subtleTextClass = isMarketingAppearance
     ? "text-slate-600"
     : isLightAppearance || isDirectAppearance
@@ -301,10 +301,10 @@ export default function UserProfileModal({
     ? "text-[#0f406d]"
     : isLightAppearance || isDirectAppearance
       ? "text-slate-900"
-      : "text-white";
-  const strongValueClass = `${valueTextClass} text-lg font-semibold`;
-  const boldValueClass = `${valueTextClass} text-xl font-bold`;
-  const heroNumberClass = `${valueTextClass} text-3xl font-bold`;
+      : "text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)]";
+  const strongValueClass = `${valueTextClass} text-lg font-semibold drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)]`;
+  const boldValueClass = `${valueTextClass} text-xl font-bold drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)]`;
+  const heroNumberClass = `${valueTextClass} text-3xl font-bold drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)]`;
 
   const secondaryButtonClass = isMarketingAppearance
     ? "rounded-full border border-[#cce8ff] bg-white px-6 py-2.5 text-sm font-semibold text-[#0f406d] transition hover:bg-[#ecf5ff]"

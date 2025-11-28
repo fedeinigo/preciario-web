@@ -94,15 +94,15 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
     trigger:
       "inline-flex items-center gap-2 rounded-full border border-white/25 bg-gradient-to-r from-white/10 via-white/5 to-transparent px-3 py-1.5 text-[13px] font-semibold text-white shadow-[0_10px_35px_rgba(0,0,0,0.4)] transition hover:border-white/40 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60",
     panel:
-      "rounded-[30px] border border-white/12 bg-gradient-to-br from-[#111827]/96 via-[#0b1224]/94 to-[#0a1322]/96 text-white shadow-[0_44px_150px_rgba(0,0,0,0.85)] backdrop-blur-2xl",
+      "rounded-[30px] border border-white/12 bg-gradient-to-br from-[#111827]/96 via-[#0b1224]/94 to-[#0a1322]/96 text-white shadow-[0_44px_150px_rgba(0,0,0,0.85)] backdrop-blur-2xl text-white/95",
     header:
-      "bg-gradient-to-r from-[#8b5cf6]/18 via-[#6d28d9]/14 to-[#22d3ee]/18 border-b border-white/12 px-6 py-4 text-white",
-    title: "text-lg font-semibold text-white",
-    description: "text-sm text-white/85",
+      "bg-gradient-to-r from-[#8b5cf6]/18 via-[#6d28d9]/14 to-[#22d3ee]/18 border-b border-white/12 px-6 py-4 text-white drop-shadow-[0_6px_18px_rgba(0,0,0,0.35)]",
+    title: "text-lg font-semibold text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.4)]",
+    description: "text-sm text-white/90 drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)]",
     card:
       "flex items-center justify-between gap-4 rounded-2xl border border-white/14 bg-gradient-to-br from-white/12 via-white/8 to-[#0f172a]/65 px-4 py-3 shadow-[0_28px_70px_rgba(0,0,0,0.6)] backdrop-blur-xl",
-    cardTitle: "text-sm font-semibold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]",
-    cardDescription: "text-xs text-white/80",
+    cardTitle: "text-sm font-semibold text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)]",
+    cardDescription: "text-xs text-white/85 drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]",
     action:
       "mapache-modal-btn rounded-full border border-white/25 bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow-[0_14px_38px_rgba(139,92,246,0.4)] transition hover:shadow-[0_18px_48px_rgba(139,92,246,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40",
     overlay: "bg-slate-950/90 text-white",
