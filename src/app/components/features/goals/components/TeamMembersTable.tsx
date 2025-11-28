@@ -297,14 +297,13 @@ export default function TeamMembersTable({
             className={selectClass}
           >
             <option value="all">Todos</option>
-            <option value="above">? Arriba del objetivo</option>
-            <option value="below">? Abajo del objetivo</option>
+            <option value="above">Arriba del objetivo</option>
+            <option value="below">Abajo del objetivo</option>
           </select>
         </div>
       </div>
 
-      {
-/* Sort Controls */
+      {/* Sort Controls */}
       <div className="flex flex-wrap gap-2">
         <span className={sortLabelClass}>Ordenar por:</span>
         <button
