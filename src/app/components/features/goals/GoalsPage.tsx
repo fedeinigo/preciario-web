@@ -1223,6 +1223,7 @@ export default function GoalsPage({
         isOpen={billingEditorDeal !== null}
         onClose={() => setBillingEditorDeal(null)}
         onSave={handleSaveBilling}
+        theme={theme}
       />
 
       {memberDealsTarget && (
