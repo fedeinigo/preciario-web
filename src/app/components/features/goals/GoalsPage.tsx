@@ -532,8 +532,8 @@ export default function GoalsPage({
         const memberIdentifiers =
           pipedriveMode === "owner"
             ? normalizedRows
-                .map((member) => member.email)
-                .filter((email): email is string => !!email?.trim())
+                .map((member) => (member.email || "").trim().toLowerCase())
+                .filter((email): email is string => !!email)
             : normalizedRows.map((member) => member.name).filter((name): name is string => !!name?.trim());
         try {
           if (memberIdentifiers.length > 0) {
@@ -565,17 +565,20 @@ export default function GoalsPage({
               return {
                 mapacheAssigned: String((deal as { mapacheAssigned?: string | null }).mapacheAssigned ?? ""),
                 ownerName: String((deal as { ownerName?: string | null }).ownerName ?? ""),
+                ownerEmail: String((deal as { ownerEmail?: string | null }).ownerEmail ?? ""),
                 monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
               };
             });
 
             resolvedRows = normalizedRows.map((row) => {
               const rowName = normalizeName(row.name);
+              const rowEmail = (row.email || "").trim().toLowerCase();
               const deals = normalizedDeals.filter((deal) => {
-                if (!rowName) return false;
                 if (pipedriveMode === "owner") {
-                  return normalizeName(deal.ownerName) === rowName;
+                  const ownerEmail = (deal.ownerEmail || "").trim().toLowerCase();
+                  return !!ownerEmail && !!rowEmail && ownerEmail === rowEmail;
                 }
+                if (!rowName) return false;
                 return normalizeName(deal.mapacheAssigned) === rowName;
               });
               const progress = deals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
