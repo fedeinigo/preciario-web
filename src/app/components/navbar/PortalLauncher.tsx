@@ -100,7 +100,7 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
     title: "text-lg font-semibold text-white",
     description: "text-sm text-white/80",
     card:
-      "flex items-center justify-between gap-4 rounded-2xl border border-white/15 bg-gradient-to-br from-white/14 via-white/9 to-white/3 px-4 py-3 shadow-[0_22px_55px_rgba(0,0,0,0.55)] backdrop-blur-md",
+      "flex items-center justify-between gap-4 rounded-2xl border border-white/12 bg-gradient-to-br from-white/8 via-white/5 to-white/0 px-4 py-3 shadow-[0_22px_55px_rgba(0,0,0,0.55)]",
     cardTitle: "text-sm font-semibold text-white",
     cardDescription: "text-xs text-white/70",
     action:

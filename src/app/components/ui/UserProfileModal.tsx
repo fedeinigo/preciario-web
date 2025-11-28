@@ -255,7 +255,7 @@ export default function UserProfileModal({
       : isLightAppearance
         ? "bg-white text-slate-900 border border-slate-200 shadow-[0_35px_110px_rgba(15,23,42,0.12)]"
         : isMapacheAppearance
-          ? "bg-gradient-to-br from-[#0f172a]/90 via-[#11162b]/92 to-[#0a0f1a]/94 text-white border border-white/12 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
+          ? "bg-gradient-to-br from-[#0f172a]/95 via-[#0b1221]/95 to-[#0a0f1a]/95 text-white border border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
           : isDirectAppearance
             ? "bg-white text-slate-900 border border-[#ede9fe] shadow-[0_35px_110px_rgba(76,29,149,0.2)]"
             : "bg-slate-950/90 text-white border border-white/10 shadow-[0_35px_110px_rgba(2,6,23,0.65)]",
@@ -323,7 +323,7 @@ export default function UserProfileModal({
       : isDirectAppearance
         ? "rounded-2xl border border-[#ede9fe] bg-white p-6 shadow-sm"
         : isMapacheAppearance
-          ? "rounded-2xl border border-white/16 bg-gradient-to-br from-white/12 via-[#11162b]/70 to-[#0b1221]/72 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
+          ? "rounded-2xl border border-white/15 bg-gradient-to-br from-white/8 via-[#0f172a]/60 to-[#0b1221]/60 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
           : "rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-xl";
 
   const infoCardClass = isMarketingAppearance
@@ -333,7 +333,7 @@ export default function UserProfileModal({
       : isDirectAppearance
         ? "rounded-xl border border-[#ede9fe] bg-[#faf5ff] p-4"
         : isMapacheAppearance
-          ? "rounded-xl border border-white/18 bg-gradient-to-br from-white/10 via-white/6 to-white/2 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.45)]"
+          ? "rounded-xl border border-white/15 bg-gradient-to-br from-white/5 via-white/3 to-transparent p-4 shadow-[0_16px_40px_rgba(0,0,0,0.45)]"
           : "rounded-xl border border-white/20 bg-white/10 p-4";
 
   const backdropClassName = isMarketingAppearance
