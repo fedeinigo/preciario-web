@@ -21,6 +21,7 @@ import ManualWonDialog from "./components/ManualWonDialog";
 import BillingEditorModal from "./components/BillingEditorModal";
 import CardSkeleton from "@/app/components/ui/skeletons/CardSkeleton";
 import Tooltip from "@/app/components/ui/Tooltip";
+import MemberDealsModal from "./components/MemberDealsModal";
 
 type Props = {
   role: AppRole;
@@ -79,7 +80,7 @@ export default function GoalsPage({
     return map;
   }, [adminUsers]);
 
-  const now = new Date();
+  const now = React.useMemo(() => new Date(), []);
   const [year, setYear] = React.useState<number>(now.getFullYear());
   const [quarter, setQuarter] = React.useState<1 | 2 | 3 | 4>(() => {
     const m = now.getMonth();
@@ -312,7 +313,7 @@ export default function GoalsPage({
     } finally {
       setLoadingDeals(false);
     }
-  }, [loadWinsFromCache, persistWinsCache, quarter, winsSource, year]);
+  }, [loadWinsFromCache, persistWinsCache, quarter, winsSource, year, pipedriveMode]);
 
   React.useEffect(() => {
     loadMyGoal();
@@ -365,11 +366,18 @@ export default function GoalsPage({
   const [teamGoal, setTeamGoal] = React.useState<number>(0);
   const [teamProgress, setTeamProgress] = React.useState<number>(0);
   const [teamProgressRaw, setTeamProgressRaw] = React.useState<number>(0);
+  const [teamMonthlyProgressRaw, setTeamMonthlyProgressRaw] = React.useState<number>(0);
+  const [teamMonthlyProgress, setTeamMonthlyProgress] = React.useState<number>(0);
+  const [teamDealsByUser, setTeamDealsByUser] = React.useState<Record<string, UserWonDeal[]>>({});
+  const [teamDealsBaseMap, setTeamDealsBaseMap] = React.useState<Record<string, UserWonDeal[]>>({});
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);
   const [baseRows, setBaseRows] = React.useState<TeamGoalRow[]>([]);
   const [loadingTeam, setLoadingTeam] = React.useState<boolean>(false);
   const canAddManual = !disableManualWins && (isSuperAdmin || role === "lider" || role === "admin");
   const canAddSelfManual = !disableManualWins;
+  const [memberDealsTarget, setMemberDealsTarget] = React.useState<
+    { user: TeamGoalRow; deals: UserWonDeal[] } | null
+  >(null);
 
   const teamCacheKey = React.useMemo(
     () => `goals:pipedrive:team:${effectiveTeam || "unknown"}:${year}:Q${quarter}`,
@@ -386,14 +394,22 @@ export default function GoalsPage({
         teamGoal?: number;
         teamProgress?: number;
         teamProgressRaw?: number;
+        teamMonthlyProgressRaw?: number;
         rows?: TeamGoalRow[];
         baseRows?: TeamGoalRow[];
+        teamMonthlyProgress?: number;
+        teamDealsByUser?: Record<string, UserWonDeal[]>;
+        teamDealsBaseMap?: Record<string, UserWonDeal[]>;
         lastSyncedAt?: string | null;
       };
       if (!Array.isArray(parsed.rows) || !Array.isArray(parsed.baseRows)) return false;
       setTeamGoal(Number(parsed.teamGoal ?? 0));
       setTeamProgress(Number(parsed.teamProgress ?? 0));
       setTeamProgressRaw(Number(parsed.teamProgressRaw ?? 0));
+      setTeamMonthlyProgressRaw(Number(parsed.teamMonthlyProgressRaw ?? 0));
+      setTeamMonthlyProgress(Number(parsed.teamMonthlyProgress ?? 0));
+      setTeamDealsByUser(parsed.teamDealsByUser ?? {});
+      setTeamDealsBaseMap(parsed.teamDealsBaseMap ?? {});
       setRows(parsed.rows);
       setBaseRows(parsed.baseRows);
       setLastSyncedAt(parsed.lastSyncedAt ? new Date(parsed.lastSyncedAt) : null);
@@ -408,8 +424,12 @@ export default function GoalsPage({
       teamGoal: number;
       teamProgress: number;
       teamProgressRaw: number;
+      teamMonthlyProgress: number;
+      teamMonthlyProgressRaw: number;
       rows: TeamGoalRow[];
       baseRows: TeamGoalRow[];
+      teamDealsByUser: Record<string, UserWonDeal[]>;
+      teamDealsBaseMap: Record<string, UserWonDeal[]>;
       lastSyncedAt: string;
     }) => {
       if (winsSource !== "pipedrive") return;
@@ -433,9 +453,19 @@ export default function GoalsPage({
   }, []);
 
   const mergePipedriveSelfProgress = React.useCallback(
-    (incomingRows: TeamGoalRow[], incomingProgress: number) => {
+    (
+      incomingRows: TeamGoalRow[],
+      incomingProgress: number,
+      incomingDealsMap: Record<string, UserWonDeal[]> = {},
+      incomingMonthlyProgress = 0,
+    ) => {
       if (winsSource !== "pipedrive") {
-        return { rows: incomingRows, teamProgress: incomingProgress };
+        return {
+          rows: incomingRows,
+          teamProgress: incomingProgress,
+          dealsMap: incomingDealsMap,
+          teamMonthlyProgress: incomingMonthlyProgress,
+        };
       }
 
       const normalizedEmail = (currentEmail || "").trim().toLowerCase();
@@ -445,11 +475,31 @@ export default function GoalsPage({
         return (viewerId && row.userId === viewerId) || (!!normalizedEmail && rowEmail === normalizedEmail);
       });
 
+      const currentMapMonthly = (userId: string) =>
+        (incomingDealsMap[userId] ?? []).reduce((acc, deal) => {
+          const date = new Date(deal.createdAt);
+          return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
+            ? acc + deal.monthlyFee
+            : acc;
+        }, 0);
+
       if (matchIndex === -1) {
-        return { rows: incomingRows, teamProgress: incomingProgress };
+        return {
+          rows: incomingRows,
+          teamProgress: incomingProgress,
+          dealsMap: incomingDealsMap,
+          teamMonthlyProgress: incomingMonthlyProgress,
+        };
       }
 
       const matched = incomingRows[matchIndex];
+      const nextDealsMap = { ...incomingDealsMap };
+      if (matched.userId) {
+        nextDealsMap[matched.userId] = myDeals;
+      }
+
+      const replacedMonthly = matched.userId ? currentMapMonthly(matched.userId) : 0;
+
       const updatedRows = incomingRows.map((row, idx) =>
         idx === matchIndex
           ? {
@@ -462,10 +512,16 @@ export default function GoalsPage({
       );
 
       const adjustedTeamProgress = incomingProgress - matched.progress + myProgress;
+      const adjustedMonthly = incomingMonthlyProgress - replacedMonthly + myMonthlyProgress;
 
-      return { rows: updatedRows, teamProgress: adjustedTeamProgress };
+      return {
+        rows: updatedRows,
+        teamProgress: adjustedTeamProgress,
+        dealsMap: nextDealsMap,
+        teamMonthlyProgress: adjustedMonthly,
+      };
     },
-    [currentEmail, myDeals.length, myProgress, viewerId, winsSource]
+    [currentEmail, myDeals, myMonthlyProgress, myProgress, now, viewerId, winsSource]
   );
 
   const loadTeam = React.useCallback(async (options?: { force?: boolean }) => {
@@ -474,12 +530,22 @@ export default function GoalsPage({
       setRows([]);
       setTeamGoal(0);
       setTeamProgress(0);
+      setTeamProgressRaw(0);
+      setTeamMonthlyProgressRaw(0);
+      setTeamMonthlyProgress(0);
+      setTeamDealsByUser({});
+      setTeamDealsBaseMap({});
       return;
     }
     if (canSelectTeam && !effectiveTeam) {
       setRows([]);
       setTeamGoal(0);
       setTeamProgress(0);
+      setTeamProgressRaw(0);
+      setTeamMonthlyProgressRaw(0);
+      setTeamMonthlyProgress(0);
+      setTeamDealsByUser({});
+      setTeamDealsBaseMap({});
       return;
     }
     const shouldUseCacheOnly = winsSource === "pipedrive" && !options?.force;
@@ -491,6 +557,10 @@ export default function GoalsPage({
       setRows([]);
       setBaseRows([]);
       setTeamProgressRaw(0);
+      setTeamMonthlyProgressRaw(0);
+      setTeamMonthlyProgress(0);
+      setTeamDealsByUser({});
+      setTeamDealsBaseMap({});
       setLastSyncedAt(null);
       return;
     }
@@ -532,11 +602,11 @@ export default function GoalsPage({
         const memberIdentifiers =
           pipedriveMode === "owner"
             ? normalizedRows
-                .map((member) => member.email)
-                .filter((email): email is string => !!email?.trim())
+                .map((member) => (member.email || "").trim().toLowerCase())
+                .filter((email): email is string => !!email)
             : normalizedRows.map((member) => member.name).filter((name): name is string => !!name?.trim());
         try {
-          if (memberNames.length > 0) {
+          if (memberIdentifiers.length > 0) {
             const modeQuery = pipedriveMode === "owner" ? "?mode=owner" : "";
             const pdRes = await fetch(`/api/pipedrive/team-deals${modeQuery}` as const, {
               method: "POST",
@@ -562,24 +632,51 @@ export default function GoalsPage({
               const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
               const value = Number((deal as { value?: number | null }).value ?? 0);
               const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
+              const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
+              const createdAt = wonAt || (deal as { createdAt?: string | null }).createdAt || new Date().toISOString();
               const ownerEmailRaw = (deal as { ownerEmail?: string | null }).ownerEmail ?? "";
               return {
                 mapacheAssigned: String((deal as { mapacheAssigned?: string | null }).mapacheAssigned ?? ""),
                 ownerName: String((deal as { ownerName?: string | null }).ownerName ?? ""),
+                ownerEmail: ownerEmailRaw,
                 monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+                deal: {
+                  id: String((deal as { id?: string | number }).id ?? ""),
+                  type: "auto" as const,
+                  companyName: String((deal as { title?: string }).title ?? ""),
+                  monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+                  billedAmount: 0,
+                  pendingAmount: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+                  billingPct: 0,
+                  link: ((deal as { dealUrl?: string | null }).dealUrl ?? null) as string | null,
+                  createdAt,
+                  wonType: "NEW_CUSTOMER" as const,
+                },
               };
             });
 
             resolvedRows = normalizedRows.map((row) => {
               const rowName = normalizeName(row.name);
+              const rowEmail = (row.email || "").trim().toLowerCase();
               const deals = normalizedDeals.filter((deal) => {
-                if (!rowName) return false;
                 if (pipedriveMode === "owner") {
-                  return normalizeName(deal.ownerName) === rowName;
+                  const ownerEmail = (deal.ownerEmail || "").trim().toLowerCase();
+                  return !!ownerEmail && !!rowEmail && ownerEmail === rowEmail;
                 }
+                if (!rowName) return false;
                 return normalizeName(deal.mapacheAssigned) === rowName;
               });
               const progress = deals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
+              const memberDeals = deals.map((deal) => deal.deal);
+              const monthlySum = memberDeals.reduce((acc, deal) => {
+                const createdAt = new Date(deal.createdAt);
+                if (createdAt.getMonth() === now.getMonth() && createdAt.getFullYear() === now.getFullYear()) {
+                  return acc + deal.monthlyFee;
+                }
+                return acc;
+              }, 0);
+              resolvedDealsMap[row.userId] = memberDeals;
+              resolvedMonthlyProgress += monthlySum;
               return {
                 ...row,
                 progress,
@@ -595,11 +692,21 @@ export default function GoalsPage({
         }
       }
 
+      setTeamDealsBaseMap(resolvedDealsMap);
+      setTeamMonthlyProgressRaw(resolvedMonthlyProgress);
+
       setBaseRows(resolvedRows);
       setTeamProgressRaw(resolvedProgress);
-      const merged = mergePipedriveSelfProgress(resolvedRows, resolvedProgress);
+      const merged = mergePipedriveSelfProgress(
+        resolvedRows,
+        resolvedProgress,
+        resolvedDealsMap,
+        resolvedMonthlyProgress,
+      );
       setRows(merged.rows);
       setTeamProgress(merged.teamProgress);
+      setTeamDealsByUser(merged.dealsMap);
+      setTeamMonthlyProgress(merged.teamMonthlyProgress);
       const syncMoment = new Date();
       if (winsSource === "pipedrive") {
         setLastSyncedAt(syncMoment);
@@ -607,27 +714,38 @@ export default function GoalsPage({
           teamGoal: Number(j.teamGoal || 0),
           teamProgress: merged.teamProgress,
           teamProgressRaw: resolvedProgress,
+          teamMonthlyProgressRaw: resolvedMonthlyProgress,
+          teamMonthlyProgress: merged.teamMonthlyProgress,
           rows: merged.rows,
           baseRows: resolvedRows,
+          teamDealsByUser: merged.dealsMap,
+          teamDealsBaseMap: resolvedDealsMap,
           lastSyncedAt: syncMoment.toISOString(),
         });
       }
     } catch {
-      setTeamGoal(0); setTeamProgress(0); setRows([]); setBaseRows([]); setTeamProgressRaw(0);
+      setTeamGoal(0); setTeamProgress(0); setRows([]); setBaseRows([]); setTeamProgressRaw(0); setTeamMonthlyProgressRaw(0); setTeamMonthlyProgress(0); setTeamDealsByUser({}); setTeamDealsBaseMap({});
     } finally {
       setLoadingTeam(false);
     }
-  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName, loadTeamFromCache, persistTeamCache, pipedriveMode]);
+  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName, loadTeamFromCache, persistTeamCache, pipedriveMode, now]);
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
 
   React.useEffect(() => {
     if (winsSource !== "pipedrive") return;
     if (baseRows.length === 0) return;
-    const merged = mergePipedriveSelfProgress(baseRows, teamProgressRaw);
+    const merged = mergePipedriveSelfProgress(
+      baseRows,
+      teamProgressRaw,
+      teamDealsBaseMap,
+      teamMonthlyProgressRaw,
+    );
     setRows(merged.rows);
     setTeamProgress(merged.teamProgress);
-  }, [baseRows, mergePipedriveSelfProgress, teamProgressRaw, winsSource]);
+    setTeamDealsByUser(merged.dealsMap);
+    setTeamMonthlyProgress(merged.teamMonthlyProgress);
+  }, [baseRows, mergePipedriveSelfProgress, teamProgressRaw, winsSource, teamDealsBaseMap, teamMonthlyProgressRaw]);
 
   React.useEffect(() => {
     const handleRefresh = () => {
@@ -967,6 +1085,7 @@ export default function GoalsPage({
             onChangeTeam={setTeamFilter}
             teamGoal={teamGoal}
             teamProgress={teamProgress}
+            teamMonthlyProgress={teamMonthlyProgress}
             sumMembersGoal={sumMembersGoal}
             onSaveTeamGoal={saveTeamGoal}
             theme={theme}
@@ -986,7 +1105,13 @@ export default function GoalsPage({
             onDeleteDeal={canAddManual ? handleDeleteManualWon : undefined}
             theme={theme}
           />
-          <TeamRankingCard rows={rows} loading={loadingTeam} effectiveTeam={effectiveTeam} theme={theme} />
+          <TeamRankingCard
+            rows={rows}
+            loading={loadingTeam}
+            effectiveTeam={effectiveTeam}
+            theme={theme}
+            onSelectMember={(row) => setMemberDealsTarget({ user: row, deals: teamDealsByUser[row.userId] ?? [] })}
+          />
         </div>
 
         {/* Team Members Table - Enhanced */}
@@ -1047,10 +1172,13 @@ export default function GoalsPage({
                     });
                     setProfileOpen(true);
                   }}
-                onAddManual={(u) =>
-                  setManualDialogTarget({ userId: u.id, email: u.email, name: u.name })
-                }
-              />
+                  onAddManual={(u) =>
+                    setManualDialogTarget({ userId: u.id, email: u.email, name: u.name })
+                  }
+                  onShowDeals={(row) =>
+                    setMemberDealsTarget({ user: row, deals: teamDealsByUser[row.userId] ?? [] })
+                  }
+                />
             )}
           </div>
         </div>
@@ -1094,6 +1222,16 @@ export default function GoalsPage({
         onClose={() => setBillingEditorDeal(null)}
         onSave={handleSaveBilling}
       />
+
+      {memberDealsTarget && (
+        <MemberDealsModal
+          open={!!memberDealsTarget}
+          onClose={() => setMemberDealsTarget(null)}
+          member={memberDealsTarget.user}
+          deals={memberDealsTarget.deals}
+          theme={theme}
+        />
+      )}
 
       <Modal
         open={!!deleteConfirmDeal}

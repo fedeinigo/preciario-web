@@ -12,11 +12,12 @@ type Props = {
   loading: boolean;
   effectiveTeam: string;
   theme?: "direct" | "mapache";
+  onSelectMember?: (row: TeamGoalRow) => void;
 };
 
 type Mode = "deals" | "amount";
 
-export default function TeamRankingCard({ rows, loading, effectiveTeam, theme = "direct" }: Props) {
+export default function TeamRankingCard({ rows, loading, effectiveTeam, theme = "direct", onSelectMember }: Props) {
   const t = useTranslations("goals.ranking");
   const [mode, setMode] = React.useState<Mode>("amount");
 
@@ -129,7 +130,19 @@ export default function TeamRankingCard({ rows, loading, effectiveTeam, theme = 
             </div>
           ) : (
             ranked.slice(0, 6).map((row, index) => (
-              <div key={row.userId} className={cardClass}>
+              <div
+                key={row.userId}
+                className={`${cardClass} ${onSelectMember ? "cursor-pointer" : ""}`}
+                role={onSelectMember ? "button" : undefined}
+                tabIndex={onSelectMember ? 0 : -1}
+                onClick={() => onSelectMember?.(row)}
+                onKeyDown={(e) => {
+                  if (onSelectMember && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    onSelectMember(row);
+                  }
+                }}
+              >
                 <div className="flex items-center gap-4">
                   <UserAvatar
                     name={displayName(row)}

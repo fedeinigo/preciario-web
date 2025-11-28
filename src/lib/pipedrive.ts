@@ -529,6 +529,73 @@ export async function searchDealsByMapacheAssignedMany(mapacheNames: string[]) {
   return summaries;
 }
 
+export async function searchDealsByOwnerEmails(ownerEmails: string[]) {
+  const normalizedEmails = Array.from(
+    new Set(
+      ownerEmails
+        .map((email) => email?.trim().toLowerCase())
+        .filter((email): email is string => !!email),
+    ),
+  );
+
+  if (normalizedEmails.length === 0) {
+    return [];
+  }
+
+  const mapacheOptions = await ensureMapacheFieldOptions();
+
+  const [stageNames, deals] = await Promise.all([
+    ensureStageNameMap(),
+    fetchDealsWithMapacheFields(["open", "won", "lost"]),
+  ]);
+
+  const ownerIds = Array.from(
+    new Set(
+      deals
+        .map((deal) => ensureNumber(deal.owner_id))
+        .filter((id): id is number => typeof id === "number" && Number.isFinite(id)),
+    ),
+  );
+  const ownerInfos = await resolveOwnerInfos(ownerIds);
+  const emailSet = new Set(normalizedEmails);
+
+  const summaries = deals
+    .filter((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId)?.trim().toLowerCase() ?? null : null;
+      if (stageName === "qualified - sql") {
+        return false;
+      }
+      const ownerId = ensureNumber(deal.owner_id);
+      const resolvedEmail = ownerId !== null ? ownerInfos.get(ownerId)?.email ?? null : null;
+      if (!resolvedEmail) {
+        return false;
+      }
+      return emailSet.has(resolvedEmail);
+    })
+    .map((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId) ?? null : null;
+      const ownerId = ensureNumber(deal.owner_id);
+      const owner = ownerId !== null ? ownerInfos.get(ownerId) ?? null : null;
+
+      return normalizeDealSummary({
+        deal,
+        stageName,
+        ownerName: owner?.name ?? null,
+        ownerEmail: owner?.email ?? null,
+        mapacheOptions,
+      });
+    });
+
+  log.info("pipedrive.owner_email_search", {
+    owners: normalizedEmails,
+    hits: summaries.length,
+  });
+
+  return summaries;
+}
+
 export async function searchDealsByOwnerNames(ownerNames: string[]) {
   const normalizedNames = Array.from(
     new Set(
@@ -662,6 +729,18 @@ async function resolveOwnerInfos(ownerIds: number[]) {
 
   if (promises.length > 0) {
     await Promise.allSettled(promises);
+  }
+
+  return map;
+}
+
+async function resolveOwnerNames(ownerIds: number[]) {
+  const infos = await resolveOwnerInfos(ownerIds);
+  const map = new Map<number, string | null>();
+
+  for (const [ownerId, info] of infos.entries()) {
+    const name = info?.name?.trim() ?? null;
+    map.set(ownerId, name);
   }
 
   return map;
