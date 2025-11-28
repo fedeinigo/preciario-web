@@ -423,7 +423,14 @@ export default function GoalsPage({
     [teamCacheKey, winsSource]
   );
 
-  const normalizeName = React.useCallback((value: string | null | undefined) => value?.trim().toLowerCase() ?? "", []);
+  const normalizeName = React.useCallback((value: string | null | undefined) => {
+    const normalized = value
+      ?.normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+    return normalized ?? "";
+  }, []);
 
   const mergePipedriveSelfProgress = React.useCallback(
     (incomingRows: TeamGoalRow[], incomingProgress: number) => {
