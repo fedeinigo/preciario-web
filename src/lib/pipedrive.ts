@@ -667,6 +667,18 @@ async function resolveOwnerInfos(ownerIds: number[]) {
   return map;
 }
 
+async function resolveOwnerNames(ownerIds: number[]) {
+  const infos = await resolveOwnerInfos(ownerIds);
+  const map = new Map<number, string | null>();
+
+  for (const [ownerId, info] of infos.entries()) {
+    const name = info?.name?.trim() ?? null;
+    map.set(ownerId, name);
+  }
+
+  return map;
+}
+
 async function fetchOwnerInfo(ownerId: number) {
   const url = `${BASE_URL}/api/v1/users/${ownerId}?${q({ api_token: API_TOKEN })}`;
   try {
