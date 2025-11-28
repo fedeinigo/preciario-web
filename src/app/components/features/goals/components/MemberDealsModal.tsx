@@ -41,11 +41,25 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
     ? "rounded-2xl border-2 border-dashed border-white/20 bg-white/5 p-6 text-center text-white"
     : "rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-6 text-center";
 
+  const panelClass = isMapache
+    ? "border border-white/12 bg-gradient-to-br from-[#0f172a]/96 via-[#0b1221]/95 to-[#0a0f1a]/95 text-white shadow-[0_40px_120px_rgba(2,6,23,0.85)]"
+    : "";
+  const headerClass = isMapache
+    ? "bg-gradient-to-r from-[#8b5cf6]/18 via-[#6d28d9]/12 to-[#22d3ee]/18 border-b border-white/10 text-white"
+    : "";
+  const titleClass = isMapache ? "text-lg font-semibold text-white" : "";
+  const backdropClass = isMapache ? "bg-slate-950/75" : "";
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       title={member.name || member.email || "Miembro"}
+      variant={isMapache ? "inverted" : "default"}
+      panelClassName={panelClass}
+      headerClassName={headerClass}
+      titleClassName={titleClass}
+      backdropClassName={backdropClass}
       footer={
         <div className="flex justify-end">
           <button

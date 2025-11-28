@@ -297,6 +297,14 @@ export default function UserProfileModal({
         : isMapacheAppearance
           ? "text-[#c7d2fe]"
           : "text-white/80";
+  const valueTextClass = isMarketingAppearance
+    ? "text-[#0f406d]"
+    : isLightAppearance || isDirectAppearance
+      ? "text-slate-900"
+      : "text-white";
+  const strongValueClass = `${valueTextClass} text-lg font-semibold`;
+  const boldValueClass = `${valueTextClass} text-xl font-bold`;
+  const heroNumberClass = `${valueTextClass} text-3xl font-bold`;
 
   const secondaryButtonClass = isMarketingAppearance
     ? "rounded-full border border-[#cce8ff] bg-white px-6 py-2.5 text-sm font-semibold text-[#0f406d] transition hover:bg-[#ecf5ff]"
@@ -385,28 +393,28 @@ export default function UserProfileModal({
               <Shield className="h-4 w-4" />
               {profileT("labels.role")}
             </div>
-            <div className="text-lg font-semibold">{role}</div>
+            <div className={strongValueClass}>{role}</div>
           </div>
           <div className={infoCardClass}>
             <div className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}>
               <Users2 className="h-4 w-4" />
               {profileT("labels.team")}
             </div>
-            <div className="text-lg font-semibold">{team}</div>
+            <div className={strongValueClass}>{team}</div>
           </div>
           <div className={infoCardClass}>
             <div className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}>
               <Briefcase className="h-4 w-4" />
               {profileT("labels.position")}
             </div>
-            <div className="text-lg font-semibold">{position}</div>
+            <div className={strongValueClass}>{position}</div>
           </div>
           <div className={infoCardClass}>
             <div className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}>
               <UserCircle2 className="h-4 w-4" />
               {profileT("labels.leader")}
             </div>
-            <div className="text-lg font-semibold break-words">{leader}</div>
+            <div className={`${strongValueClass} break-words`}>{leader}</div>
           </div>
         </div>
 
@@ -427,7 +435,7 @@ export default function UserProfileModal({
           {/* Progress Bar - Más prominente */}
           <div className="mb-6">
             <div className={`flex justify-between items-baseline mb-2`}>
-              <span className="text-3xl font-bold">{pct.toFixed(1)}%</span>
+              <span className={heroNumberClass}>{pct.toFixed(1)}%</span>
               <span className={`text-sm ${labelTextClass}`}>
                 {formatUSD(wonAmount)} / {formatUSD(goalAmount)}
               </span>
@@ -464,11 +472,11 @@ export default function UserProfileModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className={`text-xs ${labelTextClass} mb-1`}>{metricsT("progress")}</div>
-              <div className="text-xl font-bold">{formatUSD(wonAmount)}</div>
+              <div className={boldValueClass}>{formatUSD(wonAmount)}</div>
             </div>
             <div>
               <div className={`text-xs ${labelTextClass} mb-1`}>{metricsT("remaining")}</div>
-              <div className="text-xl font-bold">{formatUSD(Math.max(0, goalAmount - wonAmount))}</div>
+              <div className={boldValueClass}>{formatUSD(Math.max(0, goalAmount - wonAmount))}</div>
             </div>
           </div>
         </div>
@@ -481,7 +489,7 @@ export default function UserProfileModal({
               ? 'border-slate-200 bg-white'
               : isDirectAppearance
                 ? 'border-[#ede9fe] bg-[#faf5ff]'
-                : 'border-white/10 bg-white/5'
+                : 'border-white/14 bg-white/8'
         }`}>
           <div className="flex items-center gap-2 mb-3">
             <Calendar className={`h-4 w-4 ${labelTextClass}`} />
@@ -493,15 +501,15 @@ export default function UserProfileModal({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <div className={`text-xs ${labelTextClass} mb-1`}>{profileT("labels.year")}</div>
-              <div className="text-lg font-semibold">{year}</div>
+              <div className={strongValueClass}>{year}</div>
             </div>
             <div>
               <div className={`text-xs ${labelTextClass} mb-1`}>{profileT("labels.quarter")}</div>
-              <div className="text-lg font-semibold">Q{quarter}</div>
+              <div className={strongValueClass}>Q{quarter}</div>
             </div>
             <div>
               <div className={`text-xs ${labelTextClass} mb-1`}>{profileT("labels.goal")} (USD)</div>
-              <div className="text-lg font-bold">{formatUSD(goalAmount)}</div>
+              <div className={`${valueTextClass} text-lg font-bold`}>{formatUSD(goalAmount)}</div>
             </div>
           </div>
           <div className={`text-xs ${subtleTextClass} text-center pt-2`}>
