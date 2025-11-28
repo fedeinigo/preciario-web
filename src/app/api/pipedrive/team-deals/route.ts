@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import logger from "@/lib/logger";
-import { searchDealsByMapacheAssignedMany, searchDealsByOwnerNames } from "@/lib/pipedrive";
+import { searchDealsByMapacheAssignedMany, searchDealsByOwnerEmails } from "@/lib/pipedrive";
 import { requireApiSession } from "@/app/api/_utils/require-auth";
 
 const log = logger.child({ route: "api/pipedrive/team-deals" });
@@ -17,18 +17,21 @@ export async function POST(req: Request) {
   try {
     const payload = (await req.json()) as { names?: unknown };
     if (Array.isArray(payload?.names)) {
-      identifiers = payload.names.map((name) => String(name ?? ""));
+      names = payload.names.map((name) => String(name ?? ""));
     }
   } catch (error) {
     log.warn("parse_error", { error: error instanceof Error ? error.message : String(error) });
   }
 
-  if (identifiers.length === 0) {
+  if (names.length === 0) {
     return NextResponse.json({ ok: false, error: "No se recibieron integrantes" }, { status: 400 });
   }
 
   try {
-    const deals = mode === "owner" ? await searchDealsByOwnerNames(names) : await searchDealsByMapacheAssignedMany(names);
+    const deals =
+      mode === "owner"
+        ? await searchDealsByOwnerEmails(names)
+        : await searchDealsByMapacheAssignedMany(names);
     return NextResponse.json({ ok: true, deals });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

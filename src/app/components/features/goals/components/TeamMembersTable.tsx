@@ -31,6 +31,7 @@ export default function TeamMembersTable({
   onEditGoal,
   onOpenProfile,
   onAddManual,
+  onShowDeals,
 }: {
   loading: boolean;
   rows: TeamGoalRow[];
@@ -46,6 +47,7 @@ export default function TeamMembersTable({
     image?: string | null;
   }) => void;
   onAddManual: (u: { id: string; email: string | null; name: string | null }) => void;
+  onShowDeals?: (row: TeamGoalRow) => void;
 }) {
   const t = useTranslations("goals.table");
   const actionsT = useTranslations("goals.table.actions");
@@ -328,6 +330,12 @@ export default function TeamMembersTable({
                         </>
                       ) : (
                         <>
+                          <button
+                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                            onClick={() => onShowDeals?.(r)}
+                          >
+                            Ver deals
+                          </button>
                           <button
                             className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
                             onClick={() =>
