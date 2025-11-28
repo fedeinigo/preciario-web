@@ -255,11 +255,19 @@ export default function UserProfileModal({
       : isLightAppearance
         ? "bg-white text-slate-900 border border-slate-200 shadow-[0_35px_110px_rgba(15,23,42,0.12)]"
         : isMapacheAppearance
-          ? "mapache-profile-modal mapache-surface-card rounded-[34px] border-white/18 text-white shadow-[0_60px_170px_rgba(0,0,0,0.85)] backdrop-blur-[30px]"
+          ? "rounded-[34px] border border-cyan-500/30 shadow-[0_60px_170px_rgba(0,0,0,0.85)] backdrop-blur-[30px]"
           : isDirectAppearance
             ? "bg-white text-slate-900 border border-[#ede9fe] shadow-[0_35px_110px_rgba(76,29,149,0.2)]"
             : "bg-slate-950/90 text-white border border-white/10 shadow-[0_35px_110px_rgba(2,6,23,0.65)]",
   ].join(" ");
+  
+  const panelStyle = isMapacheAppearance 
+    ? { 
+        maxWidth: "min(100vw - 32px, 680px)",
+        background: "linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(30, 27, 75, 0.95), rgba(15, 23, 42, 0.98))",
+        color: "#fff"
+      }
+    : { maxWidth: "min(100vw - 32px, 680px)" };
 
   const headerClassName = isMarketingAppearance
     ? "bg-white border-b border-[#cce8ff] text-[#0f406d]"
@@ -361,7 +369,7 @@ export default function UserProfileModal({
       headerClassName={headerClassName}
       titleClassName={titleClassName}
       panelClassName={panelClassName}
-      panelStyle={{ maxWidth: "min(100vw - 32px, 680px)" }}
+      panelStyle={panelStyle}
       backdropClassName={backdropClassName}
       footer={
         <div className="flex justify-end items-center w-full">
@@ -371,11 +379,14 @@ export default function UserProfileModal({
         </div>
       }
     >
-      <div className={`space-y-6 ${bodyTextClass}`}>
+      <div className={`space-y-6 ${bodyTextClass}`} style={isMapacheAppearance ? { color: "#fff" } : undefined}>
         {/* Profile Header - Más grande y elegante */}
-        <div className={`flex flex-col items-center text-center space-y-4 pb-6 border-b ${
-          isMapacheAppearance ? "border-cyan-400/30" : "border-current/10"
-        }`}>
+        <div 
+          className={`flex flex-col items-center text-center space-y-4 pb-6 border-b ${
+            isMapacheAppearance ? "border-cyan-400/30" : "border-current/10"
+          }`}
+          style={isMapacheAppearance ? { color: "#fff" } : undefined}
+        >
           <UserAvatar
             name={name}
             email={resolvedTarget.email ?? undefined}
@@ -392,9 +403,12 @@ export default function UserProfileModal({
             }`}
           />
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold">{name}</h2>
-            <div className={`flex items-center justify-center gap-2 ${subtleTextClass}`}>
-              <Mail className="h-4 w-4" />
+            <h2 className="text-2xl font-bold" style={isMapacheAppearance ? { color: "#fff" } : undefined}>{name}</h2>
+            <div 
+              className={`flex items-center justify-center gap-2 ${subtleTextClass}`}
+              style={isMapacheAppearance ? { color: "#a5f3fc" } : undefined}
+            >
+              <Mail className="h-4 w-4" style={isMapacheAppearance ? { color: "#a5f3fc" } : undefined} />
               <span className="text-sm">{email}</span>
             </div>
           </div>
@@ -402,42 +416,57 @@ export default function UserProfileModal({
 
         {/* Role, Team & Extra Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className={infoCardClass}>
-            <div className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}>
+          <div className={infoCardClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>
+            <div 
+              className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+            >
               <Shield className="h-4 w-4" />
               {profileT("labels.role")}
             </div>
-            <div className={strongValueClass}>{role}</div>
+            <div className={strongValueClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>{role}</div>
           </div>
-          <div className={infoCardClass}>
-            <div className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}>
+          <div className={infoCardClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>
+            <div 
+              className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+            >
               <Users2 className="h-4 w-4" />
               {profileT("labels.team")}
             </div>
-            <div className={strongValueClass}>{team}</div>
+            <div className={strongValueClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>{team}</div>
           </div>
-          <div className={infoCardClass}>
-            <div className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}>
+          <div className={infoCardClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>
+            <div 
+              className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+            >
               <Briefcase className="h-4 w-4" />
               {profileT("labels.position")}
             </div>
-            <div className={strongValueClass}>{position}</div>
+            <div className={strongValueClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>{position}</div>
           </div>
-          <div className={infoCardClass}>
-            <div className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}>
+          <div className={infoCardClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>
+            <div 
+              className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+            >
               <UserCircle2 className="h-4 w-4" />
               {profileT("labels.leader")}
             </div>
-            <div className={`${strongValueClass} break-words`}>{leader}</div>
+            <div className={`${strongValueClass} break-words`} style={isMapacheAppearance ? { color: "#fff" } : undefined}>{leader}</div>
           </div>
         </div>
 
         {/* Current Quarter Performance - Destaca el desempeño actual */}
-        <div className={statCardClass}>
+        <div className={statCardClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <TrendingUp className={`h-5 w-5 ${pct >= 100 ? 'text-green-500' : pct >= 50 ? 'text-yellow-500' : 'text-orange-500'}`} />
-              <h3 className="text-sm font-semibold uppercase tracking-wide opacity-90">
+              <h3 
+                className="text-sm font-semibold uppercase tracking-wide"
+                style={isMapacheAppearance ? { color: "#fff", opacity: 1 } : { opacity: 0.9 }}
+              >
                 Desempeño Q{quarter} {year}
               </h3>
             </div>
@@ -448,9 +477,17 @@ export default function UserProfileModal({
           
           {/* Progress Bar - Más prominente */}
           <div className="mb-6">
-            <div className={`flex justify-between items-baseline mb-2`}>
-              <span className={heroNumberClass}>{pct.toFixed(1)}%</span>
-              <span className={`text-sm ${labelTextClass}`}>
+            <div className="flex justify-between items-baseline mb-2">
+              <span 
+                className={heroNumberClass} 
+                style={isMapacheAppearance ? { color: "#fff" } : undefined}
+              >
+                {pct.toFixed(1)}%
+              </span>
+              <span 
+                className={`text-sm ${labelTextClass}`}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+              >
                 {formatUSD(wonAmount)} / {formatUSD(goalAmount)}
               </span>
             </div>
@@ -485,50 +522,112 @@ export default function UserProfileModal({
           {/* Stats Grid - Más compacto */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className={`text-xs ${labelTextClass} mb-1`}>{metricsT("progress")}</div>
-              <div className={boldValueClass}>{formatUSD(wonAmount)}</div>
+              <div 
+                className={`text-xs ${labelTextClass} mb-1`}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+              >
+                {metricsT("progress")}
+              </div>
+              <div 
+                className={boldValueClass}
+                style={isMapacheAppearance ? { color: "#fff" } : undefined}
+              >
+                {formatUSD(wonAmount)}
+              </div>
             </div>
             <div>
-              <div className={`text-xs ${labelTextClass} mb-1`}>{metricsT("remaining")}</div>
-              <div className={boldValueClass}>{formatUSD(Math.max(0, goalAmount - wonAmount))}</div>
+              <div 
+                className={`text-xs ${labelTextClass} mb-1`}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+              >
+                {metricsT("remaining")}
+              </div>
+              <div 
+                className={boldValueClass}
+                style={isMapacheAppearance ? { color: "#fff" } : undefined}
+              >
+                {formatUSD(Math.max(0, goalAmount - wonAmount))}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Period & Goal Overview */}
-        <div className={`space-y-4 p-5 rounded-2xl border ${
-          isMarketingAppearance
-            ? 'border-[#cce8ff] bg-[#f5fbff]'
-            : isLightAppearance
-              ? 'border-slate-200 bg-white'
-              : isDirectAppearance
-                ? 'border-[#ede9fe] bg-[#faf5ff]'
-                : isMapacheAppearance
-                  ? 'border-violet-400/25 bg-gradient-to-br from-slate-800/70 via-indigo-950/50 to-slate-900/60 backdrop-blur-xl'
-                  : 'border-white/14 bg-gradient-to-br from-white/12 via-[#111827]/65 to-[#0b1221]/65 backdrop-blur-xl'
-        }`}>
+        <div 
+          className={`space-y-4 p-5 rounded-2xl border ${
+            isMarketingAppearance
+              ? 'border-[#cce8ff] bg-[#f5fbff]'
+              : isLightAppearance
+                ? 'border-slate-200 bg-white'
+                : isDirectAppearance
+                  ? 'border-[#ede9fe] bg-[#faf5ff]'
+                  : isMapacheAppearance
+                    ? 'border-violet-400/25 bg-gradient-to-br from-slate-800/70 via-indigo-950/50 to-slate-900/60 backdrop-blur-xl'
+                    : 'border-white/14 bg-gradient-to-br from-white/12 via-[#111827]/65 to-[#0b1221]/65 backdrop-blur-xl'
+          }`}
+          style={isMapacheAppearance ? { color: "#fff" } : undefined}
+        >
           <div className="flex items-center gap-2 mb-3">
-            <Calendar className={`h-4 w-4 ${labelTextClass}`} />
-            <span className={`text-sm font-semibold ${labelTextClass} uppercase tracking-wide`}>
+            <Calendar 
+              className={`h-4 w-4 ${labelTextClass}`} 
+              style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+            />
+            <span 
+              className={`text-sm font-semibold ${labelTextClass} uppercase tracking-wide`}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+            >
               {profileT("labels.period")}
             </span>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <div className={`text-xs ${labelTextClass} mb-1`}>{profileT("labels.year")}</div>
-              <div className={strongValueClass}>{year}</div>
+              <div 
+                className={`text-xs ${labelTextClass} mb-1`}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+              >
+                {profileT("labels.year")}
+              </div>
+              <div 
+                className={strongValueClass}
+                style={isMapacheAppearance ? { color: "#fff" } : undefined}
+              >
+                {year}
+              </div>
             </div>
             <div>
-              <div className={`text-xs ${labelTextClass} mb-1`}>{profileT("labels.quarter")}</div>
-              <div className={strongValueClass}>Q{quarter}</div>
+              <div 
+                className={`text-xs ${labelTextClass} mb-1`}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+              >
+                {profileT("labels.quarter")}
+              </div>
+              <div 
+                className={strongValueClass}
+                style={isMapacheAppearance ? { color: "#fff" } : undefined}
+              >
+                Q{quarter}
+              </div>
             </div>
             <div>
-              <div className={`text-xs ${labelTextClass} mb-1`}>{profileT("labels.goal")} (USD)</div>
-              <div className={`${valueTextClass} text-lg font-bold`}>{formatUSD(goalAmount)}</div>
+              <div 
+                className={`text-xs ${labelTextClass} mb-1`}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+              >
+                {profileT("labels.goal")} (USD)
+              </div>
+              <div 
+                className={`${valueTextClass} text-lg font-bold`}
+                style={isMapacheAppearance ? { color: "#fff" } : undefined}
+              >
+                {formatUSD(goalAmount)}
+              </div>
             </div>
           </div>
-          <div className={`text-xs ${subtleTextClass} text-center pt-2`}>
+          <div 
+            className={`text-xs ${subtleTextClass} text-center pt-2`}
+            style={isMapacheAppearance ? { color: "#a5f3fc" } : undefined}
+          >
             {profileT("periodSummary", { year, quarter, from: range.from, to: range.to })}
           </div>
         </div>

@@ -46,8 +46,14 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
     : "rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-6 text-center";
 
   const panelClass = isMapache
-    ? "mapache-deals-modal rounded-[28px] border border-cyan-400/20 bg-gradient-to-br from-slate-900/95 via-indigo-950/90 to-slate-950/95 text-white shadow-[0_45px_130px_rgba(0,0,0,0.8)] backdrop-blur-[28px]"
+    ? "rounded-[28px] border border-cyan-400/20 shadow-[0_45px_130px_rgba(0,0,0,0.8)] backdrop-blur-[28px]"
     : "";
+  const panelStyle = isMapache 
+    ? { 
+        background: "linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(30, 27, 75, 0.95), rgba(15, 23, 42, 0.98))",
+        color: "#fff"
+      } 
+    : undefined;
   const headerClass = isMapache
     ? "bg-gradient-to-r from-[#8b5cf6]/25 via-[#6d28d9]/20 to-[#22d3ee]/25 border-b border-cyan-400/20 text-white px-6 py-4"
     : "";
@@ -61,6 +67,7 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
       title={member.name || member.email || "Miembro"}
       variant={isMapache ? "inverted" : "default"}
       panelClassName={panelClass}
+      panelStyle={panelStyle}
       headerClassName={headerClass}
       titleClassName={titleClass}
       backdropClassName={backdropClass}
@@ -79,7 +86,7 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
         </div>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-4" style={isMapache ? { color: "#fff" } : undefined}>
         <div className="flex items-center gap-3">
           <UserAvatar
             name={member.name || member.email || member.userId}
@@ -89,8 +96,14 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
             className={isMapache ? "ring-2 ring-cyan-400/50 shadow-[0_0_20px_rgba(34,211,238,0.25)]" : "ring-2 ring-purple-200/70"}
           />
           <div>
-            <p className={valueBold}>{member.name || member.email || member.userId}</p>
-            {member.email && <p className={labelMuted}>{member.email}</p>}
+            <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>
+              {member.name || member.email || member.userId}
+            </p>
+            {member.email && (
+              <p className={labelMuted} style={isMapache ? { color: "#a5f3fc" } : undefined}>
+                {member.email}
+              </p>
+            )}
             <div className="mt-2 flex items-center gap-2">
               <span className={badgeClass}>{sortedDeals.length} deals</span>
               <span className={badgeClass}>{formatUSD(total)}</span>
@@ -99,7 +112,7 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
         </div>
 
         {sortedDeals.length === 0 ? (
-          <div className={emptyClass}>
+          <div className={emptyClass} style={isMapache ? { color: "#cffafe" } : undefined}>
             <p className="text-sm font-medium">
               Aún no hay deals sincronizados para este miembro.
             </p>
@@ -107,11 +120,13 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
         ) : (
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
             {sortedDeals.map((deal) => (
-              <div key={deal.id} className={cardClass}>
+              <div key={deal.id} className={cardClass} style={isMapache ? { color: "#fff" } : undefined}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className={valueBold}>{deal.companyName}</p>
-                    <p className={labelMuted}>
+                    <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>
+                      {deal.companyName}
+                    </p>
+                    <p className={labelMuted} style={isMapache ? { color: "#a5f3fc" } : undefined}>
                       {new Date(deal.createdAt).toLocaleDateString("es-AR")}
                     </p>
                     {deal.link && (
@@ -119,15 +134,20 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
                         href={deal.link}
                         target="_blank"
                         rel="noreferrer"
-                        className={isMapache ? "text-xs text-emerald-300 hover:underline" : "text-xs text-purple-700 hover:underline"}
+                        className={isMapache ? "text-xs hover:underline" : "text-xs text-purple-700 hover:underline"}
+                        style={isMapache ? { color: "#6ee7b7" } : undefined}
                       >
                         Ver en Pipedrive
                       </a>
                     )}
                   </div>
                   <div className="text-right">
-                    <p className={valueBold}>{formatUSD(deal.monthlyFee)}</p>
-                    <p className={labelMuted}>{deal.wonType === "UPSELL" ? "Upsell" : "Nuevo"}</p>
+                    <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>
+                      {formatUSD(deal.monthlyFee)}
+                    </p>
+                    <p className={labelMuted} style={isMapache ? { color: "#a5f3fc" } : undefined}>
+                      {deal.wonType === "UPSELL" ? "Upsell" : "Nuevo"}
+                    </p>
                   </div>
                 </div>
               </div>

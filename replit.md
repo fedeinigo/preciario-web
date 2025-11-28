@@ -56,22 +56,25 @@ The Generator page (`/portal/directo/generator`) has been visually modernized wi
 
 ### Portal Mapache - Goals Section Modals (Nov 2025)
 
-Improved contrast and legibility for dark glassmorphism theme in `/portal/mapache/goals`:
+Completely redesigned contrast and legibility for dark glassmorphism theme in `/portal/mapache/goals`. Uses **inline styles** (`style={{}}`) to ensure colors cannot be overridden by CSS:
 
 **UserProfileModal** (appearance="mapache"):
-- **Text Classes**: Changed from low-opacity whites to solid white with enhanced drop-shadows
-- **Labels**: Cyan-300 with drop-shadow for visibility (`text-cyan-300`)
-- **Subtle Text**: Cyan-200 for secondary information (`text-cyan-200`)
-- **Info Cards**: Slate/indigo gradient backgrounds with violet borders instead of `mapache-surface-card`
-- **Avatar Ring**: Cyan glow effect (`ring-cyan-400/50 shadow-[0_0_30px_rgba(34,211,238,0.3)]`)
-- **Section Borders**: Cyan accent borders (`border-cyan-400/30`)
+- **Panel Background**: Inline gradient (`linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(30, 27, 75, 0.95))`) - no CSS class dependencies
+- **Values/Titles**: Pure white (`#fff`) via inline style
+- **Labels**: Cyan (`#67e8f9`) via inline style for clear visibility
+- **Subtle Text**: Light cyan (`#a5f3fc`) via inline style
+- **Info Cards**: Slate/indigo gradient backgrounds with violet borders
+- **Avatar Ring**: Cyan glow effect
+- **All sections**: Inline color styles to prevent CSS override conflicts
 
 **MemberDealsModal** (theme="mapache"):
-- **Deal Cards**: Solid slate/indigo gradient backgrounds with violet borders for clear separation
-- **Labels**: Cyan-200 for muted text, solid white for values
+- **Panel Background**: Same inline gradient as UserProfileModal
+- **Deal Cards**: Inline white text with cyan labels
+- **Dates/Types**: Light cyan (`#a5f3fc`) inline
+- **Pipedrive Links**: Emerald (`#6ee7b7`) inline
 - **Badges**: Cyan-to-violet gradient with glow effect
-- **Panel**: Solid dark gradient with cyan border accent
-- **Button**: Cyan-violet gradient with hover glow effect
+
+**Technical Approach**: Removed dependency on problematic CSS classes (`mapache-surface-card`, `mapache-profile-modal`) that were overriding Tailwind colors due to CSS specificity issues with `color: rgb(var(--ink))`. All Mapache theme colors now use React inline styles which have highest specificity.
 
 # External Dependencies
 
