@@ -632,14 +632,10 @@ export default function GoalsPage({
               const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
               const value = Number((deal as { value?: number | null }).value ?? 0);
               const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
-              const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
-              const createdAt = wonAt || (deal as { createdAt?: string | null }).createdAt || new Date().toISOString();
-              const dealUrl = ((deal as { dealUrl?: string | null }).dealUrl ?? null) as string | null;
-              const ownerEmailRaw = (deal as { ownerEmail?: string | null }).ownerEmail ?? "";
               return {
                 mapacheAssigned: String((deal as { mapacheAssigned?: string | null }).mapacheAssigned ?? ""),
                 ownerName: String((deal as { ownerName?: string | null }).ownerName ?? ""),
-                ownerEmail: ownerEmailRaw,
+                ownerEmail: String((deal as { ownerEmail?: string | null }).ownerEmail ?? ""),
                 monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
                 deal: {
                   id: String((deal as { id?: string | number }).id ?? ""),
