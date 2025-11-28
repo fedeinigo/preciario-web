@@ -1199,7 +1199,7 @@ export default function GoalsPage({
             leaderEmail: null,
           }}
           targetUser={profileUser}
-          appearance="light"
+          appearance={theme === "mapache" ? "mapache" : theme === "direct" ? "direct" : "light"}
         />
       )}
       {manualDialogTarget && (

@@ -255,7 +255,7 @@ export default function UserProfileModal({
       : isLightAppearance
         ? "bg-white text-slate-900 border border-slate-200 shadow-[0_35px_110px_rgba(15,23,42,0.12)]"
         : isMapacheAppearance
-          ? "bg-[rgb(var(--mapache-surface-strong))]/95 text-white border border-white/10 shadow-[0_45px_130px_rgba(2,6,23,0.8)]"
+          ? "bg-gradient-to-br from-[#0f172a]/95 via-[#0b1221]/95 to-[#0a0f1a]/95 text-white border border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
           : isDirectAppearance
             ? "bg-white text-slate-900 border border-[#ede9fe] shadow-[0_35px_110px_rgba(76,29,149,0.2)]"
             : "bg-slate-950/90 text-white border border-white/10 shadow-[0_35px_110px_rgba(2,6,23,0.65)]",
@@ -266,7 +266,7 @@ export default function UserProfileModal({
     : isLightAppearance
       ? "bg-white border-b border-slate-100 text-slate-900"
       : isMapacheAppearance
-        ? "bg-slate-950/70 border-b border-white/10 text-white"
+        ? "bg-gradient-to-r from-[#8b5cf6]/20 via-[#6d28d9]/15 to-[#22d3ee]/20 border-b border-white/10 text-white"
         : isDirectAppearance
           ? "bg-white border-b border-[#ede9fe] text-[#4c1d95]"
           : "bg-slate-950/70 border-b border-white/10 text-white";
@@ -294,7 +294,9 @@ export default function UserProfileModal({
       ? "text-slate-500"
       : isDirectAppearance
         ? "text-[#4c1d95]"
-        : "text-white/80";
+        : isMapacheAppearance
+          ? "text-[#c7d2fe]"
+          : "text-white/80";
 
   const secondaryButtonClass = isMarketingAppearance
     ? "rounded-full border border-[#cce8ff] bg-white px-6 py-2.5 text-sm font-semibold text-[#0f406d] transition hover:bg-[#ecf5ff]"
@@ -302,7 +304,9 @@ export default function UserProfileModal({
       ? "rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
       : isDirectAppearance
         ? "rounded-full border border-[#c4b5fd] bg-white px-6 py-2.5 text-sm font-semibold text-[#4c1d95] transition hover:bg-[#ede9fe]"
-        : "rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15";
+        : isMapacheAppearance
+          ? "rounded-full border border-white/25 bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_10px_35px_rgba(139,92,246,0.35)] transition hover:shadow-[0_14px_45px_rgba(139,92,246,0.5)]"
+          : "rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15";
 
   const statCardClass = isMarketingAppearance
     ? "rounded-2xl border border-[#cce8ff] bg-gradient-to-br from-white to-[#f5fbff] p-6 shadow-sm"
@@ -310,7 +314,9 @@ export default function UserProfileModal({
       ? "rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm"
       : isDirectAppearance
         ? "rounded-2xl border border-[#ede9fe] bg-white p-6 shadow-sm"
-        : "rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-xl";
+        : isMapacheAppearance
+          ? "rounded-2xl border border-white/15 bg-gradient-to-br from-white/8 via-[#0f172a]/60 to-[#0b1221]/60 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
+          : "rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-xl";
 
   const infoCardClass = isMarketingAppearance
     ? "rounded-xl border border-[#cce8ff] bg-[#f5fbff] p-4"
@@ -318,7 +324,9 @@ export default function UserProfileModal({
       ? "rounded-xl border border-slate-200 bg-white p-4"
       : isDirectAppearance
         ? "rounded-xl border border-[#ede9fe] bg-[#faf5ff] p-4"
-        : "rounded-xl border border-white/20 bg-white/10 p-4";
+        : isMapacheAppearance
+          ? "rounded-xl border border-white/15 bg-gradient-to-br from-white/5 via-white/3 to-transparent p-4 shadow-[0_16px_40px_rgba(0,0,0,0.45)]"
+          : "rounded-xl border border-white/20 bg-white/10 p-4";
 
   const backdropClassName = isMarketingAppearance
     ? "bg-[#0f172a]/30"
@@ -425,9 +433,17 @@ export default function UserProfileModal({
               </span>
             </div>
             <div className={`h-4 w-full rounded-full overflow-hidden ${
-              isMarketingAppearance ? "bg-[#dbeeff]" : isLightAppearance ? "bg-slate-200" : isDirectAppearance ? "bg-[#ede9fe]" : "bg-white/20"
+              isMarketingAppearance
+                ? "bg-[#dbeeff]"
+                : isLightAppearance
+                  ? "bg-slate-200"
+                  : isDirectAppearance
+                    ? "bg-[#ede9fe]"
+                    : isMapacheAppearance
+                      ? "bg-white/15"
+                      : "bg-white/20"
             }`}>
-              <div 
+              <div
                 className={`h-full transition-all duration-500 ${
                   isMarketingAppearance
                     ? 'bg-gradient-to-r from-[#1d6ee3] via-[#5ba5f6] to-[#9dd7ff]'
@@ -435,9 +451,11 @@ export default function UserProfileModal({
                       ? 'bg-gradient-to-r from-slate-900 to-slate-600'
                     : isDirectAppearance
                       ? 'bg-gradient-to-r from-[#4c1d95] via-[#6d28d9] to-[#7c3aed]'
-                      : 'bg-gradient-to-r from-white to-white/80'
+                      : isMapacheAppearance
+                        ? 'bg-gradient-to-r from-[#22d3ee] via-[#8b5cf6] to-[#c084fc]'
+                        : 'bg-gradient-to-r from-white to-white/80'
                 }`}
-                style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} 
+                style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
               />
             </div>
           </div>
