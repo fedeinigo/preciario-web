@@ -432,10 +432,6 @@ export default function GoalsPage({
     return normalized ?? "";
   }, []);
 
-  const normalizeEmail = React.useCallback((value: string | null | undefined) => {
-    return value?.trim().toLowerCase() ?? "";
-  }, []);
-
   const mergePipedriveSelfProgress = React.useCallback(
     (incomingRows: TeamGoalRow[], incomingProgress: number) => {
       if (winsSource !== "pipedrive") {
@@ -540,7 +536,7 @@ export default function GoalsPage({
                 .filter((email): email is string => !!email?.trim())
             : normalizedRows.map((member) => member.name).filter((name): name is string => !!name?.trim());
         try {
-          if (memberIdentifiers.length > 0) {
+          if (memberNames.length > 0) {
             const modeQuery = pipedriveMode === "owner" ? "?mode=owner" : "";
             const pdRes = await fetch(`/api/pipedrive/team-deals${modeQuery}` as const, {
               method: "POST",
@@ -570,20 +566,18 @@ export default function GoalsPage({
               return {
                 mapacheAssigned: String((deal as { mapacheAssigned?: string | null }).mapacheAssigned ?? ""),
                 ownerName: String((deal as { ownerName?: string | null }).ownerName ?? ""),
-                ownerEmail: typeof ownerEmailRaw === "string" ? ownerEmailRaw : "",
                 monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
               };
             });
 
             resolvedRows = normalizedRows.map((row) => {
               const rowName = normalizeName(row.name);
-              const rowEmail = normalizeEmail(row.email);
               const deals = normalizedDeals.filter((deal) => {
+                if (!rowName) return false;
                 if (pipedriveMode === "owner") {
-                  const dealEmail = normalizeEmail(deal.ownerEmail);
-                  return !!rowEmail && !!dealEmail && dealEmail === rowEmail;
+                  return normalizeName(deal.ownerName) === rowName;
                 }
-                return rowName && normalizeName(deal.mapacheAssigned) === rowName;
+                return normalizeName(deal.mapacheAssigned) === rowName;
               });
               const progress = deals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
               return {

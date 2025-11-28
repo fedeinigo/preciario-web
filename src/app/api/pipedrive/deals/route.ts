@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import logger from "@/lib/logger";
-import { searchDealsByMapacheAssigned, searchDealsByOwnerEmail } from "@/lib/pipedrive";
+import { searchDealsByMapacheAssigned, searchDealsByOwnerName } from "@/lib/pipedrive";
 import { requireApiSession } from "@/app/api/_utils/require-auth";
 
 const log = logger.child({ route: "api/pipedrive/deals" });
@@ -14,14 +14,7 @@ export async function GET(req: Request) {
   const mode = url.searchParams.get("mode") ?? "mapache";
 
   const userName = session?.user?.name?.trim() ?? "";
-  const userEmail = session?.user?.email?.trim() ?? "";
-  if (mode === "owner" && !userEmail) {
-    return NextResponse.json(
-      { ok: false, error: "No se pudo resolver tu correo" },
-      { status: 400 },
-    );
-  }
-  if (mode !== "owner" && !userName) {
+  if (!userName) {
     return NextResponse.json(
       { ok: false, error: "No se pudo resolver tu nombre" },
       { status: 400 },
@@ -29,13 +22,12 @@ export async function GET(req: Request) {
   }
 
   try {
-    const deals = mode === "owner" ? await searchDealsByOwnerEmail(userEmail) : await searchDealsByMapacheAssigned(userName);
+    const deals = mode === "owner" ? await searchDealsByOwnerName(userName) : await searchDealsByMapacheAssigned(userName);
     return NextResponse.json({ ok: true, deals });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     log.error("search_failed", {
-      ownerEmail: mode === "owner" ? userEmail : undefined,
-      mapache: mode === "owner" ? undefined : userName,
+      mapache: userName,
       mode,
       error: message,
       userId: session?.user?.id,

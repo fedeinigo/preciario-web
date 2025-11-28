@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import logger from "@/lib/logger";
-import { searchDealsByMapacheAssignedMany, searchDealsByOwnerEmails } from "@/lib/pipedrive";
+import { searchDealsByMapacheAssignedMany, searchDealsByOwnerNames } from "@/lib/pipedrive";
 import { requireApiSession } from "@/app/api/_utils/require-auth";
 
 const log = logger.child({ route: "api/pipedrive/team-deals" });
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   const url = new URL(req.url);
   const mode = url.searchParams.get("mode") ?? "mapache";
 
-  let identifiers: string[] = [];
+  let names: string[] = [];
   try {
     const payload = (await req.json()) as { names?: unknown };
     if (Array.isArray(payload?.names)) {
@@ -28,9 +28,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const deals = mode === "owner"
-      ? await searchDealsByOwnerEmails(identifiers)
-      : await searchDealsByMapacheAssignedMany(identifiers);
+    const deals = mode === "owner" ? await searchDealsByOwnerNames(names) : await searchDealsByMapacheAssignedMany(names);
     return NextResponse.json({ ok: true, deals });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
