@@ -23,16 +23,7 @@ export type TeamGoalRow = {
 
 type SortKey = "user" | "goal" | "progress" | "pct";
 
-export default function TeamMembersTable({
-  loading,
-  rows,
-  canEdit,
-  canAddManual,
-  onEditGoal,
-  onOpenProfile,
-  onAddManual,
-  onShowDeals,
-}: {
+type TeamMembersTableProps = {
   loading: boolean;
   rows: TeamGoalRow[];
   canEdit: boolean;
@@ -48,7 +39,20 @@ export default function TeamMembersTable({
   }) => void;
   onAddManual: (u: { id: string; email: string | null; name: string | null }) => void;
   onShowDeals?: (row: TeamGoalRow) => void;
-}) {
+  theme?: "direct" | "mapache";
+};
+
+export default function TeamMembersTable({
+  loading,
+  rows,
+  canEdit,
+  canAddManual,
+  onEditGoal,
+  onOpenProfile,
+  onAddManual,
+  onShowDeals,
+  theme = "direct",
+}: TeamMembersTableProps) {
   const t = useTranslations("goals.table");
   const actionsT = useTranslations("goals.table.actions");
   const billingT = useTranslations("goals.billing");
@@ -62,6 +66,7 @@ export default function TeamMembersTable({
 
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "above" | "below">("all");
+  const isMapache = theme === "mapache";
 
   const startEdit = (r: TeamGoalRow) => {
     if (!canEdit) return;
@@ -147,51 +152,165 @@ export default function TeamMembersTable({
   );
 
   const getPerformanceColor = (pct: number) => {
-    if (pct >= 100) return { bg: "bg-gradient-to-br from-purple-500 to-purple-700", text: "text-purple-700", ring: "ring-purple-500/20" };
-    if (pct >= 75) return { bg: "bg-gradient-to-br from-blue-500 to-blue-600", text: "text-blue-700", ring: "ring-blue-500/20" };
-    if (pct >= 50) return { bg: "bg-gradient-to-br from-amber-500 to-amber-600", text: "text-amber-700", ring: "ring-amber-500/20" };
-    return { bg: "bg-gradient-to-br from-slate-400 to-slate-500", text: "text-slate-700", ring: "ring-slate-500/20" };
+    if (isMapache) {
+      if (pct >= 100)
+        return {
+          bg: "bg-gradient-to-r from-[#22d3ee] via-[#8b5cf6] to-[#c084fc]",
+          ring: "ring-white/30",
+        };
+      if (pct >= 75)
+        return {
+          bg: "bg-gradient-to-r from-[#10b981] to-[#22d3ee]",
+          ring: "ring-emerald-300/30",
+        };
+      if (pct >= 50)
+        return {
+          bg: "bg-gradient-to-r from-[#fbbf24] to-[#f97316]",
+          ring: "ring-amber-300/25",
+        };
+      return {
+        bg: "bg-gradient-to-r from-[#475569] to-[#1e293b]",
+        ring: "ring-slate-400/25",
+      };
+    }
+    if (pct >= 100)
+      return {
+        bg: "bg-gradient-to-br from-purple-500 to-purple-700",
+        text: "text-purple-700",
+        ring: "ring-purple-500/20",
+      };
+    if (pct >= 75)
+      return {
+        bg: "bg-gradient-to-br from-blue-500 to-blue-600",
+        text: "text-blue-700",
+        ring: "ring-blue-500/20",
+      };
+    if (pct >= 50)
+      return {
+        bg: "bg-gradient-to-br from-amber-500 to-amber-600",
+        text: "text-amber-700",
+        ring: "ring-amber-500/20",
+      };
+    return {
+      bg: "bg-gradient-to-br from-slate-400 to-slate-500",
+      text: "text-slate-700",
+      ring: "ring-slate-500/20",
+    };
   };
+
+  const searchIconClass = isMapache
+    ? "absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50"
+    : "absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400";
+  const searchInputClass = isMapache
+    ? "w-full pl-12 pr-4 py-3 border border-white/15 rounded-2xl text-sm bg-white/5 text-white placeholder:text-white/50 shadow-[0_15px_45px_rgba(0,0,0,0.4)] focus:border-white/35 focus:outline-none focus:ring-4 focus:ring-white/15 transition backdrop-blur"
+    : "w-full pl-12 pr-4 py-3 border border-slate-200 rounded-2xl text-sm bg-white shadow-sm focus:border-purple-400 focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition";
+  const filterIconClass = isMapache ? "h-5 w-5 text-white/65" : "h-5 w-5 text-slate-500";
+  const selectClass = isMapache
+    ? "px-5 py-3 border border-white/15 rounded-2xl text-sm font-semibold text-white bg-white/5 shadow-[0_12px_32px_rgba(0,0,0,0.4)] focus:border-white/40 focus:outline-none focus:ring-4 focus:ring-white/15 transition"
+    : "px-5 py-3 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 focus:border-purple-400 focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition bg-white shadow-sm";
+  const sortLabelClass = isMapache
+    ? "text-xs font-medium text-white/70 self-center"
+    : "text-xs font-medium text-slate-500 self-center";
+  const sortButtonBase =
+    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition";
+  const sortButtonClass = (active: boolean) =>
+    `${sortButtonBase} ${
+      active
+        ? isMapache
+          ? "bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] text-white shadow-[0_12px_30px_rgba(99,102,241,0.45)]"
+          : "bg-purple-100 text-purple-700 shadow-sm"
+        : isMapache
+          ? "bg-white/5 text-white/80 border border-white/10 hover:bg-white/10"
+          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+    }`;
+  const loadingCardClass = isMapache
+    ? "mapache-surface-card border-white/15 px-8 py-12 text-center text-white shadow-[0_25px_70px_rgba(0,0,0,0.55)]"
+    : "rounded-3xl bg-white border border-slate-200 shadow-sm px-8 py-12 text-center";
+  const emptyStateClass = isMapache
+    ? "mapache-surface-card border-white/15 px-8 py-12 text-center text-white shadow-[0_25px_70px_rgba(0,0,0,0.45)]"
+    : "rounded-3xl bg-gradient-to-br from-slate-50 to-purple-50 border border-purple-100 shadow-sm px-8 py-12 text-center";
+  const emptyTextClass = isMapache ? "text-sm font-medium text-white/80" : "text-sm font-medium text-slate-700";
+  const loadingIconShell = isMapache
+    ? "inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/10 mb-4"
+    : "inline-flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 mb-4";
+  const loadingSpinnerClass = isMapache
+    ? "h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent"
+    : "h-6 w-6 animate-spin rounded-full border-2 border-purple-600 border-t-transparent";
+  const loadingTextClass = isMapache ? "text-sm font-medium text-white/75" : "text-sm font-medium text-slate-600";
+  const emptyIconShell = isMapache
+    ? "inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/10 mb-4"
+    : "inline-flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 mb-4";
+  const emptyIconColor = isMapache ? "h-6 w-6 text-white" : "h-6 w-6 text-purple-600";
+  const rowCardClass = isMapache
+    ? "mapache-surface-card border-white/15 text-white shadow-[0_25px_70px_rgba(0,0,0,0.55)] hover:shadow-[0_30px_80px_rgba(0,0,0,0.65)] transition-all duration-300 p-4 space-y-4"
+    : "rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-purple-200 hover:shadow-lg transition-all duration-300 p-4 space-y-4";
+  const memberNameClass = isMapache ? "text-base font-semibold text-white truncate" : "text-base font-semibold text-slate-900 truncate";
+  const memberEmailClass = isMapache ? "text-sm text-white/60 truncate" : "text-sm text-slate-500 truncate";
+  const labelUpperClass = isMapache
+    ? "text-xs font-semibold uppercase tracking-wide text-white/55 mb-1"
+    : "text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1";
+  const goalValueClass = isMapache ? "text-lg font-bold text-white" : "text-lg font-bold text-slate-900";
+  const goalSubLabelClass = isMapache ? "text-xs text-white/60" : "text-xs text-slate-500";
+  const progressLabelClass = isMapache
+    ? "text-xs font-semibold uppercase tracking-wide text-white/65 mb-1"
+    : "text-xs font-semibold uppercase tracking-wide text-purple-600 mb-1";
+  const progressValueClass = isMapache ? "text-lg font-bold text-white" : "text-lg font-bold text-purple-900";
+  const progressMetaClass = isMapache ? "text-xs text-white/65" : "text-xs text-purple-600";
+  const editInputClass = isMapache
+    ? "w-full rounded-lg border-2 border-white/20 bg-white/5 px-3 py-1.5 text-base font-semibold text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/30"
+    : "w-full rounded-lg border-2 border-purple-200 px-3 py-1.5 text-base font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/40";
+  const primaryActionClass = isMapache
+    ? "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] px-3 py-2 text-xs font-semibold text-white shadow-[0_14px_34px_rgba(99,102,241,0.4)] transition hover:translate-y-[-1px]"
+    : "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md";
+  const secondaryActionClass = isMapache
+    ? "inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/85 shadow-sm transition hover:bg-white/15"
+    : "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white/80 shadow-sm transition hover:shadow-md";
+  const progressMetaRowClass = isMapache
+    ? "flex items-center justify-between text-xs text-white/60 mb-1"
+    : "flex items-center justify-between text-xs text-slate-500 mb-1";
+  const progressTrackClass = isMapache
+    ? "relative h-2 w-full overflow-hidden rounded-full bg-white/10"
+    : "relative h-2 w-full overflow-hidden rounded-full bg-slate-100";
+  const progressFillClass = isMapache
+    ? "absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#22d3ee] via-[#8b5cf6] to-[#c084fc] transition-all duration-500"
+    : "absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 transition-all duration-500";
 
   return (
     <div className="space-y-5">
-      {/* Filters and Search */}
+      {/* Filters and Search */
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+          <Search className={searchIconClass} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por nombre o email..."
-            className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-2xl text-sm bg-white shadow-sm focus:border-purple-400 focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition"
+            className={searchInputClass}
           />
         </div>
         <div className="flex items-center gap-2">
-          <Filter className="h-5 w-5 text-slate-500" />
+          <Filter className={filterIconClass} />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as "all" | "above" | "below")}
-            className="px-5 py-3 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 focus:border-purple-400 focus:outline-none focus:ring-4 focus:ring-purple-500/10 transition bg-white shadow-sm"
+            className={selectClass}
           >
             <option value="all">Todos</option>
-            <option value="above">✓ Arriba del objetivo</option>
-            <option value="below">↓ Abajo del objetivo</option>
+            <option value="above">? Arriba del objetivo</option>
+            <option value="below">? Abajo del objetivo</option>
           </select>
         </div>
       </div>
 
-      {/* Sort Controls */}
+      {
+/* Sort Controls */
       <div className="flex flex-wrap gap-2">
-        <span className="text-xs font-medium text-slate-500 self-center">Ordenar por:</span>
+        <span className={sortLabelClass}>Ordenar por:</span>
         <button
           type="button"
           onClick={() => handleSort("user")}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
-            sortKey === "user"
-              ? "bg-purple-100 text-purple-700 shadow-sm"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          }`}
+          className={sortButtonClass(sortKey === "user")}
         >
           <User className="h-3 w-3" />
           Usuario
@@ -200,11 +319,7 @@ export default function TeamMembersTable({
         <button
           type="button"
           onClick={() => handleSort("goal")}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
-            sortKey === "goal"
-              ? "bg-purple-100 text-purple-700 shadow-sm"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          }`}
+          className={sortButtonClass(sortKey === "goal")}
         >
           <Target className="h-3 w-3" />
           Objetivo
@@ -213,11 +328,7 @@ export default function TeamMembersTable({
         <button
           type="button"
           onClick={() => handleSort("progress")}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
-            sortKey === "progress"
-              ? "bg-purple-100 text-purple-700 shadow-sm"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          }`}
+          className={sortButtonClass(sortKey === "progress")}
         >
           <TrendingUp className="h-3 w-3" />
           Avance
@@ -226,31 +337,28 @@ export default function TeamMembersTable({
         <button
           type="button"
           onClick={() => handleSort("pct")}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
-            sortKey === "pct"
-              ? "bg-purple-100 text-purple-700 shadow-sm"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          }`}
+          className={sortButtonClass(sortKey === "pct")}
         >
           % Cumpl.
           {sortKey === "pct" && <Arrow active={true} direction={sortAsc ? "asc" : "desc"} />}
         </button>
       </div>
 
+
       <div className="space-y-3">
         {loading ? (
-          <div className="rounded-3xl bg-white border border-slate-200 shadow-sm px-8 py-12 text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 mb-4">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-purple-600 border-t-transparent" />
+          <div className={loadingCardClass}>
+            <div className={loadingIconShell}>
+              <div className={loadingSpinnerClass} />
             </div>
-            <p className="text-sm font-medium text-slate-600">{t("loading")}</p>
+            <p className={loadingTextClass}>{t("loading")}</p>
           </div>
         ) : filteredAndSorted.length === 0 ? (
-          <div className="rounded-3xl bg-gradient-to-br from-slate-50 to-purple-50 border border-purple-100 shadow-sm px-8 py-12 text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 mb-4">
-              <Search className="h-6 w-6 text-purple-600" />
+          <div className={emptyStateClass}>
+            <div className={emptyIconShell}>
+              <Search className={emptyIconColor} />
             </div>
-            <p className="text-sm font-medium text-slate-700">
+            <p className={emptyTextClass}>
               {searchQuery.trim() || statusFilter !== "all" ? "No se encontraron resultados con los filtros aplicados" : t("empty")}
             </p>
           </div>
@@ -267,7 +375,7 @@ export default function TeamMembersTable({
             return (
               <div
                 key={r.userId}
-                className="rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-purple-200 hover:shadow-lg transition-all duration-300 p-4 space-y-4"
+                className={rowCardClass}
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-6">
                   <div className="flex items-center gap-3 min-w-[220px] flex-1">
@@ -279,16 +387,16 @@ export default function TeamMembersTable({
                       className={`shadow-sm ring-4 ${perfColor.ring}`}
                     />
                     <div className="min-w-0">
-                      <p className="text-base font-semibold text-slate-900 truncate">{displayName}</p>
-                      {r.email && <p className="text-sm text-slate-500 truncate">{r.email}</p>}
+                      <p className={memberNameClass}>{displayName}</p>
+                      {r.email && <p className={memberEmailClass}>{r.email}</p>}
                     </div>
                   </div>
 
                   <div className="min-w-[160px]">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Objetivo</p>
+                    <p className={labelUpperClass}>Objetivo</p>
                     {isEditing ? (
                       <input
-                        className="w-full rounded-lg border-2 border-purple-200 px-3 py-1.5 text-base font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                        className={editInputClass}
                         type="number"
                         min={0}
                         value={Number.isFinite(tmp) ? tmp : 0}
@@ -297,16 +405,18 @@ export default function TeamMembersTable({
                       />
                     ) : (
                       <>
-                        <p className="text-lg font-bold text-slate-900">{formatUSD(r.goal)}</p>
-                        <p className="text-xs text-slate-500">{labelsT("monthly")}: {formatUSD(Number.isFinite(monthly) ? monthly : 0)}</p>
+                        <p className={goalValueClass}>{formatUSD(r.goal)}</p>
+                        <p className={goalSubLabelClass}>
+                          {labelsT("monthly")}: {formatUSD(Number.isFinite(monthly) ? monthly : 0)}
+                        </p>
                       </>
                     )}
                   </div>
 
                   <div className="min-w-[150px]">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-purple-600 mb-1">Avance</p>
-                    <p className="text-lg font-bold text-purple-900">{formatUSD(r.progress)}</p>
-                    <p className="text-xs text-purple-600">
+                    <p className={progressLabelClass}>Avance</p>
+                    <p className={progressValueClass}>{formatUSD(r.progress)}</p>
+                    <p className={progressMetaClass}>
                       {r.dealsCount !== undefined ? `${r.dealsCount} deal${r.dealsCount !== 1 ? "s" : ""}` : "-"}
                     </p>
                   </div>
@@ -316,13 +426,13 @@ export default function TeamMembersTable({
                       {isEditing ? (
                         <>
                           <button
-                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                            className={primaryActionClass}
                             onClick={() => saveEdit(r.userId)}
                           >
                             {actionsT("save")}
                           </button>
                           <button
-                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white/80 shadow-sm transition hover:shadow-md"
+                            className={secondaryActionClass}
                             onClick={cancelEdit}
                           >
                             {actionsT("cancel")}
@@ -331,13 +441,13 @@ export default function TeamMembersTable({
                       ) : (
                         <>
                           <button
-                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                            className={primaryActionClass}
                             onClick={() => onShowDeals?.(r)}
                           >
                             Ver deals
                           </button>
                           <button
-                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                            className={primaryActionClass}
                             onClick={() =>
                               onOpenProfile({
                                 id: r.userId,
@@ -353,14 +463,14 @@ export default function TeamMembersTable({
                           </button>
                           {canAddManual && (
                             <button
-                              className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                              className={primaryActionClass}
                               onClick={() => onAddManual({ id: r.userId, email: r.email, name: r.name })}
                             >
                               {billingT("manualCta")}
                             </button>
                           )}
                           <button
-                            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                            className={primaryActionClass}
                             onClick={() => {
                               if (!canEdit) {
                                 toast.info(toastT("restrictedEdit"));
@@ -385,13 +495,13 @@ export default function TeamMembersTable({
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                  <div className={progressMetaRowClass}>
                     <span>Progreso visual</span>
-                    <span className="font-semibold text-purple-700">{pctSafe.toFixed(1)}%</span>
+                    <span className={progressValueClass}>{pctSafe.toFixed(1)}%</span>
                   </div>
-                  <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div className={progressTrackClass}>
                     <div
-                      className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 transition-all duration-500"
+                      className={progressFillClass}
                       style={{ width: `${progressWidth}%` }}
                     />
                     {pctSafe > 100 && (

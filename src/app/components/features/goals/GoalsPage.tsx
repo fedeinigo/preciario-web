@@ -990,13 +990,16 @@ export default function GoalsPage({
     : "h-12 w-12 rounded-2xl bg-purple-100 border border-purple-200 flex items-center justify-center shadow-inner";
   const tableSubtitleClass = isMapache ? "text-sm font-medium text-white/70" : "text-sm font-semibold text-purple-700";
   const tableTitleClass = isMapache ? "text-2xl font-bold text-white" : "text-2xl font-bold text-slate-900";
+  const overviewCardClass = isMapache
+    ? "mapache-surface-card rounded-3xl border-white/15 shadow-[0_30px_100px_rgba(0,0,0,0.55)] overflow-hidden"
+    : "bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden";
 
   return (
     <div className={containerBg}>
       <div className="max-w-[1600px] mx-auto space-y-8">
         
         {/* Modern Header with KPIs */}
-        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className={overviewCardClass}>
           <div className={headerBg}>
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between flex-wrap gap-4">
@@ -1163,6 +1166,7 @@ export default function GoalsPage({
                   rows={rows}
                   canEdit={isSuperAdmin || role === "lider" || role === "admin"}
                   canAddManual={canAddManual}
+                  theme={theme}
                   onEditGoal={saveUserGoal}
                   onOpenProfile={(u) => {
                     // Use team from row (API) instead of effectiveTeam to ensure it's always present
