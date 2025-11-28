@@ -17,7 +17,6 @@ export default function TeamGoalCard({
   onChangeTeam,
   teamGoal,
   teamProgress,
-  teamMonthlyProgress,
   sumMembersGoal,
   onSaveTeamGoal,
   theme = "direct",
@@ -31,7 +30,6 @@ export default function TeamGoalCard({
   onChangeTeam: (t: string) => void;
   teamGoal: number;
   teamProgress: number;
-  teamMonthlyProgress: number;
   sumMembersGoal: number;
   onSaveTeamGoal: (amount: number) => Promise<void> | void;
   theme?: "direct" | "mapache";
@@ -44,11 +42,6 @@ export default function TeamGoalCard({
   const pct = teamGoal > 0 ? (teamProgress / teamGoal) * 100 : 0;
   const remaining = Math.max(0, teamGoal - teamProgress);
   const delta = sumMembersGoal - teamGoal;
-  const monthlyPct = teamGoal > 0 ? ((teamGoal / 3) / teamGoal) * 100 : 33.333;
-  const monthlyGoal = teamGoal / 3;
-  const monthlyProgressPct = monthlyGoal > 0 ? (teamMonthlyProgress / monthlyGoal) * 100 : 0;
-  const normalizedMonthlyPct = Math.min(100, Math.max(0, monthlyProgressPct));
-  const monthlyRemaining = Math.max(0, monthlyGoal - teamMonthlyProgress);
 
   const [editOpen, setEditOpen] = React.useState(false);
 
@@ -162,37 +155,11 @@ export default function TeamGoalCard({
               <div className="mt-6">
                 <div className={barTrack}>
                   <div className={barFill} style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
-                  {teamGoal > 0 && (
-                    <div
-                      className="absolute top-0 bottom-0 w-[3px] bg-amber-400 shadow-sm"
-                      style={{ left: `calc(${Math.min(100, Math.max(0, monthlyPct))}% - 1.5px)` }}
-                    />
-                  )}
                   <div className="absolute inset-0 flex">
                     <div className={barGridLine} />
                     <div className={barGridLine} />
                     <div className="h-full w-1/3" />
                   </div>
-                </div>
-              </div>
-
-              <div className="mt-6 space-y-2">
-                <div className={`flex flex-wrap items-center justify-between gap-2 text-xs font-bold uppercase tracking-wider ${
-                  isMapache ? "text-emerald-300" : "text-emerald-600"
-                }`}>
-                  <span>{t("monthlyBarLabel")}</span>
-                  <span>{t("completed", { pct: normalizedMonthlyPct.toFixed(0) })}</span>
-                </div>
-                <div className={barTrack}>
-                  <div className={barFill} style={{ width: `${normalizedMonthlyPct}%` }} />
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
-                  <span className={positiveText}>
-                    {t("monthlyProgressLabel")}: {formatUSD(teamMonthlyProgress)}
-                  </span>
-                  <span className={warningText}>
-                    {t("monthlyRemainingLabel")}: {formatUSD(monthlyRemaining)}
-                  </span>
                 </div>
               </div>
 

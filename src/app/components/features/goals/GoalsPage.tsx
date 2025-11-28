@@ -1088,7 +1088,6 @@ export default function GoalsPage({
             onChangeTeam={setTeamFilter}
             teamGoal={teamGoal}
             teamProgress={teamProgress}
-            teamMonthlyProgress={teamMonthlyProgress}
             sumMembersGoal={sumMembersGoal}
             onSaveTeamGoal={saveTeamGoal}
             theme={theme}
