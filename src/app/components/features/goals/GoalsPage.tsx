@@ -597,6 +597,8 @@ export default function GoalsPage({
 
       let resolvedRows = normalizedRows;
       let resolvedProgress = normalizedRows.reduce((acc, row) => acc + row.progress, 0);
+      const resolvedDealsMap: Record<string, UserWonDeal[]> = {};
+      let resolvedMonthlyProgress = 0;
 
       if (winsSource === "pipedrive") {
         const memberIdentifiers =
@@ -632,6 +634,10 @@ export default function GoalsPage({
               const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
               const value = Number((deal as { value?: number | null }).value ?? 0);
               const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
+              const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
+              const createdAt =
+                wonAt || (deal as { createdAt?: string | null }).createdAt || new Date().toISOString();
+              const dealUrl = (deal as { dealUrl?: string | null }).dealUrl ?? null;
               return {
                 mapacheAssigned: String((deal as { mapacheAssigned?: string | null }).mapacheAssigned ?? ""),
                 ownerName: String((deal as { ownerName?: string | null }).ownerName ?? ""),
