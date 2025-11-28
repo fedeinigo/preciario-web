@@ -354,15 +354,18 @@ export default function PortalLauncher({
         variant={appearance === "light" || appearance === "marketing" ? "default" : "inverted"}
       >
         {isMapacheAppearance ? (
-          <div className="space-y-4 text-white">
-            <div className="rounded-2xl border border-white/15 bg-gradient-to-r from-[#4c1d95] via-[#6d28d9] to-[#22d3ee] px-4 py-3 shadow-[0_25px_70px_rgba(6,10,32,0.55)]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.4em] text-white/90">
+          <div className="space-y-4">
+            <div
+              className="rounded-2xl border border-white/15 bg-gradient-to-r from-[#4c1d95] via-[#6d28d9] to-[#22d3ee] px-4 py-3 shadow-[0_25px_70px_rgba(6,10,32,0.55)]"
+              style={{ color: "#fff" }}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.4em] opacity-90">
                 {portalText("title")}
               </p>
-              <p className="text-lg font-semibold leading-tight text-white mt-1">
+              <p className="text-lg font-semibold leading-tight mt-1">
                 {portalOptionsText("mapache.label")}
               </p>
-              <p className="text-sm text-white/85 mt-0.5">{portalText("description")}</p>
+              <p className="text-sm opacity-85 mt-0.5">{portalText("description")}</p>
             </div>
             <div className="space-y-2.5">
               {options.map((option) => {
@@ -373,15 +376,16 @@ export default function PortalLauncher({
                     key={option.id}
                     type="button"
                     onClick={() => handleNavigate(option)}
-                    className="group flex w-full items-center justify-between rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-left text-white shadow-[0_12px_35px_rgba(0,0,0,0.45)] transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
+                    className="group flex w-full items-center justify-between rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-left shadow-[0_12px_35px_rgba(0,0,0,0.45)] transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
+                    style={{ color: "#fff" }}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`rounded-xl p-2.5 bg-gradient-to-br ${accent}`}>
                         <Icon className="h-5 w-5 text-white" aria-hidden="true" />
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-white">{option.label}</p>
-                        <p className="text-xs text-white/75">{option.description}</p>
+                      <div className="text-white">
+                        <p className="text-sm font-semibold">{option.label}</p>
+                        <p className="text-xs opacity-75">{option.description}</p>
                       </div>
                     </div>
                     <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.25em] text-white">
