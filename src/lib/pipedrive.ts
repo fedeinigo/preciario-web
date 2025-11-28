@@ -10,6 +10,8 @@ const log = logger.child({ service: "pipedrive" });
 const BASE_URL = process.env.PIPEDRIVE_BASE_URL ?? "https://wcx.pipedrive.com";
 const API_TOKEN = process.env.PIPEDRIVE_API_TOKEN ?? "";
 
+const PIPELINE_DEALS_ID = 1; // pipeline "Deals"
+
 const FIELD_ONESHOT = process.env.PIPEDRIVE_FIELD_ONESHOT ?? ""; // id del campo OneShot (numérico $)
 const FIELD_PROPOSAL_URL = process.env.PIPEDRIVE_FIELD_PROPOSAL_URL ?? ""; // id del campo Propuesta Comercial (URL)
 const FIELD_MAPACHE_ASSIGNED =
@@ -597,6 +599,7 @@ async function fetchDealsWithMapacheFields(
         api_token: API_TOKEN,
         status,
         limit,
+        pipeline_id: PIPELINE_DEALS_ID,
       };
       if (cursor) {
         payload.cursor = cursor;
