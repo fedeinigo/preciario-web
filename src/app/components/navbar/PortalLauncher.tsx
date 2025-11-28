@@ -395,25 +395,25 @@ export default function PortalLauncher({
                     key={option.id}
                     type="button"
                     onClick={() => handleNavigate(option)}
-                    className="group relative flex w-full flex-col gap-4 rounded-3xl border border-white/12 bg-gradient-to-br from-white/8 via-[#080b19]/70 to-[#04060d]/90 p-5 text-left shadow-[0_30px_90px_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
+                    className="group relative flex w-full flex-col gap-4 rounded-3xl border border-white/12 bg-gradient-to-br from-white/8 via-[#080b19]/70 to-[#04060d]/90 p-5 text-left text-white shadow-[0_30px_90px_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
                   >
                     <div className="flex items-start gap-4">
                       <div className={`rounded-2xl p-3 bg-gradient-to-br ${accent}`}>
                         <Icon className="h-6 w-6 text-white" aria-hidden="true" />
                       </div>
-                      <div className="flex-1 space-y-1">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.4em] text-white">
+                      <div className="flex-1 space-y-1 text-white">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.4em]">
                           {portalText("button")}
                         </p>
-                        <h3 className="text-lg font-semibold text-white">{option.label}</h3>
-                        <p className="text-sm text-white">{option.description}</p>
+                        <h3 className="text-lg font-semibold">{option.label}</h3>
+                        <p className="text-sm text-white/85">{option.description}</p>
                       </div>
-                      <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/70">
+                      <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white">
                         {portalText("action")}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-sm text-white">
-                      <span>{portalText("loading")}</span>
+                      <span className="text-white">{portalText("loading")}</span>
                       <span className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-[0_15px_40px_rgba(99,102,241,0.4)]">
                         {portalText("action")}
                         <ArrowRight className="h-4 w-4" aria-hidden="true" />
