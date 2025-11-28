@@ -364,23 +364,23 @@ export default function PortalLauncher({
                       <LayoutGrid className="h-7 w-7 text-white" aria-hidden="true" />
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-white/70">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-white">
                         {portalText("title")}
                       </p>
                       <h2 className="text-2xl font-semibold text-white leading-tight">
                         {portalOptionsText("mapache.label")}
                       </h2>
-                      <p className="text-sm text-white/85 max-w-xl">
+                      <p className="text-sm text-white max-w-xl">
                         {portalText("description")}
                       </p>
                     </div>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80">
+                  <span className="inline-flex items-center rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-white">
                     {formattedOptionCount} {portalText("button")}
                   </span>
-                  <span className="inline-flex items-center rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80">
+                  <span className="inline-flex items-center rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-white">
                     {portalText("action")}
                   </span>
                 </div>
@@ -402,17 +402,17 @@ export default function PortalLauncher({
                         <Icon className="h-6 w-6 text-white" aria-hidden="true" />
                       </div>
                       <div className="flex-1 space-y-1">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.4em] text-white/45">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.4em] text-white">
                           {portalText("button")}
                         </p>
                         <h3 className="text-lg font-semibold text-white">{option.label}</h3>
-                        <p className="text-sm text-white/70">{option.description}</p>
+                        <p className="text-sm text-white">{option.description}</p>
                       </div>
                       <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/70">
                         {portalText("action")}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-sm text-white/60">
+                    <div className="flex items-center justify-between text-sm text-white">
                       <span>{portalText("loading")}</span>
                       <span className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-[0_15px_40px_rgba(99,102,241,0.4)]">
                         {portalText("action")}
