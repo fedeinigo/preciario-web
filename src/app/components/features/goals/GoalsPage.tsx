@@ -312,7 +312,7 @@ export default function GoalsPage({
     } finally {
       setLoadingDeals(false);
     }
-  }, [loadWinsFromCache, persistWinsCache, quarter, winsSource, year]);
+  }, [loadWinsFromCache, persistWinsCache, quarter, winsSource, year, pipedriveMode]);
 
   React.useEffect(() => {
     loadMyGoal();
@@ -562,7 +562,6 @@ export default function GoalsPage({
               const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
               const value = Number((deal as { value?: number | null }).value ?? 0);
               const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
-              const ownerEmailRaw = (deal as { ownerEmail?: string | null }).ownerEmail ?? "";
               return {
                 mapacheAssigned: String((deal as { mapacheAssigned?: string | null }).mapacheAssigned ?? ""),
                 ownerName: String((deal as { ownerName?: string | null }).ownerName ?? ""),
