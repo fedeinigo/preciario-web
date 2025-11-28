@@ -46,7 +46,7 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
     : "rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-6 text-center";
 
   const panelClass = isMapache
-    ? "rounded-[28px] border border-cyan-400/20 bg-gradient-to-br from-slate-900/95 via-indigo-950/90 to-slate-950/95 text-white shadow-[0_45px_130px_rgba(0,0,0,0.8)] backdrop-blur-[28px]"
+    ? "mapache-deals-modal rounded-[28px] border border-cyan-400/20 bg-gradient-to-br from-slate-900/95 via-indigo-950/90 to-slate-950/95 text-white shadow-[0_45px_130px_rgba(0,0,0,0.8)] backdrop-blur-[28px]"
     : "";
   const headerClass = isMapache
     ? "bg-gradient-to-r from-[#8b5cf6]/25 via-[#6d28d9]/20 to-[#22d3ee]/25 border-b border-cyan-400/20 text-white px-6 py-4"

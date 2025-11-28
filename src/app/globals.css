@@ -709,6 +709,38 @@ body.mapache-theme .mapache-modal-surface {
   color: inherit;
 }
 
+/* Forzar colores claros en modales del Portal Mapache */
+html.mapache-theme .mapache-profile-modal,
+body.mapache-theme .mapache-profile-modal,
+.mapache-profile-modal {
+  color: #fff !important;
+}
+
+html.mapache-theme .mapache-profile-modal *,
+body.mapache-theme .mapache-profile-modal *,
+.mapache-profile-modal * {
+  color: inherit;
+}
+
+/* Etiquetas en modal de perfil Mapache - cyan claro */
+.mapache-profile-modal .text-cyan-300 {
+  color: rgb(103, 232, 249) !important;
+}
+
+.mapache-profile-modal .text-cyan-200 {
+  color: rgb(165, 243, 252) !important;
+}
+
+.mapache-profile-modal .text-cyan-100 {
+  color: rgb(207, 250, 254) !important;
+}
+
+/* Valores en modal de perfil Mapache - blanco sólido */
+.mapache-profile-modal .text-white {
+  color: #fff !important;
+}
+
+/* Sobrescribir cualquier color oscuro en el modal */
 .mapache-profile-modal .text-slate-900,
 .mapache-profile-modal .text-slate-800,
 .mapache-profile-modal .text-slate-700,
@@ -716,6 +748,32 @@ body.mapache-theme .mapache-modal-surface {
 .mapache-profile-modal .text-slate-500,
 .mapache-profile-modal .text-slate-400,
 .mapache-profile-modal .text-black {
+  color: #fff !important;
+}
+
+/* Opacidades de blanco en modal Mapache */
+.mapache-profile-modal [class*="text-white\\/"] {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* === Modal de Deals del Portal Mapache === */
+.mapache-deals-modal {
+  color: #fff !important;
+}
+
+.mapache-deals-modal * {
+  color: inherit;
+}
+
+.mapache-deals-modal .text-cyan-200 {
+  color: rgb(165, 243, 252) !important;
+}
+
+.mapache-deals-modal .text-cyan-100 {
+  color: rgb(207, 250, 254) !important;
+}
+
+.mapache-deals-modal .text-white {
   color: #fff !important;
 }
 .hero-bg::before {
