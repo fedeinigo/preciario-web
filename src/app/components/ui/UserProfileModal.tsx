@@ -282,12 +282,16 @@ export default function UserProfileModal({
     ? "text-[#0f406d]"
     : isLightAppearance || isDirectAppearance
       ? "text-slate-900"
-      : "text-white/95 drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)]";
+      : isMapacheAppearance
+        ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
+        : "text-white/95 drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)]";
   const subtleTextClass = isMarketingAppearance
     ? "text-slate-600"
     : isLightAppearance || isDirectAppearance
       ? "text-slate-600"
-      : "text-white/85";
+      : isMapacheAppearance
+        ? "text-cyan-200 drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
+        : "text-white/85";
   const labelTextClass = isMarketingAppearance
     ? "text-[#4b81b8]"
     : isLightAppearance
@@ -295,13 +299,15 @@ export default function UserProfileModal({
       : isDirectAppearance
         ? "text-[#4c1d95]"
         : isMapacheAppearance
-          ? "text-[#dbeafe]"
+          ? "text-cyan-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
           : "text-white/80";
   const valueTextClass = isMarketingAppearance
     ? "text-[#0f406d]"
     : isLightAppearance || isDirectAppearance
       ? "text-slate-900"
-      : "text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)]";
+      : isMapacheAppearance
+        ? "text-white font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
+        : "text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)]";
   const strongValueClass = `${valueTextClass} text-lg font-semibold drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)]`;
   const boldValueClass = `${valueTextClass} text-xl font-bold drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)]`;
   const heroNumberClass = `${valueTextClass} text-3xl font-bold drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)]`;
@@ -323,7 +329,7 @@ export default function UserProfileModal({
       : isDirectAppearance
         ? "rounded-2xl border border-[#ede9fe] bg-white p-6 shadow-sm"
         : isMapacheAppearance
-          ? "mapache-surface-card rounded-2xl border-white/15 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.55)] backdrop-blur-xl"
+          ? "rounded-2xl border border-cyan-400/30 bg-gradient-to-br from-slate-800/80 via-slate-900/70 to-indigo-950/60 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.55)] backdrop-blur-xl"
           : "rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-xl";
 
   const infoCardClass = isMarketingAppearance
@@ -333,7 +339,7 @@ export default function UserProfileModal({
       : isDirectAppearance
         ? "rounded-xl border border-[#ede9fe] bg-[#faf5ff] p-4"
         : isMapacheAppearance
-          ? "mapache-surface-card rounded-xl border-white/15 p-4 shadow-[0_18px_48px_rgba(0,0,0,0.5)] backdrop-blur-lg"
+          ? "rounded-xl border border-violet-400/25 bg-gradient-to-br from-slate-800/70 to-indigo-950/50 p-4 shadow-[0_18px_48px_rgba(0,0,0,0.5)] backdrop-blur-lg"
           : "rounded-xl border border-white/20 bg-white/10 p-4";
 
   const backdropClassName = isMarketingAppearance
@@ -367,14 +373,22 @@ export default function UserProfileModal({
     >
       <div className={`space-y-6 ${bodyTextClass}`}>
         {/* Profile Header - Más grande y elegante */}
-        <div className="flex flex-col items-center text-center space-y-4 pb-6 border-b border-current/10">
+        <div className={`flex flex-col items-center text-center space-y-4 pb-6 border-b ${
+          isMapacheAppearance ? "border-cyan-400/30" : "border-current/10"
+        }`}>
           <UserAvatar
             name={name}
             email={resolvedTarget.email ?? undefined}
             image={profileImage}
             size={88}
             className={`shadow-xl ${
-              isMarketingAppearance ? "ring-4 ring-[#b8dcff]" : isLightAppearance ? "ring-4 ring-white/70" : "ring-4 ring-white/20"
+              isMarketingAppearance 
+                ? "ring-4 ring-[#b8dcff]" 
+                : isLightAppearance 
+                  ? "ring-4 ring-white/70" 
+                  : isMapacheAppearance
+                    ? "ring-4 ring-cyan-400/50 shadow-[0_0_30px_rgba(34,211,238,0.3)]"
+                    : "ring-4 ring-white/20"
             }`}
           />
           <div className="space-y-2">
@@ -489,7 +503,9 @@ export default function UserProfileModal({
               ? 'border-slate-200 bg-white'
               : isDirectAppearance
                 ? 'border-[#ede9fe] bg-[#faf5ff]'
-                : 'border-white/14 bg-gradient-to-br from-white/12 via-[#111827]/65 to-[#0b1221]/65 backdrop-blur-xl'
+                : isMapacheAppearance
+                  ? 'border-violet-400/25 bg-gradient-to-br from-slate-800/70 via-indigo-950/50 to-slate-900/60 backdrop-blur-xl'
+                  : 'border-white/14 bg-gradient-to-br from-white/12 via-[#111827]/65 to-[#0b1221]/65 backdrop-blur-xl'
         }`}>
           <div className="flex items-center gap-2 mb-3">
             <Calendar className={`h-4 w-4 ${labelTextClass}`} />
