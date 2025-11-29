@@ -4,7 +4,6 @@
 import React from "react";
 import type { AppRole } from "@/constants/teams";
 import { toast } from "@/app/components/ui/toast";
-import UserProfileModal from "@/app/components/ui/UserProfileModal";
 import Modal from "@/app/components/ui/Modal";
 import { useTranslations } from "@/app/LanguageProvider";
 import { q1Range, q2Range, q3Range, q4Range } from "../proposals/lib/dateRanges";
@@ -952,17 +951,6 @@ export default function GoalsPage({
     a.click(); URL.revokeObjectURL(url);
   };
 
-  const [profileOpen, setProfileOpen] = React.useState(false);
-  const [profileUser, setProfileUser] = React.useState<
-    {
-      id: string;
-      email: string | null;
-      name: string | null;
-      team?: string | null;
-      role?: AppRole | string | null;
-      image?: string | null;
-    } | null
-  >(null);
 
   const sumMembersGoal = React.useMemo(
     () => rows.reduce((acc, r) => acc + Number(r.goal || 0), 0),
@@ -1166,15 +1154,6 @@ export default function GoalsPage({
                   canAddManual={canAddManual}
                   theme={theme}
                   onEditGoal={saveUserGoal}
-                  onOpenProfile={(u) => {
-                    setProfileUser({
-                      ...u,
-                      team: u.team ?? effectiveTeam,
-                      role: u.role,
-                      image: u.image ?? null,
-                    });
-                    setProfileOpen(true);
-                  }}
                   onAddManual={(u) =>
                     setManualDialogTarget({ userId: u.id, email: u.email, name: u.name })
                   }
@@ -1188,22 +1167,6 @@ export default function GoalsPage({
         </div>
       </div>
 
-      {profileUser && (
-        <UserProfileModal
-          open={profileOpen}
-          onClose={() => setProfileOpen(false)}
-          viewer={{
-            role,
-            team: leaderTeam,
-            email: currentEmail ?? null,
-            image: viewerImage ?? null,
-            positionName: null,
-            leaderEmail: null,
-          }}
-          targetUser={profileUser}
-          appearance={theme === "mapache" ? "mapache" : theme === "direct" ? "direct" : "light"}
-        />
-      )}
       {manualDialogTarget && (
         <ManualWonDialog
           open={!!manualDialogTarget}
@@ -1235,6 +1198,8 @@ export default function GoalsPage({
           member={memberDealsTarget.user}
           deals={memberDealsTarget.deals}
           theme={theme}
+          year={year}
+          quarter={quarter}
         />
       )}
 

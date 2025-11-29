@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-import { ChevronDown, ChevronUp, Search, Filter, User, Target, TrendingUp, Eye, Pencil, UserCircle, PlusCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Filter, User, Target, TrendingUp, Eye, Pencil, PlusCircle } from "lucide-react";
 import { toast } from "@/app/components/ui/toast";
 import Tooltip from "@/app/components/ui/Tooltip";
 import { formatUSD } from "../../proposals/lib/format";
@@ -16,6 +16,8 @@ export type TeamGoalRow = {
   role?: string | null;
   team?: string | null;
   image?: string | null;
+  positionName?: string | null;
+  leaderEmail?: string | null;
   goal: number;
   progress: number;
   pct: number; // puede superar 100
@@ -30,14 +32,6 @@ type TeamMembersTableProps = {
   canEdit: boolean;
   canAddManual: boolean;
   onEditGoal: (userId: string, amount: number) => Promise<boolean> | boolean;
-  onOpenProfile: (u: {
-    id: string;
-    email: string | null;
-    name: string | null;
-    role?: string | null;
-    team?: string | null;
-    image?: string | null;
-  }) => void;
   onAddManual: (u: { id: string; email: string | null; name: string | null }) => void;
   onShowDeals?: (row: TeamGoalRow) => void;
   theme?: "direct" | "mapache";
@@ -49,7 +43,6 @@ export default function TeamMembersTable({
   canEdit,
   canAddManual,
   onEditGoal,
-  onOpenProfile,
   onAddManual,
   onShowDeals,
   theme = "direct",
@@ -445,31 +438,13 @@ export default function TeamMembersTable({
                       </>
                     ) : (
                       <>
-                        <Tooltip content="Ver deals">
+                        <Tooltip content="Ver perfil y deals">
                           <button
                             className={iconBtnClass}
                             onClick={() => onShowDeals?.(r)}
-                            aria-label="Ver deals"
+                            aria-label="Ver perfil y deals"
                           >
                             <Eye className="h-4 w-4" />
-                          </button>
-                        </Tooltip>
-                        <Tooltip content="Perfil">
-                          <button
-                            className={secondaryIconBtnClass}
-                            onClick={() =>
-                              onOpenProfile({
-                                id: r.userId,
-                                email: r.email,
-                                name: r.name,
-                                role: r.role,
-                                team: r.team,
-                                image: r.image ?? null,
-                              })
-                            }
-                            aria-label="Perfil"
-                          >
-                            <UserCircle className="h-4 w-4" />
                           </button>
                         </Tooltip>
                         {canAddManual && (

@@ -7,6 +7,7 @@ import UserAvatar from "@/app/components/ui/UserAvatar";
 import { formatUSD } from "../../proposals/lib/format";
 import type { UserWonDeal } from "./BillingSummaryCard";
 import type { TeamGoalRow } from "./TeamMembersTable";
+import { CircleUser, Users, Briefcase, AtSign, Target, TrendingUp, Calendar } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -14,9 +15,11 @@ type Props = {
   member: TeamGoalRow;
   deals: UserWonDeal[];
   theme?: "direct" | "mapache";
+  year?: number;
+  quarter?: number;
 };
 
-export default function MemberDealsModal({ open, onClose, member, deals, theme = "direct" }: Props) {
+export default function MemberDealsModal({ open, onClose, member, deals, theme = "direct", year, quarter }: Props) {
   const sortedDeals = React.useMemo(() => {
     return [...deals].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -29,6 +32,24 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
   );
 
   const isMapache = theme === "mapache";
+  
+  // Role display helpers
+  const roleDisplayMap: Record<string, string> = {
+    admin: "Admin",
+    lider: "Líder",
+    usuario: "Usuario",
+  };
+  const displayRole = member.role ? (roleDisplayMap[member.role] || member.role) : "-";
+  
+  // Normalize numeric values (handle potential string inputs from cache)
+  const goalNum = Number(member.goal) || 0;
+  const progressNum = Number(member.progress) || 0;
+  const pctNum = Number(member.pct) || 0;
+  
+  // Progress calculation with normalized values
+  const pctSafe = Number.isFinite(pctNum) ? pctNum : 0;
+  const progressWidth = Math.min(100, Math.max(0, pctSafe));
+  const remaining = Math.max(0, goalNum - progressNum);
   const cardClass = isMapache
     ? "rounded-2xl border border-violet-400/25 bg-gradient-to-br from-slate-800/80 via-slate-900/70 to-indigo-950/60 px-5 py-4 text-white shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-lg"
     : "rounded-2xl border border-slate-200/60 bg-gradient-to-br from-white to-slate-50/30 px-5 py-4 shadow-sm";
@@ -87,8 +108,9 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
         </div>
       }
     >
-      <div className="space-y-4" style={isMapache ? { color: "#fff" } : undefined}>
-        <div className="flex items-center gap-3">
+      <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1" style={isMapache ? { color: "#fff" } : undefined}>
+        {/* User Header */}
+        <div className="flex items-center gap-3 pb-3 border-b" style={isMapache ? { borderColor: "rgba(103, 232, 249, 0.2)" } : { borderColor: "#e2e8f0" }}>
           <UserAvatar
             name={member.name || member.email || member.userId}
             email={member.email ?? undefined}
@@ -105,56 +127,147 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
                 {member.email}
               </p>
             )}
-            <div className="mt-2 flex items-center gap-2">
-              <span className={badgeClass}>{sortedDeals.length} deals</span>
-              <span className={badgeClass}>{formatUSD(total)}</span>
+          </div>
+        </div>
+
+        {/* Profile Info Grid */}
+        <div className={`grid grid-cols-2 gap-3 p-4 rounded-xl ${isMapache ? "bg-slate-800/50 border border-violet-400/15" : "bg-slate-50 border border-slate-200"}`}>
+          <div className="flex items-start gap-2">
+            <CircleUser className={`h-4 w-4 mt-0.5 ${isMapache ? "text-cyan-300" : "text-purple-500"}`} />
+            <div>
+              <p className={labelMuted} style={isMapache ? { color: "#67e8f9" } : undefined}>Rol</p>
+              <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>{displayRole}</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <Users className={`h-4 w-4 mt-0.5 ${isMapache ? "text-cyan-300" : "text-purple-500"}`} />
+            <div>
+              <p className={labelMuted} style={isMapache ? { color: "#67e8f9" } : undefined}>Equipo</p>
+              <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>{member.team || "-"}</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <Briefcase className={`h-4 w-4 mt-0.5 ${isMapache ? "text-cyan-300" : "text-purple-500"}`} />
+            <div>
+              <p className={labelMuted} style={isMapache ? { color: "#67e8f9" } : undefined}>Posición</p>
+              <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>{member.positionName || "-"}</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <AtSign className={`h-4 w-4 mt-0.5 ${isMapache ? "text-cyan-300" : "text-purple-500"}`} />
+            <div>
+              <p className={labelMuted} style={isMapache ? { color: "#67e8f9" } : undefined}>Líder</p>
+              <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>{member.leaderEmail || "-"}</p>
             </div>
           </div>
         </div>
 
-        {sortedDeals.length === 0 ? (
-          <div className={emptyClass} style={isMapache ? { color: "#cffafe" } : undefined}>
-            <p className="text-sm font-medium">
-              Aún no hay deals sincronizados para este miembro.
-            </p>
+        {/* Performance Section */}
+        <div className={`p-4 rounded-xl ${isMapache ? "bg-gradient-to-br from-violet-900/40 to-indigo-900/30 border border-violet-400/20" : "bg-gradient-to-br from-purple-50 to-violet-50 border border-purple-200"}`}>
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className={`h-4 w-4 ${isMapache ? "text-cyan-300" : "text-purple-600"}`} />
+            <span className={`text-sm font-semibold uppercase tracking-wide ${isMapache ? "text-cyan-200" : "text-purple-700"}`}>
+              Desempeño Q{quarter || "-"} {year || "-"}
+            </span>
           </div>
-        ) : (
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-            {sortedDeals.map((deal) => (
-              <div key={deal.id} className={cardClass} style={isMapache ? { color: "#fff" } : undefined}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>
-                      {deal.companyName}
-                    </p>
-                    <p className={labelMuted} style={isMapache ? { color: "#a5f3fc" } : undefined}>
-                      {new Date(deal.createdAt).toLocaleDateString("es-AR")}
-                    </p>
-                    {deal.link && (
-                      <a
-                        href={deal.link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={isMapache ? "text-xs hover:underline" : "text-xs text-purple-700 hover:underline"}
-                        style={isMapache ? { color: "#6ee7b7" } : undefined}
-                      >
-                        Ver en Pipedrive
-                      </a>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>
-                      {formatUSD(deal.monthlyFee)}
-                    </p>
-                    <p className={labelMuted} style={isMapache ? { color: "#a5f3fc" } : undefined}>
-                      {deal.wonType === "UPSELL" ? "Upsell" : "Nuevo"}
-                    </p>
+          
+          {/* Big percentage */}
+          <div className="flex items-baseline justify-between mb-3">
+            <span className={`text-3xl font-bold ${isMapache ? "text-white" : "text-purple-900"}`}>
+              {pctSafe.toFixed(1)}%
+            </span>
+            <span className={`text-sm ${isMapache ? "text-white/80" : "text-slate-600"}`}>
+              {formatUSD(progressNum)} / {formatUSD(goalNum)}
+            </span>
+          </div>
+          
+          {/* Progress bar */}
+          <div className={`relative h-2.5 w-full overflow-hidden rounded-full ${isMapache ? "bg-white/10" : "bg-slate-200"}`}>
+            <div
+              className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ${isMapache ? "bg-gradient-to-r from-cyan-400 via-violet-500 to-purple-500" : "bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700"}`}
+              style={{ width: `${progressWidth}%` }}
+            />
+            {pctSafe > 100 && (
+              <div className="absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-amber-400 to-transparent opacity-70" />
+            )}
+          </div>
+          
+          {/* Metrics row */}
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <div>
+              <p className={labelMuted} style={isMapache ? { color: "#67e8f9" } : undefined}>Objetivo</p>
+              <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>{formatUSD(goalNum)}</p>
+            </div>
+            <div>
+              <p className={labelMuted} style={isMapache ? { color: "#67e8f9" } : undefined}>Avance (WON)</p>
+              <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>{formatUSD(progressNum)}</p>
+            </div>
+            <div>
+              <p className={labelMuted} style={isMapache ? { color: "#67e8f9" } : undefined}>Faltante</p>
+              <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>{formatUSD(remaining)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Deals Section */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Calendar className={`h-4 w-4 ${isMapache ? "text-cyan-300" : "text-purple-600"}`} />
+              <span className={`text-sm font-semibold uppercase tracking-wide ${isMapache ? "text-cyan-200" : "text-purple-700"}`}>
+                Deals ganados
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={badgeClass}>{sortedDeals.length} deals</span>
+              <span className={badgeClass}>{formatUSD(total)}</span>
+            </div>
+          </div>
+          
+          {sortedDeals.length === 0 ? (
+            <div className={emptyClass} style={isMapache ? { color: "#cffafe" } : undefined}>
+              <p className="text-sm font-medium">
+                Aún no hay deals sincronizados para este miembro.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {sortedDeals.map((deal) => (
+                <div key={deal.id} className={cardClass} style={isMapache ? { color: "#fff" } : undefined}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>
+                        {deal.companyName}
+                      </p>
+                      <p className={labelMuted} style={isMapache ? { color: "#a5f3fc" } : undefined}>
+                        {new Date(deal.createdAt).toLocaleDateString("es-AR")}
+                      </p>
+                      {deal.link && (
+                        <a
+                          href={deal.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={isMapache ? "text-xs hover:underline" : "text-xs text-purple-700 hover:underline"}
+                          style={isMapache ? { color: "#6ee7b7" } : undefined}
+                        >
+                          Ver en Pipedrive
+                        </a>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className={valueBold} style={isMapache ? { color: "#fff" } : undefined}>
+                        {formatUSD(deal.monthlyFee)}
+                      </p>
+                      <p className={labelMuted} style={isMapache ? { color: "#a5f3fc" } : undefined}>
+                        {deal.wonType === "UPSELL" ? "Upsell" : "Nuevo"}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </Modal>
   );
