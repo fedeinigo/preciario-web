@@ -41,6 +41,8 @@ type TeamMemberResponse = {
   role?: string | null;
   team?: string | null;
   image?: string | null;
+  positionName?: string | null;
+  leaderEmail?: string | null;
   goal?: number | string;
   progress?: number | string;
   pct?: number | string;
@@ -587,6 +589,8 @@ export default function GoalsPage({
           role: member.role ?? null,
           team: member.team ?? null,
           image,
+          positionName: member.positionName ?? null,
+          leaderEmail: member.leaderEmail ?? null,
           goal: Number(member.goal ?? 0),
           progress: Number(member.progress ?? 0),
           pct: Number(member.pct ?? 0),
