@@ -1,142 +1,84 @@
-// src/app/components/ui/Modal.tsx
-
 "use client";
 
-
-
 import React from "react";
-
-
+import { createPortal } from "react-dom";
 
 type PanelStyle = React.CSSProperties;
 
-import { createPortal } from "react-dom";
-
-
+export type ModalPortal = "directo" | "mapache" | "marketing" | "partner";
 
 type Props = {
-
   open: boolean;
-
   onClose: () => void;
-
   title?: React.ReactNode;
-
   footer?: React.ReactNode;
-
   children: React.ReactNode;
-
-  /** Clases extra para el contenedor externo */
-
   containerClassName?: string;
-
-  /** Estilos extra para el panel */
-
   panelClassName?: string;
-
-  /** Clases extra para el encabezado */
-
   headerClassName?: string;
-
-  /** Clase para controlar el ancho mÃ¡ximo del panel */
-
   panelWidthClassName?: string;
-
-  /** Clases extra para el título dentro del encabezado */
-
   titleClassName?: string;
-
-  /** Estilos en lÃ­nea extra para el panel */
-
   panelStyle?: PanelStyle;
-
-  /** Estilos extra para el backdrop */
-
   backdropClassName?: string;
-
-  /** Variante del panel */
-
-  variant?: "default" | "inverted"; // inverted = morado con texto blanco
-
-  /** Evita cerrar al clickear fuera */
-
+  variant?: "default" | "inverted";
   disableCloseOnBackdrop?: boolean;
-
-  /** Data attributes para el panel (para CSS targeting) */
-
   panelDataAttributes?: Record<string, string>;
-
+  portal?: ModalPortal;
 };
 
-
-
 export default function Modal({
-
   open,
-
   onClose,
-
   title,
-
   footer,
-
   children,
-
   containerClassName = "",
-
   panelClassName = "",
-
   headerClassName = "",
-
   panelWidthClassName = "max-w-2xl",
-
   titleClassName = "",
-
   panelStyle,
-
   backdropClassName = "",
-
   variant = "default",
-
   disableCloseOnBackdrop = false,
-
   panelDataAttributes,
-
+  portal,
 }: Props) {
-
   const panelRef = React.useRef<HTMLDivElement>(null);
-
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
-
   const titleId = React.useId();
 
+  const detectedPortal = React.useMemo<ModalPortal>(() => {
+    if (portal) return portal;
+    if (typeof document === "undefined") return "directo";
+    const html = document.documentElement;
+    if (html.classList.contains("mapache-theme") || html.getAttribute("data-portal") === "mapache") {
+      return "mapache";
+    }
+    if (html.classList.contains("marketing-theme") || html.getAttribute("data-portal") === "marketing") {
+      return "marketing";
+    }
+    if (html.getAttribute("data-portal") === "partner") {
+      return "partner";
+    }
+    return "directo";
+  }, [portal]);
 
+  const isDarkPortal = detectedPortal === "mapache";
+  const isInverted = variant === "inverted" || isDarkPortal;
 
   React.useEffect(() => {
-
     if (!open) return;
-
     const panel = panelRef.current;
-
     if (!panel) return;
 
-
-
     const selectors =
-
       'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
-
     const focusable = Array.from(panel.querySelectorAll<HTMLElement>(selectors));
-
     const closeButton = closeButtonRef.current;
-
     const initialTarget =
-
       closeButton && !disableCloseOnBackdrop ? closeButton : focusable[0] ?? panel;
-
     initialTarget.focus({ preventScroll: true });
-
-
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !disableCloseOnBackdrop) {
@@ -171,38 +113,38 @@ export default function Modal({
     return () => panel.removeEventListener("keydown", handleKeyDown);
   }, [open, onClose, disableCloseOnBackdrop]);
 
-
-
   if (!open) return null;
-
-
-
-  const isInverted = variant === "inverted";
-
-
 
   const content = (
     <div
       className={[
-        "fixed inset-0 z-[9999] flex items-start md:items-center justify-center overflow-y-auto p-4",
-        "bg-black/50 backdrop-blur-md",
+        "fixed inset-0 z-[9999] flex items-start md:items-center justify-center overflow-y-auto p-4 backdrop-blur-md modal-backdrop",
         backdropClassName,
         containerClassName,
       ].join(" ")}
+      style={{ backgroundColor: "var(--modal-backdrop)" }}
       onClick={!disableCloseOnBackdrop ? onClose : undefined}
       aria-hidden="true"
     >
       <div
         ref={panelRef}
+        data-portal-modal={detectedPortal}
         className={[
-          "w-full max-h-[calc(100vh-2rem)] rounded-xl shadow-2xl overflow-hidden border flex flex-col min-h-0",
+          "w-full max-h-[calc(100vh-2rem)] rounded-xl overflow-hidden flex flex-col min-h-0 modal-panel",
           panelWidthClassName,
-          isInverted
-            ? "bg-[rgb(var(--primary))] text-white border-white/10"
-            : "bg-white text-slate-900 border-slate-200",
           panelClassName,
         ].join(" ")}
-        style={panelStyle}
+        style={{
+          background: isDarkPortal 
+            ? "var(--modal-surface, linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(30, 27, 75, 0.95)))"
+            : "rgb(var(--surface-modal))",
+          borderWidth: "1px",
+          borderStyle: "solid",
+          borderColor: isDarkPortal ? "var(--modal-border)" : "rgb(var(--modal-border))",
+          boxShadow: "var(--shadow-modal)",
+          color: "rgb(var(--modal-text))",
+          ...panelStyle,
+        }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -215,18 +157,24 @@ export default function Modal({
         {title !== undefined && (
           <div
             className={[
-              "px-4 py-3 text-sm font-semibold",
-              isInverted
-                ? "border-b border-white/10"
-                : "bg-slate-50 border-b border-slate-200",
+              "px-4 py-3 text-sm font-semibold modal-header",
               headerClassName,
             ]
               .filter(Boolean)
               .join(" ")}
+            style={{
+              background: isDarkPortal 
+                ? "var(--modal-header-bg, linear-gradient(to right, rgba(139, 92, 246, 0.25), rgba(109, 40, 217, 0.2), rgba(34, 211, 238, 0.25)))"
+                : "rgb(var(--modal-header-bg))",
+              borderBottom: isDarkPortal ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgb(var(--modal-border))",
+            }}
             id={titleId}
           >
             <div className="flex items-start justify-between gap-3">
-              <div className={"flex-1 min-w-0 text-left " + titleClassName}>
+              <div 
+                className={["flex-1 min-w-0 text-left", titleClassName].join(" ")}
+                style={{ color: "rgb(var(--modal-text))" }}
+              >
                 {title}
               </div>
               {typeof onClose === "function" && (
@@ -240,12 +188,10 @@ export default function Modal({
                   }}
                   disabled={disableCloseOnBackdrop}
                   ref={closeButtonRef}
-                  className={[
-                    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-transparent text-lg leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
-                    isInverted
-                      ? "text-white hover:bg-white/10 focus-visible:outline-white/40 disabled:text-white/60 disabled:hover:bg-transparent"
-                      : "text-slate-500 hover:bg-slate-100 focus-visible:outline-slate-300 disabled:text-slate-300 disabled:hover:bg-transparent",
-                  ].join(" ")}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-transparent text-lg leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 modal-close-btn"
+                  style={{ 
+                    color: isDarkPortal ? "#fff" : "rgb(var(--modal-close-color))",
+                  }}
                 >
                   <span aria-hidden="true">&times;</span>
                 </button>
@@ -254,16 +200,20 @@ export default function Modal({
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>
+        <div 
+          className="flex-1 overflow-y-auto px-4 py-4 modal-content"
+          style={{ color: "rgb(var(--modal-text))" }}
+        >
+          {children}
+        </div>
 
         {footer && (
           <div
-            className={[
-              "px-4 py-3",
-              isInverted
-                ? "border-t border-white/10 bg-white/5"
-                : "bg-slate-50 border-t border-slate-200",
-            ].join(" ")}
+            className="px-4 py-3 modal-footer"
+            style={{
+              background: isDarkPortal ? "rgba(255, 255, 255, 0.05)" : "rgb(var(--modal-header-bg))",
+              borderTop: isDarkPortal ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgb(var(--modal-border))",
+            }}
           >
             {footer}
           </div>
@@ -271,13 +221,10 @@ export default function Modal({
       </div>
     </div>
   );
+
   if (typeof window !== "undefined") {
-
     return createPortal(content, document.body);
-
   }
 
   return content;
-
 }
-

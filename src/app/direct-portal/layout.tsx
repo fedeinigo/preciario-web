@@ -2,6 +2,7 @@
 import React from "react";
 
 import AuthLoginCard from "@/app/components/AuthLoginCard";
+import PortalThemeProvider from "@/app/components/theme/PortalThemeProvider";
 import { auth } from "@/lib/auth";
 
 export default async function DirectPortalLayout({
@@ -18,5 +19,9 @@ export default async function DirectPortalLayout({
     );
   }
 
-  return <div className="px-3 pt-6 w-full">{children}</div>;
+  return (
+    <PortalThemeProvider portal="directo">
+      <div className="px-3 pt-6 w-full">{children}</div>
+    </PortalThemeProvider>
+  );
 }

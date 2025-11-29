@@ -1,3 +1,6 @@
+/* Import Portal Token System - Must be before @tailwind */
+@import "../styles/portal-tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -204,41 +207,39 @@ body.marketing-theme .navbar .btn-ghost:hover {
 }
 
 /*
- * Mapache portal legacy class overrides
- * -------------------------------------
- * Los componentes del portal utilizan utilidades pensadas para un modo oscuro clásico.
- * Estos overrides reinterpretan esos estilos dentro de la nueva estética monocromática.
+ * Mapache portal surface overrides
+ * ---------------------------------
+ * These rules restyle background surfaces for the dark theme.
+ * IMPORTANT: Do NOT force text colors here - let components handle text via tokens.
+ * Modals are excluded via :not([data-portal-modal]) to preserve their own styling.
  */
-html.mapache-theme body .bg-slate-950\/60:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-slate-950\/70:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-slate-950\/80:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-slate-950\/85:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-slate-950\/95:not([data-mapache-modal="true"] *),
-html.mapache-theme body .\!bg-slate-950\/95:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-slate-900\/70:not([data-mapache-modal="true"] *) {
-  background-color: rgba(15, 17, 26, 0.85) !important;
-  color: rgb(var(--ink)) !important;
+html.mapache-theme body .bg-slate-950\/60:not([data-portal-modal] *),
+html.mapache-theme body .bg-slate-950\/70:not([data-portal-modal] *),
+html.mapache-theme body .bg-slate-950\/80:not([data-portal-modal] *),
+html.mapache-theme body .bg-slate-950\/85:not([data-portal-modal] *),
+html.mapache-theme body .bg-slate-950\/95:not([data-portal-modal] *),
+html.mapache-theme body .\!bg-slate-950\/95:not([data-portal-modal] *),
+html.mapache-theme body .bg-slate-900\/70:not([data-portal-modal] *) {
+  background-color: rgba(15, 17, 26, 0.85);
   box-shadow: var(--mapache-shadow-soft);
   border: 1px solid rgba(148, 163, 184, 0.18);
 }
 
-html.mapache-theme body .bg-black\/20:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-white\/5:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-white\/10:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-white\/15:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-white\/20:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-white\/30:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-white\/60:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-white\/70:not([data-mapache-modal="true"] *) {
-  background-color: rgba(255, 255, 255, 0.06) !important;
-  color: rgb(var(--ink)) !important;
+html.mapache-theme body .bg-black\/20:not([data-portal-modal] *),
+html.mapache-theme body .bg-white\/5:not([data-portal-modal] *),
+html.mapache-theme body .bg-white\/10:not([data-portal-modal] *),
+html.mapache-theme body .bg-white\/15:not([data-portal-modal] *),
+html.mapache-theme body .bg-white\/20:not([data-portal-modal] *),
+html.mapache-theme body .bg-white\/30:not([data-portal-modal] *),
+html.mapache-theme body .bg-white\/60:not([data-portal-modal] *),
+html.mapache-theme body .bg-white\/70:not([data-portal-modal] *) {
+  background-color: rgba(255, 255, 255, 0.06);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
-html.mapache-theme body .bg-white:not([data-mapache-modal="true"] *),
-body.mapache-theme .bg-white:not([data-mapache-modal="true"] *) {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-  color: rgb(var(--ink)) !important;
+html.mapache-theme body .bg-white:not([data-portal-modal] *),
+body.mapache-theme .bg-white:not([data-portal-modal] *) {
+  background-color: rgba(255, 255, 255, 0.08);
   box-shadow: var(--mapache-shadow-soft);
 }
 
@@ -365,69 +366,45 @@ html.mapache-theme body .divide-gray-200 {
   border-color: rgba(148, 163, 184, 0.15) !important;
 }
 
-html.mapache-theme body .bg-slate-50:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-slate-50\/60:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-slate-50\/70:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-slate-100:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-slate-200:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-gray-50:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-gray-100:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-gray-200:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-neutral-50:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-neutral-100:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-zinc-50:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-zinc-100:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-amber-50:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-amber-50\/70:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-amber-50\/80:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-rose-50:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-sky-50:not([data-mapache-modal="true"] *),
-html.mapache-theme body .bg-violet-50:not([data-mapache-modal="true"] *) {
-  background-color: rgba(255, 255, 255, 0.05) !important;
-  color: rgb(var(--ink)) !important;
+html.mapache-theme body .bg-slate-50:not([data-portal-modal] *),
+html.mapache-theme body .bg-slate-50\/60:not([data-portal-modal] *),
+html.mapache-theme body .bg-slate-50\/70:not([data-portal-modal] *),
+html.mapache-theme body .bg-slate-100:not([data-portal-modal] *),
+html.mapache-theme body .bg-slate-200:not([data-portal-modal] *),
+html.mapache-theme body .bg-gray-50:not([data-portal-modal] *),
+html.mapache-theme body .bg-gray-100:not([data-portal-modal] *),
+html.mapache-theme body .bg-gray-200:not([data-portal-modal] *),
+html.mapache-theme body .bg-neutral-50:not([data-portal-modal] *),
+html.mapache-theme body .bg-neutral-100:not([data-portal-modal] *),
+html.mapache-theme body .bg-zinc-50:not([data-portal-modal] *),
+html.mapache-theme body .bg-zinc-100:not([data-portal-modal] *),
+html.mapache-theme body .bg-amber-50:not([data-portal-modal] *),
+html.mapache-theme body .bg-amber-50\/70:not([data-portal-modal] *),
+html.mapache-theme body .bg-amber-50\/80:not([data-portal-modal] *),
+html.mapache-theme body .bg-rose-50:not([data-portal-modal] *),
+html.mapache-theme body .bg-sky-50:not([data-portal-modal] *),
+html.mapache-theme body .bg-violet-50:not([data-portal-modal] *) {
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
-html.mapache-theme body .text-amber-600,
-html.mapache-theme body .text-amber-700,
-html.mapache-theme body .text-rose-600,
-html.mapache-theme body .text-rose-700,
-html.mapache-theme body .text-sky-700,
-html.mapache-theme body .text-violet-700 {
-  color: rgba(226, 232, 240, 0.85) !important;
+html.mapache-theme body .hover\:bg-white\/10:hover:not([data-portal-modal] *),
+html.mapache-theme body .hover\:bg-white\/20:hover:not([data-portal-modal] *),
+html.mapache-theme body .hover\:bg-white\/25:hover:not([data-portal-modal] *) {
+  background-color: rgba(255, 255, 255, 0.12);
 }
 
-html.mapache-theme body .hover\:bg-white\/10:hover:not([data-mapache-modal="true"] *),
-html.mapache-theme body .hover\:bg-white\/20:hover:not([data-mapache-modal="true"] *),
-html.mapache-theme body .hover\:bg-white\/25:hover:not([data-mapache-modal="true"] *) {
-  background-color: rgba(255, 255, 255, 0.12) !important;
-  color: rgb(var(--ink)) !important;
-}
-
-html.mapache-theme body .bg-rose-500,
-html.mapache-theme body .bg-\[rgb\(var\(--primary\)\)\] {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04)) !important;
-  color: rgb(var(--primary-ink)) !important;
+html.mapache-theme body .bg-rose-500:not([data-portal-modal] *),
+html.mapache-theme body .bg-\[rgb\(var\(--primary\)\)\]:not([data-portal-modal] *) {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04));
   box-shadow: var(--mapache-shadow-strong);
 }
 
-html.mapache-theme body .bg-\[rgb\(var\(--primary\)\)\] .text-white,
-html.mapache-theme body .bg-rose-500 .text-white,
-html.mapache-theme body .bg-\[rgb\(var\(--primary\)\)\].text-white,
-html.mapache-theme body .bg-rose-500.text-white {
-  color: rgb(var(--primary-ink)) !important;
+html.mapache-theme body .backdrop-blur-sm:not([data-portal-modal] *) {
+  background-color: rgba(20, 23, 34, 0.72);
 }
 
-html.mapache-theme body .backdrop-blur-sm {
-  background-color: rgba(20, 23, 34, 0.72) !important;
-}
-
-html.mapache-theme body .\!bg-slate-950\/85 {
-  background-color: rgba(12, 13, 22, 0.78) !important;
-}
-
-html.mapache-theme body .text-white\/80 strong,
-html.mapache-theme body .text-white strong {
-  color: rgba(248, 250, 252, 0.94) !important;
+html.mapache-theme body .\!bg-slate-950\/85:not([data-portal-modal] *) {
+  background-color: rgba(12, 13, 22, 0.78);
 }
 
 /* ================================
@@ -570,50 +547,7 @@ body.mapache-theme .mapache-modal-surface {
   color: rgb(var(--ink));
 }
 
-/* ============================================
-   MAPACHE PROFILE MODAL - HIGH CONTRAST TEXT
-   Forces white/cyan text colors with !important
-   Uses [data-mapache-modal] selector directly (no body class dependency)
-   ============================================ */
-[data-mapache-modal="true"],
-[data-mapache-modal="true"] div,
-[data-mapache-modal="true"] span,
-[data-mapache-modal="true"] p,
-[data-mapache-modal="true"] h1,
-[data-mapache-modal="true"] h2,
-[data-mapache-modal="true"] h3,
-[data-mapache-modal="true"] h4 {
-  color: #fff !important;
-}
-
-[data-mapache-modal="true"] .text-cyan-300,
-[data-mapache-modal="true"] .text-cyan-200,
-[data-mapache-modal="true"] [class*="text-cyan"] {
-  color: #67e8f9 !important;
-}
-
-[data-mapache-modal="true"] svg {
-  color: currentColor !important;
-}
-
-[data-mapache-modal="true"] [data-mapache-label],
-[data-mapache-modal="true"] .mapache-label {
-  color: #67e8f9 !important;
-}
-
-[data-mapache-modal="true"] [data-mapache-subtle],
-[data-mapache-modal="true"] .mapache-subtle {
-  color: #a5f3fc !important;
-}
-
-[data-mapache-modal="true"] [data-mapache-link],
-[data-mapache-modal="true"] a {
-  color: #6ee7b7 !important;
-}
-
-[data-mapache-modal="true"] a:hover {
-  text-decoration: underline;
-}
+/* Note: Modal contrast rules now in portal-tokens.css using [data-portal-modal] */
 
   /* --- Tabs --- */
   .tab {
@@ -742,85 +676,8 @@ body.mapache-theme .mapache-modal-surface {
   color: rgba(255, 255, 255, 0.8) !important;
 }
 
-.mapache-surface-card,
-.mapache-modal-surface,
-.mapache-profile-modal {
-  color: #fff;
-}
+/* Note: Mapache modal color rules now in portal-tokens.css */
 
-.mapache-surface-card *,
-.mapache-modal-surface *,
-.mapache-profile-modal * {
-  color: inherit;
-}
-
-/* Forzar colores claros en modales del Portal Mapache */
-html.mapache-theme .mapache-profile-modal,
-body.mapache-theme .mapache-profile-modal,
-.mapache-profile-modal {
-  color: #fff !important;
-}
-
-html.mapache-theme .mapache-profile-modal *,
-body.mapache-theme .mapache-profile-modal *,
-.mapache-profile-modal * {
-  color: inherit;
-}
-
-/* Etiquetas en modal de perfil Mapache - cyan claro */
-.mapache-profile-modal .text-cyan-300 {
-  color: rgb(103, 232, 249) !important;
-}
-
-.mapache-profile-modal .text-cyan-200 {
-  color: rgb(165, 243, 252) !important;
-}
-
-.mapache-profile-modal .text-cyan-100 {
-  color: rgb(207, 250, 254) !important;
-}
-
-/* Valores en modal de perfil Mapache - blanco sólido */
-.mapache-profile-modal .text-white {
-  color: #fff !important;
-}
-
-/* Sobrescribir cualquier color oscuro en el modal */
-.mapache-profile-modal .text-slate-900,
-.mapache-profile-modal .text-slate-800,
-.mapache-profile-modal .text-slate-700,
-.mapache-profile-modal .text-slate-600,
-.mapache-profile-modal .text-slate-500,
-.mapache-profile-modal .text-slate-400,
-.mapache-profile-modal .text-black {
-  color: #fff !important;
-}
-
-/* Opacidades de blanco en modal Mapache */
-.mapache-profile-modal [class*="text-white\\/"] {
-  color: rgba(255, 255, 255, 0.9) !important;
-}
-
-/* === Modal de Deals del Portal Mapache === */
-.mapache-deals-modal {
-  color: #fff !important;
-}
-
-.mapache-deals-modal * {
-  color: inherit;
-}
-
-.mapache-deals-modal .text-cyan-200 {
-  color: rgb(165, 243, 252) !important;
-}
-
-.mapache-deals-modal .text-cyan-100 {
-  color: rgb(207, 250, 254) !important;
-}
-
-.mapache-deals-modal .text-white {
-  color: #fff !important;
-}
 .hero-bg::before {
   content: "";
   position: fixed;
