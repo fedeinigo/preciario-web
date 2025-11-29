@@ -130,6 +130,27 @@ The Generator page (`/portal/directo/generator`) has been visually modernized wi
 - Migrated 47 inputs and 7 textareas to use shared class constants
 - Style constants now reference CSS custom properties instead of hardcoded colors
 
+### Goals Page Consolidation (Nov 2025)
+
+**Component Consolidation**:
+- Removed `TeamRankingCard` component (deleted `src/app/components/features/goals/components/TeamRankingCard.tsx`)
+- Unified team display into `TeamMembersTable` component with ranking functionality
+
+**Layout Changes**:
+- `TeamMembersTable` now appears in the Secondary Cards Grid alongside `BillingSummaryCard`
+- Removed the separate full-width table section at the bottom of the page
+- Added scrollable container with `max-h-[600px]` for the table
+- Theme-aware empty state styling for both Mapache and Direct portals
+
+**Sorting Behavior**:
+- Default sort changed from "user" (ascending) to "pct" (% cumplimiento, descending)
+- Maintains ranking order by default, matching the previous TeamRankingCard behavior
+- All filter and sort options remain available (user, goal, progress, % cumpl.)
+
+**Files Modified**:
+- `src/app/components/features/goals/GoalsPage.tsx`: Removed TeamRankingCard, integrated table into secondary grid
+- `src/app/components/features/goals/components/TeamMembersTable.tsx`: Changed default sort to pct descending
+
 # External Dependencies
 
 ## Third-Party Services
