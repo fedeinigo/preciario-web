@@ -15,6 +15,9 @@ import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
 
+const mapacheInputClass = "rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--brand-primary))] focus:outline-none focus:ring-1 focus:ring-[rgb(var(--brand-primary))]/30 transition-colors duration-150";
+const mapacheTextareaClass = "min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--brand-primary))] focus:outline-none focus:ring-1 focus:ring-[rgb(var(--brand-primary))]/30 transition-colors duration-150 resize-none";
+
 import type { MapachePortalBootstrap } from "./bootstrap-types";
 import type {
   MapacheDeliverableType,
@@ -3716,7 +3719,7 @@ function TaskMetaChip({
                           event.target.value as MapacheTaskStatus,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     >
                       {statusKeys.map((option) => (
                         <option key={option} value={option}>
@@ -3735,7 +3738,7 @@ function TaskMetaChip({
                           event.target.value as MapacheTaskSubstatus,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     >
                       {SUBSTATUS_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -3752,7 +3755,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleFormChange("title", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                       placeholder={formT("titlePlaceholder")}
                     />
                     {formErrors.title ? (
@@ -3769,7 +3772,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleFormChange("clientName", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                       placeholder="Ej. ACME Corp"
                     />
                     {formErrors.clientName ? (
@@ -3786,7 +3789,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleFormChange("productKey", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                       placeholder="Ej. Wiser PRO"
                     />
                     {formErrors.productKey ? (
@@ -3805,7 +3808,7 @@ function TaskMetaChip({
                           event.target.value as MapacheNeedFromTeam,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     >
                       {NEED_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -3824,7 +3827,7 @@ function TaskMetaChip({
                           event.target.value as MapacheDirectness,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     >
                       {DIRECTNESS_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -3843,7 +3846,7 @@ function TaskMetaChip({
                           event.target.value ? event.target.value : null,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     >
                       <option value="">Sin asignar</option>
                       {mapacheUsers.map((user) => (
@@ -3869,7 +3872,7 @@ function TaskMetaChip({
                     onChange={(event) =>
                       handleFormChange("description", event.target.value)
                     }
-                    className="min-h-[120px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    className={`${mapacheTextareaClass} min-h-[120px]`}
                     placeholder={formT("descriptionPlaceholder")}
                   />
                 </label>
@@ -3888,7 +3891,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleFormChange("requesterEmail", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                       placeholder="persona@compania.com"
                     />
                     {formErrors.requesterEmail ? (
@@ -3905,7 +3908,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleFormChange("interlocutorRole", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                       placeholder="Ej. CTO"
                     />
                     {formErrors.interlocutorRole ? (
@@ -3922,7 +3925,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleFormChange("presentationDate", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {formErrors.presentationDate ? (
                       <span className="text-xs text-rose-300">
@@ -3938,7 +3941,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleFormChange("pipedriveDealUrl", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                       placeholder="https://"
                     />
                     {formErrors.pipedriveDealUrl ? (
@@ -3953,7 +3956,7 @@ function TaskMetaChip({
                   <textarea
                     value={formState.clientWebsiteUrls.join("\n")}
                     onChange={(event) => handleWebsiteUrlsChange(event.target.value)}
-                    className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    className={mapacheTextareaClass}
                     placeholder="Una URL por lÃ­nea"
                   />
                   {formErrors.clientWebsiteUrls ? (
@@ -3969,7 +3972,7 @@ function TaskMetaChip({
                     onChange={(event) =>
                       handleFormChange("clientPain", event.target.value)
                     }
-                    className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    className={mapacheTextareaClass}
                     placeholder="Contexto adicional"
                   />
                   {formErrors.clientPain ? (
@@ -3993,7 +3996,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleFormChange("managementType", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {formErrors.managementType ? (
                       <span className="text-xs text-rose-300">
@@ -4010,7 +4013,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleFormChange("docsCountApprox", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {formErrors.docsCountApprox ? (
                       <span className="text-xs text-rose-300">
@@ -4026,7 +4029,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleFormChange("docsLengthApprox", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {formErrors.docsLengthApprox ? (
                       <span className="text-xs text-rose-300">
@@ -4046,7 +4049,7 @@ function TaskMetaChip({
                           event.target.value,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {formErrors.avgMonthlyConversations ? (
                       <span className="text-xs text-rose-300">
@@ -4072,7 +4075,7 @@ function TaskMetaChip({
                           event.target.value as FormState["integrationType"],
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     >
                       {INTEGRATION_TYPES.map((option) => (
                         <option key={option || "none"} value={option}>
@@ -4093,7 +4096,7 @@ function TaskMetaChip({
                           event.target.value as FormState["integrationOwner"],
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     >
                       {INTEGRATION_OWNERS.map((option) => (
                         <option key={option || "none"} value={option}>
@@ -4112,7 +4115,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleFormChange("integrationName", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {formErrors.integrationName ? (
                       <span className="text-xs text-rose-300">
@@ -4128,7 +4131,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleFormChange("integrationDocsUrl", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                       placeholder="https://"
                     />
                     {formErrors.integrationDocsUrl ? (
@@ -4164,7 +4167,7 @@ function TaskMetaChip({
                                   event.target.value as MapacheDeliverableType,
                                 )
                               }
-                              className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                              className={mapacheInputClass}
                             >
                               {DELIVERABLE_TYPES.map((option) => (
                                 <option key={option} value={option}>
@@ -4185,7 +4188,7 @@ function TaskMetaChip({
                                   event.target.value,
                                 )
                               }
-                              className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                              className={mapacheInputClass}
                             />
                             {deliverableError?.title ? (
                               <span className="text-xs text-rose-300">
@@ -4205,7 +4208,7 @@ function TaskMetaChip({
                                   event.target.value,
                                 )
                               }
-                              className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                              className={mapacheInputClass}
                             />
                             {deliverableError?.url ? (
                               <span className="text-xs text-rose-300">
@@ -4462,7 +4465,7 @@ function TaskMetaChip({
                           event.target.value as MapacheTaskStatus,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     >
                       {statusKeys.map((option) => (
                         <option key={option} value={option}>
@@ -4481,7 +4484,7 @@ function TaskMetaChip({
                           event.target.value as MapacheTaskSubstatus,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     >
                       {SUBSTATUS_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -4498,7 +4501,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleSelectedTaskFormChange("title", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {selectedTaskFormErrors.title ? (
                       <span className="text-xs text-rose-300">
@@ -4514,7 +4517,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleSelectedTaskFormChange("clientName", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {selectedTaskFormErrors.clientName ? (
                       <span className="text-xs text-rose-300">
@@ -4530,7 +4533,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleSelectedTaskFormChange("productKey", event.target.value)
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {selectedTaskFormErrors.productKey ? (
                       <span className="text-xs text-rose-300">
@@ -4548,7 +4551,7 @@ function TaskMetaChip({
                             event.target.value ? event.target.value : null,
                           )
                         }
-                        className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                        className={mapacheInputClass}
                       >
                         <option value="">Sin asignar</option>
                         {mapacheUsers.map((user) => (
@@ -4568,7 +4571,7 @@ function TaskMetaChip({
                           event.target.value as MapacheNeedFromTeam,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     >
                       {NEED_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -4587,7 +4590,7 @@ function TaskMetaChip({
                           event.target.value as MapacheDirectness,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     >
                       {DIRECTNESS_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -4604,7 +4607,7 @@ function TaskMetaChip({
                     onChange={(event) =>
                       handleSelectedTaskFormChange("description", event.target.value)
                     }
-                    className="min-h-[120px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                    className={`${mapacheTextareaClass} min-h-[120px]`}
                     placeholder={formT("descriptionPlaceholder")}
                   />
                 </label>
@@ -4626,7 +4629,7 @@ function TaskMetaChip({
                           event.target.value,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {selectedTaskFormErrors.requesterEmail ? (
                       <span className="text-xs text-rose-300">
@@ -4645,7 +4648,7 @@ function TaskMetaChip({
                           event.target.value,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {selectedTaskFormErrors.interlocutorRole ? (
                       <span className="text-xs text-rose-300">
@@ -4664,7 +4667,7 @@ function TaskMetaChip({
                           event.target.value,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {selectedTaskFormErrors.presentationDate ? (
                       <span className="text-xs text-rose-300">
@@ -4683,7 +4686,7 @@ function TaskMetaChip({
                           event.target.value,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                       placeholder="https://"
                     />
                     {selectedTaskFormErrors.pipedriveDealUrl ? (
@@ -4701,7 +4704,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleSelectedTaskWebsiteUrlsChange(event.target.value)
                       }
-                      className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheTextareaClass}
                       placeholder="Una URL por lÃ­nea"
                     />
                     {selectedTaskFormErrors.clientWebsiteUrls ? (
@@ -4717,7 +4720,7 @@ function TaskMetaChip({
                       onChange={(event) =>
                         handleSelectedTaskFormChange("clientPain", event.target.value)
                       }
-                      className="min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheTextareaClass}
                       placeholder="Contexto adicional"
                     />
                     {selectedTaskFormErrors.clientPain ? (
@@ -4745,7 +4748,7 @@ function TaskMetaChip({
                           event.target.value,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {selectedTaskFormErrors.managementType ? (
                       <span className="text-xs text-rose-300">
@@ -4765,7 +4768,7 @@ function TaskMetaChip({
                           event.target.value,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {selectedTaskFormErrors.docsCountApprox ? (
                       <span className="text-xs text-rose-300">
@@ -4784,7 +4787,7 @@ function TaskMetaChip({
                           event.target.value,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {selectedTaskFormErrors.docsLengthApprox ? (
                       <span className="text-xs text-rose-300">
@@ -4804,7 +4807,7 @@ function TaskMetaChip({
                           event.target.value,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {selectedTaskFormErrors.avgMonthlyConversations ? (
                       <span className="text-xs text-rose-300">
@@ -4830,7 +4833,7 @@ function TaskMetaChip({
                           event.target.value as FormState["integrationType"],
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     >
                       {INTEGRATION_TYPES.map((option) => (
                         <option key={option || "none"} value={option}>
@@ -4851,7 +4854,7 @@ function TaskMetaChip({
                           event.target.value as FormState["integrationOwner"],
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     >
                       {INTEGRATION_OWNERS.map((option) => (
                         <option key={option || "none"} value={option}>
@@ -4873,7 +4876,7 @@ function TaskMetaChip({
                           event.target.value,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                     />
                     {selectedTaskFormErrors.integrationName ? (
                       <span className="text-xs text-rose-300">
@@ -4892,7 +4895,7 @@ function TaskMetaChip({
                           event.target.value,
                         )
                       }
-                      className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                      className={mapacheInputClass}
                       placeholder="https://"
                     />
                     {selectedTaskFormErrors.integrationDocsUrl ? (
@@ -4927,7 +4930,7 @@ function TaskMetaChip({
                                 event.target.value as MapacheDeliverableType,
                               )
                             }
-                            className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                            className={mapacheInputClass}
                           >
                             {DELIVERABLE_TYPES.map((option) => (
                               <option key={option} value={option}>
@@ -4948,7 +4951,7 @@ function TaskMetaChip({
                                 event.target.value,
                               )
                             }
-                            className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                            className={mapacheInputClass}
                           />
                           {deliverableError?.title ? (
                             <span className="text-xs text-rose-300">
@@ -4968,7 +4971,7 @@ function TaskMetaChip({
                                 event.target.value,
                               )
                             }
-                            className="rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--primary))] focus:outline-none"
+                            className={mapacheInputClass}
                           />
                           {deliverableError?.url ? (
                             <span className="text-xs text-rose-300">
