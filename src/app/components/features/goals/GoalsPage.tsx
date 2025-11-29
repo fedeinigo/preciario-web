@@ -367,7 +367,8 @@ export default function GoalsPage({
   const [teamProgress, setTeamProgress] = React.useState<number>(0);
   const [teamProgressRaw, setTeamProgressRaw] = React.useState<number>(0);
   const [teamMonthlyProgressRaw, setTeamMonthlyProgressRaw] = React.useState<number>(0);
-  const [_teamMonthlyProgress, setTeamMonthlyProgress] = React.useState<number>(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [teamMonthlyProgress, setTeamMonthlyProgress] = React.useState<number>(0);
   const [teamDealsByUser, setTeamDealsByUser] = React.useState<Record<string, UserWonDeal[]>>({});
   const [teamDealsBaseMap, setTeamDealsBaseMap] = React.useState<Record<string, UserWonDeal[]>>({});
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);

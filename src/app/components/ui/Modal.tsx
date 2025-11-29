@@ -65,7 +65,8 @@ export default function Modal({
   }, [portal]);
 
   const isDarkPortal = detectedPortal === "mapache";
-  const _isInverted = variant === "inverted" || isDarkPortal;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const isInverted = variant === "inverted" || isDarkPortal;
 
   React.useEffect(() => {
     if (!open) return;
