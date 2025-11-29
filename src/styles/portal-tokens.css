@@ -84,6 +84,23 @@
   --card-border: rgb(var(--border-primary));
   --card-shadow: var(--shadow-md);
   
+  /* === Form tokens (Portal Directo) === */
+  --form-input-bg: #ffffff;
+  --form-input-border: #d8b4fe;
+  --form-input-text: #0f172a;
+  --form-input-placeholder: #94a3b8;
+  --form-input-focus-border: #a855f7;
+  --form-input-focus-ring: rgba(168, 85, 247, 0.2);
+  --form-label-text: #334155;
+  --form-card-header-bg: #4c1d95;
+  --form-card-header-text: #ffffff;
+  --form-card-border: #d8b4fe;
+  --form-card-section-bg: rgba(243, 232, 255, 0.3);
+  --form-card-section-border: #e9d5ff;
+  --form-radio-border: #cbd5e1;
+  --form-radio-checked: #9333ea;
+  --form-radio-focus-ring: rgba(168, 85, 247, 0.2);
+  
   /* === Portal indicator === */
   --portal-mode: light;
 }

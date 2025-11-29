@@ -14,6 +14,54 @@ interface PipedriveCardProps {
   t: (key: string, replacements?: Record<string, string | number>) => string;
 }
 
+const cardStyles: React.CSSProperties = {
+  borderRadius: "0.75rem",
+  border: "1px solid var(--form-card-border, #d8b4fe)",
+  backgroundColor: "rgb(var(--surface-primary, 255 255 255))",
+  boxShadow: "var(--shadow-md)",
+  overflow: "hidden",
+};
+
+const headerStyles: React.CSSProperties = {
+  backgroundColor: "var(--form-card-header-bg, #4c1d95)",
+  padding: "0.75rem 1.25rem",
+  borderBottom: "1px solid var(--form-card-header-bg, #4c1d95)",
+};
+
+const headerTextStyles: React.CSSProperties = {
+  fontSize: "0.875rem",
+  fontWeight: 600,
+  color: "var(--form-card-header-text, #ffffff)",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+};
+
+const inputStyles: React.CSSProperties = {
+  width: "100%",
+  height: "2.75rem",
+  borderRadius: "0.5rem",
+  border: "1px solid var(--form-card-border, #d8b4fe)",
+  backgroundColor: "var(--form-input-bg, #ffffff)",
+  padding: "0 0.75rem",
+  fontSize: "0.875rem",
+  color: "var(--form-input-text, #0f172a)",
+};
+
+const radioLabelStyles: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "0.5rem",
+  borderRadius: "0.5rem",
+  border: "1px solid rgb(var(--border-primary, 226 232 240))",
+  backgroundColor: "var(--form-input-bg, #ffffff)",
+  padding: "0.625rem 1rem",
+  fontSize: "0.875rem",
+  fontWeight: 500,
+  color: "rgb(var(--text-secondary, 71 85 105))",
+  boxShadow: "var(--shadow-sm)",
+  cursor: "pointer",
+};
+
 export default function PipedriveCard({
   value,
   dealId,
@@ -41,9 +89,9 @@ export default function PipedriveCard({
   const createSelected = mode === "create";
 
   return (
-    <div className="rounded-xl border border-purple-300 bg-white shadow-md overflow-hidden">
-      <div className="bg-[#4c1d95] px-5 py-3 border-b border-[#4c1d95]">
-        <h3 className="text-sm font-semibold text-white uppercase tracking-wide">{t("modeLabel")}</h3>
+    <div style={cardStyles}>
+      <div style={headerStyles}>
+        <h3 style={headerTextStyles}>{t("modeLabel")}</h3>
       </div>
       <div className="bg-gradient-to-br from-purple-50 to-white p-5">
         <fieldset>
@@ -56,7 +104,8 @@ export default function PipedriveCard({
             ] as const).map((option) => (
               <label
                 key={option.value}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700 cursor-pointer"
+                style={radioLabelStyles}
+                className="transition hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700"
               >
                 <input
                   type="radio"
@@ -64,7 +113,8 @@ export default function PipedriveCard({
                   value={option.value}
                   checked={mode === option.value}
                   onChange={handleModeChange}
-                  className="h-4 w-4 border-slate-300 text-purple-600 focus:ring-2 focus:ring-purple-400/20"
+                  className="h-4 w-4 text-purple-600 focus:ring-2"
+                  style={{ borderColor: "var(--form-radio-border, #cbd5e1)", accentColor: "var(--form-radio-checked, #9333ea)" }}
                 />
                 <span>{option.label}</span>
               </label>
@@ -74,22 +124,47 @@ export default function PipedriveCard({
 
         {syncSelected ? (
           <div className="mt-5">
-            <label className="block text-xs font-medium text-slate-700 mb-2">
+            <label 
+              className="block text-xs font-medium mb-2"
+              style={{ color: "var(--form-label-text, #334155)" }}
+            >
               {t("label")}
-              <span className="text-red-600 ml-0.5">*</span>
+              <span className="ml-0.5" style={{ color: "rgb(var(--status-error, 239 68 68))" }}>*</span>
             </label>
             <input
-              className="w-full h-11 rounded-lg border border-purple-300 bg-white px-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-400/30"
+              style={inputStyles}
+              className="transition focus:outline-none focus:ring-2"
               placeholder={t("placeholder", { example })}
               value={value}
               onChange={handleChange}
             />
-            <div className="mt-2 text-xs text-slate-600">{t("description")}</div>
+            <div 
+              className="mt-2 text-xs"
+              style={{ color: "rgb(var(--text-secondary, 71 85 105))" }}
+            >
+              {t("description")}
+            </div>
             {value && !dealId ? (
-              <div className="mt-2 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs font-medium text-red-700">{t("invalid")}</div>
+              <div 
+                className="mt-2 rounded-md px-3 py-2 text-xs font-medium"
+                style={{ 
+                  backgroundColor: "rgba(var(--status-error), 0.1)",
+                  border: "1px solid rgba(var(--status-error), 0.3)",
+                  color: "rgb(var(--status-error, 239 68 68))"
+                }}
+              >
+                {t("invalid")}
+              </div>
             ) : null}
             {dealId ? (
-              <div className="mt-2 rounded-md bg-green-50 border border-green-200 px-3 py-2 text-xs font-medium text-green-700">
+              <div 
+                className="mt-2 rounded-md px-3 py-2 text-xs font-medium"
+                style={{ 
+                  backgroundColor: "rgba(var(--status-success), 0.1)",
+                  border: "1px solid rgba(var(--status-success), 0.3)",
+                  color: "rgb(var(--status-success, 34 197 94))"
+                }}
+              >
                 {t("detected")}:
                 <strong className="ml-1">{dealId}</strong>
               </div>
@@ -98,7 +173,14 @@ export default function PipedriveCard({
         ) : null}
 
         {createSelected ? (
-          <div className="mt-5 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <div 
+            className="mt-5 rounded-lg px-4 py-3 text-sm font-medium"
+            style={{ 
+              backgroundColor: "rgba(var(--status-error), 0.1)",
+              border: "1px solid rgba(var(--status-error), 0.3)",
+              color: "rgb(var(--status-error, 239 68 68))"
+            }}
+          >
             {t("notAvailable")}
           </div>
         ) : null}
