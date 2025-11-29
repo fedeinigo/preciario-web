@@ -100,7 +100,7 @@ function CatalogToolbar({
           <button
             onClick={onAddItem}
             style={addButtonStyles}
-            className="transition hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400/50"
+            className="transition hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--form-input-focus-ring)]"
             title={actionsT("addItem")}
             aria-label={actionsT("addItem")}
           >
@@ -128,7 +128,7 @@ function CatalogToolbar({
           </span>
           <select
             style={selectStyles}
-            className="transition focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20"
+            className="transition focus:border-[var(--form-input-focus-border)] focus:outline-none focus:ring-2 focus:ring-[var(--form-input-focus-ring)]"
             value={sortKey}
             onChange={(event) => onSortChange(event.target.value)}
           >

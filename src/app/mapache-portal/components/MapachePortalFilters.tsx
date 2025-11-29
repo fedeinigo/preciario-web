@@ -49,9 +49,9 @@ import {
 } from "../filters";
 import { normalizeSearchText } from "@/lib/normalize-search-text";
 
-const mapacheGlassPanel = "rounded-2xl border bg-white/5 p-4" + " " + "border-[var(--mapache-glass-border,rgba(255,255,255,0.1))]";
-const mapacheInputField = "rounded-full border border-white/10 bg-black/30 px-3 py-2";
-const mapacheListContainer = "rounded-xl border border-white/10 bg-black/30";
+const mapacheGlassPanel = "rounded-2xl border p-4 border-[var(--mapache-glass-border,rgba(255,255,255,0.1))] bg-[var(--mapache-glass-bg,rgba(255,255,255,0.06))]";
+const mapacheInputField = "rounded-full border border-[var(--mapache-glass-border,rgba(255,255,255,0.1))] bg-[rgba(0,0,0,0.3)] px-3 py-2";
+const mapacheListContainer = "rounded-xl border border-[var(--mapache-glass-border,rgba(255,255,255,0.1))] bg-[rgba(0,0,0,0.3)]";
 
 const OWNERSHIP_OPTIONS: OwnershipFilterValue[] = [
   "all",

@@ -90,7 +90,7 @@ export default function CompanyCard({
           <label style={labelStyles}>{t("name.label")}</label>
           <input
             style={inputStyles}
-            className="transition focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20"
+            className="transition focus:border-[var(--form-input-focus-border)] focus:outline-none focus:ring-2 focus:ring-[var(--form-input-focus-ring)]"
             placeholder={t("name.placeholder")}
             value={companyName}
             onChange={(event) => onCompanyNameChange(event.target.value)}

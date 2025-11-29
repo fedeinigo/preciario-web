@@ -105,7 +105,7 @@ export default function PipedriveCard({
               <label
                 key={option.value}
                 style={radioLabelStyles}
-                className="transition hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700"
+                className="transition hover:border-[var(--form-input-focus-border)] hover:bg-[var(--form-card-section-bg)] hover:text-[var(--form-radio-checked)]"
               >
                 <input
                   type="radio"
@@ -113,7 +113,7 @@ export default function PipedriveCard({
                   value={option.value}
                   checked={mode === option.value}
                   onChange={handleModeChange}
-                  className="h-4 w-4 text-purple-600 focus:ring-2"
+                  className="h-4 w-4 focus:ring-2"
                   style={{ borderColor: "var(--form-radio-border, #cbd5e1)", accentColor: "var(--form-radio-checked, #9333ea)" }}
                 />
                 <span>{option.label}</span>
