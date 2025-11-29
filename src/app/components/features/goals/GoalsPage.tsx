@@ -1140,7 +1140,7 @@ export default function GoalsPage({
                 {teamT("exportCsv")}
               </button>
             </div>
-            <div className="p-5 sm:p-6 max-h-[600px] overflow-y-auto">
+            <div className="p-4 sm:p-5">
               {!effectiveTeam ? (
                 <div className={isMapache 
                   ? "rounded-2xl border-2 border-dashed border-white/20 bg-white/5 p-8 text-center"

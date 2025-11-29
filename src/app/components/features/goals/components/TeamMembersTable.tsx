@@ -2,8 +2,9 @@
 "use client";
 
 import React from "react";
-import { ChevronDown, ChevronUp, Search, Filter, User, Target, TrendingUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Filter, User, Target, TrendingUp, Eye, Pencil, UserCircle, PlusCircle } from "lucide-react";
 import { toast } from "@/app/components/ui/toast";
+import Tooltip from "@/app/components/ui/Tooltip";
 import { formatUSD } from "../../proposals/lib/format";
 import { useTranslations } from "@/app/LanguageProvider";
 import UserAvatar from "@/app/components/ui/UserAvatar";
@@ -242,29 +243,35 @@ export default function TeamMembersTable({
     : "inline-flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 mb-4";
   const emptyIconColor = isMapache ? "h-6 w-6 text-white" : "h-6 w-6 text-purple-600";
   const rowCardClass = isMapache
-    ? "mapache-surface-card border-white/15 text-white shadow-[0_25px_70px_rgba(0,0,0,0.55)] hover:shadow-[0_30px_80px_rgba(0,0,0,0.65)] transition-all duration-300 p-4 space-y-4"
-    : "rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-purple-200 hover:shadow-lg transition-all duration-300 p-4 space-y-4";
-  const memberNameClass = isMapache ? "text-base font-semibold text-white truncate" : "text-base font-semibold text-slate-900 truncate";
-  const memberEmailClass = isMapache ? "text-sm text-white/60 truncate" : "text-sm text-slate-500 truncate";
+    ? "mapache-surface-card border-white/15 text-white shadow-[0_25px_70px_rgba(0,0,0,0.55)] hover:shadow-[0_30px_80px_rgba(0,0,0,0.65)] transition-all duration-300 p-3 space-y-3"
+    : "rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-purple-200 hover:shadow-lg transition-all duration-300 p-3 space-y-3";
+  const memberNameClass = isMapache ? "text-sm font-semibold text-white truncate" : "text-sm font-semibold text-slate-900 truncate";
+  const memberEmailClass = isMapache ? "text-xs text-white/60 truncate" : "text-xs text-slate-500 truncate";
   const labelUpperClass = isMapache
     ? "text-xs font-semibold uppercase tracking-wide text-white/55 mb-1"
     : "text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1";
-  const goalValueClass = isMapache ? "text-lg font-bold text-white" : "text-lg font-bold text-slate-900";
+  const goalValueClass = isMapache ? "text-base font-bold text-white" : "text-base font-bold text-slate-900";
   const goalSubLabelClass = isMapache ? "text-xs text-white/60" : "text-xs text-slate-500";
   const progressLabelClass = isMapache
     ? "text-xs font-semibold uppercase tracking-wide text-white/65 mb-1"
     : "text-xs font-semibold uppercase tracking-wide text-purple-600 mb-1";
-  const progressValueClass = isMapache ? "text-lg font-bold text-white" : "text-lg font-bold text-purple-900";
+  const progressValueClass = isMapache ? "text-base font-bold text-white" : "text-base font-bold text-purple-900";
   const progressMetaClass = isMapache ? "text-xs text-white/65" : "text-xs text-purple-600";
   const editInputClass = isMapache
     ? "w-full rounded-lg border-2 border-white/20 bg-white/5 px-3 py-1.5 text-base font-semibold text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/30"
     : "w-full rounded-lg border-2 border-purple-200 px-3 py-1.5 text-base font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/40";
+  const iconBtnClass = isMapache
+    ? "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] p-2 text-white shadow-[0_8px_20px_rgba(99,102,241,0.35)] transition hover:scale-105 hover:shadow-[0_12px_28px_rgba(99,102,241,0.45)]"
+    : "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 p-2 text-white shadow-sm transition hover:shadow-md hover:scale-105";
+  const secondaryIconBtnClass = isMapache
+    ? "inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 p-2 text-white/85 shadow-sm transition hover:bg-white/15 hover:scale-105"
+    : "inline-flex items-center justify-center rounded-lg bg-slate-100 p-2 text-slate-600 shadow-sm transition hover:bg-slate-200 hover:scale-105";
   const primaryActionClass = isMapache
-    ? "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] px-3 py-2 text-xs font-semibold text-white shadow-[0_14px_34px_rgba(99,102,241,0.4)] transition hover:translate-y-[-1px]"
-    : "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md";
+    ? "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] px-3 py-1.5 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(99,102,241,0.35)] transition hover:translate-y-[-1px]"
+    : "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:shadow-md";
   const secondaryActionClass = isMapache
-    ? "inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white/85 shadow-sm transition hover:bg-white/15"
-    : "inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-3 py-2 text-xs font-semibold text-white/80 shadow-sm transition hover:shadow-md";
+    ? "inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/85 shadow-sm transition hover:bg-white/15"
+    : "inline-flex items-center justify-center rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-200";
   const progressMetaRowClass = isMapache
     ? "flex items-center justify-between text-xs text-white/60 mb-1"
     : "flex items-center justify-between text-xs text-slate-500 mb-1";
@@ -376,14 +383,14 @@ export default function TeamMembersTable({
                 key={r.userId}
                 className={rowCardClass}
               >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-6">
-                  <div className="flex items-center gap-3 min-w-[220px] flex-1">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+                  <div className="flex items-center gap-2.5 min-w-[180px] flex-1">
                     <UserAvatar
                       name={displayName}
                       email={r.email ?? undefined}
                       image={r.image ?? undefined}
-                      size={56}
-                      className={`shadow-sm ring-4 ${perfColor.ring}`}
+                      size={44}
+                      className={`shadow-sm ring-2 ${perfColor.ring}`}
                     />
                     <div className="min-w-0">
                       <p className={memberNameClass}>{displayName}</p>
@@ -391,7 +398,7 @@ export default function TeamMembersTable({
                     </div>
                   </div>
 
-                  <div className="min-w-[160px]">
+                  <div className="min-w-[130px]">
                     <p className={labelUpperClass}>Objetivo</p>
                     {isEditing ? (
                       <input
@@ -412,7 +419,7 @@ export default function TeamMembersTable({
                     )}
                   </div>
 
-                  <div className="min-w-[150px]">
+                  <div className="min-w-[110px]">
                     <p className={progressLabelClass}>Avance</p>
                     <p className={progressValueClass}>{formatUSD(r.progress)}</p>
                     <p className={progressMetaClass}>
@@ -420,33 +427,36 @@ export default function TeamMembersTable({
                     </p>
                   </div>
 
-                  <div className="flex w-full gap-2 sm:w-auto sm:min-w-[140px]">
-                    <div className="flex w-full flex-col gap-2">
-                      {isEditing ? (
-                        <>
+                  <div className="flex items-center gap-1.5">
+                    {isEditing ? (
+                      <>
+                        <button
+                          className={primaryActionClass}
+                          onClick={() => saveEdit(r.userId)}
+                        >
+                          {actionsT("save")}
+                        </button>
+                        <button
+                          className={secondaryActionClass}
+                          onClick={cancelEdit}
+                        >
+                          {actionsT("cancel")}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <Tooltip content="Ver deals">
                           <button
-                            className={primaryActionClass}
-                            onClick={() => saveEdit(r.userId)}
-                          >
-                            {actionsT("save")}
-                          </button>
-                          <button
-                            className={secondaryActionClass}
-                            onClick={cancelEdit}
-                          >
-                            {actionsT("cancel")}
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            className={primaryActionClass}
+                            className={iconBtnClass}
                             onClick={() => onShowDeals?.(r)}
+                            aria-label="Ver deals"
                           >
-                            Ver deals
+                            <Eye className="h-4 w-4" />
                           </button>
+                        </Tooltip>
+                        <Tooltip content="Perfil">
                           <button
-                            className={primaryActionClass}
+                            className={secondaryIconBtnClass}
                             onClick={() =>
                               onOpenProfile({
                                 id: r.userId,
@@ -457,19 +467,25 @@ export default function TeamMembersTable({
                                 image: r.image ?? null,
                               })
                             }
+                            aria-label="Perfil"
                           >
-                            {actionsT("profile")}
+                            <UserCircle className="h-4 w-4" />
                           </button>
-                          {canAddManual && (
+                        </Tooltip>
+                        {canAddManual && (
+                          <Tooltip content={billingT("manualCta")}>
                             <button
-                              className={primaryActionClass}
+                              className={secondaryIconBtnClass}
                               onClick={() => onAddManual({ id: r.userId, email: r.email, name: r.name })}
+                              aria-label={billingT("manualCta")}
                             >
-                              {billingT("manualCta")}
+                              <PlusCircle className="h-4 w-4" />
                             </button>
-                          )}
+                          </Tooltip>
+                        )}
+                        <Tooltip content="Editar objetivo">
                           <button
-                            className={primaryActionClass}
+                            className={secondaryIconBtnClass}
                             onClick={() => {
                               if (!canEdit) {
                                 toast.info(toastT("restrictedEdit"));
@@ -477,17 +493,18 @@ export default function TeamMembersTable({
                               }
                               startEdit(r);
                             }}
+                            aria-label="Editar objetivo"
                           >
-                            {actionsT("edit")}
+                            <Pencil className="h-4 w-4" />
                           </button>
-                        </>
-                      )}
-                    </div>
+                        </Tooltip>
+                      </>
+                    )}
                   </div>
 
-                  <div className={`flex flex-col items-center justify-center rounded-xl px-4 py-2 ${perfColor.bg} shadow-sm`}>
-                    <span className="text-2xl font-bold text-white leading-none">{pctSafe.toFixed(0)}%</span>
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-white/80 mt-1">
+                  <div className={`flex flex-col items-center justify-center rounded-lg px-3 py-1.5 ${perfColor.bg} shadow-sm min-w-[60px]`}>
+                    <span className="text-xl font-bold text-white leading-none">{pctSafe.toFixed(0)}%</span>
+                    <span className="text-[9px] font-semibold uppercase tracking-wide text-white/80">
                       Cumpl.
                     </span>
                   </div>
