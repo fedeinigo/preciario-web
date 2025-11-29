@@ -94,20 +94,20 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
     trigger:
       "inline-flex items-center gap-2 rounded-full border border-white/25 bg-gradient-to-r from-white/10 via-white/5 to-transparent px-3 py-1.5 text-[13px] font-semibold text-white shadow-[0_10px_35px_rgba(0,0,0,0.4)] transition hover:border-white/40 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60",
     panel:
-      "rounded-[32px] border border-[#22d3ee]/30 bg-white text-slate-900 shadow-[0_45px_130px_rgba(34,211,238,0.12)]",
-    header: "bg-white border-b border-[#22d3ee]/20 px-6 py-4 text-[#0e7490]",
-    title: "text-lg font-semibold text-[#0e7490]",
-    description: "text-sm text-slate-600",
+      "rounded-[32px] border border-white/15 bg-[#0f172a]/95 text-white shadow-[0_45px_130px_rgba(0,0,0,0.6)] backdrop-blur-xl",
+    header: "bg-transparent border-b border-white/10 px-6 py-4 text-white",
+    title: "text-lg font-semibold text-white",
+    description: "text-sm text-white/70",
     card:
-      "flex items-center justify-between gap-4 rounded-2xl border border-[#22d3ee]/20 bg-[#ecfeff] px-4 py-3 shadow-sm transition hover:shadow-md",
-    cardTitle: "text-sm font-semibold text-slate-900",
-    cardDescription: "text-xs text-slate-500",
+      "flex items-center justify-between gap-4 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 shadow-sm transition hover:bg-white/10",
+    cardTitle: "text-sm font-semibold text-white",
+    cardDescription: "text-xs text-white/60",
     action:
-      "rounded-full border border-transparent bg-[#0e7490] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-[#0a5a6b] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#22d3ee]",
-    overlay: "bg-white/95 text-[#0e7490]",
-    overlaySpinner: "text-[#0e7490]",
-    overlayText: "text-[#0e7490]",
-    backdrop: "bg-black/35",
+      "rounded-full border border-transparent bg-gradient-to-r from-[#22d3ee] to-[#0ea5e9] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#22d3ee]",
+    overlay: "bg-[#0f172a]/95 text-white",
+    overlaySpinner: "text-[#22d3ee]",
+    overlayText: "text-white",
+    backdrop: "bg-black/60",
   },
   light: {
     trigger:
@@ -322,7 +322,7 @@ export default function PortalLauncher({
         titleClassName={theme.title}
         panelWidthClassName="max-w-lg"
         panelClassName={theme.panel}
-        variant="default"
+        variant={appearance === "mapache" ? "inverted" : "default"}
       >
         <div className="space-y-3">
           <p className={theme.description}>{portalText("description")}</p>
