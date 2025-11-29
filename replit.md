@@ -160,6 +160,32 @@ The Generator page (`/portal/directo/generator`) has been visually modernized wi
 - % badge compacted: smaller padding, text-2xl→text-xl
 - Icon button classes: `iconBtnClass` for primary, `secondaryIconBtnClass` for secondary actions
 
+### UserProfileModal Race Condition Fix (Nov 2025)
+
+**Problem**: When quickly switching between user profiles in the modal, stale API responses from the previous user could overwrite the current user's metrics, showing incorrect goal/progress data.
+
+**Solution Architecture**:
+- Added `activeTargetKeyRef` to track the current target user
+- Added `targetKey` tracking with `prevTargetKeyRef` to detect user changes
+- State reset on user change: `goalAmount` and `wonAmount` reset to 0 immediately
+- Loading state with visual feedback: spinner, placeholder text, animate-pulse
+
+**Race Condition Protection**:
+- `loadGoal` and `loadProgress` capture `requestTargetKey` at request start
+- Before updating state, verify `activeTargetKeyRef.current === requestTargetKey`
+- Late responses from previous users are silently ignored
+- Only responses matching the current target update the UI
+
+**Loading Indicators**:
+- Header shows loading spinner when `loadingData` is true
+- Percentage badge shows "--%" placeholder
+- Progress bar shows "Cargando..." text
+- All metric values show "--" with animate-pulse
+- Progress bar starts at 0% width during loading
+
+**Files Modified**:
+- `src/app/components/ui/UserProfileModal.tsx`: Race condition guards, loading states
+
 # External Dependencies
 
 ## Third-Party Services
