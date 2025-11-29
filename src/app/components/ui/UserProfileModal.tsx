@@ -321,20 +321,32 @@ export default function UserProfileModal({
   }, [open, loadGoalAndProgress]);
 
   const handleSync = useCallback(async () => {
-    if (syncing) return;
+    if (syncing || !resolvedTarget.id) return;
     setSyncing(true);
     setLoadingData(true);
     
     try {
-      window.dispatchEvent(new CustomEvent("goals:request-sync"));
+      const response = await fetch("/api/goals/sync-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: resolvedTarget.id }),
+      });
       
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      await loadGoalAndProgress();
+      if (response.ok) {
+        const data = await response.json();
+        if (data.ok) {
+          setGoalAmount(Number(data.goalAmount ?? 0));
+          setWonAmount(Number(data.progressAmount ?? 0));
+          setLastSyncedAt(data.lastSyncedAt ?? null);
+        }
+      }
+    } catch (error) {
+      console.error("sync-user-failed", error);
     } finally {
       setSyncing(false);
       setLoadingData(false);
     }
-  }, [syncing, loadGoalAndProgress]);
+  }, [syncing, resolvedTarget.id]);
 
   const formatSyncDate = useCallback((isoString: string | null) => {
     if (!isoString) return null;
