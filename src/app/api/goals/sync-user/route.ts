@@ -104,9 +104,23 @@ export async function POST(req: Request) {
 
     if (syncMode === "mapache") {
       const searchName = targetUser.name ?? "";
+      log.info("sync_user_mapache_search", { searchName, team: targetUser.team });
       if (searchName) {
         const rawDeals = await searchDealsByMapacheAssignedMany([searchName]);
         deals = rawDeals as typeof deals;
+        log.info("sync_user_mapache_deals_found", { 
+          dealsCount: deals.length,
+          sampleDeals: deals.slice(0, 3).map(d => ({ 
+            id: d.id, 
+            title: d.title, 
+            status: d.status, 
+            mapacheAssigned: d.mapacheAssigned,
+            wonAt: d.wonAt,
+            wonQuarter: d.wonQuarter,
+            feeMensual: d.feeMensual,
+            value: d.value
+          }))
+        });
       }
     } else {
       const searchEmail = targetUser.email ?? "";
@@ -129,17 +143,54 @@ export async function POST(req: Request) {
       return wonYear === year && (wonQuarter === quarter || wonMonthQuarter === quarter);
     });
 
+    log.info("sync_user_won_deals_filtered", {
+      totalDeals: deals.length,
+      wonDealsCount: wonDeals.length,
+      currentYear: year,
+      currentQuarter: quarter,
+      sampleWonDeals: wonDeals.slice(0, 3).map(d => ({
+        id: d.id,
+        title: d.title,
+        wonAt: d.wonAt,
+        wonQuarter: d.wonQuarter,
+        mapacheAssigned: d.mapacheAssigned,
+        feeMensual: d.feeMensual,
+        value: d.value
+      }))
+    });
+
     const normalizedTargetName = normalizeForComparison(targetUser.name ?? "");
     const normalizedTargetEmail = (targetUser.email ?? "").toLowerCase().trim();
 
     const matchingDeals = wonDeals.filter((deal) => {
       if (syncMode === "mapache") {
         const dealMapache = normalizeForComparison(String(deal.mapacheAssigned ?? ""));
-        return dealMapache === normalizedTargetName;
+        const matches = dealMapache === normalizedTargetName;
+        if (!matches && wonDeals.length > 0) {
+          log.warn("sync_user_name_mismatch", { 
+            dealMapache, 
+            normalizedTargetName,
+            dealId: deal.id 
+          });
+        }
+        return matches;
       } else {
         const dealEmail = (deal.ownerEmail ?? "").toLowerCase().trim();
         return dealEmail === normalizedTargetEmail;
       }
+    });
+
+    log.info("sync_user_matching_deals", {
+      wonDealsCount: wonDeals.length,
+      matchingDealsCount: matchingDeals.length,
+      normalizedTargetName,
+      sampleMatchingDeals: matchingDeals.slice(0, 3).map(d => ({
+        id: d.id,
+        title: d.title,
+        mapacheAssigned: d.mapacheAssigned,
+        feeMensual: d.feeMensual,
+        value: d.value
+      }))
     });
 
     let progressAmount = 0;
