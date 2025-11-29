@@ -61,8 +61,8 @@ export default function TeamMembersTable({
   const [editing, setEditing] = React.useState<string | null>(null);
   const [tmp, setTmp] = React.useState<number>(0);
 
-  const [sortKey, setSortKey] = React.useState<SortKey>("user");
-  const [sortAsc, setSortAsc] = React.useState<boolean>(true);
+  const [sortKey, setSortKey] = React.useState<SortKey>("pct");
+  const [sortAsc, setSortAsc] = React.useState<boolean>(false);
 
   const [searchQuery, setSearchQuery] = React.useState<string>("");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "above" | "below">("all");

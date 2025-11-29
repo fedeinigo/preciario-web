@@ -15,7 +15,6 @@ import IndividualGoalCard from "./components/IndividualGoalCard";
 import TeamGoalCard from "./components/TeamGoalCard";
 import TeamMembersTable, { TeamGoalRow } from "./components/TeamMembersTable";
 import BillingSummaryCard, { UserWonDeal } from "./components/BillingSummaryCard";
-import TeamRankingCard from "./components/TeamRankingCard";
 import { Download, Users2, Target } from "lucide-react";
 import ManualWonDialog from "./components/ManualWonDialog";
 import BillingEditorModal from "./components/BillingEditorModal";
@@ -1111,57 +1110,55 @@ export default function GoalsPage({
             onDeleteDeal={canAddManual ? handleDeleteManualWon : undefined}
             theme={theme}
           />
-          <TeamRankingCard
-            rows={rows}
-            loading={loadingTeam}
-            effectiveTeam={effectiveTeam}
-            theme={theme}
-            onSelectMember={(row) => setMemberDealsTarget({ user: row, deals: teamDealsByUser[row.userId] ?? [] })}
-          />
-        </div>
-
-        {/* Team Members Table - Enhanced */}
-        <div className={tableCardClass}>
-          <div className={tableHeaderClass}>
-            <div className="flex items-center gap-4">
-              <div className={tableIconShell}>
-                <Users2 className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className={tableSubtitleClass}>
-                  {pageT("teamTitle")}
-                </p>
-                <p className={tableTitleClass}>
-                  {effectiveTeam ? pageT("teamTitleWithName", { team: effectiveTeam }) : pageT("teamTitle")}
-                </p>
-              </div>
-            </div>
-            <button
-              className={
-                isMapache
-                  ? "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#8b5cf6] to-[#6366f1] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(99,102,241,0.35)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                  : "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-              }
-              onClick={exportCsv}
-              disabled={!effectiveTeam || loadingTeam}
-            >
-              <Download className="h-4 w-4" />
-              {teamT("exportCsv")}
-            </button>
-          </div>
-          <div className="p-6 sm:p-8">
-            {!effectiveTeam ? (
-              <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-8 text-center">
-                <div className="mx-auto max-w-md">
-                  <div className="h-16 w-16 mx-auto rounded-full bg-purple-100 flex items-center justify-center mb-4">
-                    <Users2 className="h-8 w-8 text-purple-600" />
-                  </div>
-                  <p className="text-sm text-purple-900 font-medium">
-                    {isSuperAdmin ? pageT("emptyAdmin") : pageT("emptyMember")}
+          
+          {/* Team Members Table - Unified (replaces TeamRankingCard) */}
+          <div className={tableCardClass}>
+            <div className={tableHeaderClass}>
+              <div className="flex items-center gap-4">
+                <div className={tableIconShell}>
+                  <Users2 className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className={tableSubtitleClass}>
+                    {pageT("teamTitle")}
+                  </p>
+                  <p className={tableTitleClass}>
+                    {effectiveTeam ? pageT("teamTitleWithName", { team: effectiveTeam }) : pageT("teamTitle")}
                   </p>
                 </div>
               </div>
-            ) : (
+              <button
+                className={
+                  isMapache
+                    ? "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#8b5cf6] to-[#6366f1] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(99,102,241,0.35)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    : "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                }
+                onClick={exportCsv}
+                disabled={!effectiveTeam || loadingTeam}
+              >
+                <Download className="h-4 w-4" />
+                {teamT("exportCsv")}
+              </button>
+            </div>
+            <div className="p-5 sm:p-6 max-h-[600px] overflow-y-auto">
+              {!effectiveTeam ? (
+                <div className={isMapache 
+                  ? "rounded-2xl border-2 border-dashed border-white/20 bg-white/5 p-8 text-center"
+                  : "rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-8 text-center"
+                }>
+                  <div className="mx-auto max-w-md">
+                    <div className={isMapache
+                      ? "h-16 w-16 mx-auto rounded-full bg-white/10 flex items-center justify-center mb-4"
+                      : "h-16 w-16 mx-auto rounded-full bg-purple-100 flex items-center justify-center mb-4"
+                    }>
+                      <Users2 className={isMapache ? "h-8 w-8 text-white" : "h-8 w-8 text-purple-600"} />
+                    </div>
+                    <p className={isMapache ? "text-sm text-white/80 font-medium" : "text-sm text-purple-900 font-medium"}>
+                      {isSuperAdmin ? pageT("emptyAdmin") : pageT("emptyMember")}
+                    </p>
+                  </div>
+                </div>
+              ) : (
                 <TeamMembersTable
                   loading={loadingTeam}
                   rows={rows}
@@ -1170,7 +1167,6 @@ export default function GoalsPage({
                   theme={theme}
                   onEditGoal={saveUserGoal}
                   onOpenProfile={(u) => {
-                    // Use team from row (API) instead of effectiveTeam to ensure it's always present
                     setProfileUser({
                       ...u,
                       team: u.team ?? effectiveTeam,
@@ -1186,7 +1182,8 @@ export default function GoalsPage({
                     setMemberDealsTarget({ user: row, deals: teamDealsByUser[row.userId] ?? [] })
                   }
                 />
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
