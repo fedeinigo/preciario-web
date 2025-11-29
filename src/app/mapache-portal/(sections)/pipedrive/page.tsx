@@ -36,9 +36,6 @@ type ApiResponse =
   | { ok: true; deals: PipedriveDealSummary[] }
   | { ok: false; error?: string };
 
-const ACTION_BUTTON_CLASSES =
-  "rounded-full border border-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80 transition hover:border-white/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
-
 type StatusFilter = "all" | "open" | "won" | "lost";
 type YearFilter = number | "all";
 
@@ -439,7 +436,7 @@ export default function MapachePortalPipedrivePage() {
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Deals Asignados</h1>
                     <p className="text-white/60 text-sm mt-0.5">
-                      Negocios con tu nombre en "Mapache Asignado"
+                      Negocios con tu nombre en &quot;Mapache Asignado&quot;
                     </p>
                   </div>
                 </div>
@@ -687,7 +684,7 @@ export default function MapachePortalPipedrivePage() {
                           <Briefcase className="h-6 w-6 text-white/40" />
                         </div>
                         <p className="text-sm text-white/50">
-                          Presiona "Sincronizar" para ver los deals asignados
+                          Presiona &quot;Sincronizar&quot; para ver los deals asignados
                         </p>
                       </div>
                     </td>
@@ -943,7 +940,7 @@ export default function MapachePortalPipedrivePage() {
               />
             </label>
             <p className="text-xs text-white/50">
-              Este enlace se guardará en el campo "Alcance Tech Sale" para que todo el equipo pueda verlo.
+              Este enlace se guardará en el campo &quot;Alcance Tech Sale&quot; para que todo el equipo pueda verlo.
             </p>
           </div>
         ) : null}

@@ -7,7 +7,7 @@ import UserAvatar from "@/app/components/ui/UserAvatar";
 import { formatUSD } from "../../proposals/lib/format";
 import type { UserWonDeal } from "./BillingSummaryCard";
 import type { TeamGoalRow } from "./TeamMembersTable";
-import { CircleUser, Users, Briefcase, AtSign, Target, TrendingUp, Calendar } from "lucide-react";
+import { CircleUser, Users, Briefcase, AtSign, TrendingUp, Calendar } from "lucide-react";
 
 type Props = {
   open: boolean;

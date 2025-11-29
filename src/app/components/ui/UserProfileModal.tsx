@@ -145,7 +145,7 @@ export default function UserProfileModal({
     resolvedTarget.leaderEmail,
   ]);
 
-  const isSelf =
+  const _isSelf =
     (!!viewer.id && !!resolvedTarget.id && viewer.id === resolvedTarget.id) ||
     (!!viewer.email && !!resolvedTarget.email && viewer.email === resolvedTarget.email);
 
