@@ -135,14 +135,12 @@ export default function Modal({
           panelClassName,
         ].join(" ")}
         style={{
-          background: isDarkPortal 
-            ? "var(--modal-surface, linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(30, 27, 75, 0.95)))"
-            : "rgb(var(--surface-modal))",
+          background: "var(--modal-surface)",
           borderWidth: "1px",
           borderStyle: "solid",
-          borderColor: isDarkPortal ? "var(--modal-border)" : "rgb(var(--modal-border))",
+          borderColor: "var(--modal-border)",
           boxShadow: "var(--shadow-modal)",
-          color: "rgb(var(--modal-text))",
+          color: "var(--modal-text)",
           ...panelStyle,
         }}
         onClick={(e) => e.stopPropagation()}
@@ -163,17 +161,15 @@ export default function Modal({
               .filter(Boolean)
               .join(" ")}
             style={{
-              background: isDarkPortal 
-                ? "var(--modal-header-bg, linear-gradient(to right, rgba(139, 92, 246, 0.25), rgba(109, 40, 217, 0.2), rgba(34, 211, 238, 0.25)))"
-                : "rgb(var(--modal-header-bg))",
-              borderBottom: isDarkPortal ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgb(var(--modal-border))",
+              background: "var(--modal-header-bg)",
+              borderBottom: `1px solid var(--modal-border)`,
             }}
             id={titleId}
           >
             <div className="flex items-start justify-between gap-3">
               <div 
                 className={["flex-1 min-w-0 text-left", titleClassName].join(" ")}
-                style={{ color: "rgb(var(--modal-text))" }}
+                style={{ color: "var(--modal-text)" }}
               >
                 {title}
               </div>
@@ -189,9 +185,7 @@ export default function Modal({
                   disabled={disableCloseOnBackdrop}
                   ref={closeButtonRef}
                   className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-transparent text-lg leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 modal-close-btn"
-                  style={{ 
-                    color: isDarkPortal ? "#fff" : "rgb(var(--modal-close-color))",
-                  }}
+                  style={{ color: "var(--modal-close-color)" }}
                 >
                   <span aria-hidden="true">&times;</span>
                 </button>
@@ -202,7 +196,7 @@ export default function Modal({
 
         <div 
           className="flex-1 overflow-y-auto px-4 py-4 modal-content"
-          style={{ color: "rgb(var(--modal-text))" }}
+          style={{ color: "var(--modal-text)" }}
         >
           {children}
         </div>
@@ -211,8 +205,8 @@ export default function Modal({
           <div
             className="px-4 py-3 modal-footer"
             style={{
-              background: isDarkPortal ? "rgba(255, 255, 255, 0.05)" : "rgb(var(--modal-header-bg))",
-              borderTop: isDarkPortal ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgb(var(--modal-border))",
+              background: isDarkPortal ? "rgba(255, 255, 255, 0.05)" : "var(--modal-header-bg)",
+              borderTop: `1px solid var(--modal-border)`,
             }}
           >
             {footer}

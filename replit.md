@@ -54,27 +54,40 @@ The Generator page (`/portal/directo/generator`) has been visually modernized wi
 - **Sidebars**: Modernized with Lucide chevron icons for collapse toggles
 - **Modals**: Updated with purple/red gradient buttons and improved spacing
 
-### Portal Mapache - Goals Section Modals (Nov 2025)
+### Portal Theme Token System (Nov 2025)
 
-Completely redesigned contrast and legibility for dark glassmorphism theme in `/portal/mapache/goals`. Uses **inline styles** (`style={{}}`) to ensure colors cannot be overridden by CSS:
+**Architecture**: Implemented a scalable, portal-scoped design token system in `src/styles/portal-tokens.css` to resolve theming conflicts where global CSS rules were forcing dark text on dark backgrounds in modals.
 
-**UserProfileModal** (appearance="mapache"):
-- **Panel Background**: Inline gradient (`linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(30, 27, 75, 0.95))`) - no CSS class dependencies
-- **Values/Titles**: Pure white (`#fff`) via inline style
-- **Labels**: Cyan (`#67e8f9`) via inline style for clear visibility
-- **Subtle Text**: Light cyan (`#a5f3fc`) via inline style
-- **Info Cards**: Slate/indigo gradient backgrounds with violet borders
-- **Avatar Ring**: Cyan glow effect
-- **All sections**: Inline color styles to prevent CSS override conflicts
+**Token Categories**:
+- `--surface-*`: Background colors (bg, primary, secondary, modal, navbar)
+- `--text-*`: Text colors (primary, secondary, muted, inverse, link, label)
+- `--border-*`: Border colors (primary, secondary, modal, focus)
+- `--modal-*`: Modal-specific tokens (backdrop, text, border, header-bg, surface)
+- `--shadow-*`: Shadow definitions (sm, md, lg, modal)
+- `--brand-*`: Brand colors (primary, secondary, accent)
 
-**MemberDealsModal** (theme="mapache"):
-- **Panel Background**: Same inline gradient as UserProfileModal
-- **Deal Cards**: Inline white text with cyan labels
-- **Dates/Types**: Light cyan (`#a5f3fc`) inline
-- **Pipedrive Links**: Emerald (`#6ee7b7`) inline
-- **Badges**: Cyan-to-violet gradient with glow effect
+**Portal Scopes**:
+- `[data-portal="directo"]`: Purple/violet light theme (default)
+- `[data-portal="mapache"]`: Dark glassmorphism with cyan/violet accents
+- `[data-portal="marketing"]`: Blue professional light theme
+- `[data-portal="partner"]`: Neutral slate light theme
 
-**Technical Approach**: Removed dependency on problematic CSS classes (`mapache-surface-card`, `mapache-profile-modal`) that were overriding Tailwind colors due to CSS specificity issues with `color: rgb(var(--ink))`. All Mapache theme colors now use React inline styles which have highest specificity.
+**Theme Activation**:
+- `PortalThemeProvider` component (`src/app/components/theme/PortalThemeProvider.tsx`) sets `data-portal` attribute on `<html>`
+- All portal layouts import and wrap content with `PortalThemeProvider`
+- Modal component detects current portal and applies corresponding tokens via `data-portal-modal` attribute
+
+**Modal Styling**:
+- `Modal.tsx` uses CSS tokens via inline styles for maximum specificity
+- Dark portals (Mapache) get glassmorphism backgrounds with white text
+- Light portals get clean white backgrounds with dark text
+- Automatic color inheritance via `[data-portal-modal]` CSS selectors
+
+**Files Modified**:
+- `src/styles/portal-tokens.css`: Token definitions for all 4 portals
+- `src/app/globals.css`: Import order fixed, redundant !important rules removed
+- `src/app/components/ui/Modal.tsx`: Token-driven styling
+- Portal layouts: `direct-portal`, `mapache-portal`, `marketing-portal`, `partner-portal`
 
 # External Dependencies
 

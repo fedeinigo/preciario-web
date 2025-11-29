@@ -16,6 +16,9 @@ export default function PortalThemeProvider({ portal, children }: PortalThemePro
     const root = document.documentElement;
     const body = document.body;
     
+    root.classList.remove("mapache-theme", "marketing-theme");
+    body.classList.remove("mapache-theme", "marketing-theme");
+    
     root.setAttribute("data-portal", portal);
     
     if (portal === "mapache") {
