@@ -728,6 +728,25 @@ export default function GoalsPage({
           teamDealsBaseMap: resolvedDealsMap,
           lastSyncedAt: syncMoment.toISOString(),
         });
+        
+        const snapshotsToSave = merged.rows.map((row) => ({
+          userId: row.userId,
+          year,
+          quarter,
+          goalAmount: row.goal,
+          progressAmount: row.progress,
+          pct: row.pct,
+          dealsCount: row.dealsCount ?? 0,
+          source: "pipedrive",
+        }));
+        
+        if (snapshotsToSave.length > 0) {
+          fetch("/api/goals/snapshot", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ snapshots: snapshotsToSave }),
+          }).catch((err) => console.error("Failed to save snapshots", err));
+        }
       }
     } catch {
       setTeamGoal(0); setTeamProgress(0); setRows([]); setBaseRows([]); setTeamProgressRaw(0); setTeamMonthlyProgressRaw(0); setTeamMonthlyProgress(0); setTeamDealsByUser({}); setTeamDealsBaseMap({});
@@ -758,8 +777,16 @@ export default function GoalsPage({
       loadMyWins();
       loadTeam();
     };
+    const handleGoalsSyncRequest = () => {
+      loadMyWins({ force: true });
+      loadTeam({ force: true });
+    };
     window.addEventListener("proposals:refresh", handleRefresh as EventListener);
-    return () => window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
+    window.addEventListener("goals:request-sync", handleGoalsSyncRequest as EventListener);
+    return () => {
+      window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
+      window.removeEventListener("goals:request-sync", handleGoalsSyncRequest as EventListener);
+    };
   }, [loadMyWins, loadTeam]);
 
   const handleSync = React.useCallback(async () => {

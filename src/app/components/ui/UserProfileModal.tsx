@@ -4,7 +4,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Modal from "@/app/components/ui/Modal";
 import UserAvatar from "@/app/components/ui/UserAvatar";
-import { Mail, Shield, Users2, TrendingUp, Calendar, Award, Briefcase, UserCircle2 } from "lucide-react";
+import { Mail, Shield, Users2, TrendingUp, Calendar, Award, Briefcase, UserCircle2, RefreshCw, Clock } from "lucide-react";
 import { formatUSD } from "@/app/components/features/proposals/lib/format";
 import { q1Range, q2Range, q3Range, q4Range } from "@/app/components/features/proposals/lib/dateRanges";
 import type { AppRole } from "@/constants/teams";
@@ -160,12 +160,13 @@ export default function UserProfileModal({
   }, [now]);
 
   const [goalAmount, setGoalAmount] = useState<number>(0);
+  const [wonAmount, setWonAmount] = useState<number>(0);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const range = useMemo(() => {
     return [q1Range, q2Range, q3Range, q4Range][quarter - 1](year);
   }, [year, quarter]);
-
-  const [wonAmount, setWonAmount] = useState<number>(0);
   
   // Use a ref to track the current request's target to prevent race conditions
   const activeTargetKeyRef = React.useRef(targetKey);
@@ -175,55 +176,126 @@ export default function UserProfileModal({
     activeTargetKeyRef.current = targetKey;
   }, [targetKey]);
   
-  const loadProgress = useCallback(async () => {
-    const requestTargetKey = targetKey; // Capture current target at request time
-    const params = new URLSearchParams({ year: String(year), quarter: String(quarter) });
-    if (resolvedTarget.id) {
-      params.set("userId", resolvedTarget.id);
-    } else if (resolvedTarget.email) {
-      params.set("email", resolvedTarget.email);
-    } else {
-      setWonAmount(0);
-      return;
-    }
+  const tryLoadFromCache = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    const team = resolvedTarget.team;
+    if (!team) return null;
+    
+    const cacheKey = `goals:pipedrive:team:${team}:${year}:Q${quarter}`;
     try {
-      const response = await fetch(`/api/goals/wins?${params.toString()}`, { cache: "no-store" });
-      if (!response.ok) throw new Error("fail");
-      const payload = (await response.json()) as { progress?: number };
-      // Only update state if this request is still for the current target
-      if (activeTargetKeyRef.current === requestTargetKey) {
-        setWonAmount(Number(payload.progress ?? 0));
+      const raw = localStorage.getItem(cacheKey);
+      if (!raw) return null;
+      const cached = JSON.parse(raw) as {
+        rows?: Array<{
+          userId?: string;
+          email?: string | null;
+          goal?: number;
+          progress?: number;
+          pct?: number;
+        }>;
+        lastSyncedAt?: string;
+      };
+      if (!cached.rows || !Array.isArray(cached.rows)) return null;
+      
+      const match = cached.rows.find((row) => 
+        (resolvedTarget.id && row.userId === resolvedTarget.id) ||
+        (resolvedTarget.email && row.email === resolvedTarget.email)
+      );
+      
+      if (match) {
+        return {
+          goalAmount: Number(match.goal ?? 0),
+          progressAmount: Number(match.progress ?? 0),
+          pct: Number(match.pct ?? 0),
+          lastSyncedAt: cached.lastSyncedAt ?? null,
+        };
       }
     } catch {
-      if (activeTargetKeyRef.current === requestTargetKey) {
-        setWonAmount(0);
-      }
+      return null;
     }
-  }, [resolvedTarget.id, resolvedTarget.email, year, quarter, targetKey]);
+    return null;
+  }, [resolvedTarget.id, resolvedTarget.email, resolvedTarget.team, year, quarter]);
 
-  const loadGoal = useCallback(async () => {
-    const requestTargetKey = targetKey; // Capture current target at request time
+  const loadFromSnapshot = useCallback(async () => {
+    const requestTargetKey = targetKey;
+    if (!resolvedTarget.id) return null;
+    
     try {
-      const qs: string[] = [`year=${year}`, `quarter=${quarter}`];
-      if (!isSelf) {
-        if (resolvedTarget.id) qs.push(`userId=${encodeURIComponent(resolvedTarget.id)}`);
-        else if (resolvedTarget.email) qs.push(`email=${encodeURIComponent(resolvedTarget.email)}`);
-      } else if (resolvedTarget.id) {
-        qs.push(`userId=${encodeURIComponent(resolvedTarget.id)}`);
+      const params = new URLSearchParams({
+        year: String(year),
+        quarter: String(quarter),
+        userId: resolvedTarget.id,
+      });
+      const response = await fetch(`/api/goals/snapshot?${params.toString()}`, { cache: "no-store" });
+      if (!response.ok) return null;
+      const payload = await response.json();
+      
+      if (activeTargetKeyRef.current !== requestTargetKey) return null;
+      
+      if (payload.found) {
+        return {
+          goalAmount: Number(payload.goalAmount ?? 0),
+          progressAmount: Number(payload.progressAmount ?? 0),
+          pct: Number(payload.pct ?? 0),
+          lastSyncedAt: payload.lastSyncedAt ?? null,
+        };
       }
-      const r = await fetch(`/api/goals/user?${qs.join("&")}`);
-      const j = (await r.json()) as { amount?: number };
-      const amt = Number(j.amount ?? 0);
-      // Only update state if this request is still for the current target
+    } catch {
+      return null;
+    }
+    return null;
+  }, [resolvedTarget.id, year, quarter, targetKey]);
+
+  const loadGoalAndProgress = useCallback(async () => {
+    const requestTargetKey = targetKey;
+    
+    const cached = tryLoadFromCache();
+    if (cached) {
       if (activeTargetKeyRef.current === requestTargetKey) {
-        setGoalAmount(amt);
+        setGoalAmount(cached.goalAmount);
+        setWonAmount(cached.progressAmount);
+        setLastSyncedAt(cached.lastSyncedAt);
+      }
+      return;
+    }
+    
+    const snapshot = await loadFromSnapshot();
+    if (snapshot) {
+      if (activeTargetKeyRef.current === requestTargetKey) {
+        setGoalAmount(snapshot.goalAmount);
+        setWonAmount(snapshot.progressAmount);
+        setLastSyncedAt(snapshot.lastSyncedAt);
+      }
+      return;
+    }
+    
+    const qs: string[] = [`year=${year}`, `quarter=${quarter}`];
+    if (resolvedTarget.id) qs.push(`userId=${encodeURIComponent(resolvedTarget.id)}`);
+    else if (resolvedTarget.email) qs.push(`email=${encodeURIComponent(resolvedTarget.email)}`);
+    
+    try {
+      const [goalRes, progressRes] = await Promise.all([
+        fetch(`/api/goals/user?${qs.join("&")}`),
+        fetch(`/api/goals/wins?${qs.join("&")}`, { cache: "no-store" }),
+      ]);
+      
+      if (activeTargetKeyRef.current !== requestTargetKey) return;
+      
+      if (goalRes.ok) {
+        const goalData = await goalRes.json();
+        setGoalAmount(Number(goalData.amount ?? 0));
+      }
+      if (progressRes.ok) {
+        const progressData = await progressRes.json();
+        setWonAmount(Number(progressData.progress ?? 0));
       }
     } catch {
       if (activeTargetKeyRef.current === requestTargetKey) {
         setGoalAmount(0);
+        setWonAmount(0);
       }
     }
-  }, [resolvedTarget.id, resolvedTarget.email, year, quarter, isSelf, targetKey]);
+  }, [resolvedTarget.id, resolvedTarget.email, year, quarter, targetKey, tryLoadFromCache, loadFromSnapshot]);
 
   // Reset data when target changes to avoid showing stale data
   useEffect(() => {
@@ -232,6 +304,7 @@ export default function UserProfileModal({
       prevTargetKeyRef.current = targetKey;
       setGoalAmount(0);
       setWonAmount(0);
+      setLastSyncedAt(null);
       setLoadingData(true);
     }
   }, [targetKey]);
@@ -242,13 +315,47 @@ export default function UserProfileModal({
     
     setLoadingData(true);
     
-    Promise.all([
-      loadGoal().catch(() => undefined),
-      loadProgress().catch(() => undefined),
-    ]).finally(() => {
+    loadGoalAndProgress().finally(() => {
       setLoadingData(false);
     });
-  }, [open, loadGoal, loadProgress]);
+  }, [open, loadGoalAndProgress]);
+
+  const handleSync = useCallback(async () => {
+    if (syncing) return;
+    setSyncing(true);
+    setLoadingData(true);
+    
+    try {
+      window.dispatchEvent(new CustomEvent("goals:request-sync"));
+      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await loadGoalAndProgress();
+    } finally {
+      setSyncing(false);
+      setLoadingData(false);
+    }
+  }, [syncing, loadGoalAndProgress]);
+
+  const formatSyncDate = useCallback((isoString: string | null) => {
+    if (!isoString) return null;
+    try {
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+      
+      if (diffMins < 1) return "Hace un momento";
+      if (diffMins < 60) return `Hace ${diffMins} min`;
+      if (diffHours < 24) return `Hace ${diffHours}h`;
+      if (diffDays < 7) return `Hace ${diffDays} días`;
+      
+      return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+    } catch {
+      return null;
+    }
+  }, []);
 
   const pct = useMemo(() => {
     if (goalAmount <= 0) return 0;
@@ -515,17 +622,45 @@ export default function UserProfileModal({
                 Desempeño Q{quarter} {year}
               </h3>
             </div>
-            {!loadingData && pct >= 100 && (
-              <Award className="h-6 w-6 text-yellow-500" />
-            )}
-            {loadingData && (
-              <div className={`h-5 w-5 animate-spin rounded-full border-2 ${
-                isMapacheAppearance ? "border-cyan-400 border-t-transparent" : 
-                isDirectAppearance ? "border-purple-600 border-t-transparent" : 
-                "border-slate-400 border-t-transparent"
-              }`} />
-            )}
+            <div className="flex items-center gap-2">
+              {!loadingData && pct >= 100 && (
+                <Award className="h-6 w-6 text-yellow-500" />
+              )}
+              {loadingData && (
+                <div className={`h-5 w-5 animate-spin rounded-full border-2 ${
+                  isMapacheAppearance ? "border-cyan-400 border-t-transparent" : 
+                  isDirectAppearance ? "border-purple-600 border-t-transparent" : 
+                  "border-slate-400 border-t-transparent"
+                }`} />
+              )}
+              <button
+                onClick={handleSync}
+                disabled={syncing || loadingData}
+                className={`p-1.5 rounded-lg transition ${
+                  isMapacheAppearance 
+                    ? "hover:bg-white/10 text-cyan-300 disabled:text-white/30" 
+                    : isDirectAppearance 
+                      ? "hover:bg-purple-100 text-purple-600 disabled:text-slate-300"
+                      : "hover:bg-slate-100 text-slate-600 disabled:text-slate-300"
+                }`}
+                title="Sincronizar datos"
+              >
+                <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+              </button>
+            </div>
           </div>
+          
+          {/* Last sync indicator */}
+          {lastSyncedAt && (
+            <div 
+              className={`flex items-center gap-1.5 text-xs mb-3 ${
+                isMapacheAppearance ? "text-cyan-300/70" : isDirectAppearance ? "text-purple-500/70" : "text-slate-500"
+              }`}
+            >
+              <Clock className="h-3 w-3" />
+              <span>Última sincronización: {formatSyncDate(lastSyncedAt)}</span>
+            </div>
+          )}
           
           {/* Progress Bar - Más prominente */}
           <div className="mb-6">
