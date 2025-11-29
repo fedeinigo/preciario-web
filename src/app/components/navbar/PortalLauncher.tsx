@@ -41,9 +41,10 @@ type LauncherTheme = {
   header: string;
   title: string;
   description: string;
+  descriptionColor: string;
   card: string;
-  cardTitle: string;
-  cardDescription: string;
+  cardTitleColor: string;
+  cardDescriptionColor: string;
   action: string;
   overlay: string;
   overlaySpinner: string;
@@ -56,14 +57,15 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
     trigger:
       "inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[13px] text-white transition hover:border-white/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60",
     panel:
-      "rounded-[32px] border border-slate-200 bg-white text-slate-900 shadow-[0_45px_130px_rgba(15,23,42,0.18)]",
-    header: "bg-white border-b border-slate-100 px-6 py-4 text-slate-900",
-    title: "text-lg font-semibold text-slate-900",
-    description: "text-sm text-slate-500",
+      "rounded-[32px] border border-slate-200 bg-white shadow-[0_45px_130px_rgba(15,23,42,0.18)]",
+    header: "bg-white border-b border-slate-100 px-6 py-4",
+    title: "text-lg font-semibold",
+    description: "text-sm",
+    descriptionColor: "#64748b",
     card:
       "flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm transition hover:shadow-md",
-    cardTitle: "text-sm font-semibold text-slate-900",
-    cardDescription: "text-xs text-slate-500",
+    cardTitleColor: "#0f172a",
+    cardDescriptionColor: "#64748b",
     action:
       "rounded-full border border-transparent bg-[#4c1d95] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-[#3b0d71] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c4b5fd]",
     overlay: "bg-white/95 text-slate-900",
@@ -75,14 +77,15 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
     trigger:
       "inline-flex items-center gap-2 rounded-full border border-[#c4b5fd] bg-white px-3 py-1.5 text-[13px] font-semibold text-[#4c1d95] shadow-sm transition hover:bg-[#ede9fe] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c4b5fd]",
     panel:
-      "rounded-[32px] border border-[#ede9fe] bg-white text-slate-900 shadow-[0_45px_130px_rgba(76,29,149,0.15)]",
-    header: "bg-white border-b border-[#ede9fe] px-6 py-4 text-[#4c1d95]",
-    title: "text-lg font-semibold text-[#4c1d95]",
-    description: "text-sm text-slate-600",
+      "rounded-[32px] border border-[#ede9fe] bg-white shadow-[0_45px_130px_rgba(76,29,149,0.15)]",
+    header: "bg-white border-b border-[#ede9fe] px-6 py-4",
+    title: "text-lg font-semibold",
+    description: "text-sm",
+    descriptionColor: "#475569",
     card:
       "flex items-center justify-between gap-4 rounded-2xl border border-[#ede9fe] bg-[#faf5ff] px-4 py-3 shadow-sm transition hover:shadow-md",
-    cardTitle: "text-sm font-semibold text-slate-900",
-    cardDescription: "text-xs text-slate-500",
+    cardTitleColor: "#0f172a",
+    cardDescriptionColor: "#64748b",
     action:
       "rounded-full border border-transparent bg-[#4c1d95] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-[#3b0d71] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c4b5fd]",
     overlay: "bg-white/95 text-[#4c1d95]",
@@ -94,14 +97,15 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
     trigger:
       "inline-flex items-center gap-2 rounded-full border border-white/25 bg-gradient-to-r from-white/10 via-white/5 to-transparent px-3 py-1.5 text-[13px] font-semibold text-white shadow-[0_10px_35px_rgba(0,0,0,0.4)] transition hover:border-white/40 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60",
     panel:
-      "rounded-[32px] border border-white/15 bg-[#0f172a]/95 text-white shadow-[0_45px_130px_rgba(0,0,0,0.6)] backdrop-blur-xl",
-    header: "bg-transparent border-b border-white/10 px-6 py-4 text-white",
-    title: "text-lg font-semibold text-white",
-    description: "text-sm text-white/70",
+      "rounded-[32px] border border-white/15 bg-[#0f172a]/95 shadow-[0_45px_130px_rgba(0,0,0,0.6)] backdrop-blur-xl",
+    header: "bg-transparent border-b border-white/10 px-6 py-4",
+    title: "text-lg font-semibold",
+    description: "text-sm",
+    descriptionColor: "rgba(255,255,255,0.7)",
     card:
       "flex items-center justify-between gap-4 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 shadow-sm transition hover:bg-white/10",
-    cardTitle: "text-sm font-semibold text-white",
-    cardDescription: "text-xs text-white/60",
+    cardTitleColor: "#ffffff",
+    cardDescriptionColor: "rgba(255,255,255,0.6)",
     action:
       "rounded-full border border-transparent bg-gradient-to-r from-[#22d3ee] to-[#0ea5e9] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#22d3ee]",
     overlay: "bg-[#0f172a]/95 text-white",
@@ -113,14 +117,15 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
     trigger:
       "inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[13px] text-slate-900 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-300",
     panel:
-      "rounded-[32px] border border-slate-200 bg-white text-slate-900 shadow-[0_45px_130px_rgba(15,23,42,0.15)]",
-    header: "bg-white border-b border-slate-100 px-6 py-4 text-slate-900",
-    title: "text-lg font-semibold text-slate-900",
-    description: "text-sm text-slate-500",
+      "rounded-[32px] border border-slate-200 bg-white shadow-[0_45px_130px_rgba(15,23,42,0.15)]",
+    header: "bg-white border-b border-slate-100 px-6 py-4",
+    title: "text-lg font-semibold",
+    description: "text-sm",
+    descriptionColor: "#64748b",
     card:
       "flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm transition hover:shadow-md",
-    cardTitle: "text-sm font-semibold text-slate-900",
-    cardDescription: "text-xs text-slate-500",
+    cardTitleColor: "#0f172a",
+    cardDescriptionColor: "#64748b",
     action:
       "rounded-full border border-transparent bg-slate-800 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400",
     overlay: "bg-white/90 text-slate-900",
@@ -132,14 +137,15 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
     trigger:
       "inline-flex items-center gap-2 rounded-full border border-[#b8dcff] bg-white px-3 py-1.5 text-[13px] font-semibold text-[#0f406d] shadow-sm transition hover:bg-[#ecf5ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#93c5fd]",
     panel:
-      "rounded-[32px] border border-[#cce8ff] bg-white text-slate-900 shadow-[0_45px_130px_rgba(15,23,42,0.18)]",
-    header: "bg-white border-b border-[#cce8ff] px-6 py-4 text-[#0f406d]",
-    title: "text-lg font-semibold text-[#0f406d]",
-    description: "text-sm text-slate-600",
+      "rounded-[32px] border border-[#cce8ff] bg-white shadow-[0_45px_130px_rgba(15,23,42,0.18)]",
+    header: "bg-white border-b border-[#cce8ff] px-6 py-4",
+    title: "text-lg font-semibold",
+    description: "text-sm",
+    descriptionColor: "#475569",
     card:
       "flex items-center justify-between gap-4 rounded-2xl border border-[#cce8ff] bg-[#f5fbff] px-4 py-3 shadow-sm transition hover:shadow-md",
-    cardTitle: "text-sm font-semibold text-slate-900",
-    cardDescription: "text-xs text-slate-500",
+    cardTitleColor: "#0f172a",
+    cardDescriptionColor: "#64748b",
     action:
       "rounded-full border border-transparent bg-[#1d6ee3] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-[#1452c5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#93c5fd]",
     overlay: "bg-white/95 text-[#0f406d]",
@@ -325,13 +331,19 @@ export default function PortalLauncher({
         variant={appearance === "mapache" ? "inverted" : "default"}
       >
         <div className="space-y-3">
-          <p className={theme.description}>{portalText("description")}</p>
+          <p className={theme.description} style={{ color: theme.descriptionColor }}>
+            {portalText("description")}
+          </p>
           <div className="space-y-3">
             {options.map((option) => (
               <div key={option.id} className={theme.card}>
                 <div>
-                  <div className={theme.cardTitle}>{option.label}</div>
-                  <p className={theme.cardDescription}>{option.description}</p>
+                  <div className="text-sm font-semibold" style={{ color: theme.cardTitleColor }}>
+                    {option.label}
+                  </div>
+                  <p className="text-xs" style={{ color: theme.cardDescriptionColor }}>
+                    {option.description}
+                  </p>
                 </div>
                 <button
                   type="button"
