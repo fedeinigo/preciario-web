@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { searchDealsByMapacheAssignedMany, searchDealsByOwnerEmails } from "@/lib/pipedrive";
+import { searchDealsByMapacheAssigned, searchDealsByOwnerEmails } from "@/lib/pipedrive";
 import logger from "@/lib/logger";
 
 const log = logger.child({ route: "api/goals/sync-user" });
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
       const searchName = targetUser.name ?? "";
       log.info("sync_user_mapache_search", { searchName, team: targetUser.team });
       if (searchName) {
-        const rawDeals = await searchDealsByMapacheAssignedMany([searchName]);
+        const rawDeals = await searchDealsByMapacheAssigned(searchName);
         deals = rawDeals as typeof deals;
         log.info("sync_user_mapache_deals_found", { 
           dealsCount: deals.length,
