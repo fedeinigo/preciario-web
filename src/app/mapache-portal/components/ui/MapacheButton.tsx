@@ -12,34 +12,44 @@ export interface MapacheButtonProps
   loading?: boolean;
 }
 
-const variantStyles: Record<MapacheButtonVariant, string> = {
-  primary: [
-    "bg-white text-[rgb(var(--brand-primary))] font-medium",
-    "shadow-[0_2px_8px_rgba(255,255,255,0.15)]",
-    "hover:bg-white/90",
-    "focus-visible:ring-white/60",
-  ].join(" "),
-  secondary: [
-    "border border-white/30 text-white/80 bg-transparent",
-    "hover:bg-white/10",
-    "focus-visible:ring-white/40",
-  ].join(" "),
-  ghost: [
-    "text-white/70 bg-transparent",
-    "hover:bg-white/10 hover:text-white",
-    "focus-visible:ring-white/40",
-  ].join(" "),
-  accent: [
-    "bg-gradient-to-r from-cyan-400 to-violet-500 text-white font-medium",
-    "shadow-[0_4px_16px_rgba(34,211,238,0.3)]",
-    "hover:shadow-[0_6px_20px_rgba(34,211,238,0.4)]",
-    "focus-visible:ring-cyan-400/60",
-  ].join(" "),
-  danger: [
-    "bg-rose-500/20 border border-rose-500/40 text-rose-100",
-    "hover:bg-rose-500/30",
-    "focus-visible:ring-rose-500/40",
-  ].join(" "),
+const variantBaseClass = "inline-flex items-center justify-center gap-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60";
+
+const getVariantStyles = (variant: MapacheButtonVariant): React.CSSProperties => {
+  switch (variant) {
+    case "primary":
+      return {
+        background: "rgb(var(--text-primary))",
+        color: "rgb(var(--brand-primary))",
+        fontWeight: 500,
+        boxShadow: "0 2px 8px rgba(255,255,255,0.15)",
+      };
+    case "secondary":
+      return {
+        background: "transparent",
+        border: "1px solid var(--mapache-glass-border, rgba(255,255,255,0.3))",
+        color: "rgb(var(--text-secondary))",
+      };
+    case "ghost":
+      return {
+        background: "transparent",
+        color: "rgb(var(--text-muted))",
+      };
+    case "accent":
+      return {
+        background: `linear-gradient(to right, rgb(var(--brand-accent)), rgb(var(--brand-primary)))`,
+        color: "rgb(var(--text-primary))",
+        fontWeight: 500,
+        boxShadow: "0 4px 16px rgba(34,211,238,0.3)",
+      };
+    case "danger":
+      return {
+        background: "rgb(var(--status-error) / 0.2)",
+        border: "1px solid rgb(var(--status-error) / 0.4)",
+        color: "rgb(var(--status-error))",
+      };
+    default:
+      return {};
+  }
 };
 
 const sizeStyles: Record<MapacheButtonSize, string> = {
@@ -57,6 +67,7 @@ const MapacheButton = React.forwardRef<HTMLButtonElement, MapacheButtonProps>(
       loading = false,
       disabled,
       children,
+      style,
       ...props
     },
     ref
@@ -66,14 +77,14 @@ const MapacheButton = React.forwardRef<HTMLButtonElement, MapacheButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={[
-          "inline-flex items-center justify-center gap-2",
-          "transition-all duration-150",
-          "focus:outline-none focus-visible:ring-2",
-          "disabled:cursor-not-allowed disabled:opacity-60",
-          variantStyles[variant],
+          variantBaseClass,
           sizeStyles[size],
           className,
         ].join(" ")}
+        style={{
+          ...getVariantStyles(variant),
+          ...style,
+        }}
         {...props}
       >
         {loading && (

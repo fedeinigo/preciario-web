@@ -15,8 +15,13 @@ import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
 
-const mapacheInputClass = "rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--brand-primary))] focus:outline-none focus:ring-1 focus:ring-[rgb(var(--brand-primary))]/30 transition-colors duration-150";
-const mapacheTextareaClass = "min-h-[88px] rounded-md border border-white/20 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-[rgb(var(--brand-primary))] focus:outline-none focus:ring-1 focus:ring-[rgb(var(--brand-primary))]/30 transition-colors duration-150 resize-none";
+const mapacheInputStyles: React.CSSProperties = {
+  borderColor: "var(--mapache-glass-border, rgba(255,255,255,0.2))",
+  background: "var(--mapache-glass-bg, rgba(2,6,23,0.6))",
+  color: "rgb(var(--text-primary))",
+};
+const mapacheInputClass = "rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors duration-150";
+const mapacheTextareaClass = "min-h-[88px] rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 transition-colors duration-150 resize-none";
 
 import type { MapachePortalBootstrap } from "./bootstrap-types";
 import type {
