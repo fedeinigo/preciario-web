@@ -186,6 +186,35 @@ The Generator page (`/portal/directo/generator`) has been visually modernized wi
 **Files Modified**:
 - `src/app/components/ui/UserProfileModal.tsx`: Race condition guards, loading states
 
+### Goals Progress Snapshot System (Nov 2025)
+
+**Purpose**: Persist synced Pipedrive progress data to the database so users can view their goal/progress metrics from any location in the app, not just the Goals page.
+
+**Database Model**:
+- `GoalsProgressSnapshot`: Stores userId, year, quarter, goalAmount, progressAmount, pct, dealsCount, lastSyncedAt
+- Unique constraint on (userId, year, quarter) for upsert operations
+
+**Data Flow**:
+1. GoalsPage syncs with Pipedrive API
+2. After sync, GoalsPage POSTs batch snapshots to `/api/goals/snapshot`
+3. UserProfileModal reads from: localStorage cache → DB snapshot → legacy API endpoints
+4. Event-based sync: Modal dispatches `goals:request-sync`, GoalsPage listens and triggers sync
+
+**Cache Strategy**:
+- Team data cached in localStorage: `goals:pipedrive:team:${team}:${year}:Q${quarter}`
+- Personal data cached: `goals:pipedrive:${email}:${year}:Q${quarter}`
+- Modal tries team cache first (by user ID/email match), then falls back to DB snapshot
+
+**API Endpoint** (`/api/goals/snapshot`):
+- GET: Fetch single user's snapshot by userId, year, quarter
+- POST: Batch upsert snapshots for multiple users (used after team sync)
+
+**Files Added/Modified**:
+- `prisma/schema.prisma`: Added GoalsProgressSnapshot model
+- `src/app/api/goals/snapshot/route.ts`: GET/POST handlers
+- `src/app/components/features/goals/GoalsPage.tsx`: Snapshot persistence after sync
+- `src/app/components/ui/UserProfileModal.tsx`: Multi-tier data loading, sync button, lastSyncedAt display
+
 # External Dependencies
 
 ## Third-Party Services
