@@ -24,12 +24,16 @@ export function ChartCard({
   children,
 }: ChartCardProps) {
   return (
-    <div className="flex h-full flex-col gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.35)]">
+    <div className="flex h-full flex-col gap-4 rounded-lg border p-4" style={{
+      borderColor: "var(--mapache-glass-border, rgba(255,255,255,0.16))",
+      background: "var(--mapache-glass-bg, rgba(255,255,255,0.06))",
+      boxShadow: "var(--shadow-md)",
+    }}>
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <h3 className="text-sm font-semibold text-white">{title}</h3>
+          <h3 className="text-sm font-semibold" style={{ color: "rgb(var(--text-primary))" }}>{title}</h3>
           {description ? (
-            <p className="text-xs text-white/60">{description}</p>
+            <p className="text-xs" style={{ color: "rgb(var(--text-muted))" }}>{description}</p>
           ) : null}
         </div>
         {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
@@ -39,8 +43,11 @@ export function ChartCard({
           {isLoading ? (
             <ChartSkeleton />
           ) : isEmpty ? (
-            <div className="flex h-full items-center justify-center rounded-md border border-dashed border-white/10 bg-white/5">
-              <p className="px-6 text-center text-xs text-white/60">{emptyMessage}</p>
+            <div className="flex h-full items-center justify-center rounded-md border border-dashed" style={{
+              borderColor: "var(--mapache-glass-border, rgba(255,255,255,0.16))",
+              background: "var(--mapache-glass-bg, rgba(255,255,255,0.06))",
+            }}>
+              <p className="px-6 text-center text-xs" style={{ color: "rgb(var(--text-muted))" }}>{emptyMessage}</p>
             </div>
           ) : (
             children

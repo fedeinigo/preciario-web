@@ -132,7 +132,7 @@ export function AreaTrendChart({
                   x2={innerWidth}
                   y1={y}
                   y2={y}
-                  stroke="rgba(148,163,184,0.15)"
+                  stroke="var(--chart-grid-line, rgba(148,163,184,0.15))"
                   strokeDasharray="4 6"
                 />
                 <text
@@ -140,7 +140,7 @@ export function AreaTrendChart({
                   y={y + 4}
                   textAnchor="end"
                   fontSize={10}
-                  fill="rgba(226,232,240,0.75)"
+                  fill="var(--chart-axis-text, rgba(226,232,240,0.75))"
                 >
                   {valueFormatter(tick)}
                 </text>
@@ -161,7 +161,7 @@ export function AreaTrendChart({
                 cy={cy}
                 r={4.5}
                 fill={color}
-                stroke="rgba(15,23,42,0.9)"
+                stroke="var(--chart-point-stroke, rgba(15,23,42,0.9))"
                 strokeWidth={1.5}
                 onPointerMove={(event) => handlePointerMove(event, item)}
                 onPointerEnter={(event) => handlePointerMove(event, item)}
@@ -179,7 +179,7 @@ export function AreaTrendChart({
                 y={innerHeight + 20}
                 textAnchor="middle"
                 fontSize={10}
-                fill="rgba(226,232,240,0.8)"
+                fill="var(--chart-label-text, rgba(226,232,240,0.8))"
               >
                 {item.label}
               </text>
@@ -190,11 +190,14 @@ export function AreaTrendChart({
 
       {tooltip ? (
         <div
-          className="pointer-events-none absolute rounded-lg border border-white/10 bg-slate-900/95 p-3 text-xs text-white/80 shadow-lg backdrop-blur"
+          className="pointer-events-none absolute rounded-lg border p-3 text-xs shadow-lg backdrop-blur"
           style={{
             left: Math.max(8, Math.min(width - 180, tooltip.x - 90)),
             top: Math.max(8, tooltip.y - 110),
             width: 180,
+            borderColor: "var(--mapache-glass-border, rgba(255,255,255,0.1))",
+            background: "var(--chart-tooltip-bg, rgba(15,23,42,0.95))",
+            color: "var(--chart-tooltip-text, rgba(255,255,255,0.8))",
           }}
         >
           <div className="text-[11px] uppercase tracking-wide text-white/60">

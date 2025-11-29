@@ -157,6 +157,18 @@ body.mapache-theme {
   --mapache-glass-bg: rgba(255, 255, 255, 0.06);
   --mapache-glass-border: rgba(255, 255, 255, 0.16);
   
+  /* === Chart tokens (for analytics components) === */
+  --chart-grid-start: rgba(255, 255, 255, 0.18);
+  --chart-grid-end: rgba(148, 163, 184, 0.12);
+  --chart-grid-line: rgba(148, 163, 184, 0.15);
+  --chart-axis-text: rgba(226, 232, 240, 0.75);
+  --chart-label-text: rgba(226, 232, 240, 0.8);
+  --chart-text-primary: rgba(255, 255, 255, 0.95);
+  --chart-text-muted: rgba(148, 163, 184, 0.8);
+  --chart-tooltip-bg: rgba(15, 23, 42, 0.95);
+  --chart-tooltip-text: rgba(255, 255, 255, 0.8);
+  --chart-point-stroke: rgba(15, 23, 42, 0.9);
+  
   /* === Portal indicator === */
   --portal-mode: dark;
   color-scheme: dark;

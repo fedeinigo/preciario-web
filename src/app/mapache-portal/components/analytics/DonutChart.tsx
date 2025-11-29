@@ -128,11 +128,11 @@ export function DonutChart({
       <svg width={width} height={Math.max(centerY * 2, 220)}>
         {normalizedData.length === 0 ? (
           <g transform={`translate(${centerX}, ${centerY})`}>
-            <circle r={radius} fill="rgba(255,255,255,0.04)" />
+            <circle r={radius} fill="var(--mapache-glass-bg, rgba(255,255,255,0.04))" />
             <text
               textAnchor="middle"
               fontSize={12}
-              fill="rgba(148,163,184,0.8)"
+              fill="var(--chart-text-muted, rgba(148,163,184,0.8))"
               dy={4}
             >
               {emptyLabel}
@@ -156,7 +156,7 @@ export function DonutChart({
               textAnchor="middle"
               fontSize={24}
               fontWeight={600}
-              fill="rgba(255,255,255,0.95)"
+              fill="var(--chart-text-primary, rgba(255,255,255,0.95))"
             >
               {valueFormatter(total)}
             </text>
@@ -165,7 +165,7 @@ export function DonutChart({
               y={centerY + 16}
               textAnchor="middle"
               fontSize={12}
-              fill="rgba(148,163,184,0.8)"
+              fill="var(--chart-text-muted, rgba(148,163,184,0.8))"
             >
               Total
             </text>
@@ -175,11 +175,14 @@ export function DonutChart({
 
       {tooltip ? (
         <div
-          className="pointer-events-none absolute rounded-lg border border-white/10 bg-slate-900/95 p-3 text-xs text-white/80 shadow-lg backdrop-blur"
+          className="pointer-events-none absolute rounded-lg border p-3 text-xs shadow-lg backdrop-blur"
           style={{
             left: Math.max(8, Math.min(width - 180, tooltip.x - 90)),
             top: Math.max(8, tooltip.y - 100),
             width: 180,
+            borderColor: "var(--mapache-glass-border, rgba(255,255,255,0.1))",
+            background: "var(--chart-tooltip-bg, rgba(15,23,42,0.95))",
+            color: "var(--chart-tooltip-text, rgba(255,255,255,0.8))",
           }}
         >
           <div className="flex items-center justify-between gap-2">

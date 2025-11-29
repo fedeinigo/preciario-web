@@ -84,9 +84,9 @@ export default function GeneratorMainCard({
   const formattedTotal = formatUSD(totals.amount);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/90 shadow-lg backdrop-blur-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-purple-100 bg-white">
-        <h1 className="text-xl font-bold text-[#4c1d95]">{heading}</h1>
+    <div className="rounded-2xl border bg-white/90 shadow-lg backdrop-blur-sm overflow-hidden" style={{ borderColor: "rgb(var(--border-primary))" }}>
+      <div className="px-6 py-4 border-b bg-white" style={{ borderColor: "rgb(var(--border-secondary))" }}>
+        <h1 className="text-xl font-bold" style={{ color: "rgb(var(--brand-primary))" }}>{heading}</h1>
       </div>
 
       <div className="p-6 space-y-6">
@@ -147,9 +147,12 @@ export default function GeneratorMainCard({
         />
 
         <div className="flex justify-end">
-          <div className="rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white px-6 py-4 shadow-md">
-            <div className="text-sm font-medium text-slate-600 uppercase tracking-wide">{totals.label}</div>
-            <div className="mt-1 text-2xl font-bold text-purple-700">{formattedTotal}</div>
+          <div className="rounded-xl border px-6 py-4 shadow-md" style={{
+            borderColor: "rgb(var(--brand-secondary) / 0.3)",
+            background: "linear-gradient(to bottom right, rgb(var(--brand-secondary) / 0.08), rgb(var(--surface-primary)))",
+          }}>
+            <div className="text-sm font-medium uppercase tracking-wide" style={{ color: "rgb(var(--text-secondary))" }}>{totals.label}</div>
+            <div className="mt-1 text-2xl font-bold" style={{ color: "rgb(var(--brand-secondary))" }}>{formattedTotal}</div>
           </div>
         </div>
       </div>

@@ -96,8 +96,8 @@ export function StackedBarChart({
       <svg width={width} height={chartHeight} className="overflow-visible">
         <defs>
           <linearGradient id="stacked-bar-grid" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.18)" />
-            <stop offset="100%" stopColor="rgba(148,163,184,0.12)" />
+            <stop offset="0%" stopColor="var(--chart-grid-start, rgba(255,255,255,0.18))" />
+            <stop offset="100%" stopColor="var(--chart-grid-end, rgba(148,163,184,0.12))" />
           </linearGradient>
         </defs>
         <g transform={`translate(${margin.left},${margin.top})`}>
@@ -110,7 +110,7 @@ export function StackedBarChart({
                   x2={innerWidth}
                   y1={y}
                   y2={y}
-                  stroke="rgba(148,163,184,0.15)"
+                  stroke="var(--chart-grid-line, rgba(148,163,184,0.15))"
                   strokeDasharray="4 6"
                 />
                 <text
@@ -118,7 +118,7 @@ export function StackedBarChart({
                   y={y + 4}
                   textAnchor="end"
                   fontSize={10}
-                  fill="rgba(226,232,240,0.75)"
+                  fill="var(--chart-axis-text, rgba(226,232,240,0.75))"
                 >
                   {valueFormatter(tick)}
                 </text>
@@ -159,7 +159,7 @@ export function StackedBarChart({
                   y={innerHeight + 18}
                   textAnchor="middle"
                   fontSize={11}
-                  fill="rgba(226,232,240,0.8)"
+                  fill="var(--chart-label-text, rgba(226,232,240,0.8))"
                 >
                   {datum.label}
                 </text>
@@ -172,7 +172,7 @@ export function StackedBarChart({
               x={-margin.left + 4}
               y={-12}
               fontSize={10}
-              fill="rgba(148,163,184,0.7)"
+              fill="var(--chart-text-muted, rgba(148,163,184,0.7))"
             >
               {axisLabel}
             </text>
@@ -182,11 +182,14 @@ export function StackedBarChart({
 
       {tooltip ? (
         <div
-          className="pointer-events-none absolute rounded-lg border border-white/10 bg-slate-900/95 p-3 text-xs text-white/80 shadow-lg backdrop-blur"
+          className="pointer-events-none absolute rounded-lg border p-3 text-xs shadow-lg backdrop-blur"
           style={{
             left: Math.max(8, Math.min(width - 160, tooltip.x - 80)),
             top: Math.max(8, tooltip.y - 120),
             width: 160,
+            borderColor: "var(--mapache-glass-border, rgba(255,255,255,0.1))",
+            background: "var(--chart-tooltip-bg, rgba(15,23,42,0.95))",
+            color: "var(--chart-tooltip-text, rgba(255,255,255,0.8))",
           }}
         >
           <div className="text-[11px] uppercase tracking-wide text-white/60">
