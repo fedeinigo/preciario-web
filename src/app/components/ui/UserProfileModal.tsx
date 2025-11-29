@@ -72,6 +72,11 @@ export default function UserProfileModal({
   }, [targetUser, viewer]);
 
   const [resolvedTarget, setResolvedTarget] = useState<TargetUser>(baseTarget);
+  const [loadingData, setLoadingData] = useState(false);
+  
+  // Track the current target ID to detect changes
+  const targetKey = targetUser?.id ?? targetUser?.email ?? "self";
+  const prevTargetKeyRef = React.useRef(targetKey);
   
   // Update resolvedTarget when baseTarget changes
   useEffect(() => {
@@ -161,7 +166,17 @@ export default function UserProfileModal({
   }, [year, quarter]);
 
   const [wonAmount, setWonAmount] = useState<number>(0);
+  
+  // Use a ref to track the current request's target to prevent race conditions
+  const activeTargetKeyRef = React.useRef(targetKey);
+  
+  // Update the active target key when targetKey changes
+  useEffect(() => {
+    activeTargetKeyRef.current = targetKey;
+  }, [targetKey]);
+  
   const loadProgress = useCallback(async () => {
+    const requestTargetKey = targetKey; // Capture current target at request time
     const params = new URLSearchParams({ year: String(year), quarter: String(quarter) });
     if (resolvedTarget.id) {
       params.set("userId", resolvedTarget.id);
@@ -175,13 +190,19 @@ export default function UserProfileModal({
       const response = await fetch(`/api/goals/wins?${params.toString()}`, { cache: "no-store" });
       if (!response.ok) throw new Error("fail");
       const payload = (await response.json()) as { progress?: number };
-      setWonAmount(Number(payload.progress ?? 0));
+      // Only update state if this request is still for the current target
+      if (activeTargetKeyRef.current === requestTargetKey) {
+        setWonAmount(Number(payload.progress ?? 0));
+      }
     } catch {
-      setWonAmount(0);
+      if (activeTargetKeyRef.current === requestTargetKey) {
+        setWonAmount(0);
+      }
     }
-  }, [resolvedTarget.id, resolvedTarget.email, year, quarter]);
+  }, [resolvedTarget.id, resolvedTarget.email, year, quarter, targetKey]);
 
   const loadGoal = useCallback(async () => {
+    const requestTargetKey = targetKey; // Capture current target at request time
     try {
       const qs: string[] = [`year=${year}`, `quarter=${quarter}`];
       if (!isSelf) {
@@ -193,17 +214,40 @@ export default function UserProfileModal({
       const r = await fetch(`/api/goals/user?${qs.join("&")}`);
       const j = (await r.json()) as { amount?: number };
       const amt = Number(j.amount ?? 0);
-      setGoalAmount(amt);
+      // Only update state if this request is still for the current target
+      if (activeTargetKeyRef.current === requestTargetKey) {
+        setGoalAmount(amt);
+      }
     } catch {
-      setGoalAmount(0);
+      if (activeTargetKeyRef.current === requestTargetKey) {
+        setGoalAmount(0);
+      }
     }
-  }, [resolvedTarget.id, resolvedTarget.email, year, quarter, isSelf]);
+  }, [resolvedTarget.id, resolvedTarget.email, year, quarter, isSelf, targetKey]);
 
+  // Reset data when target changes to avoid showing stale data
   useEffect(() => {
-    if (open) {
-      loadGoal().catch(() => undefined);
-      loadProgress().catch(() => undefined);
+    const targetChanged = prevTargetKeyRef.current !== targetKey;
+    if (targetChanged) {
+      prevTargetKeyRef.current = targetKey;
+      setGoalAmount(0);
+      setWonAmount(0);
+      setLoadingData(true);
     }
+  }, [targetKey]);
+
+  // Load data when modal opens or target changes
+  useEffect(() => {
+    if (!open) return;
+    
+    setLoadingData(true);
+    
+    Promise.all([
+      loadGoal().catch(() => undefined),
+      loadProgress().catch(() => undefined),
+    ]).finally(() => {
+      setLoadingData(false);
+    });
   }, [open, loadGoal, loadProgress]);
 
   const pct = useMemo(() => {
@@ -463,7 +507,7 @@ export default function UserProfileModal({
         <div className={statCardClass}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <TrendingUp className={`h-5 w-5 ${pct >= 100 ? 'text-green-500' : pct >= 50 ? 'text-yellow-500' : 'text-orange-500'}`} />
+              <TrendingUp className={`h-5 w-5 ${loadingData ? 'text-gray-400 animate-pulse' : pct >= 100 ? 'text-green-500' : pct >= 50 ? 'text-yellow-500' : 'text-orange-500'}`} />
               <h3 
                 className="text-sm font-semibold uppercase tracking-wide"
                 style={isMapacheAppearance ? { color: "#fff", opacity: 1 } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a", opacity: 0.9 } : { opacity: 0.9 }}
@@ -471,26 +515,46 @@ export default function UserProfileModal({
                 Desempeño Q{quarter} {year}
               </h3>
             </div>
-            {pct >= 100 && (
+            {!loadingData && pct >= 100 && (
               <Award className="h-6 w-6 text-yellow-500" />
+            )}
+            {loadingData && (
+              <div className={`h-5 w-5 animate-spin rounded-full border-2 ${
+                isMapacheAppearance ? "border-cyan-400 border-t-transparent" : 
+                isDirectAppearance ? "border-purple-600 border-t-transparent" : 
+                "border-slate-400 border-t-transparent"
+              }`} />
             )}
           </div>
           
           {/* Progress Bar - Más prominente */}
           <div className="mb-6">
             <div className="flex justify-between items-baseline mb-2">
-              <span 
-                className={heroNumberClass} 
-                style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
-              >
-                {pct.toFixed(1)}%
-              </span>
-              <span 
-                className={`text-sm ${labelTextClass}`}
-                style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
-              >
-                {formatUSD(wonAmount)} / {formatUSD(goalAmount)}
-              </span>
+              {loadingData ? (
+                <>
+                  <span className={`${heroNumberClass} animate-pulse`} style={isMapacheAppearance ? { color: "#fff", opacity: 0.5 } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a", opacity: 0.5 } : { opacity: 0.5 }}>
+                    --%
+                  </span>
+                  <span className={`text-sm ${labelTextClass} animate-pulse`} style={{ opacity: 0.5 }}>
+                    Cargando...
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span 
+                    className={heroNumberClass} 
+                    style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
+                  >
+                    {pct.toFixed(1)}%
+                  </span>
+                  <span 
+                    className={`text-sm ${labelTextClass}`}
+                    style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+                  >
+                    {formatUSD(wonAmount)} / {formatUSD(goalAmount)}
+                  </span>
+                </>
+              )}
             </div>
             <div className={`h-4 w-full rounded-full overflow-hidden ${
               isMarketingAppearance
@@ -505,6 +569,8 @@ export default function UserProfileModal({
             }`}>
               <div
                 className={`h-full transition-all duration-500 ${
+                  loadingData ? 'animate-pulse opacity-30' : ''
+                } ${
                   isMarketingAppearance
                     ? 'bg-gradient-to-r from-[#1d6ee3] via-[#5ba5f6] to-[#9dd7ff]'
                     : isLightAppearance
@@ -515,7 +581,7 @@ export default function UserProfileModal({
                         ? 'bg-gradient-to-r from-[#22d3ee] via-[#8b5cf6] to-[#c084fc]'
                         : 'bg-gradient-to-r from-white to-white/80'
                 }`}
-                style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+                style={{ width: loadingData ? '0%' : `${Math.min(100, Math.max(0, pct))}%` }}
               />
             </div>
           </div>
@@ -530,10 +596,10 @@ export default function UserProfileModal({
                 {metricsT("progress")}
               </div>
               <div 
-                className={boldValueClass}
-                style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
+                className={`${boldValueClass} ${loadingData ? 'animate-pulse' : ''}`}
+                style={isMapacheAppearance ? { color: "#fff", opacity: loadingData ? 0.5 : 1 } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a", opacity: loadingData ? 0.5 : 1 } : { opacity: loadingData ? 0.5 : 1 }}
               >
-                {formatUSD(wonAmount)}
+                {loadingData ? '--' : formatUSD(wonAmount)}
               </div>
             </div>
             <div>
@@ -544,10 +610,10 @@ export default function UserProfileModal({
                 {metricsT("remaining")}
               </div>
               <div 
-                className={boldValueClass}
-                style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
+                className={`${boldValueClass} ${loadingData ? 'animate-pulse' : ''}`}
+                style={isMapacheAppearance ? { color: "#fff", opacity: loadingData ? 0.5 : 1 } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a", opacity: loadingData ? 0.5 : 1 } : { opacity: loadingData ? 0.5 : 1 }}
               >
-                {formatUSD(Math.max(0, goalAmount - wonAmount))}
+                {loadingData ? '--' : formatUSD(Math.max(0, goalAmount - wonAmount))}
               </div>
             </div>
           </div>
@@ -617,10 +683,10 @@ export default function UserProfileModal({
                 {profileT("labels.goal")} (USD)
               </div>
               <div 
-                className={`${valueTextClass} text-lg font-bold`}
-                style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
+                className={`${valueTextClass} text-lg font-bold ${loadingData ? 'animate-pulse' : ''}`}
+                style={isMapacheAppearance ? { color: "#fff", opacity: loadingData ? 0.5 : 1 } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a", opacity: loadingData ? 0.5 : 1 } : { opacity: loadingData ? 0.5 : 1 }}
               >
-                {formatUSD(goalAmount)}
+                {loadingData ? '--' : formatUSD(goalAmount)}
               </div>
             </div>
           </div>
