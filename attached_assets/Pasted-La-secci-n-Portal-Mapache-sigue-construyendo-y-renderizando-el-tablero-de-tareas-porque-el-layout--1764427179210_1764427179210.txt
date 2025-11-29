@@ -1,0 +1,12 @@
+La sección “Portal Mapache” sigue construyendo y renderizando el tablero de tareas porque el layout principal (src/app/mapache-portal/(sections)/layout.tsx (line 41)) carga MapachePortalClient con todos los datos de bootstrap (estados, board, presets, equipo, tareas) y ese cliente sigue procesando formularios, filtros y llamadas a /api/mapache/tasks (src/app/mapache-portal/MapachePortalClient.tsx (line 986)). La consulta sin fin proviene de useTasksQuery (src/app/mapache-portal/hooks/useTasksQuery.ts (line 34)) y el endpoint /api/mapache/tasks todavía se invoca dentro del mismo cliente (src/app/mapache-portal/MapachePortalClient.tsx (line 2248),  (line 2350),  (line 2387),  (line 2504)).
+La carga inicial también depende de las tablas MapacheStatus/Board/FilterPreset/Task/Deliverable porque loadMapachePortalBootstrap las lee prácticamente en bloque (src/app/mapache-portal/bootstrap.server.ts (line 119)). Sacar esas tablas requeriría eliminar MapachePortalClient y todo el flujo asociado (filtros, formularios, estados) que sigue vivo en el layout del portal (portal/mapache/(sections)/layout.tsx redirige/reshapea exactamente al mismo módulo).
+Secciones huérfanas
+
+El hook useInsightsMetrics y el componente MapachePortalInsights están definidos (src/app/mapache-portal/hooks/useInsightsMetrics.ts (line 66), src/app/mapache-portal/MapachePortalInsights.tsx (line 28)) pero no se importan ni se usan en ningún otro fichero del repositorio (ver rg useInsightsMetrics y rg MapachePortalInsights), así que la sección de métricas sí puede considerarse código muerto y puede eliminarse sin romper rutas activas.
+Siguientes pasos
+
+Si efectivamente quieren abortar el tablero de tareas: eliminar MapachePortalClient, el layout /mapache-portal/(sections)/layout.tsx, el hook useTasksQuery y todo lo que dispara /api/mapache/tasks, junto con loadMapachePortalBootstrap y el consumo de las tablas Mapache* en el servidor y la interfaz (status, boards, filtros, deliverables).
+En paralelo, borrar el endpoint /api/mapache/tasks y sus tests/documentación (docs/api-mapache-tasks.md, tests/unit/mapache-tasks-route.test.tsx, etc.) para evitar rutas huérfanas.
+Confirmar que ninguna otra ruta necesita esas tablas antes de tocar la base; si quedan consultas, habría que reescribirlas o migrarlas.
+Quitar useInsightsMetrics, MapachePortalInsights y insightsMetrics.worker.ts (si no se usa otro lugar) para limpiar la lógica de métricas.
+Con los cambios anteriores ya no habrá referencias activas a esas tablas ni a /api/mapache/tasks

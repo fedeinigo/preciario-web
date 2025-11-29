@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 
-import MapachePortalSectionLayout from "../MapachePortalSectionLayout";
 import MapachePortalReadySignal from "../MapachePortalReadySignal";
 import { auth } from "@/lib/auth";
-import { loadMapachePortalBootstrap } from "../bootstrap.server";
+import { MapachePortalQueryProvider } from "../context/query-client";
 
 function UnauthorizedNotice() {
   return (
@@ -46,11 +45,12 @@ export default async function MapachePortalSectionsLayout({
     return <UnauthorizedNotice />;
   }
 
-  const bootstrap = await loadMapachePortalBootstrap();
-
   return (
-    <MapachePortalSectionLayout initialBootstrap={bootstrap}>
-      {children}
-    </MapachePortalSectionLayout>
+    <MapachePortalQueryProvider>
+      <MapachePortalReadySignal />
+      <div className="space-y-6 px-4 pb-10 -mt-[var(--nav-h)] pt-[var(--nav-h)]">
+        {children}
+      </div>
+    </MapachePortalQueryProvider>
   );
 }
