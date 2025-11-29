@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import MapacheThemeToggle from "./MapacheThemeToggle";
+import PortalThemeProvider from "@/app/components/theme/PortalThemeProvider";
 
 export default function MapachePortalLayout({
   children,
@@ -8,9 +8,8 @@ export default function MapachePortalLayout({
   children: ReactNode;
 }) {
   return (
-    <>
-      <MapacheThemeToggle />
+    <PortalThemeProvider portal="mapache">
       {children}
-    </>
+    </PortalThemeProvider>
   );
 }

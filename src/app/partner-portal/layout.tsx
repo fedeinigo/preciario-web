@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Analytics } from "@vercel/analytics/react";
 
 import PortalLauncher from "@/app/components/navbar/PortalLauncher";
+import PortalThemeProvider from "@/app/components/theme/PortalThemeProvider";
 import { auth } from "@/lib/auth";
 
 const navLinks = [
@@ -25,6 +26,7 @@ export default async function PartnerPortalLayout({
   const hasSession = Boolean(session?.user);
 
   return (
+    <PortalThemeProvider portal="partner">
     <div className="-mt-[var(--nav-h)] flex min-h-screen flex-col bg-slate-50 text-slate-900">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-6 px-4 py-4">
@@ -83,5 +85,6 @@ export default async function PartnerPortalLayout({
 
       <Analytics />
     </div>
+    </PortalThemeProvider>
   );
 }

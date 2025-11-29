@@ -42,7 +42,6 @@ export default function TeamGoalCard({
   const pct = teamGoal > 0 ? (teamProgress / teamGoal) * 100 : 0;
   const remaining = Math.max(0, teamGoal - teamProgress);
   const delta = sumMembersGoal - teamGoal;
-  const monthlyPct = teamGoal > 0 ? ((teamGoal / 3) / teamGoal) * 100 : 33.333;
 
   const [editOpen, setEditOpen] = React.useState(false);
 
@@ -156,12 +155,6 @@ export default function TeamGoalCard({
               <div className="mt-6">
                 <div className={barTrack}>
                   <div className={barFill} style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
-                  {teamGoal > 0 && (
-                    <div
-                      className="absolute top-0 bottom-0 w-[3px] bg-amber-400 shadow-sm"
-                      style={{ left: `calc(${Math.min(100, Math.max(0, monthlyPct))}% - 1.5px)` }}
-                    />
-                  )}
                   <div className="absolute inset-0 flex">
                     <div className={barGridLine} />
                     <div className={barGridLine} />

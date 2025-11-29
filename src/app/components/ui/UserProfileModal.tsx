@@ -4,7 +4,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Modal from "@/app/components/ui/Modal";
 import UserAvatar from "@/app/components/ui/UserAvatar";
-import { Mail, Shield, Users2, TrendingUp, Calendar, Award, Briefcase, UserCircle2 } from "lucide-react";
+import { Mail, Shield, Users2, TrendingUp, Calendar, Award, Briefcase, UserCircle2, RefreshCw, Clock } from "lucide-react";
 import { formatUSD } from "@/app/components/features/proposals/lib/format";
 import { q1Range, q2Range, q3Range, q4Range } from "@/app/components/features/proposals/lib/dateRanges";
 import type { AppRole } from "@/constants/teams";
@@ -72,6 +72,11 @@ export default function UserProfileModal({
   }, [targetUser, viewer]);
 
   const [resolvedTarget, setResolvedTarget] = useState<TargetUser>(baseTarget);
+  const [loadingData, setLoadingData] = useState(false);
+  
+  // Track the current target ID to detect changes
+  const targetKey = targetUser?.id ?? targetUser?.email ?? "self";
+  const prevTargetKeyRef = React.useRef(targetKey);
   
   // Update resolvedTarget when baseTarget changes
   useEffect(() => {
@@ -140,7 +145,7 @@ export default function UserProfileModal({
     resolvedTarget.leaderEmail,
   ]);
 
-  const isSelf =
+  const _isSelf =
     (!!viewer.id && !!resolvedTarget.id && viewer.id === resolvedTarget.id) ||
     (!!viewer.email && !!resolvedTarget.email && viewer.email === resolvedTarget.email);
 
@@ -155,56 +160,214 @@ export default function UserProfileModal({
   }, [now]);
 
   const [goalAmount, setGoalAmount] = useState<number>(0);
+  const [wonAmount, setWonAmount] = useState<number>(0);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const range = useMemo(() => {
     return [q1Range, q2Range, q3Range, q4Range][quarter - 1](year);
   }, [year, quarter]);
+  
+  // Use a ref to track the current request's target to prevent race conditions
+  const activeTargetKeyRef = React.useRef(targetKey);
+  
+  // Update the active target key when targetKey changes
+  useEffect(() => {
+    activeTargetKeyRef.current = targetKey;
+  }, [targetKey]);
+  
+  const tryLoadFromCache = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    const team = resolvedTarget.team;
+    if (!team) return null;
+    
+    const cacheKey = `goals:pipedrive:team:${team}:${year}:Q${quarter}`;
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (!raw) return null;
+      const cached = JSON.parse(raw) as {
+        rows?: Array<{
+          userId?: string;
+          email?: string | null;
+          goal?: number;
+          progress?: number;
+          pct?: number;
+        }>;
+        lastSyncedAt?: string;
+      };
+      if (!cached.rows || !Array.isArray(cached.rows)) return null;
+      
+      const match = cached.rows.find((row) => 
+        (resolvedTarget.id && row.userId === resolvedTarget.id) ||
+        (resolvedTarget.email && row.email === resolvedTarget.email)
+      );
+      
+      if (match) {
+        return {
+          goalAmount: Number(match.goal ?? 0),
+          progressAmount: Number(match.progress ?? 0),
+          pct: Number(match.pct ?? 0),
+          lastSyncedAt: cached.lastSyncedAt ?? null,
+        };
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }, [resolvedTarget.id, resolvedTarget.email, resolvedTarget.team, year, quarter]);
 
-  const [wonAmount, setWonAmount] = useState<number>(0);
-  const loadProgress = useCallback(async () => {
-    const params = new URLSearchParams({ year: String(year), quarter: String(quarter) });
-    if (resolvedTarget.id) {
-      params.set("userId", resolvedTarget.id);
-    } else if (resolvedTarget.email) {
-      params.set("email", resolvedTarget.email);
-    } else {
-      setWonAmount(0);
+  const loadFromSnapshot = useCallback(async () => {
+    const requestTargetKey = targetKey;
+    if (!resolvedTarget.id) return null;
+    
+    try {
+      const params = new URLSearchParams({
+        year: String(year),
+        quarter: String(quarter),
+        userId: resolvedTarget.id,
+      });
+      const response = await fetch(`/api/goals/snapshot?${params.toString()}`, { cache: "no-store" });
+      if (!response.ok) return null;
+      const payload = await response.json();
+      
+      if (activeTargetKeyRef.current !== requestTargetKey) return null;
+      
+      if (payload.found) {
+        return {
+          goalAmount: Number(payload.goalAmount ?? 0),
+          progressAmount: Number(payload.progressAmount ?? 0),
+          pct: Number(payload.pct ?? 0),
+          lastSyncedAt: payload.lastSyncedAt ?? null,
+        };
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }, [resolvedTarget.id, year, quarter, targetKey]);
+
+  const loadGoalAndProgress = useCallback(async () => {
+    const requestTargetKey = targetKey;
+    
+    const cached = tryLoadFromCache();
+    if (cached) {
+      if (activeTargetKeyRef.current === requestTargetKey) {
+        setGoalAmount(cached.goalAmount);
+        setWonAmount(cached.progressAmount);
+        setLastSyncedAt(cached.lastSyncedAt);
+      }
       return;
     }
-    try {
-      const response = await fetch(`/api/goals/wins?${params.toString()}`, { cache: "no-store" });
-      if (!response.ok) throw new Error("fail");
-      const payload = (await response.json()) as { progress?: number };
-      setWonAmount(Number(payload.progress ?? 0));
-    } catch {
-      setWonAmount(0);
-    }
-  }, [resolvedTarget.id, resolvedTarget.email, year, quarter]);
-
-  const loadGoal = useCallback(async () => {
-    try {
-      const qs: string[] = [`year=${year}`, `quarter=${quarter}`];
-      if (!isSelf) {
-        if (resolvedTarget.id) qs.push(`userId=${encodeURIComponent(resolvedTarget.id)}`);
-        else if (resolvedTarget.email) qs.push(`email=${encodeURIComponent(resolvedTarget.email)}`);
-      } else if (resolvedTarget.id) {
-        qs.push(`userId=${encodeURIComponent(resolvedTarget.id)}`);
+    
+    const snapshot = await loadFromSnapshot();
+    if (snapshot) {
+      if (activeTargetKeyRef.current === requestTargetKey) {
+        setGoalAmount(snapshot.goalAmount);
+        setWonAmount(snapshot.progressAmount);
+        setLastSyncedAt(snapshot.lastSyncedAt);
       }
-      const r = await fetch(`/api/goals/user?${qs.join("&")}`);
-      const j = (await r.json()) as { amount?: number };
-      const amt = Number(j.amount ?? 0);
-      setGoalAmount(amt);
+      return;
+    }
+    
+    const qs: string[] = [`year=${year}`, `quarter=${quarter}`];
+    if (resolvedTarget.id) qs.push(`userId=${encodeURIComponent(resolvedTarget.id)}`);
+    else if (resolvedTarget.email) qs.push(`email=${encodeURIComponent(resolvedTarget.email)}`);
+    
+    try {
+      const [goalRes, progressRes] = await Promise.all([
+        fetch(`/api/goals/user?${qs.join("&")}`),
+        fetch(`/api/goals/wins?${qs.join("&")}`, { cache: "no-store" }),
+      ]);
+      
+      if (activeTargetKeyRef.current !== requestTargetKey) return;
+      
+      if (goalRes.ok) {
+        const goalData = await goalRes.json();
+        setGoalAmount(Number(goalData.amount ?? 0));
+      }
+      if (progressRes.ok) {
+        const progressData = await progressRes.json();
+        setWonAmount(Number(progressData.progress ?? 0));
+      }
     } catch {
-      setGoalAmount(0);
+      if (activeTargetKeyRef.current === requestTargetKey) {
+        setGoalAmount(0);
+        setWonAmount(0);
+      }
     }
-  }, [resolvedTarget.id, resolvedTarget.email, year, quarter, isSelf]);
+  }, [resolvedTarget.id, resolvedTarget.email, year, quarter, targetKey, tryLoadFromCache, loadFromSnapshot]);
 
+  // Reset data when target changes to avoid showing stale data
   useEffect(() => {
-    if (open) {
-      loadGoal().catch(() => undefined);
-      loadProgress().catch(() => undefined);
+    const targetChanged = prevTargetKeyRef.current !== targetKey;
+    if (targetChanged) {
+      prevTargetKeyRef.current = targetKey;
+      setGoalAmount(0);
+      setWonAmount(0);
+      setLastSyncedAt(null);
+      setLoadingData(true);
     }
-  }, [open, loadGoal, loadProgress]);
+  }, [targetKey]);
+
+  // Load data when modal opens or target changes
+  useEffect(() => {
+    if (!open) return;
+    
+    setLoadingData(true);
+    
+    loadGoalAndProgress().finally(() => {
+      setLoadingData(false);
+    });
+  }, [open, loadGoalAndProgress]);
+
+  const handleSync = useCallback(async () => {
+    if (syncing || !resolvedTarget.id) return;
+    setSyncing(true);
+    setLoadingData(true);
+    
+    try {
+      const response = await fetch("/api/goals/sync-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: resolvedTarget.id }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.ok) {
+          setGoalAmount(Number(data.goalAmount ?? 0));
+          setWonAmount(Number(data.progressAmount ?? 0));
+          setLastSyncedAt(data.lastSyncedAt ?? null);
+        }
+      }
+    } catch (error) {
+      console.error("sync-user-failed", error);
+    } finally {
+      setSyncing(false);
+      setLoadingData(false);
+    }
+  }, [syncing, resolvedTarget.id]);
+
+  const formatSyncDate = useCallback((isoString: string | null) => {
+    if (!isoString) return null;
+    try {
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+      
+      if (diffMins < 1) return "Hace un momento";
+      if (diffMins < 60) return `Hace ${diffMins} min`;
+      if (diffHours < 24) return `Hace ${diffHours}h`;
+      if (diffDays < 7) return `Hace ${diffDays} días`;
+      
+      return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+    } catch {
+      return null;
+    }
+  }, []);
 
   const pct = useMemo(() => {
     if (goalAmount <= 0) return 0;
@@ -255,18 +418,26 @@ export default function UserProfileModal({
       : isLightAppearance
         ? "bg-white text-slate-900 border border-slate-200 shadow-[0_35px_110px_rgba(15,23,42,0.12)]"
         : isMapacheAppearance
-          ? "bg-[rgb(var(--mapache-surface-strong))]/95 text-white border border-white/10 shadow-[0_45px_130px_rgba(2,6,23,0.8)]"
+          ? "rounded-[34px] border border-cyan-500/30 shadow-[0_60px_170px_rgba(0,0,0,0.85)] backdrop-blur-[30px]"
           : isDirectAppearance
             ? "bg-white text-slate-900 border border-[#ede9fe] shadow-[0_35px_110px_rgba(76,29,149,0.2)]"
             : "bg-slate-950/90 text-white border border-white/10 shadow-[0_35px_110px_rgba(2,6,23,0.65)]",
   ].join(" ");
+  
+  const panelStyle = isMapacheAppearance 
+    ? { 
+        maxWidth: "min(100vw - 32px, 680px)",
+        background: "linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(30, 27, 75, 0.95), rgba(15, 23, 42, 0.98))",
+        color: "#fff"
+      }
+    : { maxWidth: "min(100vw - 32px, 680px)" };
 
   const headerClassName = isMarketingAppearance
     ? "bg-white border-b border-[#cce8ff] text-[#0f406d]"
     : isLightAppearance
       ? "bg-white border-b border-slate-100 text-slate-900"
       : isMapacheAppearance
-        ? "bg-slate-950/70 border-b border-white/10 text-white"
+        ? "bg-gradient-to-r from-[#8b5cf6]/22 via-[#6d28d9]/18 to-[#22d3ee]/24 border-b border-white/12 text-white px-6 py-5"
         : isDirectAppearance
           ? "bg-white border-b border-[#ede9fe] text-[#4c1d95]"
           : "bg-slate-950/70 border-b border-white/10 text-white";
@@ -277,24 +448,40 @@ export default function UserProfileModal({
       ? "text-lg font-semibold text-slate-900"
       : isDirectAppearance
         ? "text-lg font-semibold text-[#4c1d95]"
-        : "text-lg font-semibold text-white";
+        : "text-lg font-semibold text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.35)]";
   const bodyTextClass = isMarketingAppearance
     ? "text-[#0f406d]"
     : isLightAppearance || isDirectAppearance
       ? "text-slate-900"
-      : "text-white";
+      : isMapacheAppearance
+        ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
+        : "text-white/95 drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)]";
   const subtleTextClass = isMarketingAppearance
     ? "text-slate-600"
     : isLightAppearance || isDirectAppearance
       ? "text-slate-600"
-      : "text-white/90";
+      : isMapacheAppearance
+        ? "text-cyan-200 drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
+        : "text-white/85";
   const labelTextClass = isMarketingAppearance
     ? "text-[#4b81b8]"
     : isLightAppearance
       ? "text-slate-500"
       : isDirectAppearance
         ? "text-[#4c1d95]"
-        : "text-white/80";
+        : isMapacheAppearance
+          ? "text-cyan-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
+          : "text-white/80";
+  const valueTextClass = isMarketingAppearance
+    ? "text-[#0f406d]"
+    : isLightAppearance || isDirectAppearance
+      ? "text-slate-900"
+      : isMapacheAppearance
+        ? "text-white font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
+        : "text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)]";
+  const strongValueClass = `${valueTextClass} text-lg font-semibold drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)]`;
+  const boldValueClass = `${valueTextClass} text-xl font-bold drop-shadow-[0_3px_12px_rgba(0,0,0,0.35)]`;
+  const heroNumberClass = `${valueTextClass} text-3xl font-bold drop-shadow-[0_3px_12px_rgba(0,0,0,0.45)]`;
 
   const secondaryButtonClass = isMarketingAppearance
     ? "rounded-full border border-[#cce8ff] bg-white px-6 py-2.5 text-sm font-semibold text-[#0f406d] transition hover:bg-[#ecf5ff]"
@@ -302,7 +489,9 @@ export default function UserProfileModal({
       ? "rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
       : isDirectAppearance
         ? "rounded-full border border-[#c4b5fd] bg-white px-6 py-2.5 text-sm font-semibold text-[#4c1d95] transition hover:bg-[#ede9fe]"
-        : "rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15";
+        : isMapacheAppearance
+          ? "rounded-2xl border border-white/25 bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-[#22d3ee] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(99,102,241,0.45)] transition hover:shadow-[0_22px_55px_rgba(99,102,241,0.55)]"
+          : "rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15";
 
   const statCardClass = isMarketingAppearance
     ? "rounded-2xl border border-[#cce8ff] bg-gradient-to-br from-white to-[#f5fbff] p-6 shadow-sm"
@@ -310,7 +499,9 @@ export default function UserProfileModal({
       ? "rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-sm"
       : isDirectAppearance
         ? "rounded-2xl border border-[#ede9fe] bg-white p-6 shadow-sm"
-        : "rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-xl";
+        : isMapacheAppearance
+          ? "rounded-2xl border border-cyan-400/30 bg-gradient-to-br from-slate-800/80 via-slate-900/70 to-indigo-950/60 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.55)] backdrop-blur-xl"
+          : "rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-6 shadow-xl";
 
   const infoCardClass = isMarketingAppearance
     ? "rounded-xl border border-[#cce8ff] bg-[#f5fbff] p-4"
@@ -318,7 +509,9 @@ export default function UserProfileModal({
       ? "rounded-xl border border-slate-200 bg-white p-4"
       : isDirectAppearance
         ? "rounded-xl border border-[#ede9fe] bg-[#faf5ff] p-4"
-        : "rounded-xl border border-white/20 bg-white/10 p-4";
+        : isMapacheAppearance
+          ? "rounded-xl border border-violet-400/25 bg-gradient-to-br from-slate-800/70 to-indigo-950/50 p-4 shadow-[0_18px_48px_rgba(0,0,0,0.5)] backdrop-blur-lg"
+          : "rounded-xl border border-white/20 bg-white/10 p-4";
 
   const backdropClassName = isMarketingAppearance
     ? "bg-[#0f172a]/30"
@@ -339,8 +532,9 @@ export default function UserProfileModal({
       headerClassName={headerClassName}
       titleClassName={titleClassName}
       panelClassName={panelClassName}
-      panelStyle={{ maxWidth: "min(100vw - 32px, 680px)" }}
+      panelStyle={panelStyle}
       backdropClassName={backdropClassName}
+      panelDataAttributes={isMapacheAppearance ? { "mapache-modal": "true" } : undefined}
       footer={
         <div className="flex justify-end items-center w-full">
           <button className={secondaryButtonClass} onClick={onClose}>
@@ -349,22 +543,36 @@ export default function UserProfileModal({
         </div>
       }
     >
-      <div className={`space-y-6 ${bodyTextClass}`}>
+      <div className={`space-y-6 ${bodyTextClass}`} style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}>
         {/* Profile Header - Más grande y elegante */}
-        <div className="flex flex-col items-center text-center space-y-4 pb-6 border-b border-current/10">
+        <div 
+          className={`flex flex-col items-center text-center space-y-4 pb-6 border-b ${
+            isMapacheAppearance ? "border-cyan-400/30" : isDirectAppearance ? "border-[#ede9fe]" : "border-current/10"
+          }`}
+          style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
+        >
           <UserAvatar
             name={name}
             email={resolvedTarget.email ?? undefined}
             image={profileImage}
             size={88}
             className={`shadow-xl ${
-              isMarketingAppearance ? "ring-4 ring-[#b8dcff]" : isLightAppearance ? "ring-4 ring-white/70" : "ring-4 ring-white/20"
+              isMarketingAppearance 
+                ? "ring-4 ring-[#b8dcff]" 
+                : isLightAppearance 
+                  ? "ring-4 ring-white/70" 
+                  : isMapacheAppearance
+                    ? "ring-4 ring-cyan-400/50 shadow-[0_0_30px_rgba(34,211,238,0.3)]"
+                    : "ring-4 ring-white/20"
             }`}
           />
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold">{name}</h2>
-            <div className={`flex items-center justify-center gap-2 ${subtleTextClass}`}>
-              <Mail className="h-4 w-4" />
+            <h2 className="text-2xl font-bold" style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}>{name}</h2>
+            <div 
+              className={`flex items-center justify-center gap-2 ${subtleTextClass}`}
+              style={isMapacheAppearance ? { color: "#a5f3fc" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#475569" } : undefined}
+            >
+              <Mail className="h-4 w-4" style={isMapacheAppearance ? { color: "#a5f3fc" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#475569" } : undefined} />
               <span className="text-sm">{email}</span>
             </div>
           </div>
@@ -373,32 +581,44 @@ export default function UserProfileModal({
         {/* Role, Team & Extra Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className={infoCardClass}>
-            <div className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}>
+            <div 
+              className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+            >
               <Shield className="h-4 w-4" />
               {profileT("labels.role")}
             </div>
-            <div className="text-lg font-semibold">{role}</div>
+            <div className={strongValueClass} style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}>{role}</div>
           </div>
           <div className={infoCardClass}>
-            <div className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}>
+            <div 
+              className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+            >
               <Users2 className="h-4 w-4" />
               {profileT("labels.team")}
             </div>
-            <div className="text-lg font-semibold">{team}</div>
+            <div className={strongValueClass} style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}>{team}</div>
           </div>
           <div className={infoCardClass}>
-            <div className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}>
+            <div 
+              className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+            >
               <Briefcase className="h-4 w-4" />
               {profileT("labels.position")}
             </div>
-            <div className="text-lg font-semibold">{position}</div>
+            <div className={strongValueClass} style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}>{position}</div>
           </div>
           <div className={infoCardClass}>
-            <div className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}>
+            <div 
+              className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+            >
               <UserCircle2 className="h-4 w-4" />
               {profileT("labels.leader")}
             </div>
-            <div className="text-lg font-semibold break-words">{leader}</div>
+            <div className={`${strongValueClass} break-words`} style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}>{leader}</div>
           </div>
         </div>
 
@@ -406,38 +626,109 @@ export default function UserProfileModal({
         <div className={statCardClass}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <TrendingUp className={`h-5 w-5 ${pct >= 100 ? 'text-green-500' : pct >= 50 ? 'text-yellow-500' : 'text-orange-500'}`} />
-              <h3 className="text-sm font-semibold uppercase tracking-wide opacity-90">
+              <TrendingUp className={`h-5 w-5 ${loadingData ? 'text-gray-400 animate-pulse' : pct >= 100 ? 'text-green-500' : pct >= 50 ? 'text-yellow-500' : 'text-orange-500'}`} />
+              <h3 
+                className="text-sm font-semibold uppercase tracking-wide"
+                style={isMapacheAppearance ? { color: "#fff", opacity: 1 } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a", opacity: 0.9 } : { opacity: 0.9 }}
+              >
                 Desempeño Q{quarter} {year}
               </h3>
             </div>
-            {pct >= 100 && (
-              <Award className="h-6 w-6 text-yellow-500" />
-            )}
+            <div className="flex items-center gap-2">
+              {!loadingData && pct >= 100 && (
+                <Award className="h-6 w-6 text-yellow-500" />
+              )}
+              {loadingData && (
+                <div className={`h-5 w-5 animate-spin rounded-full border-2 ${
+                  isMapacheAppearance ? "border-cyan-400 border-t-transparent" : 
+                  isDirectAppearance ? "border-purple-600 border-t-transparent" : 
+                  "border-slate-400 border-t-transparent"
+                }`} />
+              )}
+              <button
+                onClick={handleSync}
+                disabled={syncing || loadingData}
+                className={`p-1.5 rounded-lg transition ${
+                  isMapacheAppearance 
+                    ? "hover:bg-white/10 text-cyan-300 disabled:text-white/30" 
+                    : isDirectAppearance 
+                      ? "hover:bg-purple-100 text-purple-600 disabled:text-slate-300"
+                      : "hover:bg-slate-100 text-slate-600 disabled:text-slate-300"
+                }`}
+                title="Sincronizar datos"
+              >
+                <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+              </button>
+            </div>
           </div>
+          
+          {/* Last sync indicator */}
+          {lastSyncedAt && (
+            <div 
+              className={`flex items-center gap-1.5 text-xs mb-3 ${
+                isMapacheAppearance ? "text-cyan-300/70" : isDirectAppearance ? "text-purple-500/70" : "text-slate-500"
+              }`}
+            >
+              <Clock className="h-3 w-3" />
+              <span>Última sincronización: {formatSyncDate(lastSyncedAt)}</span>
+            </div>
+          )}
           
           {/* Progress Bar - Más prominente */}
           <div className="mb-6">
-            <div className={`flex justify-between items-baseline mb-2`}>
-              <span className="text-3xl font-bold">{pct.toFixed(1)}%</span>
-              <span className={`text-sm ${labelTextClass}`}>
-                {formatUSD(wonAmount)} / {formatUSD(goalAmount)}
-              </span>
+            <div className="flex justify-between items-baseline mb-2">
+              {loadingData ? (
+                <>
+                  <span className={`${heroNumberClass} animate-pulse`} style={isMapacheAppearance ? { color: "#fff", opacity: 0.5 } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a", opacity: 0.5 } : { opacity: 0.5 }}>
+                    --%
+                  </span>
+                  <span className={`text-sm ${labelTextClass} animate-pulse`} style={{ opacity: 0.5 }}>
+                    Cargando...
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span 
+                    className={heroNumberClass} 
+                    style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
+                  >
+                    {pct.toFixed(1)}%
+                  </span>
+                  <span 
+                    className={`text-sm ${labelTextClass}`}
+                    style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+                  >
+                    {formatUSD(wonAmount)} / {formatUSD(goalAmount)}
+                  </span>
+                </>
+              )}
             </div>
             <div className={`h-4 w-full rounded-full overflow-hidden ${
-              isMarketingAppearance ? "bg-[#dbeeff]" : isLightAppearance ? "bg-slate-200" : isDirectAppearance ? "bg-[#ede9fe]" : "bg-white/20"
+              isMarketingAppearance
+                ? "bg-[#dbeeff]"
+                : isLightAppearance
+                  ? "bg-slate-200"
+                  : isDirectAppearance
+                    ? "bg-[#ede9fe]"
+                    : isMapacheAppearance
+                      ? "bg-white/18"
+                      : "bg-white/20"
             }`}>
-              <div 
+              <div
                 className={`h-full transition-all duration-500 ${
+                  loadingData ? 'animate-pulse opacity-30' : ''
+                } ${
                   isMarketingAppearance
                     ? 'bg-gradient-to-r from-[#1d6ee3] via-[#5ba5f6] to-[#9dd7ff]'
                     : isLightAppearance
                       ? 'bg-gradient-to-r from-slate-900 to-slate-600'
                     : isDirectAppearance
                       ? 'bg-gradient-to-r from-[#4c1d95] via-[#6d28d9] to-[#7c3aed]'
-                      : 'bg-gradient-to-r from-white to-white/80'
+                      : isMapacheAppearance
+                        ? 'bg-gradient-to-r from-[#22d3ee] via-[#8b5cf6] to-[#c084fc]'
+                        : 'bg-gradient-to-r from-white to-white/80'
                 }`}
-                style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} 
+                style={{ width: loadingData ? '0%' : `${Math.min(100, Math.max(0, pct))}%` }}
               />
             </div>
           </div>
@@ -445,48 +736,111 @@ export default function UserProfileModal({
           {/* Stats Grid - Más compacto */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className={`text-xs ${labelTextClass} mb-1`}>{metricsT("progress")}</div>
-              <div className="text-xl font-bold">{formatUSD(wonAmount)}</div>
+              <div 
+                className={`text-xs ${labelTextClass} mb-1`}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+              >
+                {metricsT("progress")}
+              </div>
+              <div 
+                className={`${boldValueClass} ${loadingData ? 'animate-pulse' : ''}`}
+                style={isMapacheAppearance ? { color: "#fff", opacity: loadingData ? 0.5 : 1 } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a", opacity: loadingData ? 0.5 : 1 } : { opacity: loadingData ? 0.5 : 1 }}
+              >
+                {loadingData ? '--' : formatUSD(wonAmount)}
+              </div>
             </div>
             <div>
-              <div className={`text-xs ${labelTextClass} mb-1`}>{metricsT("remaining")}</div>
-              <div className="text-xl font-bold">{formatUSD(Math.max(0, goalAmount - wonAmount))}</div>
+              <div 
+                className={`text-xs ${labelTextClass} mb-1`}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+              >
+                {metricsT("remaining")}
+              </div>
+              <div 
+                className={`${boldValueClass} ${loadingData ? 'animate-pulse' : ''}`}
+                style={isMapacheAppearance ? { color: "#fff", opacity: loadingData ? 0.5 : 1 } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a", opacity: loadingData ? 0.5 : 1 } : { opacity: loadingData ? 0.5 : 1 }}
+              >
+                {loadingData ? '--' : formatUSD(Math.max(0, goalAmount - wonAmount))}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Period & Goal Overview */}
-        <div className={`space-y-4 p-5 rounded-2xl border ${
-          isMarketingAppearance
-            ? 'border-[#cce8ff] bg-[#f5fbff]'
-            : isLightAppearance
-              ? 'border-slate-200 bg-white'
-              : isDirectAppearance
-                ? 'border-[#ede9fe] bg-[#faf5ff]'
-                : 'border-white/10 bg-white/5'
-        }`}>
+        <div 
+          className={`space-y-4 p-5 rounded-2xl border ${
+            isMarketingAppearance
+              ? 'border-[#cce8ff] bg-[#f5fbff]'
+              : isLightAppearance
+                ? 'border-slate-200 bg-white'
+                : isDirectAppearance
+                  ? 'border-[#ede9fe] bg-[#faf5ff]'
+                  : isMapacheAppearance
+                    ? 'border-violet-400/25 bg-gradient-to-br from-slate-800/70 via-indigo-950/50 to-slate-900/60 backdrop-blur-xl'
+                    : 'border-white/14 bg-gradient-to-br from-white/12 via-[#111827]/65 to-[#0b1221]/65 backdrop-blur-xl'
+          }`}
+        >
           <div className="flex items-center gap-2 mb-3">
-            <Calendar className={`h-4 w-4 ${labelTextClass}`} />
-            <span className={`text-sm font-semibold ${labelTextClass} uppercase tracking-wide`}>
+            <Calendar 
+              className={`h-4 w-4 ${labelTextClass}`} 
+              style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+            />
+            <span 
+              className={`text-sm font-semibold ${labelTextClass} uppercase tracking-wide`}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+            >
               {profileT("labels.period")}
             </span>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <div className={`text-xs ${labelTextClass} mb-1`}>{profileT("labels.year")}</div>
-              <div className="text-lg font-semibold">{year}</div>
+              <div 
+                className={`text-xs ${labelTextClass} mb-1`}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+              >
+                {profileT("labels.year")}
+              </div>
+              <div 
+                className={strongValueClass}
+                style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
+              >
+                {year}
+              </div>
             </div>
             <div>
-              <div className={`text-xs ${labelTextClass} mb-1`}>{profileT("labels.quarter")}</div>
-              <div className="text-lg font-semibold">Q{quarter}</div>
+              <div 
+                className={`text-xs ${labelTextClass} mb-1`}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+              >
+                {profileT("labels.quarter")}
+              </div>
+              <div 
+                className={strongValueClass}
+                style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
+              >
+                Q{quarter}
+              </div>
             </div>
             <div>
-              <div className={`text-xs ${labelTextClass} mb-1`}>{profileT("labels.goal")} (USD)</div>
-              <div className="text-lg font-bold">{formatUSD(goalAmount)}</div>
+              <div 
+                className={`text-xs ${labelTextClass} mb-1`}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+              >
+                {profileT("labels.goal")} (USD)
+              </div>
+              <div 
+                className={`${valueTextClass} text-lg font-bold ${loadingData ? 'animate-pulse' : ''}`}
+                style={isMapacheAppearance ? { color: "#fff", opacity: loadingData ? 0.5 : 1 } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a", opacity: loadingData ? 0.5 : 1 } : { opacity: loadingData ? 0.5 : 1 }}
+              >
+                {loadingData ? '--' : formatUSD(goalAmount)}
+              </div>
             </div>
           </div>
-          <div className={`text-xs ${subtleTextClass} text-center pt-2`}>
+          <div 
+            className={`text-xs ${subtleTextClass} text-center pt-2`}
+            style={isMapacheAppearance ? { color: "#a5f3fc" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
+          >
             {profileT("periodSummary", { year, quarter, from: range.from, to: range.to })}
           </div>
         </div>

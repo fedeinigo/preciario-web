@@ -4,7 +4,6 @@
 import React from "react";
 import type { AppRole } from "@/constants/teams";
 import { toast } from "@/app/components/ui/toast";
-import UserProfileModal from "@/app/components/ui/UserProfileModal";
 import Modal from "@/app/components/ui/Modal";
 import { useTranslations } from "@/app/LanguageProvider";
 import { q1Range, q2Range, q3Range, q4Range } from "../proposals/lib/dateRanges";
@@ -15,12 +14,12 @@ import IndividualGoalCard from "./components/IndividualGoalCard";
 import TeamGoalCard from "./components/TeamGoalCard";
 import TeamMembersTable, { TeamGoalRow } from "./components/TeamMembersTable";
 import BillingSummaryCard, { UserWonDeal } from "./components/BillingSummaryCard";
-import TeamRankingCard from "./components/TeamRankingCard";
 import { Download, Users2, Target } from "lucide-react";
 import ManualWonDialog from "./components/ManualWonDialog";
 import BillingEditorModal from "./components/BillingEditorModal";
 import CardSkeleton from "@/app/components/ui/skeletons/CardSkeleton";
 import Tooltip from "@/app/components/ui/Tooltip";
+import MemberDealsModal from "./components/MemberDealsModal";
 
 type Props = {
   role: AppRole;
@@ -42,6 +41,8 @@ type TeamMemberResponse = {
   role?: string | null;
   team?: string | null;
   image?: string | null;
+  positionName?: string | null;
+  leaderEmail?: string | null;
   goal?: number | string;
   progress?: number | string;
   pct?: number | string;
@@ -79,7 +80,7 @@ export default function GoalsPage({
     return map;
   }, [adminUsers]);
 
-  const now = new Date();
+  const now = React.useMemo(() => new Date(), []);
   const [year, setYear] = React.useState<number>(now.getFullYear());
   const [quarter, setQuarter] = React.useState<1 | 2 | 3 | 4>(() => {
     const m = now.getMonth();
@@ -365,11 +366,19 @@ export default function GoalsPage({
   const [teamGoal, setTeamGoal] = React.useState<number>(0);
   const [teamProgress, setTeamProgress] = React.useState<number>(0);
   const [teamProgressRaw, setTeamProgressRaw] = React.useState<number>(0);
+  const [teamMonthlyProgressRaw, setTeamMonthlyProgressRaw] = React.useState<number>(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [teamMonthlyProgress, setTeamMonthlyProgress] = React.useState<number>(0);
+  const [teamDealsByUser, setTeamDealsByUser] = React.useState<Record<string, UserWonDeal[]>>({});
+  const [teamDealsBaseMap, setTeamDealsBaseMap] = React.useState<Record<string, UserWonDeal[]>>({});
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);
   const [baseRows, setBaseRows] = React.useState<TeamGoalRow[]>([]);
   const [loadingTeam, setLoadingTeam] = React.useState<boolean>(false);
   const canAddManual = !disableManualWins && (isSuperAdmin || role === "lider" || role === "admin");
   const canAddSelfManual = !disableManualWins;
+  const [memberDealsTarget, setMemberDealsTarget] = React.useState<
+    { user: TeamGoalRow; deals: UserWonDeal[] } | null
+  >(null);
 
   const teamCacheKey = React.useMemo(
     () => `goals:pipedrive:team:${effectiveTeam || "unknown"}:${year}:Q${quarter}`,
@@ -386,14 +395,22 @@ export default function GoalsPage({
         teamGoal?: number;
         teamProgress?: number;
         teamProgressRaw?: number;
+        teamMonthlyProgressRaw?: number;
         rows?: TeamGoalRow[];
         baseRows?: TeamGoalRow[];
+        teamMonthlyProgress?: number;
+        teamDealsByUser?: Record<string, UserWonDeal[]>;
+        teamDealsBaseMap?: Record<string, UserWonDeal[]>;
         lastSyncedAt?: string | null;
       };
       if (!Array.isArray(parsed.rows) || !Array.isArray(parsed.baseRows)) return false;
       setTeamGoal(Number(parsed.teamGoal ?? 0));
       setTeamProgress(Number(parsed.teamProgress ?? 0));
       setTeamProgressRaw(Number(parsed.teamProgressRaw ?? 0));
+      setTeamMonthlyProgressRaw(Number(parsed.teamMonthlyProgressRaw ?? 0));
+      setTeamMonthlyProgress(Number(parsed.teamMonthlyProgress ?? 0));
+      setTeamDealsByUser(parsed.teamDealsByUser ?? {});
+      setTeamDealsBaseMap(parsed.teamDealsBaseMap ?? {});
       setRows(parsed.rows);
       setBaseRows(parsed.baseRows);
       setLastSyncedAt(parsed.lastSyncedAt ? new Date(parsed.lastSyncedAt) : null);
@@ -408,8 +425,12 @@ export default function GoalsPage({
       teamGoal: number;
       teamProgress: number;
       teamProgressRaw: number;
+      teamMonthlyProgress: number;
+      teamMonthlyProgressRaw: number;
       rows: TeamGoalRow[];
       baseRows: TeamGoalRow[];
+      teamDealsByUser: Record<string, UserWonDeal[]>;
+      teamDealsBaseMap: Record<string, UserWonDeal[]>;
       lastSyncedAt: string;
     }) => {
       if (winsSource !== "pipedrive") return;
@@ -433,9 +454,19 @@ export default function GoalsPage({
   }, []);
 
   const mergePipedriveSelfProgress = React.useCallback(
-    (incomingRows: TeamGoalRow[], incomingProgress: number) => {
+    (
+      incomingRows: TeamGoalRow[],
+      incomingProgress: number,
+      incomingDealsMap: Record<string, UserWonDeal[]> = {},
+      incomingMonthlyProgress = 0,
+    ) => {
       if (winsSource !== "pipedrive") {
-        return { rows: incomingRows, teamProgress: incomingProgress };
+        return {
+          rows: incomingRows,
+          teamProgress: incomingProgress,
+          dealsMap: incomingDealsMap,
+          teamMonthlyProgress: incomingMonthlyProgress,
+        };
       }
 
       const normalizedEmail = (currentEmail || "").trim().toLowerCase();
@@ -445,11 +476,31 @@ export default function GoalsPage({
         return (viewerId && row.userId === viewerId) || (!!normalizedEmail && rowEmail === normalizedEmail);
       });
 
+      const currentMapMonthly = (userId: string) =>
+        (incomingDealsMap[userId] ?? []).reduce((acc, deal) => {
+          const date = new Date(deal.createdAt);
+          return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
+            ? acc + deal.monthlyFee
+            : acc;
+        }, 0);
+
       if (matchIndex === -1) {
-        return { rows: incomingRows, teamProgress: incomingProgress };
+        return {
+          rows: incomingRows,
+          teamProgress: incomingProgress,
+          dealsMap: incomingDealsMap,
+          teamMonthlyProgress: incomingMonthlyProgress,
+        };
       }
 
       const matched = incomingRows[matchIndex];
+      const nextDealsMap = { ...incomingDealsMap };
+      if (matched.userId) {
+        nextDealsMap[matched.userId] = myDeals;
+      }
+
+      const replacedMonthly = matched.userId ? currentMapMonthly(matched.userId) : 0;
+
       const updatedRows = incomingRows.map((row, idx) =>
         idx === matchIndex
           ? {
@@ -462,10 +513,16 @@ export default function GoalsPage({
       );
 
       const adjustedTeamProgress = incomingProgress - matched.progress + myProgress;
+      const adjustedMonthly = incomingMonthlyProgress - replacedMonthly + myMonthlyProgress;
 
-      return { rows: updatedRows, teamProgress: adjustedTeamProgress };
+      return {
+        rows: updatedRows,
+        teamProgress: adjustedTeamProgress,
+        dealsMap: nextDealsMap,
+        teamMonthlyProgress: adjustedMonthly,
+      };
     },
-    [currentEmail, myDeals.length, myProgress, viewerId, winsSource]
+    [currentEmail, myDeals, myMonthlyProgress, myProgress, now, viewerId, winsSource]
   );
 
   const loadTeam = React.useCallback(async (options?: { force?: boolean }) => {
@@ -474,12 +531,22 @@ export default function GoalsPage({
       setRows([]);
       setTeamGoal(0);
       setTeamProgress(0);
+      setTeamProgressRaw(0);
+      setTeamMonthlyProgressRaw(0);
+      setTeamMonthlyProgress(0);
+      setTeamDealsByUser({});
+      setTeamDealsBaseMap({});
       return;
     }
     if (canSelectTeam && !effectiveTeam) {
       setRows([]);
       setTeamGoal(0);
       setTeamProgress(0);
+      setTeamProgressRaw(0);
+      setTeamMonthlyProgressRaw(0);
+      setTeamMonthlyProgress(0);
+      setTeamDealsByUser({});
+      setTeamDealsBaseMap({});
       return;
     }
     const shouldUseCacheOnly = winsSource === "pipedrive" && !options?.force;
@@ -491,6 +558,10 @@ export default function GoalsPage({
       setRows([]);
       setBaseRows([]);
       setTeamProgressRaw(0);
+      setTeamMonthlyProgressRaw(0);
+      setTeamMonthlyProgress(0);
+      setTeamDealsByUser({});
+      setTeamDealsBaseMap({});
       setLastSyncedAt(null);
       return;
     }
@@ -518,6 +589,8 @@ export default function GoalsPage({
           role: member.role ?? null,
           team: member.team ?? null,
           image,
+          positionName: member.positionName ?? null,
+          leaderEmail: member.leaderEmail ?? null,
           goal: Number(member.goal ?? 0),
           progress: Number(member.progress ?? 0),
           pct: Number(member.pct ?? 0),
@@ -527,6 +600,8 @@ export default function GoalsPage({
 
       let resolvedRows = normalizedRows;
       let resolvedProgress = normalizedRows.reduce((acc, row) => acc + row.progress, 0);
+      const resolvedDealsMap: Record<string, UserWonDeal[]> = {};
+      let resolvedMonthlyProgress = 0;
 
       if (winsSource === "pipedrive") {
         const memberIdentifiers =
@@ -562,11 +637,27 @@ export default function GoalsPage({
               const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
               const value = Number((deal as { value?: number | null }).value ?? 0);
               const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
+              const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
+              const createdAt =
+                wonAt || (deal as { createdAt?: string | null }).createdAt || new Date().toISOString();
+              const dealUrl = (deal as { dealUrl?: string | null }).dealUrl ?? null;
               return {
                 mapacheAssigned: String((deal as { mapacheAssigned?: string | null }).mapacheAssigned ?? ""),
                 ownerName: String((deal as { ownerName?: string | null }).ownerName ?? ""),
                 ownerEmail: String((deal as { ownerEmail?: string | null }).ownerEmail ?? ""),
                 monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+                deal: {
+                  id: String((deal as { id?: string | number }).id ?? ""),
+                  type: "auto" as const,
+                  companyName: String((deal as { title?: string }).title ?? ""),
+                  monthlyFee: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+                  billedAmount: 0,
+                  pendingAmount: Number.isFinite(monthlyFee) ? monthlyFee : 0,
+                  billingPct: 0,
+                  link: dealUrl,
+                  createdAt,
+                  wonType: "NEW_CUSTOMER" as const,
+                },
               };
             });
 
@@ -582,6 +673,16 @@ export default function GoalsPage({
                 return normalizeName(deal.mapacheAssigned) === rowName;
               });
               const progress = deals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
+              const memberDeals = deals.map((deal) => deal.deal);
+              const monthlySum = memberDeals.reduce((acc, deal) => {
+                const createdAt = new Date(deal.createdAt);
+                if (createdAt.getMonth() === now.getMonth() && createdAt.getFullYear() === now.getFullYear()) {
+                  return acc + deal.monthlyFee;
+                }
+                return acc;
+              }, 0);
+              resolvedDealsMap[row.userId] = memberDeals;
+              resolvedMonthlyProgress += monthlySum;
               return {
                 ...row,
                 progress,
@@ -597,11 +698,21 @@ export default function GoalsPage({
         }
       }
 
+      setTeamDealsBaseMap(resolvedDealsMap);
+      setTeamMonthlyProgressRaw(resolvedMonthlyProgress);
+
       setBaseRows(resolvedRows);
       setTeamProgressRaw(resolvedProgress);
-      const merged = mergePipedriveSelfProgress(resolvedRows, resolvedProgress);
+      const merged = mergePipedriveSelfProgress(
+        resolvedRows,
+        resolvedProgress,
+        resolvedDealsMap,
+        resolvedMonthlyProgress,
+      );
       setRows(merged.rows);
       setTeamProgress(merged.teamProgress);
+      setTeamDealsByUser(merged.dealsMap);
+      setTeamMonthlyProgress(merged.teamMonthlyProgress);
       const syncMoment = new Date();
       if (winsSource === "pipedrive") {
         setLastSyncedAt(syncMoment);
@@ -609,35 +720,73 @@ export default function GoalsPage({
           teamGoal: Number(j.teamGoal || 0),
           teamProgress: merged.teamProgress,
           teamProgressRaw: resolvedProgress,
+          teamMonthlyProgressRaw: resolvedMonthlyProgress,
+          teamMonthlyProgress: merged.teamMonthlyProgress,
           rows: merged.rows,
           baseRows: resolvedRows,
+          teamDealsByUser: merged.dealsMap,
+          teamDealsBaseMap: resolvedDealsMap,
           lastSyncedAt: syncMoment.toISOString(),
         });
+        
+        const snapshotsToSave = merged.rows.map((row) => ({
+          userId: row.userId,
+          year,
+          quarter,
+          goalAmount: row.goal,
+          progressAmount: row.progress,
+          pct: row.pct,
+          dealsCount: row.dealsCount ?? 0,
+          source: "pipedrive",
+        }));
+        
+        if (snapshotsToSave.length > 0) {
+          fetch("/api/goals/snapshot", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ snapshots: snapshotsToSave }),
+          }).catch((err) => console.error("Failed to save snapshots", err));
+        }
       }
     } catch {
-      setTeamGoal(0); setTeamProgress(0); setRows([]); setBaseRows([]); setTeamProgressRaw(0);
+      setTeamGoal(0); setTeamProgress(0); setRows([]); setBaseRows([]); setTeamProgressRaw(0); setTeamMonthlyProgressRaw(0); setTeamMonthlyProgress(0); setTeamDealsByUser({}); setTeamDealsBaseMap({});
     } finally {
       setLoadingTeam(false);
     }
-  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName, loadTeamFromCache, persistTeamCache, pipedriveMode]);
+  }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName, loadTeamFromCache, persistTeamCache, pipedriveMode, now]);
 
   React.useEffect(() => { loadTeam(); }, [loadTeam]);
 
   React.useEffect(() => {
     if (winsSource !== "pipedrive") return;
     if (baseRows.length === 0) return;
-    const merged = mergePipedriveSelfProgress(baseRows, teamProgressRaw);
+    const merged = mergePipedriveSelfProgress(
+      baseRows,
+      teamProgressRaw,
+      teamDealsBaseMap,
+      teamMonthlyProgressRaw,
+    );
     setRows(merged.rows);
     setTeamProgress(merged.teamProgress);
-  }, [baseRows, mergePipedriveSelfProgress, teamProgressRaw, winsSource]);
+    setTeamDealsByUser(merged.dealsMap);
+    setTeamMonthlyProgress(merged.teamMonthlyProgress);
+  }, [baseRows, mergePipedriveSelfProgress, teamProgressRaw, winsSource, teamDealsBaseMap, teamMonthlyProgressRaw]);
 
   React.useEffect(() => {
     const handleRefresh = () => {
       loadMyWins();
       loadTeam();
     };
+    const handleGoalsSyncRequest = () => {
+      loadMyWins({ force: true });
+      loadTeam({ force: true });
+    };
     window.addEventListener("proposals:refresh", handleRefresh as EventListener);
-    return () => window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
+    window.addEventListener("goals:request-sync", handleGoalsSyncRequest as EventListener);
+    return () => {
+      window.removeEventListener("proposals:refresh", handleRefresh as EventListener);
+      window.removeEventListener("goals:request-sync", handleGoalsSyncRequest as EventListener);
+    };
   }, [loadMyWins, loadTeam]);
 
   const handleSync = React.useCallback(async () => {
@@ -833,17 +982,6 @@ export default function GoalsPage({
     a.click(); URL.revokeObjectURL(url);
   };
 
-  const [profileOpen, setProfileOpen] = React.useState(false);
-  const [profileUser, setProfileUser] = React.useState<
-    {
-      id: string;
-      email: string | null;
-      name: string | null;
-      team?: string | null;
-      role?: AppRole | string | null;
-      image?: string | null;
-    } | null
-  >(null);
 
   const sumMembersGoal = React.useMemo(
     () => rows.reduce((acc, r) => acc + Number(r.goal || 0), 0),
@@ -871,13 +1009,16 @@ export default function GoalsPage({
     : "h-12 w-12 rounded-2xl bg-purple-100 border border-purple-200 flex items-center justify-center shadow-inner";
   const tableSubtitleClass = isMapache ? "text-sm font-medium text-white/70" : "text-sm font-semibold text-purple-700";
   const tableTitleClass = isMapache ? "text-2xl font-bold text-white" : "text-2xl font-bold text-slate-900";
+  const overviewCardClass = isMapache
+    ? "mapache-surface-card rounded-3xl border-white/15 shadow-[0_30px_100px_rgba(0,0,0,0.55)] overflow-hidden"
+    : "bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden";
 
   return (
     <div className={containerBg}>
       <div className="max-w-[1600px] mx-auto space-y-8">
         
         {/* Modern Header with KPIs */}
-        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className={overviewCardClass}>
           <div className={headerBg}>
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between flex-wrap gap-4">
@@ -988,92 +1129,75 @@ export default function GoalsPage({
             onDeleteDeal={canAddManual ? handleDeleteManualWon : undefined}
             theme={theme}
           />
-          <TeamRankingCard rows={rows} loading={loadingTeam} effectiveTeam={effectiveTeam} theme={theme} />
-        </div>
-
-        {/* Team Members Table - Enhanced */}
-        <div className={tableCardClass}>
-          <div className={tableHeaderClass}>
-            <div className="flex items-center gap-4">
-              <div className={tableIconShell}>
-                <Users2 className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className={tableSubtitleClass}>
-                  {pageT("teamTitle")}
-                </p>
-                <p className={tableTitleClass}>
-                  {effectiveTeam ? pageT("teamTitleWithName", { team: effectiveTeam }) : pageT("teamTitle")}
-                </p>
-              </div>
-            </div>
-            <button
-              className={
-                isMapache
-                  ? "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#8b5cf6] to-[#6366f1] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(99,102,241,0.35)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                  : "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-              }
-              onClick={exportCsv}
-              disabled={!effectiveTeam || loadingTeam}
-            >
-              <Download className="h-4 w-4" />
-              {teamT("exportCsv")}
-            </button>
-          </div>
-          <div className="p-6 sm:p-8">
-            {!effectiveTeam ? (
-              <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-8 text-center">
-                <div className="mx-auto max-w-md">
-                  <div className="h-16 w-16 mx-auto rounded-full bg-purple-100 flex items-center justify-center mb-4">
-                    <Users2 className="h-8 w-8 text-purple-600" />
-                  </div>
-                  <p className="text-sm text-purple-900 font-medium">
-                    {isSuperAdmin ? pageT("emptyAdmin") : pageT("emptyMember")}
+          
+          {/* Team Members Table - Unified (replaces TeamRankingCard) */}
+          <div className={tableCardClass}>
+            <div className={tableHeaderClass}>
+              <div className="flex items-center gap-4">
+                <div className={tableIconShell}>
+                  <Users2 className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className={tableSubtitleClass}>
+                    {pageT("teamTitle")}
+                  </p>
+                  <p className={tableTitleClass}>
+                    {effectiveTeam ? pageT("teamTitleWithName", { team: effectiveTeam }) : pageT("teamTitle")}
                   </p>
                 </div>
               </div>
-            ) : (
+              <button
+                className={
+                  isMapache
+                    ? "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#8b5cf6] to-[#6366f1] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(99,102,241,0.35)] transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    : "inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition-all hover:shadow-xl hover:shadow-purple-500/30 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                }
+                onClick={exportCsv}
+                disabled={!effectiveTeam || loadingTeam}
+              >
+                <Download className="h-4 w-4" />
+                {teamT("exportCsv")}
+              </button>
+            </div>
+            <div className="p-4 sm:p-5">
+              {!effectiveTeam ? (
+                <div className={isMapache 
+                  ? "rounded-2xl border-2 border-dashed border-white/20 bg-white/5 p-8 text-center"
+                  : "rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/30 p-8 text-center"
+                }>
+                  <div className="mx-auto max-w-md">
+                    <div className={isMapache
+                      ? "h-16 w-16 mx-auto rounded-full bg-white/10 flex items-center justify-center mb-4"
+                      : "h-16 w-16 mx-auto rounded-full bg-purple-100 flex items-center justify-center mb-4"
+                    }>
+                      <Users2 className={isMapache ? "h-8 w-8 text-white" : "h-8 w-8 text-purple-600"} />
+                    </div>
+                    <p className={isMapache ? "text-sm text-white/80 font-medium" : "text-sm text-purple-900 font-medium"}>
+                      {isSuperAdmin ? pageT("emptyAdmin") : pageT("emptyMember")}
+                    </p>
+                  </div>
+                </div>
+              ) : (
                 <TeamMembersTable
                   loading={loadingTeam}
                   rows={rows}
                   canEdit={isSuperAdmin || role === "lider" || role === "admin"}
                   canAddManual={canAddManual}
+                  theme={theme}
                   onEditGoal={saveUserGoal}
-                  onOpenProfile={(u) => {
-                    // Use team from row (API) instead of effectiveTeam to ensure it's always present
-                    setProfileUser({
-                      ...u,
-                      team: u.team ?? effectiveTeam,
-                      role: u.role,
-                      image: u.image ?? null,
-                    });
-                    setProfileOpen(true);
-                  }}
-                onAddManual={(u) =>
-                  setManualDialogTarget({ userId: u.id, email: u.email, name: u.name })
-                }
-              />
-            )}
+                  onAddManual={(u) =>
+                    setManualDialogTarget({ userId: u.id, email: u.email, name: u.name })
+                  }
+                  onShowDeals={(row) =>
+                    setMemberDealsTarget({ user: row, deals: teamDealsByUser[row.userId] ?? [] })
+                  }
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {profileUser && (
-        <UserProfileModal
-          open={profileOpen}
-          onClose={() => setProfileOpen(false)}
-          viewer={{
-            role,
-            team: leaderTeam,
-            email: currentEmail ?? null,
-            image: viewerImage ?? null,
-            positionName: null,
-            leaderEmail: null,
-          }}
-          targetUser={profileUser}
-          appearance="light"
-        />
-      )}
       {manualDialogTarget && (
         <ManualWonDialog
           open={!!manualDialogTarget}
@@ -1095,7 +1219,20 @@ export default function GoalsPage({
         isOpen={billingEditorDeal !== null}
         onClose={() => setBillingEditorDeal(null)}
         onSave={handleSaveBilling}
+        theme={theme}
       />
+
+      {memberDealsTarget && (
+        <MemberDealsModal
+          open={!!memberDealsTarget}
+          onClose={() => setMemberDealsTarget(null)}
+          member={memberDealsTarget.user}
+          deals={memberDealsTarget.deals}
+          theme={theme}
+          year={year}
+          quarter={quarter}
+        />
+      )}
 
       <Modal
         open={!!deleteConfirmDeal}

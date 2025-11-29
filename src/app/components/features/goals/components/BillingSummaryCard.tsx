@@ -282,10 +282,11 @@ export default function BillingSummaryCard({
         </div>
       </div>
 
-      <DealDetailsModal 
+      <DealDetailsModal
         deal={selectedDeal}
         isOpen={selectedDeal !== null}
         onClose={() => setSelectedDeal(null)}
+        theme={theme}
       />
     </div>
   );

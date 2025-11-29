@@ -15,6 +15,61 @@ interface CompanyCardProps {
   t: (key: string, replacements?: Record<string, string | number>) => string;
 }
 
+const cardStyles: React.CSSProperties = {
+  borderRadius: "0.75rem",
+  border: "1px solid rgb(var(--border-primary, 226 232 240))",
+  backgroundColor: "rgb(var(--surface-primary, 255 255 255))",
+  boxShadow: "var(--shadow-md)",
+  overflow: "hidden",
+};
+
+const headerStyles: React.CSSProperties = {
+  backgroundColor: "var(--form-card-header-bg, #4c1d95)",
+  padding: "0.75rem 1rem",
+  borderBottom: "1px solid var(--form-card-header-bg, #4c1d95)",
+};
+
+const headerTextStyles: React.CSSProperties = {
+  fontSize: "0.875rem",
+  fontWeight: 600,
+  color: "var(--form-card-header-text, #ffffff)",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+};
+
+const sectionStyles: React.CSSProperties = {
+  borderRadius: "0.5rem",
+  border: "1px solid var(--form-card-section-border, #e9d5ff)",
+  backgroundColor: "var(--form-card-section-bg, rgba(243, 232, 255, 0.3))",
+  padding: "1rem",
+};
+
+const labelStyles: React.CSSProperties = {
+  display: "block",
+  fontSize: "0.75rem",
+  fontWeight: 500,
+  color: "var(--form-label-text, #334155)",
+  marginBottom: "0.5rem",
+};
+
+const inputStyles: React.CSSProperties = {
+  width: "100%",
+  height: "2.5rem",
+  borderRadius: "0.5rem",
+  border: "1px solid rgb(var(--border-primary, 226 232 240))",
+  backgroundColor: "var(--form-input-bg, #ffffff)",
+  padding: "0 0.75rem",
+  fontSize: "0.875rem",
+  color: "var(--form-input-text, #0f172a)",
+  boxShadow: "var(--shadow-sm)",
+};
+
+const readonlyInputStyles: React.CSSProperties = {
+  ...inputStyles,
+  backgroundColor: "rgb(var(--surface-secondary, 248 250 252))",
+  color: "rgb(var(--text-secondary, 71 85 105))",
+};
+
 export default function CompanyCard({
   companyName,
   onCompanyNameChange,
@@ -26,23 +81,24 @@ export default function CompanyCard({
   t,
 }: CompanyCardProps) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-md overflow-hidden">
-      <div className="bg-[#4c1d95] px-4 py-3 border-b border-[#4c1d95]">
-        <h3 className="text-sm font-semibold text-white uppercase tracking-wide">{t("title")}</h3>
+    <div style={cardStyles}>
+      <div style={headerStyles}>
+        <h3 style={headerTextStyles}>{t("title")}</h3>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-5">
-        <div className="rounded-lg border border-purple-200 bg-purple-50/30 p-4 transition hover:shadow-sm">
-          <label className="block text-xs font-medium text-slate-700 mb-2">{t("name.label")}</label>
+        <div style={sectionStyles} className="transition hover:shadow-sm">
+          <label style={labelStyles}>{t("name.label")}</label>
           <input
-            className="w-full h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20"
+            style={inputStyles}
+            className="transition focus:border-[var(--form-input-focus-border)] focus:outline-none focus:ring-2 focus:ring-[var(--form-input-focus-ring)]"
             placeholder={t("name.placeholder")}
             value={companyName}
             onChange={(event) => onCompanyNameChange(event.target.value)}
           />
         </div>
 
-        <div className="rounded-lg border border-purple-200 bg-purple-50/30 p-4 transition hover:shadow-sm">
-          <label className="block text-xs font-medium text-slate-700 mb-2">{t("country.label")}</label>
+        <div style={sectionStyles} className="transition hover:shadow-sm">
+          <label style={labelStyles}>{t("country.label")}</label>
           <Combobox
             options={countryOptions}
             value={country}
@@ -51,10 +107,19 @@ export default function CompanyCard({
           />
         </div>
 
-        <div className="rounded-lg border border-purple-200 bg-purple-50/30 p-4 transition hover:shadow-sm">
-          <label className="block text-xs font-medium text-slate-700 mb-2">{t("subsidiary.label")}</label>
-          <input className="w-full h-10 rounded-lg border border-slate-300 bg-slate-100 px-3 text-sm text-slate-600 shadow-sm" value={subsidiary || emptyValue} readOnly />
-          <p className="mt-2 text-xs text-slate-600">{t("subsidiary.helper")}</p>
+        <div style={sectionStyles} className="transition hover:shadow-sm">
+          <label style={labelStyles}>{t("subsidiary.label")}</label>
+          <input 
+            style={readonlyInputStyles}
+            value={subsidiary || emptyValue} 
+            readOnly 
+          />
+          <p 
+            className="mt-2 text-xs"
+            style={{ color: "rgb(var(--text-secondary, 71 85 105))" }}
+          >
+            {t("subsidiary.helper")}
+          </p>
         </div>
       </div>
     </div>

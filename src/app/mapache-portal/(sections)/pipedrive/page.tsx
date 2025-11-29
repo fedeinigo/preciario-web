@@ -2,7 +2,21 @@
 
 import * as React from "react";
 
-import { AlertTriangle, ArrowDownWideNarrow, ArrowUpWideNarrow, Loader2 } from "lucide-react";
+import { 
+  AlertTriangle, 
+  ArrowDownWideNarrow, 
+  ArrowUpWideNarrow, 
+  Briefcase, 
+  DollarSign, 
+  Filter, 
+  Link2, 
+  Loader2, 
+  RefreshCw, 
+  Search, 
+  TrendingUp, 
+  Trophy, 
+  X 
+} from "lucide-react";
 
 import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
@@ -21,9 +35,6 @@ const CURRENCY_FORMATTER = new Intl.NumberFormat("es-AR", {
 type ApiResponse =
   | { ok: true; deals: PipedriveDealSummary[] }
   | { ok: false; error?: string };
-
-const ACTION_BUTTON_CLASSES =
-  "rounded-full border border-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80 transition hover:border-white/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
 
 type StatusFilter = "all" | "open" | "won" | "lost";
 type YearFilter = number | "all";
@@ -394,76 +405,169 @@ export default function MapachePortalPipedrivePage() {
     }
   }, [assignLink, handleRefresh]);
 
+  const totalValue = React.useMemo(() => 
+    filteredDeals.reduce((sum, deal) => sum + (deal.value ?? 0), 0), 
+    [filteredDeals]
+  );
+  
+  const wonDealsCount = React.useMemo(() => 
+    filteredDeals.filter(d => d.status === "won").length, 
+    [filteredDeals]
+  );
+  
+  const wonDealsValue = React.useMemo(() => 
+    filteredDeals.filter(d => d.status === "won").reduce((sum, deal) => sum + (deal.value ?? 0), 0), 
+    [filteredDeals]
+  );
+
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-[#0a0e16] via-[#090c1a] to-[#05060d] px-6 pb-12">
-      <main className="mx-auto w-full max-w-[1200px] space-y-8">
-        <section className="rounded-[32px] border border-white/10 bg-white/[0.03] p-6 shadow-[0_30px_100px_rgba(2,6,23,0.85)] backdrop-blur-3xl">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.35em] text-white/50">Pipedrive</p>
-              <h1 className="text-2xl font-semibold text-white">Deals asignados</h1>
-              <p className="text-sm text-white/60">
-                Actualiza la lista para ver los negocios que tienen tu nombre en el campo “Mapache Asignado”.
-              </p>
-            </div>
-            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-              <span className="text-xs uppercase tracking-[0.3em] text-white/50">
-                Última actualización: {lastSyncedLabel}
-              </span>
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={isLoading}
-                className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-white px-4 py-2 text-xs font-semibold tracking-[0.35em] text-[#0f1b2a] transition hover:border-white hover:bg-white/90 disabled:cursor-wait disabled:opacity-60"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-[#0f1b2a]" aria-hidden="true" />
-                ) : null}
-                Actualizar
-              </button>
+    <div className="min-h-screen w-full bg-gradient-to-b from-[#0a0a0f] via-[#0e0e14] to-[#11111a] px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-[1600px] space-y-6">
+        
+        {/* Header Card with KPIs */}
+        <div className="rounded-3xl border border-white/10 bg-[#0f0f17] shadow-[0_20px_50px_rgba(0,0,0,0.45)] overflow-hidden">
+          <div className="bg-gradient-to-r from-[#0c0c14] via-[#11111c] to-[#161626] px-6 sm:px-8 py-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#8b5cf6]/20 to-[#6366f1]/20 backdrop-blur-sm flex items-center justify-center border border-white/20 shadow-lg">
+                    <Briefcase className="h-7 w-7 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Deals Asignados</h1>
+                    <p className="text-white/60 text-sm mt-0.5">
+                      Negocios con tu nombre en &quot;Mapache Asignado&quot;
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+                  <div className="text-xs font-medium text-white/60">
+                    Última sync: {lastSyncedLabel}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                    disabled={isLoading}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/20 hover:scale-[1.01] disabled:opacity-60 disabled:cursor-wait"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    Sincronizar
+                  </button>
+                </div>
+              </div>
+              
+              {/* KPI Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">
+                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="h-4 w-4 text-purple-300" />
+                    <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">Total Deals</p>
+                  </div>
+                  <p className="text-2xl font-bold text-white mt-1">{filteredDeals.length}</p>
+                </div>
+                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-purple-300" />
+                    <p className="text-xs text-purple-200 font-medium uppercase tracking-wide">Valor Total</p>
+                  </div>
+                  <p className="text-2xl font-bold text-white mt-1">{formatCurrency(totalValue)}</p>
+                </div>
+                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-emerald-300" />
+                    <p className="text-xs text-emerald-200 font-medium uppercase tracking-wide">Ganados</p>
+                  </div>
+                  <p className="text-2xl font-bold text-white mt-1">{wonDealsCount}</p>
+                </div>
+                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-emerald-300" />
+                    <p className="text-xs text-emerald-200 font-medium uppercase tracking-wide">Valor Ganado</p>
+                  </div>
+                  <p className="text-2xl font-bold text-white mt-1">{formatCurrency(wonDealsValue)}</p>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
 
-          <div className="mt-6 space-y-3 rounded-3xl border border-white/10 bg-white/[0.02] p-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end">
-              <label className="flex-1 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
-                Link de Pipedrive
-                <input
-                  type="text"
-                  value={assignLink}
-                  onChange={(event) => setAssignLink(event.target.value)}
-                  placeholder="https://wcx.pipedrive.com/deal/12345"
-                  className="mt-2 w-full rounded-2xl border border-white/15 bg-[#101626] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/40 focus:outline-none"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={handleAssign}
-                disabled={assigning}
-                className="inline-flex items-center justify-center rounded-2xl border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.3em] text-white transition hover:border-white/60 hover:bg-white/20 disabled:cursor-wait disabled:opacity-60"
-              >
-                {assigning ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : null}
-                Asignarme y sincronizar
-              </button>
+        {/* Assign Deal Card */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#8b5cf6]/20 to-[#6366f1]/20 flex items-center justify-center border border-white/15">
+              <Link2 className="h-5 w-5 text-purple-300" />
             </div>
-            <p className="text-xs text-white/50">
-              Pegá el enlace del deal que quieras tomar. Lo asignaremos a tu nombre y actualizaremos la lista.
-            </p>
+            <div>
+              <h2 className="text-sm font-semibold text-white">Asignar Deal</h2>
+              <p className="text-xs text-white/50">Pegá el enlace del deal que quieras tomar</p>
+            </div>
           </div>
-
-          <div className="mt-6 grid gap-3 md:grid-cols-6">
-            <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
-              Buscar deal
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex-1">
               <input
                 type="text"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Escribe el nombre del deal..."
-                className="rounded-2xl border border-white/15 bg-[#101626] px-3 py-2 text-sm text-white placeholder:text-white/50 focus:border-white/40 focus:outline-none"
+                value={assignLink}
+                onChange={(event) => setAssignLink(event.target.value)}
+                placeholder="https://wcx.pipedrive.com/deal/12345"
+                className="w-full rounded-xl border border-white/15 bg-[#0a0a12] px-4 py-2.5 text-sm text-white placeholder:text-white/40 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 focus:outline-none transition"
               />
-            </label>
+            </div>
+            <button
+              type="button"
+              onClick={handleAssign}
+              disabled={assigning}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#8b5cf6] to-[#6366f1] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(99,102,241,0.3)] transition-all hover:scale-[1.02] hover:shadow-[0_12px_30px_rgba(99,102,241,0.4)] disabled:cursor-wait disabled:opacity-60 disabled:hover:scale-100"
+            >
+              {assigning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Link2 className="h-4 w-4" />
+              )}
+              Asignarme
+            </button>
+          </div>
+        </div>
+
+        {/* Filters Card */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10">
+                <Filter className="h-5 w-5 text-white/70" />
+              </div>
+              <h2 className="text-sm font-semibold text-white">Filtros</h2>
+            </div>
+            {hasFiltersApplied && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+                Limpiar
+              </button>
+            )}
+          </div>
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="col-span-2 sm:col-span-1 lg:col-span-2">
+              <label className="block text-xs font-medium uppercase tracking-wider text-white/50 mb-2">
+                Buscar deal
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Nombre del deal..."
+                  className="w-full rounded-xl border border-white/15 bg-[#0a0a12] pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-white/40 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 focus:outline-none transition"
+                />
+              </div>
+            </div>
             <FilterSelect
               label="Estado"
               value={statusFilter}
@@ -509,16 +613,11 @@ export default function MapachePortalPipedrivePage() {
                 ...availableYears.map((year) => ({ value: String(year), label: String(year) })),
               ]}
             />
-            <button
-              type="button"
-              onClick={handleClearFilters}
-              className="rounded-2xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
-            >
-              Limpiar filtros
-            </button>
           </div>
+        </div>
 
-          <SummarySection
+        {/* Summary Section */}
+        <SummarySection
             total={filteredDeals.length}
             stageStats={stageStats}
             statusStats={statusStats}
@@ -543,135 +642,159 @@ export default function MapachePortalPipedrivePage() {
             }
           />
 
-          <div className="mt-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/60">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-white">
-                <thead>
-                  <tr className="text-[11px] uppercase tracking-[0.4em] text-white/50">
-                    <SortableHeader
-                      label="Nombre deal"
-                      active={sortConfig?.key === "title"}
-                      direction={sortConfig?.direction}
-                      onClick={() => handleSort("title")}
-                    />
-                    <SortableHeader
-                      label="Etapa"
-                      active={sortConfig?.key === "stageName"}
-                      direction={sortConfig?.direction}
-                      onClick={() => handleSort("stageName")}
-                    />
-                    <SortableHeader
-                      label="Propietario"
-                      active={sortConfig?.key === "ownerName"}
-                      direction={sortConfig?.direction}
-                      onClick={() => handleSort("ownerName")}
-                    />
-                    <SortableHeader
-                      label="Valor"
-                      active={sortConfig?.key === "value"}
-                      direction={sortConfig?.direction}
-                      onClick={() => handleSort("value")}
-                    />
-                    <th className="px-4 py-4">Acciones</th>
+        {/* Deals Table */}
+        <div className="rounded-2xl border border-white/10 bg-[#0d0d15] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-white">
+              <thead>
+                <tr className="border-b border-white/10 bg-white/[0.03]">
+                  <SortableHeader
+                    label="Nombre deal"
+                    active={sortConfig?.key === "title"}
+                    direction={sortConfig?.direction}
+                    onClick={() => handleSort("title")}
+                  />
+                  <SortableHeader
+                    label="Etapa"
+                    active={sortConfig?.key === "stageName"}
+                    direction={sortConfig?.direction}
+                    onClick={() => handleSort("stageName")}
+                  />
+                  <SortableHeader
+                    label="Propietario"
+                    active={sortConfig?.key === "ownerName"}
+                    direction={sortConfig?.direction}
+                    onClick={() => handleSort("ownerName")}
+                  />
+                  <SortableHeader
+                    label="Valor"
+                    active={sortConfig?.key === "value"}
+                    direction={sortConfig?.direction}
+                    onClick={() => handleSort("value")}
+                  />
+                  <th className="px-5 py-4 text-[11px] uppercase tracking-[0.25em] text-white/50 font-medium">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deals.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="h-12 w-12 rounded-xl bg-white/5 flex items-center justify-center">
+                          <Briefcase className="h-6 w-6 text-white/40" />
+                        </div>
+                        <p className="text-sm text-white/50">
+                          Presiona &quot;Sincronizar&quot; para ver los deals asignados
+                        </p>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {deals.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-sm text-white/60">
-                        Presiona “Actualizar” para sincronizar los deals asignados a tu nombre.
+                ) : filteredDeals.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="h-12 w-12 rounded-xl bg-white/5 flex items-center justify-center">
+                          <Search className="h-6 w-6 text-white/40" />
+                        </div>
+                        <p className="text-sm text-white/50">
+                          {hasFiltersApplied
+                            ? "No hay deals que coincidan con los filtros"
+                            : "No se encontraron deals"}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  sortedDeals.map((deal, index) => (
+                    <tr
+                      key={deal.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedDeal(deal)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedDeal(deal);
+                        }
+                      }}
+                      className={`cursor-pointer transition hover:bg-white/[0.04] focus:bg-white/[0.04] focus-visible:outline-none ${
+                        index !== 0 ? "border-t border-white/5" : ""
+                      }`}
+                    >
+                      <td className="px-5 py-3.5">
+                        <span className="text-sm font-semibold text-white">{deal.title || "Sin título"}</span>
+                        {deal.status === "won" && (
+                          <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-300 uppercase tracking-wide">
+                            <Trophy className="h-3 w-3" />
+                            Ganado
+                          </span>
+                        )}
                       </td>
-                    </tr>
-                  ) : filteredDeals.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-sm text-white/60">
-                        {hasFiltersApplied
-                          ? "No hay deals que coincidan con los filtros seleccionados."
-                          : "No se encontraron deals para mostrar."}
+                      <td className="px-5 py-3.5">
+                        <span className="inline-flex rounded-full bg-white/[0.06] px-2.5 py-1 text-xs text-white/70">
+                          {deal.stageName ?? "—"}
+                        </span>
                       </td>
-                    </tr>
-                  ) : (
-                    sortedDeals.map((deal) => (
-                      <tr
-                        key={deal.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setSelectedDeal(deal)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            setSelectedDeal(deal);
-                          }
-                        }}
-                        className="cursor-pointer border-t border-white/5 transition hover:bg-white/5 focus:bg-white/5 focus-visible:outline-none"
-                      >
-                        <td className="px-4 py-3">
-                          <span className="text-sm font-semibold text-white">{deal.title || "Sin título"}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-sm text-white/80">{deal.stageName ?? "—"}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-sm text-white/80">{deal.ownerName ?? "—"}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-sm text-white/80">{formatCurrency(deal.value)}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-2">
+                      <td className="px-5 py-3.5">
+                        <span className="text-sm text-white/70">{deal.ownerName ?? "—"}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-sm font-medium text-white/90">{formatCurrency(deal.value)}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex flex-wrap gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(event) =>
+                              openExternalLink(event, deal.dealUrl, "el enlace de Pipedrive")
+                            }
+                            className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-white/70 transition hover:border-white/30 hover:text-white"
+                          >
+                            Pipe
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) =>
+                              openExternalLink(event, deal.proposalUrl, "la propuesta comercial")
+                            }
+                            className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-white/70 transition hover:border-white/30 hover:text-white"
+                          >
+                            Propuesta
+                          </button>
+                          {deal.techSaleScopeUrl ? (
                             <button
                               type="button"
                               onClick={(event) =>
-                                openExternalLink(event, deal.dealUrl, "el enlace de Pipedrive")
+                                openExternalLink(event, deal.techSaleScopeUrl, "el alcance Tech Sale")
                               }
-                              className={ACTION_BUTTON_CLASSES}
+                              className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-emerald-300 transition hover:border-emerald-500/50"
                             >
-                              Ver en pipe
+                              Alcance
                             </button>
+                          ) : (
                             <button
                               type="button"
-                              onClick={(event) =>
-                                openExternalLink(event, deal.proposalUrl, "la propuesta comercial")
-                              }
-                              className={ACTION_BUTTON_CLASSES}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleOpenScopeModal(deal);
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-amber-300 transition hover:border-amber-500/50"
+                              aria-label="Entregar alcance"
                             >
-                              Ver propuesta
+                              <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                              Entregar
                             </button>
-                            {deal.techSaleScopeUrl ? (
-                              <button
-                                type="button"
-                                onClick={(event) =>
-                                  openExternalLink(event, deal.techSaleScopeUrl, "el alcance Tech Sale")
-                                }
-                                className={ACTION_BUTTON_CLASSES}
-                              >
-                                Ver alcance
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleOpenScopeModal(deal);
-                                }}
-                                className={`${ACTION_BUTTON_CLASSES} inline-flex items-center gap-1 border-amber-300 text-amber-200 hover:border-amber-200 hover:text-amber-50`}
-                                aria-label="Entregar alcance"
-                              >
-                                <AlertTriangle className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
-                                Entregar alcance
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        </section>
-      </main>
+        </div>
+      </div>
 
       <Modal
         open={Boolean(selectedDeal)}
@@ -817,7 +940,7 @@ export default function MapachePortalPipedrivePage() {
               />
             </label>
             <p className="text-xs text-white/50">
-              Este enlace se guardará en el campo “Alcance Tech Sale” para que todo el equipo pueda verlo.
+              Este enlace se guardará en el campo &quot;Alcance Tech Sale&quot; para que todo el equipo pueda verlo.
             </p>
           </div>
         ) : null}
@@ -870,12 +993,14 @@ type FilterSelectProps = {
 
 function FilterSelect({ label, value, onChange, options }: FilterSelectProps) {
   return (
-    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
-      {label}
+    <div>
+      <label className="block text-xs font-medium uppercase tracking-wider text-white/50 mb-2">
+        {label}
+      </label>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-2xl border border-white/15 bg-[#101626] px-3 py-2 text-sm text-white focus:border-white/40 focus:outline-none"
+        className="w-full rounded-xl border border-white/15 bg-[#0a0a12] px-4 py-2.5 text-sm text-white focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 focus:outline-none transition appearance-none cursor-pointer"
         style={{ colorScheme: "dark" }}
       >
         {options.map((option) => (
@@ -884,7 +1009,7 @@ function FilterSelect({ label, value, onChange, options }: FilterSelectProps) {
           </option>
         ))}
       </select>
-    </label>
+    </div>
   );
 }
 
@@ -900,12 +1025,12 @@ function SortableHeader({
   onClick: () => void;
 }) {
   return (
-    <th className="px-4 py-4">
+    <th className="px-5 py-4">
       <button
         type="button"
         onClick={onClick}
-        className={`inline-flex items-center gap-2 ${
-          active ? "text-white" : "text-white/60"
+        className={`inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.25em] font-medium transition ${
+          active ? "text-purple-300" : "text-white/50 hover:text-white/70"
         }`}
       >
         <span>{label}</span>
@@ -1029,12 +1154,17 @@ function SummarySection({
   onCreatedQuarterSelect: (quarter: number) => void;
 }) {
   return (
-    <div className="mt-6 space-y-4 rounded-3xl border border-white/10 bg-white/[0.02] p-5 text-white/80">
-      <div className="flex flex-col gap-1">
-        <p className="text-xs uppercase tracking-[0.3em] text-white/50">Resumen</p>
-        <p className="text-3xl font-semibold text-white">{total} deals</p>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-5">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#8b5cf6]/20 to-[#6366f1]/20 flex items-center justify-center border border-white/15">
+          <TrendingUp className="h-5 w-5 text-purple-300" />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-white">Resumen</h2>
+          <p className="text-xs text-white/50">{total} deals filtrados</p>
+        </div>
       </div>
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryList
           title="Por etapa"
           stats={stageStats}
@@ -1046,12 +1176,12 @@ function SummarySection({
           onSelect={(stat) => onStatusSelect(stat.key)}
         />
         <QuarterSummary
-          title={`Ganados por trimestre ${selectedYear}`}
+          title={`Ganados Q ${selectedYear}`}
           stats={wonQuarterStats}
           onSelect={onWonQuarterSelect}
         />
         <QuarterSummary
-          title={`Deals por trimestre ${selectedYear}`}
+          title={`Creados Q ${selectedYear}`}
           stats={createdQuarterStats}
           onSelect={onCreatedQuarterSelect}
         />
@@ -1073,23 +1203,27 @@ function SummaryList({
   onSelect: (stat: SummaryStat) => void;
 }) {
   return (
-    <div>
-      <p className="text-xs uppercase tracking-[0.3em] text-white/50">{title}</p>
-      <ul className="mt-1 space-y-1">
-        {stats.map((stat) => (
-          <li key={`${title}-${stat.key}`}>
-            <button
-              type="button"
-              onClick={() => onSelect(stat)}
-              className="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-white/80 hover:bg-white/10"
-            >
-              <span>{stat.label}</span>
-              <span>
-                {stat.count} · {formatCurrency(stat.value)}
-              </span>
-            </button>
-          </li>
-        ))}
+    <div className="rounded-xl bg-white/[0.03] border border-white/10 p-3">
+      <p className="text-[10px] uppercase tracking-wider text-white/50 font-medium mb-2">{title}</p>
+      <ul className="space-y-0.5">
+        {stats.length === 0 ? (
+          <li className="text-xs text-white/40 py-1">Sin datos</li>
+        ) : (
+          stats.map((stat) => (
+            <li key={`${title}-${stat.key}`}>
+              <button
+                type="button"
+                onClick={() => onSelect(stat)}
+                className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs transition hover:bg-white/[0.06]"
+              >
+                <span className="text-white/80 truncate">{stat.label}</span>
+                <span className="text-white/50 whitespace-nowrap ml-2">
+                  {stat.count} · {formatCurrency(stat.value)}
+                </span>
+              </button>
+            </li>
+          ))
+        )}
       </ul>
     </div>
   );
@@ -1106,26 +1240,30 @@ function QuarterSummary({
 }) {
   const isInteractive = typeof onSelect === "function";
   return (
-    <div>
-      <p className="text-xs uppercase tracking-[0.3em] text-white/50">{title}</p>
-      <ul className="mt-1 space-y-1">
-        {stats.map((stat) => (
-          <li key={`quarter-${stat.quarter}`}>
-            <button
-              type="button"
-              onClick={isInteractive ? () => onSelect?.(stat.quarter) : undefined}
-              disabled={!isInteractive}
-              className={`flex w-full items-center justify-between rounded-lg px-2 py-1 text-left ${
-                isInteractive ? "text-white/80 hover:bg-white/10" : "cursor-default text-white/60"
-              }`}
-            >
-              <span>{stat.label}</span>
-              <span>
-                {stat.count} × {formatCurrency(stat.value)}
-              </span>
-            </button>
-          </li>
-        ))}
+    <div className="rounded-xl bg-white/[0.03] border border-white/10 p-3">
+      <p className="text-[10px] uppercase tracking-wider text-white/50 font-medium mb-2">{title}</p>
+      <ul className="space-y-0.5">
+        {stats.length === 0 ? (
+          <li className="text-xs text-white/40 py-1">Sin datos</li>
+        ) : (
+          stats.map((stat) => (
+            <li key={`quarter-${stat.quarter}`}>
+              <button
+                type="button"
+                onClick={isInteractive ? () => onSelect?.(stat.quarter) : undefined}
+                disabled={!isInteractive}
+                className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs transition ${
+                  isInteractive ? "hover:bg-white/[0.06]" : "cursor-default"
+                }`}
+              >
+                <span className="text-white/80">{stat.label}</span>
+                <span className="text-white/50 whitespace-nowrap ml-2">
+                  {stat.count} × {formatCurrency(stat.value)}
+                </span>
+              </button>
+            </li>
+          ))
+        )}
       </ul>
     </div>
   );

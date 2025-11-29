@@ -24,6 +24,57 @@ interface CatalogToolbarProps {
   resetTitle: string;
 }
 
+const toolbarStyles: React.CSSProperties = {
+  borderRadius: "0.5rem",
+  border: "1px solid rgb(var(--border-primary, 226 232 240))",
+  backgroundColor: "rgba(var(--surface-secondary), 0.5)",
+  padding: "1rem",
+};
+
+const selectStyles: React.CSSProperties = {
+  height: "2.5rem",
+  borderRadius: "0.5rem",
+  border: "1px solid rgb(var(--border-primary, 226 232 240))",
+  backgroundColor: "var(--form-input-bg, #ffffff)",
+  padding: "0 2rem 0 0.75rem",
+  fontSize: "0.875rem",
+  color: "var(--form-input-text, #0f172a)",
+  boxShadow: "var(--shadow-sm)",
+};
+
+const primaryButtonStyles: React.CSSProperties = {
+  borderRadius: "0.5rem",
+  background: "linear-gradient(to right, rgb(var(--brand-secondary)), rgb(var(--brand-primary)))",
+  padding: "0.625rem 1.25rem",
+  fontSize: "0.875rem",
+  fontWeight: 600,
+  color: "rgb(var(--brand-on-primary, 255 255 255))",
+  boxShadow: "var(--shadow-md)",
+};
+
+const secondaryButtonStyles: React.CSSProperties = {
+  borderRadius: "0.5rem",
+  border: "1px solid rgb(var(--border-primary, 226 232 240))",
+  backgroundColor: "var(--form-input-bg, #ffffff)",
+  padding: "0.625rem 1.25rem",
+  fontSize: "0.875rem",
+  fontWeight: 600,
+  color: "rgb(var(--text-secondary, 71 85 105))",
+  boxShadow: "var(--shadow-sm)",
+};
+
+const addButtonStyles: React.CSSProperties = {
+  display: "flex",
+  height: "2.5rem",
+  width: "2.5rem",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: "9999px",
+  background: "linear-gradient(to bottom right, rgb(var(--brand-secondary)), rgb(var(--brand-primary)))",
+  color: "rgb(var(--brand-on-primary, 255 255 255))",
+  boxShadow: "var(--shadow-md)",
+};
+
 function CatalogToolbar({
   isAdmin,
   categoryFilter,
@@ -43,12 +94,13 @@ function CatalogToolbar({
   resetTitle,
 }: CatalogToolbarProps) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+    <div style={toolbarStyles} className="flex flex-col md:flex-row md:items-center gap-3">
       <div className="flex items-center gap-3 flex-1">
         {isAdmin && (
           <button
             onClick={onAddItem}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-600 to-purple-700 text-white shadow-md transition hover:from-purple-700 hover:to-purple-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400/50"
+            style={addButtonStyles}
+            className="transition hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--form-input-focus-ring)]"
             title={actionsT("addItem")}
             aria-label={actionsT("addItem")}
           >
@@ -68,9 +120,15 @@ function CatalogToolbar({
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-700">{orderT("label")}</span>
+          <span 
+            className="text-sm font-medium"
+            style={{ color: "rgb(var(--text-secondary, 71 85 105))" }}
+          >
+            {orderT("label")}
+          </span>
           <select
-            className="h-10 rounded-lg border border-slate-300 bg-white px-3 pr-8 text-sm text-slate-900 shadow-sm transition focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20"
+            style={selectStyles}
+            className="transition focus:border-[var(--form-input-focus-border)] focus:outline-none focus:ring-2 focus:ring-[var(--form-input-focus-ring)]"
             value={sortKey}
             onChange={(event) => onSortChange(event.target.value)}
           >
@@ -84,14 +142,16 @@ function CatalogToolbar({
 
         <button 
           onClick={onGenerate} 
-          className="rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:from-purple-700 hover:to-purple-800 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400/50 disabled:opacity-50 disabled:cursor-not-allowed" 
+          style={primaryButtonStyles}
+          className="transition hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-400/50 disabled:opacity-50 disabled:cursor-not-allowed" 
           disabled={disabled}
         >
           {actionsT("generate")}
         </button>
         <button 
           onClick={onReset} 
-          className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/20" 
+          style={secondaryButtonStyles}
+          className="transition hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/20" 
           title={resetTitle}
         >
           {actionsT("reset")}

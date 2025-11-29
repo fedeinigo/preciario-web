@@ -1,0 +1,475 @@
+/* ================================================================
+   PORTAL TOKENS SYSTEM - Unified Design Token Architecture
+   ================================================================
+   This file defines semantic tokens for all Portal Wise CX portals.
+   Tokens are organized by purpose, not by color, allowing components
+   to adapt to any portal theme automatically.
+   
+   PORTALS:
+   - directo (default): Purple/violet light theme
+   - mapache: Dark glassmorphism with cyan/violet accents
+   - marketing: Blue professional light theme  
+   - partner: Neutral slate light theme
+   ================================================================ */
+
+/* ================================
+   BASE TOKENS (Default = Portal Directo)
+   ================================ */
+:root,
+[data-portal="directo"] {
+  /* === Surface tokens === */
+  --surface-bg: 246 246 247;           /* Page background */
+  --surface-primary: 255 255 255;       /* Cards, panels */
+  --surface-secondary: 248 250 252;     /* Subtle backgrounds */
+  --surface-modal: 255 255 255;         /* Modal backgrounds */
+  --surface-modal-header: 248 250 252;  /* Modal header bg */
+  --surface-navbar: linear-gradient(90deg, #4c1d95, #4c1d95);
+  --surface-table-header: linear-gradient(90deg, #4c1d95, #4c1d95);
+  
+  /* === Text tokens === */
+  --text-primary: 17 24 39;             /* Main text (slate-900) */
+  --text-secondary: 71 85 105;          /* Secondary text (slate-600) */
+  --text-muted: 107 114 128;            /* Muted/disabled (slate-500) */
+  --text-inverse: 255 255 255;          /* Text on dark bg */
+  --text-link: 124 58 237;              /* Links (violet-600) */
+  --text-label: 100 116 139;            /* Form labels (slate-500) */
+  
+  /* === Border tokens === */
+  --border-primary: 226 232 240;        /* Main borders (slate-200) */
+  --border-secondary: 241 245 249;      /* Subtle borders (slate-100) */
+  --border-modal: 226 232 240;          /* Modal borders */
+  --border-focus: 124 58 237;           /* Focus ring color */
+  
+  /* === Brand tokens === */
+  --brand-primary: 59 10 105;           /* Primary purple (#3B0A69) */
+  --brand-primary-rgb: 59, 10, 105;
+  --brand-secondary: 139 92 246;        /* Violet-500 */
+  --brand-accent: 34 211 238;           /* Cyan-400 */
+  --brand-on-primary: 255 255 255;      /* Text on brand color */
+  
+  /* === Shadow tokens === */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.12);
+  --shadow-modal: 0 25px 50px rgba(15, 23, 42, 0.15);
+  
+  /* === Modal-specific tokens (ready-to-use CSS values) === */
+  --modal-backdrop: rgba(0, 0, 0, 0.5);
+  --modal-surface: #ffffff;
+  --modal-text: #111827;
+  --modal-text-secondary: #475569;
+  --modal-text-muted: #6b7280;
+  --modal-border: #e2e8f0;
+  --modal-header-bg: #f8fafc;
+  --modal-close-color: #64748b;
+  --modal-close-hover: #f1f5f9;
+  
+  /* === Button tokens === */
+  --btn-primary-bg: 59 10 105;
+  --btn-primary-text: 255 255 255;
+  --btn-secondary-bg: 255 255 255;
+  --btn-secondary-text: 17 24 39;
+  --btn-secondary-border: 226 232 240;
+  --btn-accent-bg: 34 211 238;
+  --btn-accent-text: 43 11 87;
+  
+  /* === Status tokens === */
+  --status-success: 34 197 94;
+  --status-warning: 245 158 11;
+  --status-error: 239 68 68;
+  --status-info: 59 130 246;
+  
+  /* === Component tokens === */
+  --card-bg: rgb(var(--surface-primary));
+  --card-border: rgb(var(--border-primary));
+  --card-shadow: var(--shadow-md);
+  
+  /* === Form tokens (Portal Directo) === */
+  --form-input-bg: #ffffff;
+  --form-input-border: #d8b4fe;
+  --form-input-text: #0f172a;
+  --form-input-placeholder: #94a3b8;
+  --form-input-focus-border: #a855f7;
+  --form-input-focus-ring: rgba(168, 85, 247, 0.2);
+  --form-label-text: #334155;
+  --form-card-header-bg: #4c1d95;
+  --form-card-header-text: #ffffff;
+  --form-card-border: #d8b4fe;
+  --form-card-section-bg: rgba(243, 232, 255, 0.3);
+  --form-card-section-border: #e9d5ff;
+  --form-radio-border: #cbd5e1;
+  --form-radio-checked: #9333ea;
+  --form-radio-focus-ring: rgba(168, 85, 247, 0.2);
+  
+  /* === Portal indicator === */
+  --portal-mode: light;
+}
+
+/* ================================
+   PORTAL MAPACHE - Dark Glassmorphism
+   ================================ */
+[data-portal="mapache"],
+html.mapache-theme,
+body.mapache-theme {
+  /* === Surface tokens === */
+  --surface-bg: 8 10 20;
+  --surface-primary: 20 23 36;
+  --surface-secondary: 30 34 58;
+  --surface-modal: 15 23 42;
+  --surface-modal-header: transparent;
+  --surface-navbar: linear-gradient(120deg, rgba(26, 29, 40, 0.92), rgba(10, 12, 20, 0.92));
+  --surface-table-header: linear-gradient(140deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  
+  /* === Text tokens === */
+  --text-primary: 248 250 252;          /* White-ish for dark bg */
+  --text-secondary: 226 232 240;        /* Lighter secondary */
+  --text-muted: 148 163 184;            /* Slate-400 */
+  --text-inverse: 17 24 39;             /* Dark text when needed */
+  --text-link: 110 231 183;             /* Emerald-300 */
+  --text-label: 103 232 249;            /* Cyan-300 - labels */
+  
+  /* === Border tokens === */
+  --border-primary: 65 72 96;
+  --border-secondary: 51 65 85;
+  --border-modal: rgba(255, 255, 255, 0.18);
+  --border-focus: 34 211 238;
+  
+  /* === Brand tokens === */
+  --brand-primary: 139 92 246;          /* Violet-500 */
+  --brand-primary-rgb: 139, 92, 246;
+  --brand-secondary: 109 40 217;        /* Violet-600 */
+  --brand-accent: 34 211 238;           /* Cyan-400 */
+  --brand-on-primary: 255 255 255;
+  
+  /* === Shadow tokens (dramatic for glassmorphism) === */
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 32px 80px rgba(3, 7, 20, 0.6);
+  --shadow-modal: 0 45px 120px rgba(2, 6, 23, 0.75);
+  
+  /* === Modal-specific tokens (CRITICAL for contrast - ready-to-use CSS values) === */
+  --modal-backdrop: rgba(0, 0, 0, 0.7);
+  --modal-surface: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(30, 27, 75, 0.95));
+  --modal-text: #ffffff;
+  --modal-text-secondary: #a5f3fc;
+  --modal-text-muted: #94a3b8;
+  --modal-border: rgba(255, 255, 255, 0.18);
+  --modal-header-bg: linear-gradient(to right, rgba(139, 92, 246, 0.25), rgba(109, 40, 217, 0.2), rgba(34, 211, 238, 0.25));
+  --modal-close-color: #ffffff;
+  --modal-close-hover: rgba(255, 255, 255, 0.1);
+  
+  /* === Button tokens === */
+  --btn-primary-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04));
+  --btn-primary-text: 255 255 255;
+  --btn-secondary-bg: rgba(255, 255, 255, 0.06);
+  --btn-secondary-text: 255 255 255;
+  --btn-secondary-border: rgba(255, 255, 255, 0.25);
+  --btn-accent-bg: linear-gradient(to right, #22d3ee, #8b5cf6);
+  --btn-accent-text: 255 255 255;
+  
+  /* === Mapache-specific tokens === */
+  --mapache-glow-start: #8b5cf6;
+  --mapache-glow-mid: #6d28d9;
+  --mapache-glow-end: #22d3ee;
+  --mapache-glass-bg: rgba(255, 255, 255, 0.06);
+  --mapache-glass-border: rgba(255, 255, 255, 0.16);
+  
+  /* === Chart tokens (for analytics components) === */
+  --chart-grid-start: rgba(255, 255, 255, 0.18);
+  --chart-grid-end: rgba(148, 163, 184, 0.12);
+  --chart-grid-line: rgba(148, 163, 184, 0.15);
+  --chart-axis-text: rgba(226, 232, 240, 0.75);
+  --chart-label-text: rgba(226, 232, 240, 0.8);
+  --chart-text-primary: rgba(255, 255, 255, 0.95);
+  --chart-text-muted: rgba(148, 163, 184, 0.8);
+  --chart-tooltip-bg: rgba(15, 23, 42, 0.95);
+  --chart-tooltip-text: rgba(255, 255, 255, 0.8);
+  --chart-point-stroke: rgba(15, 23, 42, 0.9);
+  
+  /* === Chart data color palette === */
+  --chart-data-1: #38bdf8;
+  --chart-data-2: #a855f7;
+  --chart-data-3: #f97316;
+  --chart-data-4: #22c55e;
+  --chart-data-5: #ec4899;
+  --chart-data-6: #6366f1;
+  
+  /* === Chart need color palette === */
+  --chart-need-1: #38bdf8;
+  --chart-need-2: #f97316;
+  --chart-need-3: #a855f7;
+  --chart-need-4: #22d3ee;
+  --chart-need-5: #facc15;
+  --chart-need-6: #94a3b8;
+  
+  /* === Portal indicator === */
+  --portal-mode: dark;
+  color-scheme: dark;
+}
+
+/* ================================
+   PORTAL MARKETING - Blue Professional
+   ================================ */
+[data-portal="marketing"],
+html.marketing-theme,
+body.marketing-theme {
+  /* === Surface tokens === */
+  --surface-bg: 237 247 255;
+  --surface-primary: 255 255 255;
+  --surface-secondary: 241 248 255;
+  --surface-modal: 255 255 255;
+  --surface-modal-header: 241 248 255;
+  --surface-navbar: linear-gradient(120deg, rgba(236, 246, 255, 0.95), rgba(210, 228, 255, 0.95));
+  --surface-table-header: linear-gradient(90deg, #205eb3, #184b9a);
+  
+  /* === Text tokens === */
+  --text-primary: 15 64 109;            /* Dark blue */
+  --text-secondary: 30 82 138;
+  --text-muted: 13 82 139;
+  --text-inverse: 255 255 255;
+  --text-link: 32 94 179;
+  --text-label: 13 82 139;
+  
+  /* === Border tokens === */
+  --border-primary: 186 219 255;
+  --border-secondary: 210 235 255;
+  --border-modal: 186 219 255;
+  --border-focus: 32 94 179;
+  
+  /* === Brand tokens === */
+  --brand-primary: 32 94 179;
+  --brand-primary-rgb: 32, 94, 179;
+  --brand-secondary: 15 76 139;
+  --brand-accent: 56 189 248;
+  --brand-on-primary: 255 255 255;
+  
+  /* === Shadow tokens === */
+  --shadow-sm: 0 2px 4px rgba(32, 94, 179, 0.06);
+  --shadow-md: 0 6px 16px rgba(32, 94, 179, 0.1);
+  --shadow-lg: 0 16px 40px rgba(32, 94, 179, 0.15);
+  --shadow-modal: 0 25px 60px rgba(32, 94, 179, 0.2);
+  
+  /* === Modal-specific tokens (ready-to-use CSS values) === */
+  --modal-backdrop: rgba(15, 64, 109, 0.5);
+  --modal-surface: #ffffff;
+  --modal-text: #0f406d;
+  --modal-text-secondary: #1e528a;
+  --modal-text-muted: #0d528b;
+  --modal-border: #badbff;
+  --modal-header-bg: #f1f8ff;
+  --modal-close-color: #1e528a;
+  --modal-close-hover: #f1f8ff;
+  
+  /* === Button tokens === */
+  --btn-primary-bg: linear-gradient(135deg, rgba(32, 94, 179, 0.9), rgba(24, 75, 154, 0.9));
+  --btn-primary-text: 255 255 255;
+  --btn-secondary-bg: 255 255 255;
+  --btn-secondary-text: 32 94 179;
+  --btn-secondary-border: 186 219 255;
+  --btn-accent-bg: 56 189 248;
+  --btn-accent-text: 15 64 109;
+  
+  /* === Portal indicator === */
+  --portal-mode: light;
+}
+
+/* ================================
+   PORTAL PARTNER - Neutral Professional
+   ================================ */
+[data-portal="partner"] {
+  /* === Surface tokens === */
+  --surface-bg: 248 250 252;            /* slate-50 */
+  --surface-primary: 255 255 255;
+  --surface-secondary: 241 245 249;     /* slate-100 */
+  --surface-modal: 255 255 255;
+  --surface-modal-header: 248 250 252;
+  --surface-navbar: 255 255 255;
+  --surface-table-header: linear-gradient(90deg, #1e293b, #334155);
+  
+  /* === Text tokens === */
+  --text-primary: 15 23 42;             /* slate-900 */
+  --text-secondary: 71 85 105;          /* slate-600 */
+  --text-muted: 100 116 139;            /* slate-500 */
+  --text-inverse: 255 255 255;
+  --text-link: 15 23 42;
+  --text-label: 100 116 139;
+  
+  /* === Border tokens === */
+  --border-primary: 226 232 240;        /* slate-200 */
+  --border-secondary: 241 245 249;
+  --border-modal: 226 232 240;
+  --border-focus: 15 23 42;
+  
+  /* === Brand tokens === */
+  --brand-primary: 15 23 42;            /* slate-900 */
+  --brand-primary-rgb: 15, 23, 42;
+  --brand-secondary: 51 65 85;          /* slate-700 */
+  --brand-accent: 99 102 241;           /* indigo-500 */
+  --brand-on-primary: 255 255 255;
+  
+  /* === Shadow tokens === */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.12);
+  --shadow-modal: 0 25px 50px rgba(15, 23, 42, 0.15);
+  
+  /* === Modal-specific tokens (ready-to-use CSS values) === */
+  --modal-backdrop: rgba(15, 23, 42, 0.5);
+  --modal-surface: #ffffff;
+  --modal-text: #0f172a;
+  --modal-text-secondary: #475569;
+  --modal-text-muted: #64748b;
+  --modal-border: #e2e8f0;
+  --modal-header-bg: #f8fafc;
+  --modal-close-color: #64748b;
+  --modal-close-hover: #f1f5f9;
+  
+  /* === Button tokens === */
+  --btn-primary-bg: 15 23 42;
+  --btn-primary-text: 255 255 255;
+  --btn-secondary-bg: 255 255 255;
+  --btn-secondary-text: 15 23 42;
+  --btn-secondary-border: 226 232 240;
+  --btn-accent-bg: 99 102 241;
+  --btn-accent-text: 255 255 255;
+  
+  /* === Portal indicator === */
+  --portal-mode: light;
+}
+
+/* ================================
+   UTILITY CLASSES FOR TOKENS
+   ================================ */
+
+/* Surface utilities */
+.surface-bg { background-color: rgb(var(--surface-bg)); }
+.surface-primary { background-color: rgb(var(--surface-primary)); }
+.surface-secondary { background-color: rgb(var(--surface-secondary)); }
+.surface-modal { background-color: rgb(var(--surface-modal)); }
+
+/* Text utilities */
+.text-token-primary { color: rgb(var(--text-primary)); }
+.text-token-secondary { color: rgb(var(--text-secondary)); }
+.text-token-muted { color: rgb(var(--text-muted)); }
+.text-token-inverse { color: rgb(var(--text-inverse)); }
+.text-token-link { color: rgb(var(--text-link)); }
+.text-token-label { color: rgb(var(--text-label)); }
+
+/* Modal text utilities (for reliable contrast) */
+.modal-text-primary { color: rgb(var(--modal-text)); }
+.modal-text-secondary { color: rgb(var(--modal-text-secondary)); }
+.modal-text-muted { color: rgb(var(--modal-text-muted)); }
+
+/* Border utilities */
+.border-token-primary { border-color: rgb(var(--border-primary)); }
+.border-token-secondary { border-color: rgb(var(--border-secondary)); }
+.border-token-modal { border-color: var(--modal-border); }
+
+/* Shadow utilities */
+.shadow-token-sm { box-shadow: var(--shadow-sm); }
+.shadow-token-md { box-shadow: var(--shadow-md); }
+.shadow-token-lg { box-shadow: var(--shadow-lg); }
+.shadow-token-modal { box-shadow: var(--shadow-modal); }
+
+/* ================================
+   PORTAL MODAL OVERRIDES
+   ================================
+   These rules ensure proper contrast for modals in each portal.
+   Using [data-portal-modal] attribute set by Modal component.
+*/
+
+/* Mapache Portal Modals - High Contrast White Text */
+[data-portal-modal="mapache"] {
+  color: #fff;
+}
+
+[data-portal-modal="mapache"] * {
+  color: inherit;
+}
+
+[data-portal-modal="mapache"] h1,
+[data-portal-modal="mapache"] h2,
+[data-portal-modal="mapache"] h3,
+[data-portal-modal="mapache"] h4,
+[data-portal-modal="mapache"] p,
+[data-portal-modal="mapache"] span,
+[data-portal-modal="mapache"] div {
+  color: #fff;
+}
+
+[data-portal-modal="mapache"] .modal-label,
+[data-portal-modal="mapache"] [data-modal-label] {
+  color: #67e8f9;
+}
+
+[data-portal-modal="mapache"] .modal-subtle,
+[data-portal-modal="mapache"] [data-modal-subtle] {
+  color: #a5f3fc;
+}
+
+[data-portal-modal="mapache"] a {
+  color: #6ee7b7;
+}
+
+[data-portal-modal="mapache"] a:hover {
+  text-decoration: underline;
+}
+
+[data-portal-modal="mapache"] svg {
+  color: currentColor;
+}
+
+/* Info cards inside Mapache modals */
+[data-portal-modal="mapache"] .info-card,
+[data-portal-modal="mapache"] .stat-card {
+  background: linear-gradient(135deg, rgba(51, 65, 85, 0.7), rgba(30, 27, 75, 0.5));
+  border-color: rgba(139, 92, 246, 0.25);
+  backdrop-filter: blur(12px);
+}
+
+/* Buttons in Mapache modals */
+[data-portal-modal="mapache"] .btn-modal-primary {
+  background: linear-gradient(135deg, #22d3ee, #8b5cf6);
+  color: #fff;
+  border: none;
+  box-shadow: 0 8px 24px rgba(34, 211, 238, 0.35);
+}
+
+[data-portal-modal="mapache"] .btn-modal-secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Marketing Portal Modals */
+[data-portal-modal="marketing"] {
+  color: #0f406d;
+}
+
+[data-portal-modal="marketing"] h1,
+[data-portal-modal="marketing"] h2,
+[data-portal-modal="marketing"] h3 {
+  color: #0f406d;
+}
+
+[data-portal-modal="marketing"] .modal-label {
+  color: #4b81b8;
+}
+
+/* Partner Portal Modals */
+[data-portal-modal="partner"] {
+  color: #0f172a;
+}
+
+[data-portal-modal="partner"] .modal-label {
+  color: #64748b;
+}
+
+/* Direct Portal Modals (default light theme) */
+[data-portal-modal="directo"] {
+  color: #1e293b;
+}
+
+[data-portal-modal="directo"] .modal-label {
+  color: #4c1d95;
+}

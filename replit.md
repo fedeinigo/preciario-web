@@ -26,8 +26,8 @@ Preferred communication style: Simple, everyday language.
 ## Data Layer
 
 **ORM**: Prisma 6.18.0 for type-safe PostgreSQL database access.
-**Key Models**: `User`, `Proposal`, `Item`, `MapacheTask`, `MapacheBoard`.
-**Relationships**: Proposals contain items and belong to users; tasks have statuses; users have portal and team memberships.
+**Key Models**: `User`, `Proposal`, `Item`, `MapacheTask`, `MapacheBoard`, `GoalsProgressSnapshot`.
+**Relationships**: Proposals contain items and belong to users; tasks have statuses; users have portal and team memberships. GoalsProgressSnapshot stores user goal metrics.
 **Indexing**: `Proposal.userId` is indexed for optimized queries.
 
 ## Authentication & Authorization
@@ -41,18 +41,37 @@ Preferred communication style: Simple, everyday language.
 
 ## UI/UX Decisions
 
-The application features a modern purple-themed design with gradients. Recent updates have focused on creating compact, professional, and minimalist layouts, improving space utilization, and unifying modal themes. Key interfaces like the Home Page, Configuration, Team Management, and User Management have been restructured for better visual hierarchy and density. 
+The application features a modern purple-themed design with gradients. Recent updates have focused on creating compact, professional, and minimalist layouts, improving space utilization, and unifying modal themes. Key interfaces like the Home Page, Configuration, Team Management, and User Management have been restructured for better visual hierarchy and density. The statistics dashboard has been completely redesigned with a three-tier visual layout, glassmorphism elements, enhanced KPI cards with sparklines, and interactive drill-down capabilities. The Generator page (`/portal/directo/generator`) has been visually modernized with the same purple/slate glassmorphism design system while preserving all existing functionality.
 
-The statistics dashboard has been completely redesigned with a three-tier visual layout, glassmorphism elements, enhanced KPI cards with sparklines, and interactive drill-down capabilities.
+### Portal Theme Token System
 
-The Generator page (`/portal/directo/generator`) has been visually modernized with the same purple/slate glassmorphism design system while preserving all existing functionality. Updates include:
-- **Container**: Gradient background (`from-purple-50 via-white to-slate-50`)
-- **Cards**: Glassmorphism styling (`rounded-2xl`, `bg-white/90`, `backdrop-blur-sm`, `shadow-lg`)
-- **Headers**: Purple gradients (`from-purple-600 to-purple-800`) for main components, green for WhatsApp, slate for sidebars
-- **Inputs**: Modern rounded borders with purple focus rings (`focus:ring-purple-400/20`)
-- **Buttons**: Gradient-styled with proper visual hierarchy (purple primary, white secondary, red destructive)
-- **Sidebars**: Modernized with Lucide chevron icons for collapse toggles
-- **Modals**: Updated with purple/red gradient buttons and improved spacing
+A scalable, portal-scoped design token system is implemented in `src/styles/portal-tokens.css` to manage theming. This system defines tokens for surfaces, text, borders, modals, shadows, and brand colors.
+**Portal Scopes**:
+- `[data-portal="directo"]`: Purple/violet light theme (default)
+- `[data-portal="mapache"]`: Dark glassmorphism with cyan/violet accents
+- `[data-portal="marketing"]`: Blue professional light theme
+- `[data-portal="partner"]`: Neutral slate light theme
+**Theme Activation**: `PortalThemeProvider` sets `data-portal` attribute on `<html>`, with modals detecting the current portal for token application.
+
+### Mapache Portal UI Components
+
+Reusable UI components (`MapacheInput`, `MapacheSelect`, `MapacheTextarea`, `MapacheButton`) are styled using inline `style` props with CSS custom properties and fallback values. Chart tokens have been added to `portal-tokens.css` to style analytics components within the Mapache portal, ensuring consistent glass panel and chart element styling.
+
+### Goals Page Consolidation
+
+The `TeamRankingCard` component has been removed, and team display unified into `TeamMembersTable` with ranking functionality. The table is now integrated into the secondary cards grid, featuring compact styling with icon-only action buttons, reduced spacing, and smaller text/avatar sizes. The default sort is by "% cumplimiento" descending.
+
+### UserProfileModal Race Condition Fix
+
+A race condition when quickly switching user profiles, leading to stale data display, has been resolved. The solution involves tracking the active target user, resetting state on user change, and using `activeTargetKeyRef` to ensure only relevant API responses update the UI. Loading indicators provide visual feedback during data fetching.
+
+### Goals Progress Snapshot System
+
+A system to persist synced Pipedrive progress data to the database allows users to view goal/progress metrics from any location.
+**Database Model**: `GoalsProgressSnapshot` stores `userId`, `year`, `quarter`, `goalAmount`, `progressAmount`, `pct`, `dealsCount`, `lastSyncedAt`.
+**Data Flow**: GoalsPage syncs with Pipedrive, then POSTs batch snapshots. UserProfileModal reads from localStorage cache, then DB snapshot, then legacy APIs. An individual sync button directly calls `/api/goals/sync-user`.
+**Sync Mode Selection**: Determines Pipedrive matching logic based on user's team membership ("Mapaches NC" or "Mapaches Upsell" vs. other teams).
+**Cache Strategy**: Team data and personal data are cached in localStorage.
 
 # External Dependencies
 

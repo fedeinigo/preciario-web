@@ -128,7 +128,7 @@ const TEAM_SEGMENT_LABEL_KEYS: Record<
   "team:unassigned": "segments.team.unassigned",
 };
 
-const SEGMENT_COLOR_SCALE = [
+const SEGMENT_COLOR_FALLBACKS = [
   "#38bdf8",
   "#a855f7",
   "#f97316",
@@ -137,7 +137,7 @@ const SEGMENT_COLOR_SCALE = [
   "#6366f1",
 ];
 
-const NEED_COLOR_SCALE = [
+const NEED_COLOR_FALLBACKS = [
   "#38bdf8",
   "#f97316",
   "#a855f7",
@@ -145,6 +145,31 @@ const NEED_COLOR_SCALE = [
   "#facc15",
   "#94a3b8",
 ];
+
+function getChartColors(): { segment: string[]; need: string[] } {
+  if (typeof window === "undefined") {
+    return { segment: SEGMENT_COLOR_FALLBACKS, need: NEED_COLOR_FALLBACKS };
+  }
+  const themedRoot = document.querySelector("[data-portal]") || document.body;
+  const styles = getComputedStyle(themedRoot);
+  const segment = [
+    styles.getPropertyValue("--chart-data-1").trim() || SEGMENT_COLOR_FALLBACKS[0],
+    styles.getPropertyValue("--chart-data-2").trim() || SEGMENT_COLOR_FALLBACKS[1],
+    styles.getPropertyValue("--chart-data-3").trim() || SEGMENT_COLOR_FALLBACKS[2],
+    styles.getPropertyValue("--chart-data-4").trim() || SEGMENT_COLOR_FALLBACKS[3],
+    styles.getPropertyValue("--chart-data-5").trim() || SEGMENT_COLOR_FALLBACKS[4],
+    styles.getPropertyValue("--chart-data-6").trim() || SEGMENT_COLOR_FALLBACKS[5],
+  ];
+  const need = [
+    styles.getPropertyValue("--chart-need-1").trim() || NEED_COLOR_FALLBACKS[0],
+    styles.getPropertyValue("--chart-need-2").trim() || NEED_COLOR_FALLBACKS[1],
+    styles.getPropertyValue("--chart-need-3").trim() || NEED_COLOR_FALLBACKS[2],
+    styles.getPropertyValue("--chart-need-4").trim() || NEED_COLOR_FALLBACKS[3],
+    styles.getPropertyValue("--chart-need-5").trim() || NEED_COLOR_FALLBACKS[4],
+    styles.getPropertyValue("--chart-need-6").trim() || NEED_COLOR_FALLBACKS[5],
+  ];
+  return { segment, need };
+}
 
 const SNAPSHOT_LIMIT = 32;
 
@@ -430,6 +455,9 @@ export default function MapachePortalInsights({
     [],
   );
 
+  const chartColors = React.useMemo(() => getChartColors(), []);
+  const SEGMENT_COLOR_SCALE = chartColors.segment;
+  const NEED_COLOR_SCALE = chartColors.need;
 
   const [historicalSnapshots, setHistoricalSnapshots] =
     React.useState<InsightsSnapshot[]>([]);
@@ -827,6 +855,7 @@ export default function MapachePortalInsights({
       };
     });
   }, [
+    SEGMENT_COLOR_SCALE,
     activeSegment,
     filteredSegments,
     formatSegmentLabel,
@@ -918,6 +947,7 @@ export default function MapachePortalInsights({
       };
     });
   }, [
+    SEGMENT_COLOR_SCALE,
     activeSegment,
     filteredSegments,
     formatSegmentLabel,
@@ -945,7 +975,7 @@ export default function MapachePortalInsights({
         value: needTotalsSource[key] ?? 0,
         color: NEED_COLOR_SCALE[index % NEED_COLOR_SCALE.length],
       })),
-    [insightsT, needT, needTotalsSource],
+    [NEED_COLOR_SCALE, insightsT, needT, needTotalsSource],
   );
 
   const workloadSource = React.useMemo(() => {

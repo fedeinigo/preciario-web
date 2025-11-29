@@ -305,6 +305,26 @@ model TeamQuarterlyGoal {
   @@unique([team, year, quarter], name: "team_year_quarter")
 }
 
+model GoalsProgressSnapshot {
+  id              String   @id @default(cuid())
+  userId          String
+  year            Int
+  quarter         Int
+  goalAmount      Decimal  @db.Decimal(14, 2) @default(0)
+  progressAmount  Decimal  @db.Decimal(14, 2) @default(0)
+  pct             Decimal  @db.Decimal(8, 2)  @default(0)
+  dealsCount      Int      @default(0)
+  lastSyncedAt    DateTime @default(now())
+  lastSyncedById  String?
+  source          String   @default("pipedrive")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, year, quarter])
+  @@index([userId])
+  @@index([lastSyncedAt])
+}
+
 /* =========================
    MAPACHE PORTAL
 ========================= */

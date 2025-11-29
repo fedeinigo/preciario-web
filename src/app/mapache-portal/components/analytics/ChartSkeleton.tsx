@@ -8,7 +8,8 @@ export function ChartSkeleton({ lines = 3 }: { lines?: number }) {
       {Array.from({ length: lines }).map((_, index) => (
         <div
           key={index}
-          className="h-8 w-full animate-pulse rounded-md bg-white/10"
+          className="h-8 w-full animate-pulse rounded-md"
+          style={{ background: "var(--mapache-glass-bg, rgba(255,255,255,0.1))" }}
         />
       ))}
     </div>

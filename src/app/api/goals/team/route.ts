@@ -59,7 +59,7 @@ export async function GET(req: Request) {
   // miembros del equipo
   const members = await prisma.user.findMany({
     where: { team },
-    select: { id: true, email: true, name: true, role: true, team: true, image: true },
+    select: { id: true, email: true, name: true, role: true, team: true, image: true, positionName: true, leaderEmail: true },
     orderBy: { email: "asc" },
   });
 
@@ -118,6 +118,8 @@ export async function GET(req: Request) {
       role: m.role,
       team: m.team,
       image: m.image,
+      positionName: m.positionName,
+      leaderEmail: m.leaderEmail,
       goal: userGoal,
       progress: userProg,
       pct,
