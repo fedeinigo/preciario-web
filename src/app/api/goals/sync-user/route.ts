@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { searchDealsByMapacheAssigned, searchDealsByOwnerName } from "@/lib/pipedrive";
+import { searchDealsByMapacheAssigned, searchDealsByOwnerEmails } from "@/lib/pipedrive";
 import logger from "@/lib/logger";
 
 const log = logger.child({ route: "api/goals/sync-user" });
@@ -73,9 +73,18 @@ export async function POST(req: Request) {
   const syncMode = isMapacheTeam ? "mapache" : "owner";
 
   const searchName = targetUser.name?.trim() ?? "";
-  if (!searchName) {
+  const searchEmail = targetUser.email?.trim() ?? "";
+
+  if (syncMode === "mapache" && !searchName) {
     return NextResponse.json(
       { ok: false, error: "No se pudo resolver el nombre del usuario" },
+      { status: 400 }
+    );
+  }
+
+  if (syncMode === "owner" && !searchEmail) {
+    return NextResponse.json(
+      { ok: false, error: "No se pudo resolver el email del usuario" },
       { status: 400 }
     );
   }
@@ -83,6 +92,7 @@ export async function POST(req: Request) {
   log.info("sync_user_start", {
     targetUserId,
     searchName,
+    searchEmail,
     team: targetUser.team,
     syncMode,
     year,
@@ -92,11 +102,11 @@ export async function POST(req: Request) {
   try {
     const deals = syncMode === "mapache"
       ? await searchDealsByMapacheAssigned(searchName)
-      : await searchDealsByOwnerName(searchName);
+      : await searchDealsByOwnerEmails([searchEmail]);
 
     log.info("sync_user_deals_fetched", {
       syncMode,
-      searchName,
+      searchIdentifier: syncMode === "mapache" ? searchName : searchEmail,
       totalDeals: deals.length,
     });
 
