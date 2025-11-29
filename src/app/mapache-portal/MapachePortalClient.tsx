@@ -3725,6 +3725,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     >
                       {statusKeys.map((option) => (
                         <option key={option} value={option}>
@@ -3744,6 +3745,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     >
                       {SUBSTATUS_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -3761,6 +3763,7 @@ function TaskMetaChip({
                         handleFormChange("title", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                       placeholder={formT("titlePlaceholder")}
                     />
                     {formErrors.title ? (
@@ -3778,6 +3781,7 @@ function TaskMetaChip({
                         handleFormChange("clientName", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                       placeholder="Ej. ACME Corp"
                     />
                     {formErrors.clientName ? (
@@ -3795,6 +3799,7 @@ function TaskMetaChip({
                         handleFormChange("productKey", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                       placeholder="Ej. Wiser PRO"
                     />
                     {formErrors.productKey ? (
@@ -3814,6 +3819,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     >
                       {NEED_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -3833,6 +3839,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     >
                       {DIRECTNESS_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -3852,6 +3859,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     >
                       <option value="">Sin asignar</option>
                       {mapacheUsers.map((user) => (
@@ -3878,6 +3886,7 @@ function TaskMetaChip({
                       handleFormChange("description", event.target.value)
                     }
                     className={`${mapacheTextareaClass} min-h-[120px]`}
+                    style={mapacheInputStyles}
                     placeholder={formT("descriptionPlaceholder")}
                   />
                 </label>
@@ -3897,6 +3906,7 @@ function TaskMetaChip({
                         handleFormChange("requesterEmail", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                       placeholder="persona@compania.com"
                     />
                     {formErrors.requesterEmail ? (
@@ -3914,6 +3924,7 @@ function TaskMetaChip({
                         handleFormChange("interlocutorRole", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                       placeholder="Ej. CTO"
                     />
                     {formErrors.interlocutorRole ? (
@@ -3931,6 +3942,7 @@ function TaskMetaChip({
                         handleFormChange("presentationDate", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {formErrors.presentationDate ? (
                       <span className="text-xs text-rose-300">
@@ -3947,6 +3959,7 @@ function TaskMetaChip({
                         handleFormChange("pipedriveDealUrl", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                       placeholder="https://"
                     />
                     {formErrors.pipedriveDealUrl ? (
@@ -3962,6 +3975,7 @@ function TaskMetaChip({
                     value={formState.clientWebsiteUrls.join("\n")}
                     onChange={(event) => handleWebsiteUrlsChange(event.target.value)}
                     className={mapacheTextareaClass}
+                    style={mapacheInputStyles}
                     placeholder="Una URL por lÃ­nea"
                   />
                   {formErrors.clientWebsiteUrls ? (
@@ -3978,6 +3992,7 @@ function TaskMetaChip({
                       handleFormChange("clientPain", event.target.value)
                     }
                     className={mapacheTextareaClass}
+                    style={mapacheInputStyles}
                     placeholder="Contexto adicional"
                   />
                   {formErrors.clientPain ? (
@@ -4002,6 +4017,7 @@ function TaskMetaChip({
                         handleFormChange("managementType", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {formErrors.managementType ? (
                       <span className="text-xs text-rose-300">
@@ -4019,6 +4035,7 @@ function TaskMetaChip({
                         handleFormChange("docsCountApprox", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {formErrors.docsCountApprox ? (
                       <span className="text-xs text-rose-300">
@@ -4035,6 +4052,7 @@ function TaskMetaChip({
                         handleFormChange("docsLengthApprox", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {formErrors.docsLengthApprox ? (
                       <span className="text-xs text-rose-300">
@@ -4055,6 +4073,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {formErrors.avgMonthlyConversations ? (
                       <span className="text-xs text-rose-300">
@@ -4081,6 +4100,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     >
                       {INTEGRATION_TYPES.map((option) => (
                         <option key={option || "none"} value={option}>
@@ -4102,6 +4122,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     >
                       {INTEGRATION_OWNERS.map((option) => (
                         <option key={option || "none"} value={option}>
@@ -4121,6 +4142,7 @@ function TaskMetaChip({
                         handleFormChange("integrationName", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {formErrors.integrationName ? (
                       <span className="text-xs text-rose-300">
@@ -4137,6 +4159,7 @@ function TaskMetaChip({
                         handleFormChange("integrationDocsUrl", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                       placeholder="https://"
                     />
                     {formErrors.integrationDocsUrl ? (
@@ -4173,6 +4196,7 @@ function TaskMetaChip({
                                 )
                               }
                               className={mapacheInputClass}
+                      style={mapacheInputStyles}
                             >
                               {DELIVERABLE_TYPES.map((option) => (
                                 <option key={option} value={option}>
@@ -4194,6 +4218,7 @@ function TaskMetaChip({
                                 )
                               }
                               className={mapacheInputClass}
+                      style={mapacheInputStyles}
                             />
                             {deliverableError?.title ? (
                               <span className="text-xs text-rose-300">
@@ -4214,6 +4239,7 @@ function TaskMetaChip({
                                 )
                               }
                               className={mapacheInputClass}
+                      style={mapacheInputStyles}
                             />
                             {deliverableError?.url ? (
                               <span className="text-xs text-rose-300">
@@ -4471,6 +4497,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     >
                       {statusKeys.map((option) => (
                         <option key={option} value={option}>
@@ -4490,6 +4517,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     >
                       {SUBSTATUS_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -4507,6 +4535,7 @@ function TaskMetaChip({
                         handleSelectedTaskFormChange("title", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {selectedTaskFormErrors.title ? (
                       <span className="text-xs text-rose-300">
@@ -4523,6 +4552,7 @@ function TaskMetaChip({
                         handleSelectedTaskFormChange("clientName", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {selectedTaskFormErrors.clientName ? (
                       <span className="text-xs text-rose-300">
@@ -4539,6 +4569,7 @@ function TaskMetaChip({
                         handleSelectedTaskFormChange("productKey", event.target.value)
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {selectedTaskFormErrors.productKey ? (
                       <span className="text-xs text-rose-300">
@@ -4557,6 +4588,7 @@ function TaskMetaChip({
                           )
                         }
                         className={mapacheInputClass}
+                      style={mapacheInputStyles}
                       >
                         <option value="">Sin asignar</option>
                         {mapacheUsers.map((user) => (
@@ -4577,6 +4609,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     >
                       {NEED_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -4596,6 +4629,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     >
                       {DIRECTNESS_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -4613,6 +4647,7 @@ function TaskMetaChip({
                       handleSelectedTaskFormChange("description", event.target.value)
                     }
                     className={`${mapacheTextareaClass} min-h-[120px]`}
+                    style={mapacheInputStyles}
                     placeholder={formT("descriptionPlaceholder")}
                   />
                 </label>
@@ -4635,6 +4670,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {selectedTaskFormErrors.requesterEmail ? (
                       <span className="text-xs text-rose-300">
@@ -4654,6 +4690,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {selectedTaskFormErrors.interlocutorRole ? (
                       <span className="text-xs text-rose-300">
@@ -4673,6 +4710,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {selectedTaskFormErrors.presentationDate ? (
                       <span className="text-xs text-rose-300">
@@ -4692,6 +4730,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                       placeholder="https://"
                     />
                     {selectedTaskFormErrors.pipedriveDealUrl ? (
@@ -4710,6 +4749,7 @@ function TaskMetaChip({
                         handleSelectedTaskWebsiteUrlsChange(event.target.value)
                       }
                       className={mapacheTextareaClass}
+                    style={mapacheInputStyles}
                       placeholder="Una URL por lÃ­nea"
                     />
                     {selectedTaskFormErrors.clientWebsiteUrls ? (
@@ -4726,6 +4766,7 @@ function TaskMetaChip({
                         handleSelectedTaskFormChange("clientPain", event.target.value)
                       }
                       className={mapacheTextareaClass}
+                    style={mapacheInputStyles}
                       placeholder="Contexto adicional"
                     />
                     {selectedTaskFormErrors.clientPain ? (
@@ -4754,6 +4795,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {selectedTaskFormErrors.managementType ? (
                       <span className="text-xs text-rose-300">
@@ -4774,6 +4816,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {selectedTaskFormErrors.docsCountApprox ? (
                       <span className="text-xs text-rose-300">
@@ -4793,6 +4836,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {selectedTaskFormErrors.docsLengthApprox ? (
                       <span className="text-xs text-rose-300">
@@ -4813,6 +4857,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {selectedTaskFormErrors.avgMonthlyConversations ? (
                       <span className="text-xs text-rose-300">
@@ -4839,6 +4884,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     >
                       {INTEGRATION_TYPES.map((option) => (
                         <option key={option || "none"} value={option}>
@@ -4860,6 +4906,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     >
                       {INTEGRATION_OWNERS.map((option) => (
                         <option key={option || "none"} value={option}>
@@ -4882,6 +4929,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                     />
                     {selectedTaskFormErrors.integrationName ? (
                       <span className="text-xs text-rose-300">
@@ -4901,6 +4949,7 @@ function TaskMetaChip({
                         )
                       }
                       className={mapacheInputClass}
+                      style={mapacheInputStyles}
                       placeholder="https://"
                     />
                     {selectedTaskFormErrors.integrationDocsUrl ? (
@@ -4936,6 +4985,7 @@ function TaskMetaChip({
                               )
                             }
                             className={mapacheInputClass}
+                      style={mapacheInputStyles}
                           >
                             {DELIVERABLE_TYPES.map((option) => (
                               <option key={option} value={option}>
@@ -4957,6 +5007,7 @@ function TaskMetaChip({
                               )
                             }
                             className={mapacheInputClass}
+                      style={mapacheInputStyles}
                           />
                           {deliverableError?.title ? (
                             <span className="text-xs text-rose-300">
@@ -4977,6 +5028,7 @@ function TaskMetaChip({
                               )
                             }
                             className={mapacheInputClass}
+                      style={mapacheInputStyles}
                           />
                           {deliverableError?.url ? (
                             <span className="text-xs text-rose-300">
