@@ -855,6 +855,7 @@ export default function MapachePortalInsights({
       };
     });
   }, [
+    SEGMENT_COLOR_SCALE,
     activeSegment,
     filteredSegments,
     formatSegmentLabel,
@@ -946,6 +947,7 @@ export default function MapachePortalInsights({
       };
     });
   }, [
+    SEGMENT_COLOR_SCALE,
     activeSegment,
     filteredSegments,
     formatSegmentLabel,
@@ -973,7 +975,7 @@ export default function MapachePortalInsights({
         value: needTotalsSource[key] ?? 0,
         color: NEED_COLOR_SCALE[index % NEED_COLOR_SCALE.length],
       })),
-    [insightsT, needT, needTotalsSource],
+    [NEED_COLOR_SCALE, insightsT, needT, needTotalsSource],
   );
 
   const workloadSource = React.useMemo(() => {

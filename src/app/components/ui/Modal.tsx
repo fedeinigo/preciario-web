@@ -65,7 +65,7 @@ export default function Modal({
   }, [portal]);
 
   const isDarkPortal = detectedPortal === "mapache";
-  const isInverted = variant === "inverted" || isDarkPortal;
+  const _isInverted = variant === "inverted" || isDarkPortal;
 
   React.useEffect(() => {
     if (!open) return;
