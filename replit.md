@@ -79,9 +79,15 @@ The Generator page (`/portal/directo/generator`) has been visually modernized wi
 
 **Modal Styling**:
 - `Modal.tsx` uses CSS tokens via inline styles for maximum specificity
+- All modal tokens use ready-to-use CSS values (e.g., `--modal-text: #111827`) for direct consumption via `var(--token-name)` without rgb() wrappers
 - Dark portals (Mapache) get glassmorphism backgrounds with white text
 - Light portals get clean white backgrounds with dark text
 - Automatic color inheritance via `[data-portal-modal]` CSS selectors
+
+**Token Value Format**:
+- Modal tokens: Complete CSS values (hex colors, rgba, gradients) for direct use in `style={{}}` props
+- Surface/text/border tokens: RGB triplets for Tailwind compatibility via `rgb(var(--token))`
+- Shadow/backdrop tokens: Complete CSS values
 
 **Files Modified**:
 - `src/styles/portal-tokens.css`: Token definitions for all 4 portals
