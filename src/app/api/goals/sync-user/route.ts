@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { searchDealsByMapacheAssigned, searchDealsByOwnerEmails } from "@/lib/pipedrive";
+import { searchDealsByMapacheAssigned, searchDealsByOwnerName } from "@/lib/pipedrive";
 import logger from "@/lib/logger";
 
 const log = logger.child({ route: "api/goals/sync-user" });
@@ -16,14 +16,6 @@ function getCurrentQuarter(): Quarter {
   if (month <= 5) return 2;
   if (month <= 8) return 3;
   return 4;
-}
-
-function normalizeForComparison(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
 }
 
 export async function POST(req: Request) {
@@ -80,8 +72,17 @@ export async function POST(req: Request) {
   const isMapacheTeam = MAPACHE_TEAMS.includes(targetUser.team ?? "");
   const syncMode = isMapacheTeam ? "mapache" : "owner";
 
+  const searchName = targetUser.name?.trim() ?? "";
+  if (!searchName) {
+    return NextResponse.json(
+      { ok: false, error: "No se pudo resolver el nombre del usuario" },
+      { status: 400 }
+    );
+  }
+
   log.info("sync_user_start", {
     targetUserId,
+    searchName,
     team: targetUser.team,
     syncMode,
     year,
@@ -89,46 +90,15 @@ export async function POST(req: Request) {
   });
 
   try {
-    let deals: Array<{
-      status?: string;
-      wonAt?: string | null;
-      wonQuarter?: number | null;
-      feeMensual?: number | null;
-      value?: number | null;
-      mapacheAssigned?: string | null;
-      ownerEmail?: string | null;
-      id?: string | number;
-      title?: string;
-      dealUrl?: string | null;
-    }> = [];
+    const deals = syncMode === "mapache"
+      ? await searchDealsByMapacheAssigned(searchName)
+      : await searchDealsByOwnerName(searchName);
 
-    if (syncMode === "mapache") {
-      const searchName = targetUser.name ?? "";
-      log.info("sync_user_mapache_search", { searchName, team: targetUser.team });
-      if (searchName) {
-        const rawDeals = await searchDealsByMapacheAssigned(searchName);
-        deals = rawDeals as typeof deals;
-        log.info("sync_user_mapache_deals_found", { 
-          dealsCount: deals.length,
-          sampleDeals: deals.slice(0, 3).map(d => ({ 
-            id: d.id, 
-            title: d.title, 
-            status: d.status, 
-            mapacheAssigned: d.mapacheAssigned,
-            wonAt: d.wonAt,
-            wonQuarter: d.wonQuarter,
-            feeMensual: d.feeMensual,
-            value: d.value
-          }))
-        });
-      }
-    } else {
-      const searchEmail = targetUser.email ?? "";
-      if (searchEmail) {
-        const rawDeals = await searchDealsByOwnerEmails([searchEmail]);
-        deals = rawDeals as typeof deals;
-      }
-    }
+    log.info("sync_user_deals_fetched", {
+      syncMode,
+      searchName,
+      totalDeals: deals.length,
+    });
 
     const wonDeals = deals.filter((deal) => {
       const status = String(deal.status ?? "").toLowerCase();
@@ -148,53 +118,10 @@ export async function POST(req: Request) {
       wonDealsCount: wonDeals.length,
       currentYear: year,
       currentQuarter: quarter,
-      sampleWonDeals: wonDeals.slice(0, 3).map(d => ({
-        id: d.id,
-        title: d.title,
-        wonAt: d.wonAt,
-        wonQuarter: d.wonQuarter,
-        mapacheAssigned: d.mapacheAssigned,
-        feeMensual: d.feeMensual,
-        value: d.value
-      }))
-    });
-
-    const normalizedTargetName = normalizeForComparison(targetUser.name ?? "");
-    const normalizedTargetEmail = (targetUser.email ?? "").toLowerCase().trim();
-
-    const matchingDeals = wonDeals.filter((deal) => {
-      if (syncMode === "mapache") {
-        const dealMapache = normalizeForComparison(String(deal.mapacheAssigned ?? ""));
-        const matches = dealMapache === normalizedTargetName;
-        if (!matches && wonDeals.length > 0) {
-          log.warn("sync_user_name_mismatch", { 
-            dealMapache, 
-            normalizedTargetName,
-            dealId: deal.id 
-          });
-        }
-        return matches;
-      } else {
-        const dealEmail = (deal.ownerEmail ?? "").toLowerCase().trim();
-        return dealEmail === normalizedTargetEmail;
-      }
-    });
-
-    log.info("sync_user_matching_deals", {
-      wonDealsCount: wonDeals.length,
-      matchingDealsCount: matchingDeals.length,
-      normalizedTargetName,
-      sampleMatchingDeals: matchingDeals.slice(0, 3).map(d => ({
-        id: d.id,
-        title: d.title,
-        mapacheAssigned: d.mapacheAssigned,
-        feeMensual: d.feeMensual,
-        value: d.value
-      }))
     });
 
     let progressAmount = 0;
-    for (const deal of matchingDeals) {
+    for (const deal of wonDeals) {
       const feeMensual = Number(deal.feeMensual ?? 0);
       const value = Number(deal.value ?? 0);
       const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
@@ -214,7 +141,7 @@ export async function POST(req: Request) {
 
     const goalAmount = Number(goal?.amount ?? 0);
     const pct = goalAmount > 0 ? Math.round((progressAmount / goalAmount) * 100) : 0;
-    const dealsCount = matchingDeals.length;
+    const dealsCount = wonDeals.length;
     const lastSyncedAt = now.toISOString();
 
     await prisma.goalsProgressSnapshot.upsert({
@@ -248,8 +175,7 @@ export async function POST(req: Request) {
       targetUserId,
       syncMode,
       dealsFound: deals.length,
-      wonDeals: wonDeals.length,
-      matchingDeals: dealsCount,
+      wonDealsCount: dealsCount,
       progressAmount,
       goalAmount,
       pct,
@@ -269,7 +195,7 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    log.error("sync_user_failed", { error: message, targetUserId });
+    log.error("sync_user_failed", { error: message, targetUserId, syncMode, searchName });
     return NextResponse.json(
       { ok: false, error: "Sync failed" },
       { status: 500 }
