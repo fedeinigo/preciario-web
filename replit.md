@@ -26,8 +26,9 @@ Preferred communication style: Simple, everyday language.
 ## Data Layer
 
 **ORM**: Prisma 6.18.0 for type-safe PostgreSQL database access.
-**Key Models**: `User`, `Proposal`, `Item`, `MapacheTask`, `MapacheBoard`, `GoalsProgressSnapshot`.
-**Relationships**: Proposals contain items and belong to users; tasks have statuses; users have portal and team memberships. GoalsProgressSnapshot stores user goal metrics.
+**Key Models**: `User`, `Proposal`, `Item`, `GoalsProgressSnapshot`.
+**Relationships**: Proposals contain items and belong to users; users have portal and team memberships. GoalsProgressSnapshot stores user goal metrics.
+**Note**: Mapache task-related tables (MapacheTask, MapacheBoard, MapacheStatus, etc.) were removed - the task board feature is deprecated.
 **Indexing**: `Proposal.userId` is indexed for optimized queries.
 
 ## Authentication & Authorization
