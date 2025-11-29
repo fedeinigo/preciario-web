@@ -62,6 +62,10 @@ type Props = {
 
   disableCloseOnBackdrop?: boolean;
 
+  /** Data attributes para el panel (para CSS targeting) */
+
+  panelDataAttributes?: Record<string, string>;
+
 };
 
 
@@ -95,6 +99,8 @@ export default function Modal({
   variant = "default",
 
   disableCloseOnBackdrop = false,
+
+  panelDataAttributes,
 
 }: Props) {
 
@@ -202,6 +208,9 @@ export default function Modal({
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         tabIndex={-1}
+        {...(panelDataAttributes ? Object.fromEntries(
+          Object.entries(panelDataAttributes).map(([k, v]) => [`data-${k}`, v])
+        ) : {})}
       >
         {title !== undefined && (
           <div

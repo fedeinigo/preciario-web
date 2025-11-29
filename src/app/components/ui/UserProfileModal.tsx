@@ -371,6 +371,7 @@ export default function UserProfileModal({
       panelClassName={panelClassName}
       panelStyle={panelStyle}
       backdropClassName={backdropClassName}
+      panelDataAttributes={isMapacheAppearance ? { "mapache-modal": "true" } : undefined}
       footer={
         <div className="flex justify-end items-center w-full">
           <button className={secondaryButtonClass} onClick={onClose}>

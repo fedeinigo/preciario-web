@@ -71,6 +71,7 @@ export default function MemberDealsModal({ open, onClose, member, deals, theme =
       headerClassName={headerClass}
       titleClassName={titleClass}
       backdropClassName={backdropClass}
+      panelDataAttributes={isMapache ? { "mapache-modal": "true" } : undefined}
       footer={
         <div className="flex justify-end">
           <button
