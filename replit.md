@@ -151,6 +151,15 @@ The Generator page (`/portal/directo/generator`) has been visually modernized wi
 - `src/app/components/features/goals/GoalsPage.tsx`: Removed TeamRankingCard, integrated table into secondary grid
 - `src/app/components/features/goals/components/TeamMembersTable.tsx`: Changed default sort to pct descending
 
+**Compact Table Styling (Nov 2025)**:
+- Action buttons converted from text to icon-only with tooltips (Eye, UserCircle, Pencil, PlusCircle icons)
+- Removed scroll container (`max-h-[600px] overflow-y-auto`) for natural content flow
+- Reduced spacing: row padding (p-4→p-3), gaps (lg:gap-6→lg:gap-4), column min-widths
+- Avatar size reduced (56→44px) with thinner ring (ring-4→ring-2)
+- Text sizes reduced: names (text-base→text-sm), values (text-lg→text-base)
+- % badge compacted: smaller padding, text-2xl→text-xl
+- Icon button classes: `iconBtnClass` for primary, `secondaryIconBtnClass` for secondary actions
+
 # External Dependencies
 
 ## Third-Party Services
