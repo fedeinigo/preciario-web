@@ -380,13 +380,13 @@ export default function UserProfileModal({
         </div>
       }
     >
-      <div className={`space-y-6 ${bodyTextClass}`} style={isMapacheAppearance ? { color: "#fff" } : undefined}>
+      <div className={`space-y-6 ${bodyTextClass}`} style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}>
         {/* Profile Header - Más grande y elegante */}
         <div 
           className={`flex flex-col items-center text-center space-y-4 pb-6 border-b ${
-            isMapacheAppearance ? "border-cyan-400/30" : "border-current/10"
+            isMapacheAppearance ? "border-cyan-400/30" : isDirectAppearance ? "border-[#ede9fe]" : "border-current/10"
           }`}
-          style={isMapacheAppearance ? { color: "#fff" } : undefined}
+          style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
         >
           <UserAvatar
             name={name}
@@ -404,12 +404,12 @@ export default function UserProfileModal({
             }`}
           />
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold" style={isMapacheAppearance ? { color: "#fff" } : undefined}>{name}</h2>
+            <h2 className="text-2xl font-bold" style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}>{name}</h2>
             <div 
               className={`flex items-center justify-center gap-2 ${subtleTextClass}`}
-              style={isMapacheAppearance ? { color: "#a5f3fc" } : undefined}
+              style={isMapacheAppearance ? { color: "#a5f3fc" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#475569" } : undefined}
             >
-              <Mail className="h-4 w-4" style={isMapacheAppearance ? { color: "#a5f3fc" } : undefined} />
+              <Mail className="h-4 w-4" style={isMapacheAppearance ? { color: "#a5f3fc" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#475569" } : undefined} />
               <span className="text-sm">{email}</span>
             </div>
           </div>
@@ -417,56 +417,56 @@ export default function UserProfileModal({
 
         {/* Role, Team & Extra Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className={infoCardClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>
+          <div className={infoCardClass}>
             <div 
               className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}
-              style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
             >
               <Shield className="h-4 w-4" />
               {profileT("labels.role")}
             </div>
-            <div className={strongValueClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>{role}</div>
+            <div className={strongValueClass} style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}>{role}</div>
           </div>
-          <div className={infoCardClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>
+          <div className={infoCardClass}>
             <div 
               className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}
-              style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
             >
               <Users2 className="h-4 w-4" />
               {profileT("labels.team")}
             </div>
-            <div className={strongValueClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>{team}</div>
+            <div className={strongValueClass} style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}>{team}</div>
           </div>
-          <div className={infoCardClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>
+          <div className={infoCardClass}>
             <div 
               className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}
-              style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
             >
               <Briefcase className="h-4 w-4" />
               {profileT("labels.position")}
             </div>
-            <div className={strongValueClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>{position}</div>
+            <div className={strongValueClass} style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}>{position}</div>
           </div>
-          <div className={infoCardClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>
+          <div className={infoCardClass}>
             <div 
               className={`flex items-center gap-2 ${labelTextClass} text-xs font-medium uppercase tracking-wide mb-2`}
-              style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
             >
               <UserCircle2 className="h-4 w-4" />
               {profileT("labels.leader")}
             </div>
-            <div className={`${strongValueClass} break-words`} style={isMapacheAppearance ? { color: "#fff" } : undefined}>{leader}</div>
+            <div className={`${strongValueClass} break-words`} style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}>{leader}</div>
           </div>
         </div>
 
         {/* Current Quarter Performance - Destaca el desempeño actual */}
-        <div className={statCardClass} style={isMapacheAppearance ? { color: "#fff" } : undefined}>
+        <div className={statCardClass}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <TrendingUp className={`h-5 w-5 ${pct >= 100 ? 'text-green-500' : pct >= 50 ? 'text-yellow-500' : 'text-orange-500'}`} />
               <h3 
                 className="text-sm font-semibold uppercase tracking-wide"
-                style={isMapacheAppearance ? { color: "#fff", opacity: 1 } : { opacity: 0.9 }}
+                style={isMapacheAppearance ? { color: "#fff", opacity: 1 } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a", opacity: 0.9 } : { opacity: 0.9 }}
               >
                 Desempeño Q{quarter} {year}
               </h3>
@@ -481,13 +481,13 @@ export default function UserProfileModal({
             <div className="flex justify-between items-baseline mb-2">
               <span 
                 className={heroNumberClass} 
-                style={isMapacheAppearance ? { color: "#fff" } : undefined}
+                style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
               >
                 {pct.toFixed(1)}%
               </span>
               <span 
                 className={`text-sm ${labelTextClass}`}
-                style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
               >
                 {formatUSD(wonAmount)} / {formatUSD(goalAmount)}
               </span>
@@ -525,13 +525,13 @@ export default function UserProfileModal({
             <div>
               <div 
                 className={`text-xs ${labelTextClass} mb-1`}
-                style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
               >
                 {metricsT("progress")}
               </div>
               <div 
                 className={boldValueClass}
-                style={isMapacheAppearance ? { color: "#fff" } : undefined}
+                style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
               >
                 {formatUSD(wonAmount)}
               </div>
@@ -539,13 +539,13 @@ export default function UserProfileModal({
             <div>
               <div 
                 className={`text-xs ${labelTextClass} mb-1`}
-                style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
               >
                 {metricsT("remaining")}
               </div>
               <div 
                 className={boldValueClass}
-                style={isMapacheAppearance ? { color: "#fff" } : undefined}
+                style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
               >
                 {formatUSD(Math.max(0, goalAmount - wonAmount))}
               </div>
@@ -566,16 +566,15 @@ export default function UserProfileModal({
                     ? 'border-violet-400/25 bg-gradient-to-br from-slate-800/70 via-indigo-950/50 to-slate-900/60 backdrop-blur-xl'
                     : 'border-white/14 bg-gradient-to-br from-white/12 via-[#111827]/65 to-[#0b1221]/65 backdrop-blur-xl'
           }`}
-          style={isMapacheAppearance ? { color: "#fff" } : undefined}
         >
           <div className="flex items-center gap-2 mb-3">
             <Calendar 
               className={`h-4 w-4 ${labelTextClass}`} 
-              style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
             />
             <span 
               className={`text-sm font-semibold ${labelTextClass} uppercase tracking-wide`}
-              style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+              style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
             >
               {profileT("labels.period")}
             </span>
@@ -585,13 +584,13 @@ export default function UserProfileModal({
             <div>
               <div 
                 className={`text-xs ${labelTextClass} mb-1`}
-                style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
               >
                 {profileT("labels.year")}
               </div>
               <div 
                 className={strongValueClass}
-                style={isMapacheAppearance ? { color: "#fff" } : undefined}
+                style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
               >
                 {year}
               </div>
@@ -599,13 +598,13 @@ export default function UserProfileModal({
             <div>
               <div 
                 className={`text-xs ${labelTextClass} mb-1`}
-                style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
               >
                 {profileT("labels.quarter")}
               </div>
               <div 
                 className={strongValueClass}
-                style={isMapacheAppearance ? { color: "#fff" } : undefined}
+                style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
               >
                 Q{quarter}
               </div>
@@ -613,13 +612,13 @@ export default function UserProfileModal({
             <div>
               <div 
                 className={`text-xs ${labelTextClass} mb-1`}
-                style={isMapacheAppearance ? { color: "#67e8f9" } : undefined}
+                style={isMapacheAppearance ? { color: "#67e8f9" } : isDirectAppearance ? { color: "#7c3aed" } : (isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
               >
                 {profileT("labels.goal")} (USD)
               </div>
               <div 
                 className={`${valueTextClass} text-lg font-bold`}
-                style={isMapacheAppearance ? { color: "#fff" } : undefined}
+                style={isMapacheAppearance ? { color: "#fff" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#0f172a" } : undefined}
               >
                 {formatUSD(goalAmount)}
               </div>
@@ -627,7 +626,7 @@ export default function UserProfileModal({
           </div>
           <div 
             className={`text-xs ${subtleTextClass} text-center pt-2`}
-            style={isMapacheAppearance ? { color: "#a5f3fc" } : undefined}
+            style={isMapacheAppearance ? { color: "#a5f3fc" } : (isDirectAppearance || isLightAppearance || isMarketingAppearance) ? { color: "#64748b" } : undefined}
           >
             {profileT("periodSummary", { year, quarter, from: range.from, to: range.to })}
           </div>
