@@ -95,6 +95,41 @@ The Generator page (`/portal/directo/generator`) has been visually modernized wi
 - `src/app/components/ui/Modal.tsx`: Token-driven styling
 - Portal layouts: `direct-portal`, `mapache-portal`, `marketing-portal`, `partner-portal`
 
+### Mapache Portal UI Components (Nov 2025)
+
+**Reusable Components** (`src/app/mapache-portal/components/ui/`):
+- `MapacheInput.tsx`: Token-based text input with label and error support
+- `MapacheSelect.tsx`: Token-based select dropdown with label and error support
+- `MapacheTextarea.tsx`: Token-based textarea with label and error support
+- `MapacheButton.tsx`: Token-based button with variants (primary, secondary, ghost, accent, danger)
+- `index.ts`: Barrel export for all Mapache UI components
+
+**Styling Approach**:
+- All components use inline `style` props with CSS custom properties
+- Fallback values ensure graceful degradation: `var(--mapache-glass-border, rgba(255,255,255,0.2))`
+- Labels use `rgb(var(--text-label))` for consistent cyan accent
+- Error states use `rgb(var(--status-error))` for red feedback
+
+**Chart Tokens** (added to `portal-tokens.css` for Mapache portal):
+- `--chart-grid-*`: Grid line and gradient colors
+- `--chart-axis-text`: Axis label colors
+- `--chart-label-text`: Data label colors
+- `--chart-text-primary/muted`: Text hierarchy in charts
+- `--chart-tooltip-*`: Tooltip background and text colors
+- `--chart-point-stroke`: Circle stroke color for area charts
+
+**Analytics Components Updated** (`src/app/mapache-portal/components/analytics/`):
+- `ChartCard.tsx`: Uses glass panel tokens for container
+- `ChartSkeleton.tsx`: Uses glass background token
+- `DonutChart.tsx`: Uses chart tokens for text and tooltips
+- `StackedBarChart.tsx`: Uses chart tokens for grid, axis, labels, and tooltips
+- `AreaTrendChart.tsx`: Uses chart tokens for grid, axis, labels, points, and tooltips
+
+**MapachePortalClient.tsx Refactoring**:
+- Added `mapacheInputStyles` object with token-based colors
+- Migrated 47 inputs and 7 textareas to use shared class constants
+- Style constants now reference CSS custom properties instead of hardcoded colors
+
 # External Dependencies
 
 ## Third-Party Services
