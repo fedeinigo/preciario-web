@@ -875,6 +875,56 @@ export default function GoalsPage({
 
   const handleUpdateBilling = React.useCallback(
     async (deal: UserWonDeal, billedAmount: number) => {
+      const applyLocalUpdate = (billed: number) => {
+        setMyDeals((prev) => {
+          const updated = prev.map((item) => {
+            if (item.id !== deal.id) return item;
+            const handoffCompleted = billed >= item.monthlyFee;
+            return {
+              ...item,
+              billedAmount: billed,
+              pendingAmount: Math.max(0, item.monthlyFee - billed),
+              billingPct: item.monthlyFee > 0 ? (billed / item.monthlyFee) * 100 : 0,
+              handoffCompleted,
+            };
+          });
+
+          const totals = computeTotals(updated);
+          setMyTotals(totals);
+
+          const currentDate = new Date();
+          const currentMonth = currentDate.getMonth();
+          const currentYear = currentDate.getFullYear();
+          const monthlyTotal = updated.reduce((acc, item) => {
+            const createdAt = new Date(item.createdAt);
+            if (!Number.isNaN(createdAt.getTime()) && createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear) {
+              return acc + item.monthlyFee;
+            }
+            return acc;
+          }, 0);
+          setMyMonthlyProgress(monthlyTotal);
+
+          if (winsSource === "pipedrive") {
+            const progressTotal = updated.reduce((acc, item) => acc + Number(item.monthlyFee ?? 0), 0);
+            const cacheSyncedAt = lastSyncedAt ? lastSyncedAt.toISOString() : new Date().toISOString();
+            persistWinsCache({
+              deals: updated,
+              progress: progressTotal,
+              monthlyProgress: monthlyTotal,
+              totals,
+              lastSyncedAt: cacheSyncedAt,
+            });
+          }
+
+          return updated;
+        });
+      };
+
+      if (!deal.proposalId && !deal.manualDealId) {
+        applyLocalUpdate(billedAmount);
+        return;
+      }
+
       const payload: Record<string, unknown> = { billedAmount };
       if (deal.proposalId) payload.proposalId = deal.proposalId;
       if (deal.manualDealId) payload.manualDealId = deal.manualDealId;
