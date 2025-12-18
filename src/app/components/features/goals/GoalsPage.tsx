@@ -115,41 +115,6 @@ export default function GoalsPage({
     [currentEmail, quarter, year]
   );
 
-  const loadWinsFromCache = React.useCallback(() => {
-    if (winsSource !== "pipedrive") return false;
-    if (typeof window === "undefined") return false;
-    try {
-      const raw = window.localStorage.getItem(winsCacheKey);
-      if (!raw) return false;
-      const parsed = JSON.parse(raw) as {
-        deals?: UserWonDeal[];
-        progress?: number;
-        monthlyProgress?: number;
-        totals?: { monthlyFees?: number; handoff?: number; pending?: number };
-        lastSyncedAt?: string | null;
-      };
-      if (!Array.isArray(parsed.deals)) return false;
-      setMyDeals(parsed.deals);
-      setMyProgress(Number(parsed.progress ?? 0));
-      setMyMonthlyProgress(Number(parsed.monthlyProgress ?? 0));
-      const cachedTotals = {
-        monthlyFees: Number(parsed.totals?.monthlyFees ?? 0),
-        handoff: Number(parsed.totals?.handoff ?? NaN),
-        pending: Number(parsed.totals?.pending ?? NaN),
-      };
-      const totals = Number.isFinite(cachedTotals.handoff) ? cachedTotals : computeTotals(parsed.deals);
-      setMyTotals({
-        monthlyFees: totals.monthlyFees,
-        handoff: totals.handoff,
-        pending: Number.isFinite(totals.pending) ? totals.pending : Math.max(0, totals.monthlyFees - totals.handoff),
-      });
-      setLastSyncedAt(parsed.lastSyncedAt ? new Date(parsed.lastSyncedAt) : null);
-      return true;
-    } catch {
-      return false;
-    }
-  }, [computeTotals, winsCacheKey, winsSource]);
-
   const persistWinsCache = React.useCallback(
     (payload: {
       deals: UserWonDeal[];
@@ -186,6 +151,41 @@ export default function GoalsPage({
     },
     [resolveHandoff]
   );
+
+  const loadWinsFromCache = React.useCallback(() => {
+    if (winsSource !== "pipedrive") return false;
+    if (typeof window === "undefined") return false;
+    try {
+      const raw = window.localStorage.getItem(winsCacheKey);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw) as {
+        deals?: UserWonDeal[];
+        progress?: number;
+        monthlyProgress?: number;
+        totals?: { monthlyFees?: number; handoff?: number; pending?: number };
+        lastSyncedAt?: string | null;
+      };
+      if (!Array.isArray(parsed.deals)) return false;
+      setMyDeals(parsed.deals);
+      setMyProgress(Number(parsed.progress ?? 0));
+      setMyMonthlyProgress(Number(parsed.monthlyProgress ?? 0));
+      const cachedTotals = {
+        monthlyFees: Number(parsed.totals?.monthlyFees ?? 0),
+        handoff: Number(parsed.totals?.handoff ?? NaN),
+        pending: Number(parsed.totals?.pending ?? NaN),
+      };
+      const totals = Number.isFinite(cachedTotals.handoff) ? cachedTotals : computeTotals(parsed.deals);
+      setMyTotals({
+        monthlyFees: totals.monthlyFees,
+        handoff: totals.handoff,
+        pending: Number.isFinite(totals.pending) ? totals.pending : Math.max(0, totals.monthlyFees - totals.handoff),
+      });
+      setLastSyncedAt(parsed.lastSyncedAt ? new Date(parsed.lastSyncedAt) : null);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [computeTotals, winsCacheKey, winsSource]);
 
   const loadMyGoal = React.useCallback(async () => {
     try {
@@ -329,7 +329,7 @@ export default function GoalsPage({
     } finally {
       setLoadingDeals(false);
     }
-  }, [loadWinsFromCache, persistWinsCache, quarter, winsSource, year, pipedriveMode]);
+    }, [computeTotals, loadWinsFromCache, persistWinsCache, quarter, winsSource, year, pipedriveMode]);
 
   React.useEffect(() => {
     loadMyGoal();
