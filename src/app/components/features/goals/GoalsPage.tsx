@@ -115,6 +115,24 @@ export default function GoalsPage({
     [currentEmail, quarter, year]
   );
 
+  const resolveHandoff = React.useCallback((deal: UserWonDeal): boolean => {
+    const billed = Number(deal.billedAmount ?? 0);
+    const fee = Number(deal.monthlyFee ?? 0);
+    return Boolean(deal.handoffCompleted ?? (Number.isFinite(fee) && billed >= fee));
+  }, []);
+
+  const computeTotals = React.useCallback(
+    (deals: UserWonDeal[]) => {
+      const monthlyFees = deals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
+      const handoff = deals.reduce(
+        (acc, deal) => (resolveHandoff(deal) ? acc + Number(deal.monthlyFee ?? 0) : acc),
+        0
+      );
+      return { monthlyFees, handoff, pending: Math.max(0, monthlyFees - handoff) };
+    },
+    [resolveHandoff]
+  );
+
   const loadWinsFromCache = React.useCallback(() => {
     if (winsSource !== "pipedrive") return false;
     if (typeof window === "undefined") return false;
@@ -167,24 +185,6 @@ export default function GoalsPage({
       }
     },
     [winsCacheKey, winsSource]
-  );
-
-  const resolveHandoff = React.useCallback((deal: UserWonDeal): boolean => {
-    const billed = Number(deal.billedAmount ?? 0);
-    const fee = Number(deal.monthlyFee ?? 0);
-    return Boolean(deal.handoffCompleted ?? (Number.isFinite(fee) && billed >= fee));
-  }, []);
-
-  const computeTotals = React.useCallback(
-    (deals: UserWonDeal[]) => {
-      const monthlyFees = deals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
-      const handoff = deals.reduce(
-        (acc, deal) => (resolveHandoff(deal) ? acc + Number(deal.monthlyFee ?? 0) : acc),
-        0
-      );
-      return { monthlyFees, handoff, pending: Math.max(0, monthlyFees - handoff) };
-    },
-    [resolveHandoff]
   );
 
   const loadMyGoal = React.useCallback(async () => {
@@ -329,7 +329,7 @@ export default function GoalsPage({
     } finally {
       setLoadingDeals(false);
     }
-  }, [loadWinsFromCache, persistWinsCache, quarter, winsSource, year, pipedriveMode]);
+  }, [computeTotals, loadWinsFromCache, persistWinsCache, quarter, winsSource, year, pipedriveMode]);
 
   React.useEffect(() => {
     loadMyGoal();
