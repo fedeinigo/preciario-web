@@ -14,6 +14,7 @@ export type UserWonDeal = {
   billedAmount: number;
   pendingAmount: number;
   billingPct: number;
+  handoffCompleted?: boolean;
   link: string | null;
   createdAt: string;
   proposalId?: string;
@@ -25,7 +26,7 @@ export type UserWonDeal = {
 
 type Totals = {
   monthlyFees: number;
-  billed: number;
+  handoff: number;
   pending: number;
 };
 
@@ -34,7 +35,7 @@ type Props = {
   totals: Totals;
   loading: boolean;
   goal: number;
-  onEditBilling: (deal: UserWonDeal) => void;
+  onToggleHandOff: (deal: UserWonDeal, completed: boolean) => void;
   onAddManual?: () => void;
   onDeleteDeal?: (deal: UserWonDeal) => void;
   theme?: "direct" | "mapache";
@@ -45,7 +46,7 @@ export default function BillingSummaryCard({
   totals,
   loading,
   goal,
-  onEditBilling,
+  onToggleHandOff,
   onAddManual,
   onDeleteDeal,
   theme = "direct",
@@ -65,7 +66,7 @@ export default function BillingSummaryCard({
   }, []);
 
   const totalFees = totals.monthlyFees;
-  const billedPct = totalFees > 0 ? (totals.billed / totalFees) * 100 : 0;
+  const handoffPct = totalFees > 0 ? (totals.handoff / totalFees) * 100 : 0;
   const pendingPct = totalFees > 0 ? (totals.pending / totalFees) * 100 : 0;
   const goalPct = goal > 0 ? (totalFees / goal) * 100 : 0;
 
@@ -96,18 +97,9 @@ export default function BillingSummaryCard({
   const pillDeleteClass = isMapache
     ? "rounded-xl border border-rose-400/60 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/20 hover:border-rose-300/70"
     : "rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 hover:border-rose-300";
-  const pillEditClass = isMapache
-    ? "rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15"
-    : "rounded-xl border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 transition hover:bg-purple-100 hover:border-purple-300";
   const labelMuted = isMapache ? "text-xs font-bold uppercase tracking-wider text-white/60" : "text-xs font-bold uppercase tracking-wider text-purple-600";
   const sectionText = isMapache ? "text-lg font-bold text-white" : "text-lg font-bold text-slate-900";
   const dealMetaMuted = isMapache ? "text-xs font-semibold uppercase tracking-wide text-white/60" : "text-xs font-semibold uppercase tracking-wide text-purple-600";
-  const billedColor = isMapache ? "text-lg font-bold text-emerald-300" : "text-lg font-bold text-emerald-600";
-  const pendingColor = isMapache ? "text-lg font-bold text-amber-300" : "text-lg font-bold text-amber-600";
-  const barTrack = isMapache ? "relative h-3 w-full overflow-hidden rounded-xl bg-white/10" : "relative h-3 w-full overflow-hidden rounded-xl bg-slate-200/60";
-  const barFill = isMapache
-    ? "absolute left-0 top-0 h-full rounded-xl bg-gradient-to-r from-[#22d3ee] via-[#8b5cf6] to-[#a855f7] shadow-sm"
-    : "absolute left-0 top-0 h-full rounded-xl bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 shadow-sm";
   const footerClass = isMapache
     ? "mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-white/10 bg-gradient-to-br from-[#121520] to-[#0c0e17] px-6 py-5"
     : "mt-6 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50 to-purple-50/30 px-6 py-5";
@@ -147,101 +139,125 @@ export default function BillingSummaryCard({
               <p className="text-sm font-medium">{t("empty")}</p>
             </div>
           ) : (
-            sortedDeals.map((deal) => (
-              <div
-                key={deal.id}
-                className={dealCardClass}
-                onClick={() => setSelectedDeal(deal)}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1 group-hover:text-purple-600 transition">
-                    <p className={dealTitleClass}>{deal.companyName}</p>
-                  <p className={dealMetaMuted}>
-                    {deal.type === "auto" ? t("autoLabel") : t("manualLabel")}
-                    <span className="mx-1 text-slate-300">·</span>
-                    <span
-                      className={
-                        deal.wonType === "UPSELL"
-                          ? isMapache
-                            ? "text-amber-300"
-                            : "text-amber-600"
-                          : isMapache
-                            ? "text-sky-300"
-                            : "text-blue-600"
-                      }
-                    >
-                      {deal.wonType === "UPSELL" ? t("wonTypeUpsell") : t("wonTypeNew")}
-                    </span>
-                  </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {deal.type === "manual" && onDeleteDeal && (
-                      <button
-                        className={pillDeleteClass}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteDeal(deal);
-                        }}
+            sortedDeals.map((deal) => {
+              const handoffCompleted = deal.handoffCompleted ?? deal.billedAmount >= deal.monthlyFee;
+
+              return (
+                <div
+                  key={deal.id}
+                  className={dealCardClass}
+                  onClick={() => setSelectedDeal(deal)}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 group-hover:text-purple-600 transition">
+                      <p className={dealTitleClass}>{deal.companyName}</p>
+                      <p className={dealMetaMuted}>
+                        {deal.type === "auto" ? t("autoLabel") : t("manualLabel")}
+                        <span className="mx-1 text-slate-300">·</span>
+                        <span
+                          className={
+                            deal.wonType === "UPSELL"
+                              ? isMapache
+                                ? "text-amber-300"
+                                : "text-amber-600"
+                              : isMapache
+                                ? "text-sky-300"
+                                : "text-blue-600"
+                          }
+                        >
+                          {deal.wonType === "UPSELL" ? t("wonTypeUpsell") : t("wonTypeNew")}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {deal.type === "manual" && onDeleteDeal && (
+                        <button
+                          className={pillDeleteClass}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteDeal(deal);
+                          }}
+                        >
+                          {t("deleteManual")}
+                        </button>
+                      )}
+                      <label
+                        className={
+                          isMapache
+                            ? "inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10"
+                            : "inline-flex items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 transition hover:bg-purple-100"
+                        }
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        {t("deleteManual")}
-                      </button>
-                    )}
-                    <button
-                      className={pillEditClass}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditBilling(deal);
-                      }}
-                    >
-                      {t("editBilling")}
-                    </button>
+                        <input
+                          type="checkbox"
+                          checked={handoffCompleted}
+                          onChange={(e) => onToggleHandOff(deal, e.target.checked)}
+                          className={
+                            isMapache
+                              ? "h-4 w-4 rounded border-white/30 bg-transparent text-purple-400 focus:ring-purple-300"
+                              : "h-4 w-4 rounded border-purple-300 text-purple-600 focus:ring-purple-400"
+                          }
+                        />
+                        <span>{t("handoffLabel")}</span>
+                      </label>
+                    </div>
                   </div>
-                </div>
 
-                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div>
-                  <p className={labelMuted}>
-                    {t("monthlyFee")}
-                  </p>
-                  <p className={sectionText}>{formatUSD(deal.monthlyFee)}</p>
-                </div>
-                <div className="text-left sm:text-center">
-                  <p className={isMapache ? "text-xs font-bold uppercase tracking-wider text-emerald-300" : "text-xs font-bold uppercase tracking-wider text-emerald-600"}>
-                    {t("billed")}
-                  </p>
-                  <p className={billedColor}>{formatUSD(deal.billedAmount)}</p>
-                </div>
-                <div className="text-left sm:text-right">
-                  <p className={isMapache ? "text-xs font-bold uppercase tracking-wider text-amber-300" : "text-xs font-bold uppercase tracking-wider text-amber-600"}>
-                    {t("pending")}
-                  </p>
-                  <p className={pendingColor}>{formatUSD(deal.pendingAmount)}</p>
-                </div>
-              </div>
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                      <p className={labelMuted}>{t("monthlyFee")}</p>
+                      <p className={sectionText}>{formatUSD(deal.monthlyFee)}</p>
+                    </div>
+                    <div className="text-left sm:text-center">
+                      <p
+                        className={
+                          isMapache
+                            ? "text-xs font-bold uppercase tracking-wider text-emerald-300"
+                            : "text-xs font-bold uppercase tracking-wider text-emerald-600"
+                        }
+                      >
+                        {handoffCompleted ? t("handoffDone") : t("handoffPending")}
+                      </p>
+                      <p className={isMapache ? "text-lg font-bold text-white" : "text-lg font-bold text-slate-900"}>
+                        {handoffCompleted ? t("handoffConfirmed") : t("handoffMissing")}
+                      </p>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <p
+                        className={
+                          isMapache
+                            ? "text-xs font-bold uppercase tracking-wider text-cyan-200"
+                            : "text-xs font-bold uppercase tracking-wider text-blue-600"
+                        }
+                      >
+                        {t("bonusAmount")}
+                      </p>
+                      <p className={isMapache ? "text-lg font-bold text-cyan-200" : "text-lg font-bold text-blue-700"}>
+                        {formatUSD(handoffCompleted ? deal.monthlyFee : 0)}
+                      </p>
+                    </div>
+                  </div>
 
-              <div className="mt-4">
-                <div className={barTrack}>
-                  <div
-                    className={barFill}
-                    style={{ width: `${Math.min(100, Math.max(0, deal.billingPct))}%` }}
-                  />
-                </div>
-                <div className={`mt-2 flex flex-wrap items-center justify-between text-xs font-bold ${isMapache ? "text-white" : ""}`}>
-                  <span className={isMapache ? "text-white" : "text-purple-600"}>{deal.billingPct.toFixed(0)}%</span>
                   {deal.link && (
-                    <a
-                      href={deal.link}
-                      className={isMapache ? "text-[#93c5fd] underline hover:text-white transition" : "text-purple-600 underline hover:text-purple-700 transition"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {t("viewProposal")}
-                    </a>
+                    <div className="mt-4 flex justify-end text-xs font-bold">
+                      <a
+                        href={deal.link}
+                        className={
+                          isMapache
+                            ? "text-[#93c5fd] underline hover:text-white transition"
+                            : "text-purple-600 underline hover:text-purple-700 transition"
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {t("viewProposal")}
+                      </a>
+                    </div>
                   )}
                 </div>
-              </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -259,12 +275,12 @@ export default function BillingSummaryCard({
           </div>
           <div className="flex items-center justify-between">
             <span className={isMapache ? "text-xs font-bold uppercase tracking-wider text-emerald-300" : "text-xs font-bold uppercase tracking-wider text-emerald-600"}>
-              {t("totalBilled")}
+              {t("totalHandoff")}
             </span>
             <span className={isMapache ? "text-lg font-bold text-emerald-300" : "text-lg font-bold text-emerald-600"}>
-              {formatUSD(totals.billed)}
+              {formatUSD(totals.handoff)}
               <span className={isMapache ? "ml-2 text-xs font-semibold text-emerald-200/80" : "ml-2 text-xs font-semibold text-emerald-600/70"}>
-                ({percentLabel(billedPct)})
+                ({percentLabel(handoffPct)})
               </span>
             </span>
           </div>
