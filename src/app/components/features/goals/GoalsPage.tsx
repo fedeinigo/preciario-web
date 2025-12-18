@@ -19,6 +19,7 @@ import ManualWonDialog from "./components/ManualWonDialog";
 import CardSkeleton from "@/app/components/ui/skeletons/CardSkeleton";
 import Tooltip from "@/app/components/ui/Tooltip";
 import MemberDealsModal from "./components/MemberDealsModal";
+import BonusCalculatorCard from "./components/BonusCalculatorCard";
 
 type Props = {
   role: AppRole;
@@ -1244,6 +1245,16 @@ export default function GoalsPage({
               )}
             </div>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:gap-8">
+          <BonusCalculatorCard
+            goal={myGoal}
+            progress={myProgress}
+            handoffTotal={myTotals.handoff}
+            pendingHandoff={myTotals.pending}
+            theme={theme}
+          />
         </div>
       </div>
 
