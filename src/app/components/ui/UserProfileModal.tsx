@@ -145,10 +145,6 @@ export default function UserProfileModal({
     resolvedTarget.leaderEmail,
   ]);
 
-  const _isSelf =
-    (!!viewer.id && !!resolvedTarget.id && viewer.id === resolvedTarget.id) ||
-    (!!viewer.email && !!resolvedTarget.email && viewer.email === resolvedTarget.email);
-
   const now = useMemo(() => new Date(), []);
   const year = now.getFullYear();
   const quarter = useMemo<1 | 2 | 3 | 4>(() => {
