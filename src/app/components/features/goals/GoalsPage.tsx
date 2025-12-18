@@ -115,25 +115,6 @@ export default function GoalsPage({
     [currentEmail, quarter, year]
   );
 
-  const persistWinsCache = React.useCallback(
-    (payload: {
-      deals: UserWonDeal[];
-      progress: number;
-      monthlyProgress: number;
-      totals: { monthlyFees: number; handoff: number; pending: number };
-      lastSyncedAt: string;
-    }) => {
-      if (winsSource !== "pipedrive") return;
-      if (typeof window === "undefined") return;
-      try {
-        window.localStorage.setItem(winsCacheKey, JSON.stringify(payload));
-      } catch {
-        // ignore cache errors
-      }
-    },
-    [winsCacheKey, winsSource]
-  );
-
   const resolveHandoff = React.useCallback((deal: UserWonDeal): boolean => {
     const billed = Number(deal.billedAmount ?? 0);
     const fee = Number(deal.monthlyFee ?? 0);
@@ -186,6 +167,25 @@ export default function GoalsPage({
       return false;
     }
   }, [computeTotals, winsCacheKey, winsSource]);
+
+  const persistWinsCache = React.useCallback(
+    (payload: {
+      deals: UserWonDeal[];
+      progress: number;
+      monthlyProgress: number;
+      totals: { monthlyFees: number; handoff: number; pending: number };
+      lastSyncedAt: string;
+    }) => {
+      if (winsSource !== "pipedrive") return;
+      if (typeof window === "undefined") return;
+      try {
+        window.localStorage.setItem(winsCacheKey, JSON.stringify(payload));
+      } catch {
+        // ignore cache errors
+      }
+    },
+    [winsCacheKey, winsSource]
+  );
 
   const loadMyGoal = React.useCallback(async () => {
     try {
@@ -329,7 +329,7 @@ export default function GoalsPage({
     } finally {
       setLoadingDeals(false);
     }
-    }, [computeTotals, loadWinsFromCache, persistWinsCache, quarter, winsSource, year, pipedriveMode]);
+  }, [computeTotals, loadWinsFromCache, persistWinsCache, quarter, winsSource, year, pipedriveMode]);
 
   React.useEffect(() => {
     loadMyGoal();
@@ -936,9 +936,34 @@ export default function GoalsPage({
       if (!res.ok) throw new Error("failed");
       const data = (await res.json()) as { billedAmount?: number };
       const billed = Number(data.billedAmount ?? billedAmount);
-      applyLocalUpdate(billed);
+      setMyDeals((prev) => {
+        const updated = prev.map((item) => {
+          if (item.id !== deal.id) return item;
+          const handoffCompleted = billed >= item.monthlyFee;
+          return {
+            ...item,
+            billedAmount: billed,
+            pendingAmount: Math.max(0, item.monthlyFee - billed),
+            billingPct: item.monthlyFee > 0 ? (billed / item.monthlyFee) * 100 : 0,
+            handoffCompleted,
+          };
+        });
+        setMyTotals(computeTotals(updated));
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+        const monthlyTotal = updated.reduce((acc, item) => {
+          const createdAt = new Date(item.createdAt);
+          if (!Number.isNaN(createdAt.getTime()) && createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear) {
+            return acc + item.monthlyFee;
+          }
+          return acc;
+        }, 0);
+        setMyMonthlyProgress(monthlyTotal);
+        return updated;
+      });
     },
-    [computeTotals, winsSource, lastSyncedAt, persistWinsCache]
+    [computeTotals]
   );
 
   const handleToggleHandOff = React.useCallback(
