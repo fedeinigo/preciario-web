@@ -1173,7 +1173,7 @@ export default function GoalsPage({
             totals={myTotals}
             loading={loadingDeals}
             goal={myGoal}
-            onToggleHandOff={disableManualWins ? () => undefined : handleToggleHandOff}
+            onToggleHandOff={handleToggleHandOff}
             onAddManual={canAddSelfManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
             onDeleteDeal={canAddManual ? handleDeleteManualWon : undefined}
             theme={theme}
