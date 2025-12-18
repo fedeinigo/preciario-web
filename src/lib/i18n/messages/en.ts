@@ -2038,11 +2038,11 @@ const messages: DeepRecord = {
 
       billing: {
 
-        title: "My billing",
+        title: "Bonus",
 
-        subtitle: "{count, plural, one {# deal logged} other {# deals logged}}",
+        subtitle: "{count, plural, one {# won deal} other {# won deals}}",
 
-        loading: "Loading billing…",
+        loading: "Loading bonus…",
 
         empty: "You haven't logged won deals this quarter yet.",
 
@@ -2072,25 +2072,27 @@ const messages: DeepRecord = {
 
         wonTypeLabel: "Won Type",
 
-        editBilling: "Update billed amount",
-
         monthlyFee: "Monthly fee",
 
-        billed: "Billed",
+        handoffLabel: "Hand Off",
 
-        pending: "Pending",
+        handoffDone: "Hand off ready",
+
+        handoffPending: "Hand off pending",
+
+        handoffConfirmed: "Counts toward bonus",
+
+        handoffMissing: "Not counting yet",
+
+        bonusAmount: "Bonus amount",
 
         viewProposal: "View proposal",
 
         totalMonthly: "Total monthly fees",
 
-        totalBilled: "Total billed",
+        totalHandoff: "Total via hand off",
 
         totalPending: "Total pending",
-
-        editBillingPrompt: "New billed amount for {company}",
-
-        invalidAmount: "Enter a valid number",
 
       },
 
@@ -2148,7 +2150,9 @@ const messages: DeepRecord = {
 
         manualWonDeleteError: "Could not delete the manual Won",
 
-        billingSaved: "Billing updated",
+        handoffSaved: "Hand off recorded",
+
+        handoffRemoved: "Hand off removed",
 
         billingError: "Could not update billing",
 
