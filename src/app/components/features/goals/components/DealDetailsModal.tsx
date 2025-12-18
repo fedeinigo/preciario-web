@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-import { X, Calendar, DollarSign, FileText, TrendingUp, Building2, ExternalLink } from "lucide-react";
+import { X, Calendar, DollarSign, FileText, Building2, ExternalLink } from "lucide-react";
 import type { UserWonDeal } from "./BillingSummaryCard";
 
 type Props = {
@@ -21,6 +21,7 @@ export default function DealDetailsModal({ deal, isOpen, onClose, theme = "direc
     month: "long",
     day: "numeric",
   });
+  const handoffCompleted = deal.handoffCompleted ?? deal.billedAmount >= deal.monthlyFee;
 
   const isMapache = theme === "mapache";
   const overlayClass = isMapache
@@ -52,20 +53,6 @@ export default function DealDetailsModal({ deal, isOpen, onClose, theme = "direc
   const metricsLabelClass = isMapache
     ? "text-xs font-bold uppercase tracking-wider text-white/70"
     : "text-xs font-bold uppercase tracking-wider text-purple-600";
-  const metricPurple = isMapache ? "text-emerald-300" : "text-emerald-600";
-  const metricAmber = isMapache ? "text-amber-300" : "text-amber-600";
-  const progressCardClass = isMapache
-    ? "p-5 bg-gradient-to-br from-white/5 via-[#0f162c] to-[#0b1024] rounded-2xl border border-white/10"
-    : "p-5 bg-gradient-to-br from-slate-50 to-purple-50/30 rounded-2xl border border-slate-100";
-  const progressTitleClass = isMapache
-    ? "text-sm font-bold text-white"
-    : "text-sm font-bold text-slate-700";
-  const progressPctClass = isMapache ? "text-lg font-bold text-[#a78bfa]" : "text-lg font-bold text-purple-600";
-  const progressTrackClass = isMapache ? "relative h-4 w-full overflow-hidden rounded-xl bg-white/10" : "relative h-4 w-full overflow-hidden rounded-xl bg-slate-200";
-  const progressFillClass = isMapache
-    ? "absolute left-0 top-0 h-full rounded-xl bg-gradient-to-r from-[#22d3ee] via-[#8b5cf6] to-[#c084fc] shadow-sm"
-    : "absolute left-0 top-0 h-full rounded-xl bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 shadow-sm";
-  const progressScaleClass = isMapache ? "mt-3 flex items-center justify-between text-xs font-semibold text-white/60" : "mt-3 flex items-center justify-between text-xs font-semibold text-slate-500";
   const sectionTitleClass = isMapache
     ? "text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2"
     : "text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2";
@@ -138,44 +125,36 @@ export default function DealDetailsModal({ deal, isOpen, onClose, theme = "direc
 
             <div className={metricsCardClass}>
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className={isMapache ? "h-4 w-4 text-emerald-300" : "h-4 w-4 text-emerald-600"} />
-                <p className={isMapache ? "text-xs font-bold uppercase tracking-wider text-emerald-200/90" : "text-xs font-bold uppercase tracking-wider text-emerald-600"}>
-                  Facturado
-                </p>
+                <div className={isMapache ? "h-8 w-8 rounded-full bg-emerald-400/15 flex items-center justify-center" : "h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center"}>
+                  <span className={isMapache ? "text-emerald-300" : "text-emerald-600"}>✓</span>
+                </div>
+                <p className={metricsLabelClass}>Hand Off</p>
               </div>
-              <p className={`text-2xl font-bold ${metricPurple}`}>
-                ${deal.billedAmount.toLocaleString()}
+              <p
+                className={handoffCompleted ? (isMapache ? "text-emerald-300 text-lg font-bold" : "text-emerald-600 text-lg font-bold") : isMapache ? "text-amber-300 text-lg font-bold" : "text-amber-600 text-lg font-bold"}
+              >
+                {handoffCompleted ? "Completado" : "Pendiente"}
+              </p>
+              <p className={isMapache ? "text-sm font-semibold text-white/70" : "text-sm font-semibold text-slate-600"}>
+                {handoffCompleted
+                  ? "Este negocio ya fue transferido a implementación."
+                  : "Aún falta registrar el hand off con implementación."}
               </p>
             </div>
 
             <div className={metricsCardClass}>
               <div className="flex items-center gap-2 mb-2">
-                <Calendar className={isMapache ? "h-4 w-4 text-amber-300" : "h-4 w-4 text-amber-600"} />
-                <p className={isMapache ? "text-xs font-bold uppercase tracking-wider text-amber-200/90" : "text-xs font-bold uppercase tracking-wider text-amber-600"}>
-                  Pendiente
-                </p>
+                <Calendar className={isMapache ? "h-4 w-4 text-cyan-200" : "h-4 w-4 text-blue-600"} />
+                <p className={metricsLabelClass}>Bono contabilizado</p>
               </div>
-              <p className={`text-2xl font-bold ${metricAmber}`}>
-                ${deal.pendingAmount.toLocaleString()}
+              <p className={isMapache ? "text-2xl font-bold text-white" : "text-2xl font-bold text-slate-900"}>
+                ${handoffCompleted ? deal.monthlyFee.toLocaleString() : 0}
               </p>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className={progressCardClass}>
-            <div className="flex items-center justify-between mb-3">
-              <p className={progressTitleClass}>Progreso de Facturación</p>
-              <p className={progressPctClass}>{deal.billingPct.toFixed(1)}%</p>
-            </div>
-            <div className={progressTrackClass}>
-              <div
-                className={progressFillClass}
-                style={{ width: `${Math.min(100, Math.max(0, deal.billingPct))}%` }}
-              />
-            </div>
-            <div className={progressScaleClass}>
-              <span>$0</span>
-              <span>${deal.monthlyFee.toLocaleString()}</span>
+              <p className={isMapache ? "text-sm font-semibold text-white/70" : "text-sm font-semibold text-slate-600"}>
+                {handoffCompleted
+                  ? "Cuenta al 100% para tu bono."
+                  : "Se sumará cuando completes el hand off."}
+              </p>
             </div>
           </div>
 

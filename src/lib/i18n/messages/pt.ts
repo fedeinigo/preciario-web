@@ -2046,11 +2046,11 @@ const messages: DeepRecord = {
 
       billing: {
 
-        title: "Minha faturação",
+        title: "Bônus",
 
-        subtitle: "{count, plural, one {# negócio registrado} other {# negócios registrados}}",
+        subtitle: "{count, plural, one {# negócio ganho} other {# negócios ganhos}}",
 
-        loading: "Carregando faturação…",
+        loading: "Carregando bônus…",
 
         empty: "Você ainda não registrou negócios ganhos neste trimestre.",
 
@@ -2080,23 +2080,27 @@ const messages: DeepRecord = {
 
         wonTypeLabel: "Tipo de Won",
 
-        editBilling: "Atualizar faturado",
-
         monthlyFee: "Fee mensal",
 
-        billed: "Faturado",
+        handoffLabel: "Hand Off",
 
-        pending: "Pendente",
+        handoffDone: "Hand off concluído",
+
+        handoffPending: "Hand off pendente",
+
+        handoffConfirmed: "Conta para o bônus",
+
+        handoffMissing: "Ainda não conta",
+
+        bonusAmount: "Valor para bônus",
 
         viewProposal: "Ver proposta",
 
         totalMonthly: "Total fees mensais",
 
-        totalBilled: "Total faturado",
+        totalHandoff: "Total com hand off",
 
         totalPending: "Total pendente",
-
-        editBillingPrompt: "Novo valor faturado para {company}",
 
         invalidAmount: "Informe um número válido",
 
@@ -2156,7 +2160,9 @@ const messages: DeepRecord = {
 
         manualWonDeleteError: "Não foi possível excluir o Won manual",
 
-        billingSaved: "Faturação atualizada",
+        handoffSaved: "Hand off registrado",
+
+        handoffRemoved: "Hand off removido",
 
         billingError: "Não foi possível atualizar a faturação",
 

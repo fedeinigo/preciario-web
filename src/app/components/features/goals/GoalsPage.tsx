@@ -16,7 +16,6 @@ import TeamMembersTable, { TeamGoalRow } from "./components/TeamMembersTable";
 import BillingSummaryCard, { UserWonDeal } from "./components/BillingSummaryCard";
 import { Download, Users2, Target } from "lucide-react";
 import ManualWonDialog from "./components/ManualWonDialog";
-import BillingEditorModal from "./components/BillingEditorModal";
 import CardSkeleton from "@/app/components/ui/skeletons/CardSkeleton";
 import Tooltip from "@/app/components/ui/Tooltip";
 import MemberDealsModal from "./components/MemberDealsModal";
@@ -97,9 +96,9 @@ export default function GoalsPage({
   const [myProgress, setMyProgress] = React.useState<number>(0);
   const [myDeals, setMyDeals] = React.useState<UserWonDeal[]>([]);
   const [myMonthlyProgress, setMyMonthlyProgress] = React.useState<number>(0);
-  const [myTotals, setMyTotals] = React.useState<{ monthlyFees: number; billed: number; pending: number }>({
+  const [myTotals, setMyTotals] = React.useState<{ monthlyFees: number; handoff: number; pending: number }>({
     monthlyFees: 0,
-    billed: 0,
+    handoff: 0,
     pending: 0,
   });
   const [lastSyncedAt, setLastSyncedAt] = React.useState<Date | null>(null);
@@ -109,12 +108,29 @@ export default function GoalsPage({
   >(null);
   const closeManualDialog = React.useCallback(() => setManualDialogTarget(null), []);
 
-  const [billingEditorDeal, setBillingEditorDeal] = React.useState<UserWonDeal | null>(null);
   const [deleteConfirmDeal, setDeleteConfirmDeal] = React.useState<UserWonDeal | null>(null);
 
   const winsCacheKey = React.useMemo(
     () => `goals:pipedrive:${currentEmail || "unknown"}:${year}:Q${quarter}`,
     [currentEmail, quarter, year]
+  );
+
+  const resolveHandoff = React.useCallback((deal: UserWonDeal): boolean => {
+    const billed = Number(deal.billedAmount ?? 0);
+    const fee = Number(deal.monthlyFee ?? 0);
+    return Boolean(deal.handoffCompleted ?? (Number.isFinite(fee) && billed >= fee));
+  }, []);
+
+  const computeTotals = React.useCallback(
+    (deals: UserWonDeal[]) => {
+      const monthlyFees = deals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
+      const handoff = deals.reduce(
+        (acc, deal) => (resolveHandoff(deal) ? acc + Number(deal.monthlyFee ?? 0) : acc),
+        0
+      );
+      return { monthlyFees, handoff, pending: Math.max(0, monthlyFees - handoff) };
+    },
+    [resolveHandoff]
   );
 
   const loadWinsFromCache = React.useCallback(() => {
@@ -127,31 +143,37 @@ export default function GoalsPage({
         deals?: UserWonDeal[];
         progress?: number;
         monthlyProgress?: number;
-        totals?: { monthlyFees?: number; billed?: number; pending?: number };
+        totals?: { monthlyFees?: number; handoff?: number; pending?: number };
         lastSyncedAt?: string | null;
       };
       if (!Array.isArray(parsed.deals)) return false;
       setMyDeals(parsed.deals);
       setMyProgress(Number(parsed.progress ?? 0));
       setMyMonthlyProgress(Number(parsed.monthlyProgress ?? 0));
-      setMyTotals({
+      const cachedTotals = {
         monthlyFees: Number(parsed.totals?.monthlyFees ?? 0),
-        billed: Number(parsed.totals?.billed ?? 0),
-        pending: Number(parsed.totals?.pending ?? 0),
+        handoff: Number(parsed.totals?.handoff ?? NaN),
+        pending: Number(parsed.totals?.pending ?? NaN),
+      };
+      const totals = Number.isFinite(cachedTotals.handoff) ? cachedTotals : computeTotals(parsed.deals);
+      setMyTotals({
+        monthlyFees: totals.monthlyFees,
+        handoff: totals.handoff,
+        pending: Number.isFinite(totals.pending) ? totals.pending : Math.max(0, totals.monthlyFees - totals.handoff),
       });
       setLastSyncedAt(parsed.lastSyncedAt ? new Date(parsed.lastSyncedAt) : null);
       return true;
     } catch {
       return false;
     }
-  }, [winsCacheKey, winsSource]);
+  }, [computeTotals, winsCacheKey, winsSource]);
 
   const persistWinsCache = React.useCallback(
     (payload: {
       deals: UserWonDeal[];
       progress: number;
       monthlyProgress: number;
-      totals: { monthlyFees: number; billed: number; pending: number };
+      totals: { monthlyFees: number; handoff: number; pending: number };
       lastSyncedAt: string;
     }) => {
       if (winsSource !== "pipedrive") return;
@@ -185,7 +207,7 @@ export default function GoalsPage({
         setMyDeals([]);
         setMyProgress(0);
         setMyMonthlyProgress(0);
-        setMyTotals({ monthlyFees: 0, billed: 0, pending: 0 });
+        setMyTotals({ monthlyFees: 0, handoff: 0, pending: 0 });
         return;
       }
       setLoadingDeals(true);
@@ -218,6 +240,7 @@ export default function GoalsPage({
               billedAmount: 0,
               pendingAmount: Number.isFinite(monthlyFee) ? monthlyFee : 0,
               billingPct: 0,
+              handoffCompleted: false,
               link: ((deal as { dealUrl?: string }).dealUrl ?? null) as string | null,
               createdAt,
               proposalId: undefined,
@@ -243,7 +266,7 @@ export default function GoalsPage({
             return acc;
           }, 0);
           setMyMonthlyProgress(monthlyProgress);
-          const totals = { monthlyFees: totalFees, billed: 0, pending: totalFees };
+          const totals = computeTotals(normalizedDeals);
           setMyTotals(totals);
           const syncMoment = new Date();
           setLastSyncedAt(syncMoment);
@@ -263,7 +286,7 @@ export default function GoalsPage({
       const payload = (await response.json()) as {
         progress?: number;
         deals?: Array<UserWonDeal>;
-        totals?: { monthlyFees?: number; billed?: number; pending?: number };
+        totals?: { monthlyFees?: number; handoff?: number; pending?: number };
       };
       const normalizedDeals = (payload.deals ?? []).map((deal) => {
         const wonType: "NEW_CUSTOMER" | "UPSELL" = deal.wonType === "UPSELL" ? "UPSELL" : "NEW_CUSTOMER";
@@ -273,6 +296,7 @@ export default function GoalsPage({
           billedAmount: Number(deal.billedAmount ?? 0),
           pendingAmount: Number(deal.pendingAmount ?? 0),
           billingPct: Number.isFinite(deal.billingPct) ? deal.billingPct : 0,
+          handoffCompleted: Boolean(deal.handoffCompleted ?? (deal.billedAmount ?? 0) >= (deal.monthlyFee ?? 0)),
           wonType,
         } satisfies UserWonDeal;
       });
@@ -289,31 +313,23 @@ export default function GoalsPage({
         return acc;
       }, 0);
       setMyMonthlyProgress(monthlyProgress);
-      const totals = normalizedDeals.reduce(
-        (acc, deal) => {
-          acc.monthlyFees += Number(deal.monthlyFee ?? 0);
-          acc.billed += Number(deal.billedAmount ?? 0);
-          acc.pending += Number(deal.pendingAmount ?? Math.max(0, deal.monthlyFee - deal.billedAmount));
-          return acc;
-        },
-        { monthlyFees: 0, billed: 0, pending: 0 }
-      );
+      const totals = computeTotals(normalizedDeals);
       setMyTotals({
         monthlyFees: Number.isFinite(payload.totals?.monthlyFees ?? NaN)
           ? Number(payload.totals?.monthlyFees)
           : totals.monthlyFees,
-        billed: Number.isFinite(payload.totals?.billed ?? NaN) ? Number(payload.totals?.billed) : totals.billed,
+        handoff: Number.isFinite(payload.totals?.handoff ?? NaN) ? Number(payload.totals?.handoff) : totals.handoff,
         pending: Number.isFinite(payload.totals?.pending ?? NaN) ? Number(payload.totals?.pending) : totals.pending,
       });
     } catch {
       setMyProgress(0);
       setMyDeals([]);
       setMyMonthlyProgress(0);
-      setMyTotals({ monthlyFees: 0, billed: 0, pending: 0 });
+      setMyTotals({ monthlyFees: 0, handoff: 0, pending: 0 });
     } finally {
       setLoadingDeals(false);
     }
-  }, [loadWinsFromCache, persistWinsCache, quarter, winsSource, year, pipedriveMode]);
+  }, [computeTotals, loadWinsFromCache, persistWinsCache, quarter, winsSource, year, pipedriveMode]);
 
   React.useEffect(() => {
     loadMyGoal();
@@ -324,7 +340,7 @@ export default function GoalsPage({
         setMyDeals([]);
         setMyProgress(0);
         setMyMonthlyProgress(0);
-        setMyTotals({ monthlyFees: 0, billed: 0, pending: 0 });
+        setMyTotals({ monthlyFees: 0, handoff: 0, pending: 0 });
       }
       return;
     }
@@ -871,26 +887,18 @@ export default function GoalsPage({
       const data = (await res.json()) as { billedAmount?: number };
       const billed = Number(data.billedAmount ?? billedAmount);
       setMyDeals((prev) => {
-        const updated = prev.map((item) =>
-          item.id === deal.id
-            ? {
-                ...item,
-                billedAmount: billed,
-                pendingAmount: Math.max(0, item.monthlyFee - billed),
-                billingPct: item.monthlyFee > 0 ? (billed / item.monthlyFee) * 100 : 0,
-              }
-            : item
-        );
-        const totals = updated.reduce(
-          (acc, item) => {
-            acc.monthlyFees += item.monthlyFee;
-            acc.billed += item.billedAmount;
-            acc.pending += item.pendingAmount;
-            return acc;
-          },
-          { monthlyFees: 0, billed: 0, pending: 0 }
-        );
-        setMyTotals(totals);
+        const updated = prev.map((item) => {
+          if (item.id !== deal.id) return item;
+          const handoffCompleted = billed >= item.monthlyFee;
+          return {
+            ...item,
+            billedAmount: billed,
+            pendingAmount: Math.max(0, item.monthlyFee - billed),
+            billingPct: item.monthlyFee > 0 ? (billed / item.monthlyFee) * 100 : 0,
+            handoffCompleted,
+          };
+        });
+        setMyTotals(computeTotals(updated));
         const currentDate = new Date();
         const currentMonth = currentDate.getMonth();
         const currentYear = currentDate.getFullYear();
@@ -905,28 +913,19 @@ export default function GoalsPage({
         return updated;
       });
     },
-    []
+    [computeTotals]
   );
 
-  const openBillingEditor = React.useCallback(
-    (deal: UserWonDeal) => {
-      setBillingEditorDeal(deal);
-    },
-    []
-  );
-
-  const handleSaveBilling = React.useCallback(
-    async (billedAmount: number) => {
-      if (!billingEditorDeal) return;
+  const handleToggleHandOff = React.useCallback(
+    async (deal: UserWonDeal, completed: boolean) => {
       try {
-        await handleUpdateBilling(billingEditorDeal, billedAmount);
-        toast.success(toastT("billingSaved"));
+        await handleUpdateBilling(deal, completed ? deal.monthlyFee : 0);
+        toast.success(completed ? toastT("handoffSaved") : toastT("handoffRemoved"));
       } catch {
         toast.error(toastT("billingError"));
-        throw new Error("Failed to save billing");
       }
     },
-    [billingEditorDeal, handleUpdateBilling, toastT]
+    [handleUpdateBilling, toastT]
   );
 
   const saveUserGoal = async (userId: string, amount: number) => {
@@ -1124,7 +1123,7 @@ export default function GoalsPage({
             totals={myTotals}
             loading={loadingDeals}
             goal={myGoal}
-            onEditBilling={disableManualWins ? () => undefined : openBillingEditor}
+            onToggleHandOff={disableManualWins ? () => undefined : handleToggleHandOff}
             onAddManual={canAddSelfManual ? () => setManualDialogTarget({ email: currentEmail || null }) : undefined}
             onDeleteDeal={canAddManual ? handleDeleteManualWon : undefined}
             theme={theme}
@@ -1213,14 +1212,6 @@ export default function GoalsPage({
           }}
         />
       )}
-
-      <BillingEditorModal
-        deal={billingEditorDeal}
-        isOpen={billingEditorDeal !== null}
-        onClose={() => setBillingEditorDeal(null)}
-        onSave={handleSaveBilling}
-        theme={theme}
-      />
 
       {memberDealsTarget && (
         <MemberDealsModal
