@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import type { LanguageCode, Prisma } from "@prisma/client";
 
-import { requireApiSession } from "@/app/api/_utils/require-auth";
+import { ensureSessionRole, requireApiSession } from "@/app/api/_utils/require-auth";
 import prisma from "@/lib/prisma";
 import { defaultLocale, type Locale } from "@/lib/i18n/config";
 import {
@@ -27,8 +27,11 @@ function getItemIdFromUrl(req: Request): string | null {
 }
 
 export async function PATCH(req: Request) {
-  const { response } = await requireApiSession();
+  const { session, response } = await requireApiSession();
   if (response) return response;
+
+  const forbidden = ensureSessionRole(session, ["admin"]);
+  if (forbidden) return forbidden;
 
   const id = getItemIdFromUrl(req);
   if (!id) {
@@ -184,8 +187,11 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const { response } = await requireApiSession();
+  const { session, response } = await requireApiSession();
   if (response) return response;
+
+  const forbidden = ensureSessionRole(session, ["admin"]);
+  if (forbidden) return forbidden;
 
   const id = getItemIdFromUrl(req);
   if (!id) {
@@ -200,5 +206,4 @@ export async function DELETE(req: Request) {
 
   return NextResponse.json({ ok: true });
 }
-
 
