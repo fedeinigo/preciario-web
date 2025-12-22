@@ -27,7 +27,35 @@ export async function GET(req: Request) {
   const quarter = parseQuarter(url.searchParams.get("quarter"), 1);
   const userIdParam = url.searchParams.get("userId");
 
-  const targetUserId = userIdParam || session.user.id;
+  const viewer = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, role: true, team: true },
+  });
+  if (!viewer) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const requestedUserId = userIdParam || session.user.id;
+  let targetUserId = session.user.id;
+
+  if (requestedUserId !== session.user.id) {
+    const target = await prisma.user.findUnique({
+      where: { id: requestedUserId },
+      select: { id: true, team: true },
+    });
+
+    if (!target) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
+    const isAdmin = viewer.role === DbRole.admin;
+    const isLeaderOfTarget =
+      viewer.role === DbRole.lider && !!viewer.team && viewer.team === (target.team ?? null);
+
+    if (!isAdmin && !isLeaderOfTarget) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    targetUserId = target.id;
+  }
 
   try {
     const snapshot = await prisma.goalsProgressSnapshot.findUnique({
