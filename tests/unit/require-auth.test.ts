@@ -6,7 +6,7 @@ import type { ApiSession } from "../../src/app/api/_utils/require-auth";
 import { createAuthGuards } from "../../src/app/api/_utils/require-auth";
 
 const mockSession: ApiSession = {
-  user: { id: "user-1", role: "admin", team: null },
+  user: { id: "user-1", role: "admin", team: null, positionName: null, leaderEmail: null },
   expires: new Date().toISOString(),
 };
 

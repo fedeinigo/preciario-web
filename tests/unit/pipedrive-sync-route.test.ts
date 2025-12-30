@@ -43,7 +43,7 @@ describe("POST /api/pipedrive/sync", () => {
 
   it("syncs deal products when the session guard passes", async () => {
     const session: ApiSession = {
-      user: { id: "user-1", role: "usuario", team: null },
+      user: { id: "user-1", role: "usuario", team: null, positionName: null, leaderEmail: null },
       expires: new Date().toISOString(),
     };
 

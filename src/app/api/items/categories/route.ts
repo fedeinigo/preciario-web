@@ -70,7 +70,9 @@ export async function GET(request: Request) {
 
   const orderedCategories = Array.from(categorySet).sort((a, b) => a.localeCompare(b));
 
-  return NextResponse.json(orderedCategories);
+  const response = NextResponse.json(orderedCategories);
+  response.headers.set("Cache-Control", "private, max-age=300, stale-while-revalidate=300");
+  return response;
 }
 
 export async function PATCH(req: Request) {

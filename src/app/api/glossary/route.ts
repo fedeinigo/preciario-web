@@ -12,7 +12,9 @@ export async function GET() {
     orderBy: { label: "asc" },
     select: { id: true, label: true, url: true, createdAt: true, updatedAt: true },
   });
-  return NextResponse.json(rows);
+  const jsonResponse = NextResponse.json(rows);
+  jsonResponse.headers.set("Cache-Control", "private, max-age=300, stale-while-revalidate=300");
+  return jsonResponse;
 }
 
 export async function POST(req: Request) {

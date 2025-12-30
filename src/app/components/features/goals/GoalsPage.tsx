@@ -21,6 +21,15 @@ import Tooltip from "@/app/components/ui/Tooltip";
 import MemberDealsModal from "./components/MemberDealsModal";
 import BonusCalculatorCard from "./components/BonusCalculatorCard";
 
+const PIPEDRIVE_CACHE_TTL_MS = 1000 * 60 * 60 * 24;
+
+const isCacheFresh = (timestamp?: string | null) => {
+  if (!timestamp) return false;
+  const parsed = new Date(timestamp);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return Date.now() - parsed.getTime() <= PIPEDRIVE_CACHE_TTL_MS;
+};
+
 type Props = {
   role: AppRole;
   currentEmail: string;
@@ -148,6 +157,7 @@ export default function GoalsPage({
         lastSyncedAt?: string | null;
       };
       if (!Array.isArray(parsed.deals)) return false;
+      if (parsed.lastSyncedAt && !isCacheFresh(parsed.lastSyncedAt)) return false;
       setMyDeals(parsed.deals);
       setMyProgress(Number(parsed.progress ?? 0));
       setMyMonthlyProgress(Number(parsed.monthlyProgress ?? 0));
@@ -333,8 +343,8 @@ export default function GoalsPage({
   }, [computeTotals, loadWinsFromCache, persistWinsCache, quarter, winsSource, year, pipedriveMode]);
 
   React.useEffect(() => {
-    loadMyGoal();
     if (winsSource === "pipedrive") {
+      void loadMyGoal();
       const restored = loadWinsFromCache();
       if (!restored) {
         setLastSyncedAt(null);
@@ -345,7 +355,7 @@ export default function GoalsPage({
       }
       return;
     }
-    loadMyWins();
+    void Promise.all([loadMyGoal(), loadMyWins()]);
   }, [loadMyGoal, loadMyWins, loadWinsFromCache, winsSource]);
 
   const handleSaveMyGoal = async (amount: number) => {
@@ -421,6 +431,7 @@ export default function GoalsPage({
         lastSyncedAt?: string | null;
       };
       if (!Array.isArray(parsed.rows) || !Array.isArray(parsed.baseRows)) return false;
+      if (parsed.lastSyncedAt && !isCacheFresh(parsed.lastSyncedAt)) return false;
       setTeamGoal(Number(parsed.teamGoal ?? 0));
       setTeamProgress(Number(parsed.teamProgress ?? 0));
       setTeamProgressRaw(Number(parsed.teamProgressRaw ?? 0));

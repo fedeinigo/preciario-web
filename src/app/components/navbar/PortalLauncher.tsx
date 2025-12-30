@@ -26,7 +26,7 @@ type PortalOption = {
 
 const PORTAL_ROUTES: Record<PortalOptionId, string> = {
   direct: "/portal/directo",
-  mapache: "/portal/mapache/generator",
+  mapache: "/portal/mapache",
 };
 
 type PortalLauncherVariant = NonNullable<PortalLauncherProps["variant"]>;

@@ -27,7 +27,9 @@ export async function GET() {
     countries: g.countries.map((c) => ({ id: c.id, name: c.name })),
   }));
 
-  return NextResponse.json(data);
+  const jsonResponse = NextResponse.json(data);
+  jsonResponse.headers.set("Cache-Control", "private, max-age=300, stale-while-revalidate=300");
+  return jsonResponse;
 }
 
 export async function POST(req: Request) {

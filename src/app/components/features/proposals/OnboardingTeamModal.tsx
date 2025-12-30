@@ -18,7 +18,7 @@ type SessionShape = {
   };
 };
 
-export default function OnboardingTeamModal() {
+export default function OnboardingTeamModal({ session }: { session: SessionShape | null }) {
   const [open, setOpen] = React.useState(false);
   const [teams, setTeams] = React.useState<Team[]>([]);
   const [teamValue, setTeamValue] = React.useState("");
@@ -31,24 +31,28 @@ export default function OnboardingTeamModal() {
 
   React.useEffect(() => {
     let active = true;
+    const user = session?.user;
+    if (!user) {
+      setChecking(false);
+      return () => {
+        active = false;
+      };
+    }
+    const hasTeam = Boolean(user.team);
+    if (hasTeam) {
+      setChecking(false);
+      return () => {
+        active = false;
+      };
+    }
     (async () => {
       try {
-        const sessionRes = await fetch("/api/auth/session", { cache: "no-store" });
-        if (!sessionRes.ok) return;
-        const session = (await sessionRes.json()) as SessionShape;
-        if (!session?.user) {
-          return;
-        }
-        const hasTeam = Boolean(session.user.team);
-        if (hasTeam) {
-          return;
-        }
         const teamsRes = await fetch("/api/teams", { cache: "no-store" });
         if (!active) return;
         setTeams(teamsRes.ok ? await teamsRes.json() : []);
-        setTeamValue(session.user.team ?? "");
-        setPositionName(session.user.positionName ?? "");
-        setLeaderEmail(session.user.leaderEmail ?? "");
+        setTeamValue(user.team ?? "");
+        setPositionName(user.positionName ?? "");
+        setLeaderEmail(user.leaderEmail ?? "");
         setOpen(true);
       } catch {
         // Ignore errors silently
@@ -59,7 +63,7 @@ export default function OnboardingTeamModal() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [session]);
 
   const requiresCustomTeam = teamValue === CUSTOM_OPTION;
   const trimmedCustomTeam = customTeam.trim();

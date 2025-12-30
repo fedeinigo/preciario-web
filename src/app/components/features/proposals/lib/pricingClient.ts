@@ -72,6 +72,29 @@ export async function priceWhatsApp(input: {
   return ensurePricingOk(res, "pricing.whatsAppFailed");
 }
 
+export async function priceWhatsAppBulk(input: {
+  subsidiary: string;
+  destCountry: string;
+  marketingQty: number;
+  utilityQty: number;
+  authQty: number;
+}): Promise<PricingOk> {
+  const body = {
+    kind: "whatsapp",
+    subsidiary: input.subsidiary,
+    destCountry: input.destCountry,
+    marketingQty: input.marketingQty,
+    utilityQty: input.utilityQty,
+    authQty: input.authQty,
+  };
+  const res = await fetch("/api/pricing", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return ensurePricingOk(res, "pricing.whatsAppFailed");
+}
+
 export async function priceMinutes(input: {
   subsidiary: string;
   destCountry: string;

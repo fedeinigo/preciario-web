@@ -12,10 +12,60 @@ export type ProposalsListResult = {
   meta?: ProposalsListMeta;
 };
 
+export type ProposalFacets = {
+  countries: string[];
+};
+
+export type ProposalsPageResult = ProposalsListResult & {
+  facets?: ProposalFacets;
+};
+
+export type ProposalFilters = {
+  from?: string;
+  to?: string;
+  userEmail?: string;
+  team?: string;
+  country?: string;
+  idQuery?: string;
+  companyQuery?: string;
+  emailQuery?: string;
+  status?: string;
+  sku?: string;
+};
+
+export type ProposalStatsResponse = {
+  kpis: {
+    totalCount: number;
+    uniqueUsers: number;
+    uniqueCompanies: number;
+    totalMonthly: number;
+    avgPerProposal: number;
+    wonCount: number;
+    wonAmount: number;
+    winRate: number;
+    wonAvgTicket: number;
+  };
+  bySku: Array<{ sku: string; name: string; qty: number }>;
+  byCountry: Array<{ country: string; total: number }>;
+  byUser: Array<{ email: string | null; total: number }>;
+  sparklines: {
+    proposals: Array<{ date: string; value: number }>;
+    uniqueUsers: Array<{ date: string; value: number }>;
+    uniqueCompanies: Array<{ date: string; value: number }>;
+    totalMonthly: Array<{ date: string; value: number }>;
+    avgPerProposal: Array<{ date: string; value: number }>;
+    wonCount: Array<{ date: string; value: number }>;
+    wonAmount: Array<{ date: string; value: number }>;
+    winRate: Array<{ date: string; value: number }>;
+    wonAvgTicket: Array<{ date: string; value: number }>;
+  };
+  lastUpdated: string;
+};
+
 type FetchError = Error & { status?: number };
 
 /**
- * El endpoint `/api/proposals` acepta el parámetro `aggregate=activeUsers` junto con `from` y
+ * El endpoint `/api/proposals` acepta el parametro `aggregate=activeUsers` junto con `from` y
  * `to` para devolver la cantidad de correos distintos que generaron propuestas en el rango.
  */
 
@@ -73,6 +123,17 @@ export function parseProposalsListResponse(input: unknown): ProposalsListResult 
   return { proposals: [] };
 }
 
+function parseFacets(input: unknown): ProposalFacets | undefined {
+  if (!isRecord(input)) return undefined;
+  const facets = input.facets;
+  if (!isRecord(facets)) return undefined;
+  const rawCountries = facets.countries;
+  const countries = Array.isArray(rawCountries)
+    ? rawCountries.filter((value): value is string => typeof value === "string")
+    : [];
+  return { countries };
+}
+
 const hasTotals = (meta?: ProposalsListMeta): boolean =>
   Boolean(meta && (meta.totalItems !== undefined || meta.totalPages !== undefined));
 
@@ -87,31 +148,199 @@ type FetchAllOptions = {
   skipCache?: boolean;
   cacheTtlMs?: number;
   requestInit?: RequestInit;
+  filters?: ProposalFilters;
+  includeItems?: boolean;
+  sortKey?: string;
+  sortDir?: string;
 };
 
-type CachedResult = {
+type FetchPageOptions = {
+  page: number;
+  pageSize: number;
+  skipCache?: boolean;
+  cacheTtlMs?: number;
+  requestInit?: RequestInit;
+  includeItems?: boolean;
+  includeFacets?: boolean;
+  sortKey?: string;
+  sortDir?: string;
+};
+
+type FetchStatsOptions = {
+  skipCache?: boolean;
+  cacheTtlMs?: number;
+  requestInit?: RequestInit;
+};
+
+type CachedEntry<T> = {
   key: string;
   expiresAt: number;
-  promise: Promise<ProposalsListResult>;
+  promise: Promise<T>;
 };
 
 const DEFAULT_CACHE_TTL_MS = 30_000;
-let cachedResult: CachedResult | null = null;
+const pageCache = new Map<string, CachedEntry<ProposalsPageResult>>();
+const listCache = new Map<string, CachedEntry<ProposalsListResult>>();
+const statsCache = new Map<string, CachedEntry<ProposalStatsResponse>>();
 
-const buildCacheKey = (pageSize: number, init: RequestInit): string => {
+const buildCacheKey = (key: string, init: RequestInit): string => {
   const cache = typeof init.cache === "string" ? init.cache : "no-store";
   const method = init.method ?? "GET";
-  return `${pageSize}|${cache}|${method}`;
+  return `${key}|${cache}|${method}`;
 };
 
+function getCached<T>(cache: Map<string, CachedEntry<T>>, key: string): Promise<T> | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt > Date.now()) return entry.promise;
+  cache.delete(key);
+  return null;
+}
+
+function setCached<T>(
+  cache: Map<string, CachedEntry<T>>,
+  key: string,
+  promise: Promise<T>,
+  ttl: number,
+) {
+  const entry: CachedEntry<T> = {
+    key,
+    expiresAt: Date.now() + ttl,
+    promise,
+  };
+  cache.set(key, entry);
+  promise.catch(() => {
+    if (cache.get(key)?.promise === promise) {
+      cache.delete(key);
+    }
+  });
+}
+
+function appendParam(params: URLSearchParams, key: string, value?: string | null) {
+  const trimmed = value?.trim();
+  if (trimmed) {
+    params.set(key, trimmed);
+  }
+}
+
+function buildProposalSearchParams(
+  filters: ProposalFilters,
+  options?: {
+    page?: number;
+    pageSize?: number;
+    sortKey?: string;
+    sortDir?: string;
+    includeItems?: boolean;
+    includeFacets?: boolean;
+  },
+): URLSearchParams {
+  const params = new URLSearchParams();
+
+  if (options?.page) params.set("page", String(options.page));
+  if (options?.pageSize) params.set("pageSize", String(options.pageSize));
+  if (options?.sortKey) params.set("sortKey", options.sortKey);
+  if (options?.sortDir) params.set("sortDir", options.sortDir);
+  if (options?.includeItems !== undefined) {
+    params.set("includeItems", String(options.includeItems));
+  }
+  if (options?.includeFacets !== undefined) {
+    params.set("includeFacets", String(options.includeFacets));
+  }
+
+  appendParam(params, "from", filters.from);
+  appendParam(params, "to", filters.to);
+  appendParam(params, "userEmail", filters.userEmail);
+  appendParam(params, "team", filters.team);
+  appendParam(params, "country", filters.country);
+  appendParam(params, "id", filters.idQuery);
+  appendParam(params, "company", filters.companyQuery);
+  appendParam(params, "email", filters.emailQuery);
+  appendParam(params, "status", filters.status);
+  appendParam(params, "sku", filters.sku);
+
+  return params;
+}
+
 export function invalidateProposalsCache(): void {
-  cachedResult = null;
+  pageCache.clear();
+  listCache.clear();
+  statsCache.clear();
+}
+
+export async function fetchProposalsPage(
+  filters: ProposalFilters,
+  options: FetchPageOptions,
+): Promise<ProposalsPageResult> {
+  const {
+    page,
+    pageSize,
+    skipCache,
+    cacheTtlMs,
+    requestInit,
+    includeItems = true,
+    includeFacets,
+    sortKey,
+    sortDir,
+  } = options;
+  const baseInit: RequestInit = { ...(requestInit ?? {}), cache: requestInit?.cache ?? "no-store" };
+  const params = buildProposalSearchParams(filters, {
+    page,
+    pageSize,
+    includeItems,
+    includeFacets,
+    sortKey,
+    sortDir,
+  });
+
+  const cacheKey = buildCacheKey(`page|${params.toString()}`, baseInit);
+  if (!skipCache) {
+    const cached = getCached(pageCache, cacheKey);
+    if (cached) return cached;
+  }
+
+  const fetchPromise = (async (): Promise<ProposalsPageResult> => {
+    const response = await fetch(`/api/proposals?${params.toString()}`, baseInit);
+    if (!response.ok) {
+      const error = new Error("Failed to fetch proposals") as FetchError;
+      error.status = response.status;
+      throw error;
+    }
+    const payload = (await response.json()) as unknown;
+    const { proposals, meta } = parseProposalsListResponse(payload);
+    const facets = parseFacets(payload);
+    return { proposals, meta, facets };
+  })();
+
+  if (!skipCache) {
+    setCached(pageCache, cacheKey, fetchPromise, cacheTtlMs && cacheTtlMs > 0 ? cacheTtlMs : DEFAULT_CACHE_TTL_MS);
+  }
+
+  return fetchPromise;
+}
+
+export async function fetchProposalsFacets(filters: ProposalFilters): Promise<ProposalFacets> {
+  const result = await fetchProposalsPage(filters, {
+    page: 1,
+    pageSize: 1,
+    includeItems: false,
+    includeFacets: true,
+  });
+  return result.facets ?? { countries: [] };
 }
 
 export async function fetchAllProposals(options?: FetchAllOptions): Promise<ProposalsListResult> {
-  const { pageSize: requestedPageSize, maxPages, skipCache, cacheTtlMs, requestInit } = options ?? {};
+  const {
+    pageSize: requestedPageSize,
+    maxPages,
+    skipCache,
+    cacheTtlMs,
+    requestInit,
+    filters = {},
+    includeItems = true,
+    sortKey,
+    sortDir,
+  } = options ?? {};
   const baseInit: RequestInit = { ...(requestInit ?? {}), cache: requestInit?.cache ?? "no-store" };
-  const buildInit = () => ({ ...baseInit });
 
   const normalizedRequested =
     typeof requestedPageSize === "number" && requestedPageSize > 0
@@ -119,14 +348,25 @@ export async function fetchAllProposals(options?: FetchAllOptions): Promise<Prop
       : undefined;
   const firstPageSize = normalizedRequested ?? 100;
 
-  const cacheKey = buildCacheKey(firstPageSize, baseInit);
-  if (!skipCache && cachedResult && cachedResult.key === cacheKey && cachedResult.expiresAt > Date.now()) {
-    return cachedResult.promise;
+  const baseParams = buildProposalSearchParams(filters, {
+    page: 1,
+    pageSize: firstPageSize,
+    includeItems,
+    sortKey,
+    sortDir,
+  });
+
+  const cacheKey = buildCacheKey(
+    `all|${baseParams.toString()}|${maxPages ?? "all"}`,
+    baseInit,
+  );
+  if (!skipCache) {
+    const cached = getCached(listCache, cacheKey);
+    if (cached) return cached;
   }
 
   const fetchPromise = (async (): Promise<ProposalsListResult> => {
-    const firstQuery = new URLSearchParams({ page: "1", pageSize: String(firstPageSize) });
-    const firstResponse = await fetch(`/api/proposals?${firstQuery.toString()}`, buildInit());
+    const firstResponse = await fetch(`/api/proposals?${baseParams.toString()}`, baseInit);
     if (!firstResponse.ok) {
       const error = new Error("Failed to fetch proposals") as FetchError;
       error.status = firstResponse.status;
@@ -144,17 +384,27 @@ export async function fetchAllProposals(options?: FetchAllOptions): Promise<Prop
 
     if (allowedPages > 1) {
       const pageSize = meta?.pageSize && meta.pageSize > 0 ? Math.floor(meta.pageSize) : proposals.length || 20;
+      const pagePromises = [] as Array<Promise<ProposalsListResult>>;
       for (let page = 2; page <= allowedPages; page += 1) {
-        const response = await fetch(`/api/proposals?page=${page}&pageSize=${pageSize}`, buildInit());
-        if (!response.ok) {
-          const error = new Error("Failed to fetch proposals") as FetchError;
-          error.status = response.status;
-          throw error;
-        }
-        const parsed = parseProposalsListResponse(await response.json());
-        proposals = proposals.concat(parsed.proposals);
-        if (!parsed.meta) continue;
+        const pageParams = new URLSearchParams(baseParams);
+        pageParams.set("page", String(page));
+        pageParams.set("pageSize", String(pageSize));
+        pagePromises.push(
+          fetch(`/api/proposals?${pageParams.toString()}`, baseInit).then(async (response) => {
+            if (!response.ok) {
+              const error = new Error("Failed to fetch proposals") as FetchError;
+              error.status = response.status;
+              throw error;
+            }
+            return parseProposalsListResponse(await response.json());
+          }),
+        );
+      }
 
+      const pageResults = await Promise.all(pagePromises);
+      pageResults.forEach((parsed) => {
+        proposals = proposals.concat(parsed.proposals);
+        if (!parsed.meta) return;
         if (hasTotals(parsed.meta)) {
           latestMetaWithTotals = mergeMeta(latestMetaWithTotals, parsed.meta);
           meta = latestMetaWithTotals;
@@ -163,23 +413,45 @@ export async function fetchAllProposals(options?: FetchAllOptions): Promise<Prop
         } else {
           meta = mergeMeta(meta, parsed.meta);
         }
-      }
+      });
     }
 
     return { proposals, meta: latestMetaWithTotals ?? meta };
   })();
 
   if (!skipCache) {
-    cachedResult = {
-      key: cacheKey,
-      expiresAt: Date.now() + (cacheTtlMs && cacheTtlMs > 0 ? cacheTtlMs : DEFAULT_CACHE_TTL_MS),
-      promise: fetchPromise,
-    };
-    fetchPromise.catch(() => {
-      if (cachedResult?.promise === fetchPromise) {
-        cachedResult = null;
-      }
-    });
+    setCached(listCache, cacheKey, fetchPromise, cacheTtlMs && cacheTtlMs > 0 ? cacheTtlMs : DEFAULT_CACHE_TTL_MS);
+  }
+
+  return fetchPromise;
+}
+
+export async function fetchProposalStats(
+  filters: ProposalFilters,
+  options?: FetchStatsOptions,
+): Promise<ProposalStatsResponse> {
+  const { skipCache, cacheTtlMs, requestInit } = options ?? {};
+  const baseInit: RequestInit = { ...(requestInit ?? {}), cache: requestInit?.cache ?? "no-store" };
+  const params = buildProposalSearchParams(filters);
+  const cacheKey = buildCacheKey(`stats|${params.toString()}`, baseInit);
+
+  if (!skipCache) {
+    const cached = getCached(statsCache, cacheKey);
+    if (cached) return cached;
+  }
+
+  const fetchPromise = (async (): Promise<ProposalStatsResponse> => {
+    const response = await fetch(`/api/proposals/stats?${params.toString()}`, baseInit);
+    if (!response.ok) {
+      const error = new Error("Failed to fetch proposal stats") as FetchError;
+      error.status = response.status;
+      throw error;
+    }
+    return (await response.json()) as ProposalStatsResponse;
+  })();
+
+  if (!skipCache) {
+    setCached(statsCache, cacheKey, fetchPromise, cacheTtlMs && cacheTtlMs > 0 ? cacheTtlMs : DEFAULT_CACHE_TTL_MS);
   }
 
   return fetchPromise;

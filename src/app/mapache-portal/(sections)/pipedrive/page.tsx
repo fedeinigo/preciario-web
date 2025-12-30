@@ -61,6 +61,7 @@ export default function MapachePortalPipedrivePage() {
   const [ownerFilter, setOwnerFilter] = React.useState("all");
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all");
   const [searchTerm, setSearchTerm] = React.useState("");
+  const deferredSearch = React.useDeferredValue(searchTerm);
   const [wonQuarterFilter, setWonQuarterFilter] = React.useState<number | null>(null);
   const [createdQuarterFilter, setCreatedQuarterFilter] = React.useState<number | null>(null);
   const [sortConfig, setSortConfig] = React.useState<{ key: SortKey; direction: "asc" | "desc" } | null>(null);
@@ -174,7 +175,7 @@ export default function MapachePortalPipedrivePage() {
   }, [availableYears, yearFilter]);
 
   const filteredDeals = React.useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const normalizedSearch = deferredSearch.trim().toLowerCase();
     return deals.filter((deal) => {
       const createdYear = extractYear(deal.createdAt);
       const matchesYear = yearFilter === "all" || createdYear === yearFilter;
@@ -207,7 +208,7 @@ export default function MapachePortalPipedrivePage() {
     createdQuarterFilter,
     deals,
     ownerFilter,
-    searchTerm,
+    deferredSearch,
     stageFilter,
     statusFilter,
     wonQuarterFilter,

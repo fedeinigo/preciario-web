@@ -27,7 +27,9 @@ export async function GET() {
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
-  return NextResponse.json(rows);
+  const jsonResponse = NextResponse.json(rows);
+  jsonResponse.headers.set("Cache-Control", "private, max-age=300, stale-while-revalidate=300");
+  return jsonResponse;
 }
 
 /**

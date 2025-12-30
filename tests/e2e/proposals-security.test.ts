@@ -7,7 +7,7 @@ import type { ApiSession } from "../../src/app/api/_utils/require-auth";
 import { createAuthGuards } from "../../src/app/api/_utils/require-auth";
 
 const session: ApiSession = {
-  user: { id: "user-99", role: "usuario", team: null },
+  user: { id: "user-99", role: "usuario", team: null, positionName: null, leaderEmail: null },
   expires: new Date().toISOString(),
 };
 

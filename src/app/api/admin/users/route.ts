@@ -103,7 +103,9 @@ export async function GET() {
     ...rest,
     portals: portalsFromDb(portalAccesses, rest.role, rest.team ?? null),
   }));
-  return NextResponse.json(payload);
+  const responsePayload = NextResponse.json(payload);
+  responsePayload.headers.set("Cache-Control", "private, max-age=60, stale-while-revalidate=60");
+  return responsePayload;
 }
 
 /**

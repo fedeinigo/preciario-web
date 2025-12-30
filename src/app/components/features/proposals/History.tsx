@@ -1,14 +1,14 @@
 // src/app/components/features/proposals/History.tsx
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useDeferredValue } from "react";
 import type { ProposalRecord } from "@/lib/types";
 import type { AppRole } from "@/constants/teams";
 import { formatUSD, formatDateTime } from "./lib/format";
 import { buildCsv, downloadCsv } from "./lib/csv";
 import { copyToClipboard } from "./lib/clipboard";
 import { TableSkeletonRows } from "@/app/components/ui/Skeleton";
-import { ExternalLink, Copy, Trash2, Trophy } from "lucide-react";
+import { ExternalLink, Copy, Trash2 } from "lucide-react";
 import {
   q1Range,
   q2Range,
@@ -22,15 +22,18 @@ import {
 import Modal from "@/app/components/ui/Modal";
 import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
-import { normalizeSearchText } from "@/lib/normalize-search-text";
-import { fetchAllProposals, invalidateProposalsCache, type ProposalsListMeta } from "./lib/proposals-response";
+import {
+  fetchAllProposals,
+  fetchProposalsFacets,
+  fetchProposalsPage,
+  invalidateProposalsCache,
+  type ProposalsListMeta,
+} from "./lib/proposals-response";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { usePathname } from "next/navigation";
 
 type SortKey = "id" | "company" | "country" | "email" | "monthly" | "created" | "status";
 type SortDir = "asc" | "desc";
-type WonType = "NEW_CUSTOMER" | "UPSELL";
-
 function QuickRanges({
   setFrom,
   setTo,
@@ -93,49 +96,11 @@ export default function History({
   const toastT = useTranslations("proposals.history.toast");
   const csvT = useTranslations("proposals.history.csv");
   const statusT = useTranslations("proposals.history.table.statusLabels");
-  const wonTypeModalT = useTranslations("proposals.history.wonTypeModal");
 
   const [rows, setRows] = useState<ProposalRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [remoteMeta, setRemoteMeta] = useState<ProposalsListMeta | undefined>();
-  const [wonSelection, setWonSelection] = useState<{ id: string; wonType: WonType } | null>(null);
-  const [markingWon, setMarkingWon] = useState(false);
-
-  type LoadOptions = { skipCache?: boolean };
-  const load = useCallback(async (options?: LoadOptions) => {
-    setLoading(true);
-    try {
-      const { proposals, meta } = await fetchAllProposals({
-        skipCache: options?.skipCache ?? false,
-      });
-      setRows(proposals);
-      setRemoteMeta(meta);
-    } catch {
-      setRows([]);
-      setRemoteMeta(undefined);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const pathname = usePathname();
-  useEffect(() => {
-    load();
-  }, [load, pathname]);
-
-  useEffect(() => {
-    const onRefresh = () => {
-      invalidateProposalsCache();
-      load({ skipCache: true });
-    };
-    window.addEventListener("proposals:refresh", onRefresh as EventListener);
-    return () => window.removeEventListener("proposals:refresh", onRefresh as EventListener);
-  }, [load]);
-
-  const manualRefresh = useCallback(() => {
-    invalidateProposalsCache();
-    load({ skipCache: true });
-  }, [load]);
+  const [countryOptions, setCountryOptions] = useState<string[]>([]);
 
   // Aux
   const { users: adminUsers } = useAdminUsers({
@@ -160,21 +125,21 @@ export default function History({
     setTeams(visible);
   }, [adminUsers, isSuperAdmin]);
 
-  const emailToTeam = useMemo(() => {
-    const m = new Map<string, string | null>();
-    adminUsers.forEach((u) => {
-      if (u.email) m.set(u.email, u.team);
-    });
-    return m;
-  }, [adminUsers]);
-
-  const countryOptions = useMemo(
-    () =>
-      Array.from(new Set(rows.map((r) => r.country).filter(Boolean))).sort((a, b) =>
-        a.localeCompare(b)
-      ),
-    [rows]
-  );
+  useEffect(() => {
+    let active = true;
+    fetchProposalsFacets({})
+      .then((facets) => {
+        if (!active) return;
+        setCountryOptions(facets.countries);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCountryOptions([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // filtros
   const [teamFilter, setTeamFilter] = useState<string>("");
@@ -190,6 +155,94 @@ export default function History({
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const deferredIdQuery = useDeferredValue(idQuery);
+  const deferredCompanyQuery = useDeferredValue(companyQuery);
+  const deferredEmailQuery = useDeferredValue(emailQuery);
+
+  type LoadOptions = { skipCache?: boolean; signal?: AbortSignal };
+  const load = useCallback(
+    async (options?: LoadOptions) => {
+      setLoading(true);
+      const effectiveTeam =
+        isSuperAdmin ? teamFilter : role === "lider" ? leaderTeam || "__none__" : undefined;
+      const effectiveUserEmail = role === "usuario" ? currentEmail : undefined;
+      try {
+        const { proposals, meta } = await fetchProposalsPage(
+          {
+            from,
+            to,
+            userEmail: effectiveUserEmail,
+            team: effectiveTeam,
+            country: countryFilter,
+            idQuery: deferredIdQuery,
+            companyQuery: deferredCompanyQuery,
+            emailQuery: deferredEmailQuery,
+          },
+          {
+            page,
+            pageSize,
+            includeItems: false,
+            sortKey,
+            sortDir,
+            skipCache: options?.skipCache ?? false,
+            requestInit: options?.signal ? { signal: options.signal } : undefined,
+          },
+        );
+        setRows(proposals);
+        setRemoteMeta(meta);
+      } catch {
+        if (options?.signal?.aborted) return;
+        setRows([]);
+        setRemoteMeta(undefined);
+      } finally {
+        if (!options?.signal?.aborted) {
+          setLoading(false);
+        }
+      }
+    },
+    [
+      countryFilter,
+      currentEmail,
+      deferredCompanyQuery,
+      deferredEmailQuery,
+      deferredIdQuery,
+      from,
+      leaderTeam,
+      page,
+      pageSize,
+      role,
+      sortDir,
+      sortKey,
+      teamFilter,
+      to,
+      isSuperAdmin,
+    ],
+  );
+
+  const pathname = usePathname();
+  useEffect(() => {
+    const controller = new AbortController();
+    load({ signal: controller.signal });
+    return () => controller.abort();
+  }, [load, pathname]);
+
+  useEffect(() => {
+    const onRefresh = () => {
+      invalidateProposalsCache();
+      load({ skipCache: true });
+    };
+    window.addEventListener("proposals:refresh", onRefresh as EventListener);
+    return () => window.removeEventListener("proposals:refresh", onRefresh as EventListener);
+  }, [load]);
+
+  const manualRefresh = useCallback(() => {
+    invalidateProposalsCache();
+    load({ skipCache: true });
+  }, [load]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [teamFilter, idQuery, companyQuery, emailQuery, countryFilter, from, to, sortKey, sortDir]);
 
   const clearAll = () => {
     setTeamFilter("");
@@ -213,94 +266,20 @@ export default function History({
     setPage(1);
   };
 
-  const subset = useMemo(() => {
-    const normalizedIdQuery = normalizeSearchText(idQuery);
-    const normalizedCompanyQuery = normalizeSearchText(companyQuery);
-    const normalizedEmailQuery = normalizeSearchText(emailQuery);
-
-    const filtered = rows.filter((p) => {
-      if (isSuperAdmin) {
-        if (teamFilter) {
-          const t = emailToTeam.get(p.userEmail) ?? null;
-          if (t !== teamFilter) return false;
-        }
-      } else if (role === "lider") {
-        const t = emailToTeam.get(p.userEmail) ?? null;
-        if (!leaderTeam || t !== leaderTeam) return false;
-      } else {
-        if (p.userEmail !== currentEmail) return false;
-      }
-
-      const idOk =
-        !normalizedIdQuery || normalizeSearchText(p.id).includes(normalizedIdQuery);
-      const compOk =
-        !normalizedCompanyQuery ||
-        normalizeSearchText(p.companyName).includes(normalizedCompanyQuery);
-      const emailOk =
-        !normalizedEmailQuery ||
-        normalizeSearchText(p.userEmail).includes(normalizedEmailQuery);
-      const countryOk = !countryFilter || p.country === countryFilter;
-
-      const ts = new Date(p.createdAt as unknown as string).getTime();
-      const fromTs = from ? new Date(from).getTime() : -Infinity;
-      const toTs = to ? new Date(to).getTime() + 24 * 3600 * 1000 - 1 : Infinity;
-      const dateOk = ts >= fromTs && ts <= toTs;
-
-      return idOk && compOk && emailOk && countryOk && dateOk;
-    });
-
-    const sorted = [...filtered].sort((a, b) => {
-      const am = Number(a.totalAmount);
-      const bm = Number(b.totalAmount);
-      const ta = new Date(a.createdAt as unknown as string).getTime();
-      const tb = new Date(b.createdAt as unknown as string).getTime();
-      const dir = sortDir === "asc" ? 1 : -1;
-
-      switch (sortKey) {
-        case "id":
-          return a.id.localeCompare(b.id) * dir;
-        case "company":
-          return a.companyName.localeCompare(b.companyName) * dir;
-        case "country":
-          return a.country.localeCompare(b.country) * dir;
-        case "email":
-          return (a.userEmail || "").localeCompare(b.userEmail || "") * dir;
-        case "monthly":
-          return (am - bm) * dir;
-        case "status":
-          return ((a.status ?? "OPEN").localeCompare(b.status ?? "OPEN")) * dir;
-        case "created":
-        default:
-          return (ta - tb) * dir;
-      }
-    });
-
-    return sorted;
-  }, [
-    rows,
-    emailToTeam,
-    currentEmail,
-    leaderTeam,
-    role,
-    isSuperAdmin,
-    teamFilter,
-    idQuery,
-    companyQuery,
-    emailQuery,
-    countryFilter,
-    from,
-    to,
-    sortKey,
-    sortDir,
-  ]);
-
-  const localTotalPages = Math.max(1, Math.ceil(subset.length / pageSize));
+  const totalItems = remoteMeta?.totalItems ?? rows.length;
   const totalPages =
     remoteMeta?.totalPages && remoteMeta.totalPages > 0
-      ? Math.max(localTotalPages, Math.ceil(remoteMeta.totalPages))
-      : localTotalPages;
-  const pageStart = (page - 1) * pageSize;
-  const paged = subset.slice(pageStart, pageStart + pageSize);
+      ? Math.max(1, Math.ceil(remoteMeta.totalPages))
+      : Math.max(1, Math.ceil(totalItems / pageSize));
+  const pageStart = totalItems === 0 ? 0 : (page - 1) * pageSize;
+  const pageEnd = totalItems === 0 ? 0 : Math.min(pageStart + pageSize, totalItems);
+  const paged = rows;
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const translateStatus = (status: string | null | undefined) => {
     const normalized = String(status ?? "open").toLowerCase();
@@ -309,7 +288,7 @@ export default function History({
     return translated === key ? status ?? "OPEN" : translated;
   };
 
-  const downloadCurrentCsv = () => {
+  const downloadCurrentCsv = async () => {
     const headers = [
       csvT("headers.id"),
       csvT("headers.company"),
@@ -320,18 +299,41 @@ export default function History({
       csvT("headers.status"),
       csvT("headers.url"),
     ];
-    const data = subset.map((p) => [
-      p.id,
-      p.companyName,
-      p.country,
-      p.userEmail || "",
-      Number(p.totalAmount).toFixed(2),
-      formatDateTime(p.createdAt as unknown as string),
-      translateStatus(p.status ?? "OPEN"),
-      p.docUrl || "",
-    ]);
-    const csv = buildCsv(headers, data);
-    downloadCsv(csvT("fileName"), csv);
+    const effectiveTeam =
+      isSuperAdmin ? teamFilter : role === "lider" ? leaderTeam || "__none__" : undefined;
+    const effectiveUserEmail = role === "usuario" ? currentEmail : undefined;
+    try {
+      const { proposals } = await fetchAllProposals({
+        filters: {
+          from,
+          to,
+          userEmail: effectiveUserEmail,
+          team: effectiveTeam,
+          country: countryFilter,
+          idQuery: deferredIdQuery,
+          companyQuery: deferredCompanyQuery,
+          emailQuery: deferredEmailQuery,
+        },
+        includeItems: false,
+        sortKey,
+        sortDir,
+        skipCache: true,
+      });
+      const data = proposals.map((p) => [
+        p.id,
+        p.companyName,
+        p.country,
+        p.userEmail || "",
+        Number(p.totalAmount).toFixed(2),
+        formatDateTime(p.createdAt as unknown as string),
+        translateStatus(p.status ?? "OPEN"),
+        p.docUrl || "",
+      ]);
+      const csv = buildCsv(headers, data);
+      downloadCsv(csvT("fileName"), csv);
+    } catch {
+      toast.error("No se pudo descargar el CSV");
+    }
   };
 
   // Confirm delete modal
@@ -339,63 +341,6 @@ export default function History({
 
   const canDelete = (p: ProposalRecord) =>
     isSuperAdmin || (role === "usuario" && p.userEmail === currentEmail);
-
-  const markWon = async (id: string, wonType: WonType): Promise<boolean> => {
-    const r = await fetch(`/api/proposals/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "WON", wonType }),
-    });
-    if (!r.ok) {
-      const errorText = await r.text().catch(() => "");
-      toast.error(errorText || toastT("markWonError"));
-      return false;
-    }
-    toast.success(toastT("markWonSuccess"));
-    return true;
-  };
-
-  const openWonModal = (id: string) => {
-    setWonSelection({ id, wonType: "NEW_CUSTOMER" });
-  };
-
-  const closeWonModal = () => {
-    if (!markingWon) {
-      setWonSelection(null);
-    }
-  };
-
-  const confirmWonSelection = async () => {
-    if (!wonSelection) return;
-    setMarkingWon(true);
-    try {
-      const ok = await markWon(wonSelection.id, wonSelection.wonType);
-      if (ok) {
-        setWonSelection(null);
-        invalidateProposalsCache();
-        load({ skipCache: true });
-      }
-    } finally {
-      setMarkingWon(false);
-    }
-  };
-
-  // NUEVO: revertir WON -> OPEN
-  const setOpen = async (id: string) => {
-    const r = await fetch(`/api/proposals/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "OPEN" }),
-    });
-    if (!r.ok) {
-      const errorText = await r.text().catch(() => "");
-      toast.error(errorText || toastT("markOpenError"));
-      return;
-    }
-    toast.success(toastT("markOpenSuccess"));
-    invalidateProposalsCache();
-    load({ skipCache: true });
-  };
 
   const doDelete = async (id: string) => {
     const r = await fetch(`/api/proposals/${id}`, { method: "DELETE" });
@@ -632,26 +577,6 @@ export default function History({
                       </td>
                       <td className="table-td">
                         <div className="flex items-center gap-2 justify-end">
-                          {/* Toggle WON / OPEN */}
-                          {p.status === "WON" ? (
-                            <button
-                              className="btn-ghost !py-1 text-[#4c1d95] hover:bg-[#4c1d95]/10"
-                              title={tableT("actions.reopenTooltip")}
-                              onClick={() => setOpen(p.id)}
-                            >
-                              {tableT("actions.reopen")}
-                            </button>
-                          ) : (
-                            <button
-                              className="btn-ghost !py-1 text-emerald-600"
-                              title={tableT("actions.markWonTooltip")}
-                              onClick={() => openWonModal(p.id)}
-                            >
-                              <Trophy className="h-4 w-4 mr-1" />
-                              {tableT("actions.markWon")}
-                            </button>
-                          )}
-
                           {p.docUrl ? (
                             <>
                               <a
@@ -701,13 +626,13 @@ export default function History({
             </table>
           </div>
 
-          {!loading && subset.length > 0 && (
+          {!loading && totalItems > 0 && (
             <div className="mt-3 flex flex-col sm:flex-row items-center justify-between gap-2">
               <div className="text-sm text-gray-600">
                 {paginationT("display", {
-                  start: pageStart + 1,
-                  end: Math.min(pageStart + pageSize, subset.length),
-                  total: subset.length,
+                  start: totalItems === 0 ? 0 : pageStart + 1,
+                  end: pageEnd,
+                  total: totalItems,
                 })}
               </div>
               <div className="flex items-center gap-2">
@@ -750,61 +675,6 @@ export default function History({
           )}
       </div>
     </div>
-
-      <Modal
-        open={!!wonSelection}
-        onClose={closeWonModal}
-        title={wonTypeModalT("title")}
-        disableCloseOnBackdrop={markingWon}
-        footer={
-          <div className="flex justify-end gap-2">
-            <button className="btn-ghost" onClick={closeWonModal} disabled={markingWon}>
-              {wonTypeModalT("cancel")}
-            </button>
-            <button
-              className="btn-primary"
-              onClick={confirmWonSelection}
-              disabled={markingWon}
-            >
-              {markingWon ? wonTypeModalT("saving") : wonTypeModalT("confirm")}
-            </button>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-700">{wonTypeModalT("description")}</p>
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                (wonSelection?.wonType ?? "NEW_CUSTOMER") === "NEW_CUSTOMER"
-                  ? "border-emerald-500 bg-emerald-50 text-emerald-600"
-                  : "border-gray-300 text-gray-600 hover:border-emerald-400"
-              }`}
-              onClick={() =>
-                setWonSelection((prev) => (prev ? { ...prev, wonType: "NEW_CUSTOMER" } : prev))
-              }
-              disabled={markingWon}
-            >
-              {wonTypeModalT("newCustomer")}
-            </button>
-            <button
-              type="button"
-              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                wonSelection?.wonType === "UPSELL"
-                  ? "border-amber-500 bg-amber-50 text-amber-600"
-                  : "border-gray-300 text-gray-600 hover:border-amber-400"
-              }`}
-              onClick={() =>
-                setWonSelection((prev) => (prev ? { ...prev, wonType: "UPSELL" } : prev))
-              }
-              disabled={markingWon}
-            >
-              {wonTypeModalT("upsell")}
-            </button>
-          </div>
-        </div>
-      </Modal>
 
       <Modal
         open={!!confirmId}

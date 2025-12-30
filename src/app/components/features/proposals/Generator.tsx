@@ -91,6 +91,13 @@ type Props = {
 
 type SortKey = "popular" | "sku" | "unitPrice" | "name" | "category";
 type SortDir = "asc" | "desc";
+type ItemSelection = {
+  selected: boolean;
+  quantity: number;
+  discountPct: number;
+  unitPrice?: number;
+  devHours?: number;
+};
 
 export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSaved }: Props) {
   const { locale } = useLanguage();
@@ -147,10 +154,70 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
     [resolveProposalActionError]
   );
 
-  const { items, setItems, mutateItems, popularity, loading: catalogLoading } = useCatalogData(
+  const { items, mutateItems, popularity, loading: catalogLoading } = useCatalogData(
     locale,
     handleCatalogError
   );
+  const [itemSelections, setItemSelections] = useState<Record<string, ItemSelection>>({});
+  const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
+
+  const resolveSelection = React.useCallback(
+    (itemId: string, current?: ItemSelection): ItemSelection => {
+      const base = itemsById.get(itemId);
+      return {
+        selected: current?.selected ?? false,
+        quantity: current?.quantity ?? base?.quantity ?? 1,
+        discountPct: current?.discountPct ?? base?.discountPct ?? 0,
+        unitPrice: current?.unitPrice,
+        devHours: current?.devHours,
+      };
+    },
+    [itemsById]
+  );
+
+  const updateSelection = React.useCallback(
+    (itemId: string, updates: Partial<ItemSelection>) => {
+      setItemSelections((prev) => {
+        const current = resolveSelection(itemId, prev[itemId]);
+        return { ...prev, [itemId]: { ...current, ...updates } };
+      });
+    },
+    [resolveSelection]
+  );
+
+  const clearSelectionOverrides = React.useCallback((itemId: string) => {
+    setItemSelections((prev) => {
+      const current = prev[itemId];
+      if (!current) return prev;
+      const { unitPrice, devHours, ...rest } = current;
+      return { ...prev, [itemId]: rest };
+    });
+  }, []);
+
+  const removeSelection = React.useCallback((itemId: string) => {
+    setItemSelections((prev) => {
+      if (!prev[itemId]) return prev;
+      const { [itemId]: _removed, ...rest } = prev;
+      return rest;
+    });
+  }, []);
+
+  const mergeSelection = React.useCallback(
+    (item: UIItem): UIItem => {
+      const selection = itemSelections[item.id];
+      return {
+        ...item,
+        selected: selection?.selected ?? false,
+        quantity: selection?.quantity ?? item.quantity ?? 1,
+        discountPct: selection?.discountPct ?? item.discountPct ?? 0,
+        unitPrice: selection?.unitPrice ?? item.unitPrice,
+        devHours: selection?.devHours ?? item.devHours,
+      };
+    },
+    [itemSelections]
+  );
+
+  const mergedItems = useMemo(() => items.map(mergeSelection), [items, mergeSelection]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
@@ -307,7 +374,12 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
     return arr;
   }, [filtered, sortKey, sortDir, popularity]);
 
-  const { selectedItems, totalAmount, totalHours } = useProposalTotals(items);
+  const orderedWithSelection = useMemo(
+    () => ordered.map(mergeSelection),
+    [ordered, mergeSelection]
+  );
+
+  const { selectedItems, totalAmount, totalHours } = useProposalTotals(mergedItems);
   const estimatedOneShot = Math.max(0, Math.round(totalHours * ONE_SHOT_RATE));
 
   const openCreateForm = React.useCallback(() => {
@@ -365,6 +437,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
                   : item
               )
             );
+            clearSelectionOverrides(editingId);
             toast.success(toastT("itemUpdated"));
           }
         }
@@ -380,6 +453,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
       }
     },
     [
+      clearSelectionOverrides,
       editingId,
       itemFormMode,
       items,
@@ -443,12 +517,10 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
     setSearchTerm("");
     setCategoryFilter("");
     setPage(1);
-    setItems((prev) =>
-      prev.map((i) => ({ ...i, selected: false, quantity: 1, discountPct: 0 }))
-    );
+    setItemSelections({});
     setOpenSummary(false);
     toast.info(toastT("reset"));
-  }, [setItems, toastT]);
+  }, [toastT]);
 
   const idToDbId = useMemo(() => {
     const m = new Map<string, string>();
@@ -605,54 +677,38 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
       const result = await submitWhatsAppModal({ subsidiary, country });
       if (!result) return;
       const { itemId, pricing } = result;
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === itemId
-            ? {
-                ...i,
-                selected: true,
-                quantity: pricing.totalQty,
-                unitPrice: pricing.unitPrice,
-                devHours: 0,
-                discountPct: 0,
-              }
-            : i
-        )
-      );
+      updateSelection(itemId, {
+        selected: true,
+        quantity: pricing.totalQty,
+        unitPrice: pricing.unitPrice,
+        devHours: 0,
+        discountPct: 0,
+      });
       toast.success(toastT("whatsAppApplied"));
     } catch (message) {
       if (message) {
         toast.error(String(message));
       }
     }
-  }, [country, setItems, submitWhatsAppModal, subsidiary, toastT]);
+  }, [country, submitWhatsAppModal, subsidiary, toastT, updateSelection]);
 
   const applyWiser = React.useCallback(() => {
     const itemId = confirmWiserModal();
     if (!itemId) return;
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === itemId
-          ? {
-              ...i,
-              selected: true,
-              quantity: 1,
-              unitPrice: 0,
-              devHours: 0,
-              discountPct: 0,
-            }
-          : i
-      )
-    );
+    updateSelection(itemId, {
+      selected: true,
+      quantity: 1,
+      unitPrice: 0,
+      devHours: 0,
+      discountPct: 0,
+    });
     toast.success(toastT("wiserApplied"));
-  }, [confirmWiserModal, setItems, toastT]);
+  }, [confirmWiserModal, toastT, updateSelection]);
 
   const handleToggleItem = React.useCallback(
     (item: UIItem, checked: boolean) => {
       if (!checked) {
-        setItems((prev) =>
-          prev.map((i) => (i.id === item.id ? { ...i, selected: false } : i))
-        );
+        updateSelection(item.id, { selected: false });
         return;
       }
       if (isWppUtility(item.name) || isWppMarketing(item.name) || isWppAuth(item.name)) {
@@ -668,11 +724,9 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
         openWiserModal(item.id);
         return;
       }
-      setItems((prev) =>
-        prev.map((i) => (i.id === item.id ? { ...i, selected: true } : i))
-      );
+      updateSelection(item.id, { selected: true });
     },
-    [country, openWhatsAppModal, openWiserModal, setItems]
+    [country, openWhatsAppModal, openWiserModal, updateSelection]
   );
 
   const onDeleteItem = React.useCallback(
@@ -682,13 +736,14 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
       try {
         if (target.dbId) await deleteCatalogItem(target.dbId);
         mutateItems((prev) => prev.filter((i) => i.id !== itemId));
+        removeSelection(itemId);
         toast.success(toastT("itemDeleted"));
       } catch (e) {
         const msg = resolveProposalErrorMessage(e, "catalog.deleteFailed");
         toast.error(toastT("itemDeleteError", { message: msg }));
       }
     },
-    [items, mutateItems, resolveProposalErrorMessage, toastT]
+    [items, mutateItems, removeSelection, resolveProposalErrorMessage, toastT]
   );
 
   const availableCategories = useMemo(
@@ -703,27 +758,18 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
 
   const handleQuantityChange = React.useCallback(
     (itemId: string, qty: number) => {
-      setItems((prev) =>
-        prev.map((i) => (i.id === itemId ? { ...i, quantity: qty } : i))
-      );
+      updateSelection(itemId, { quantity: Number.isFinite(qty) ? qty : 0 });
     },
-    [setItems]
+    [updateSelection]
   );
 
   const handleDiscountChange = React.useCallback(
     (itemId: string, pct: number) => {
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === itemId
-            ? {
-                ...i,
-                discountPct: Math.max(0, Math.min(100, Number(pct) || 0)),
-              }
-            : i
-        )
-      );
+      updateSelection(itemId, {
+        discountPct: Math.max(0, Math.min(100, Number(pct) || 0)),
+      });
     },
-    [setItems]
+    [updateSelection]
   );
 
   const handlePageSizeChange = React.useCallback(
@@ -810,7 +856,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
 
   const itemsTableProps = useMemo<GeneratorMainCardProps["itemsTable"]>(
     () => ({
-      items: ordered,
+      items: orderedWithSelection,
       isAdmin,
       showSku: canViewSku,
       onToggle: handleToggleItem,
@@ -825,7 +871,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
       locale: locale as Locale,
     }),
     [
-      ordered,
+      orderedWithSelection,
       isAdmin,
       canViewSku,
       handleToggleItem,

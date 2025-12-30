@@ -24,5 +24,7 @@ export async function GET() {
     map[r.itemId] = r._sum.quantity ?? 0;
   });
 
-  return NextResponse.json(map);
+  const jsonResponse = NextResponse.json(map);
+  jsonResponse.headers.set("Cache-Control", "private, max-age=60, stale-while-revalidate=60");
+  return jsonResponse;
 }

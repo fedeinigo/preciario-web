@@ -1,9 +1,8 @@
 // src/app/components/features/proposals/Stats.tsx
 "use client";
 
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { X } from "lucide-react";
-import type { ProposalRecord } from "@/lib/types";
 import type { AppRole } from "@/constants/teams";
 import { countryIdFromName } from "./lib/catalogs";
 import { buildCsv, downloadCsv } from "./lib/csv";
@@ -11,7 +10,13 @@ import { formatUSD, formatDateTime } from "./lib/format";
 import { toast } from "@/app/components/ui/toast";
 import { q1Range, q2Range, q3Range, q4Range, currentMonthRange, prevMonthRange } from "./lib/dateRanges";
 import { useTranslations } from "@/app/LanguageProvider";
-import { fetchAllProposals, invalidateProposalsCache, type ProposalsListMeta } from "./lib/proposals-response";
+import {
+  fetchAllProposals,
+  fetchProposalStats,
+  invalidateProposalsCache,
+  type ProposalFilters,
+  type ProposalStatsResponse,
+} from "./lib/proposals-response";
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { usePathname } from "next/navigation";
 import { EnhancedGlassKpi } from "./components/EnhancedGlassKpi";
@@ -162,15 +167,6 @@ function QuickRanges({
   );
 }
 
-type BaseProposalItem = ProposalRecord["items"] extends Array<infer Item>
-  ? Item
-  : { sku: string; name: string; quantity: number };
-
-type ProposalItem = BaseProposalItem & { itemCode?: string | null };
-
-type ProposalForStats = Omit<ProposalRecord, "items"> & {
-  items?: ProposalItem[];
-};
 type OrderKey = "createdAt" | "totalAmount";
 type OrderDir = "asc" | "desc";
 type ActiveFilterChip = { id: string; label: string; onClear: () => void };
@@ -210,9 +206,8 @@ export default function Stats({
 
   // datos
   const [loading, setLoading] = useState(true);
-  const [all, setAll] = useState<ProposalForStats[]>([]);
-  const [, setListMeta] = useState<ProposalsListMeta | undefined>();
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [stats, setStats] = useState<ProposalStatsResponse | null>(null);
+  const [baseStats, setBaseStats] = useState<ProposalStatsResponse | null>(null);
   const [hasNewData, setHasNewData] = useState(false);
 
   // drill-down modal state
@@ -223,51 +218,120 @@ export default function Stats({
     columns: Array<{ key: string; label: string; format?: (value: unknown) => string }>;
   } | null>(null);
 
-  type LoadOptions = { skipCache?: boolean };
-  const load = useCallback(async (options?: LoadOptions) => {
-    setLoading(true);
-    try {
-      const { proposals, meta } = await fetchAllProposals({
-        skipCache: options?.skipCache ?? false,
-      });
-      const hadData = all.length > 0;
-      const hasNewProposals = proposals.length > all.length;
-      
-      setAll(proposals);
-      setListMeta(meta);
-      setLastUpdated(new Date());
-      
-      if (hadData && hasNewProposals && !options?.skipCache) {
-        setHasNewData(true);
-        setTimeout(() => setHasNewData(false), 5000);
-      }
-    } catch (error) {
-      setAll([]);
-      setListMeta(undefined);
-      const status =
-        error instanceof Error && typeof (error as { status?: unknown }).status === "number"
-          ? (error as { status?: number }).status
-          : undefined;
-      toast.error(toastT(status ? "loadError" : "networkError"));
-    } finally {
-      setLoading(false);
+  const scopeFilters = useMemo<ProposalFilters>(() => {
+    if (role === "usuario") {
+      return { userEmail: currentEmail || "__none__" };
     }
-  }, [toastT, all.length]);
+    if (role === "lider") {
+      return { team: leaderTeam || "__none__" };
+    }
+    return {};
+  }, [currentEmail, leaderTeam, role]);
+
+  const baseFilters = useMemo<ProposalFilters>(() => ({}), []);
+
+  const activeFilters = useMemo<ProposalFilters>(() => {
+    const filters: ProposalFilters = { ...scopeFilters };
+    if (from) filters.from = from;
+    if (to) filters.to = to;
+    if (countryFilter) filters.country = countryFilter;
+    if (isSuperAdmin && teamFilter) filters.team = teamFilter;
+    if (role !== "usuario" && userFilter) filters.userEmail = userFilter;
+    return filters;
+  }, [scopeFilters, from, to, countryFilter, isSuperAdmin, teamFilter, role, userFilter]);
+
+  const statsKey = useMemo(() => JSON.stringify(activeFilters), [activeFilters]);
+  const lastStatsKeyRef = useRef<string | null>(null);
+  const lastTotalRef = useRef<number | null>(null);
+  const apiSortKey = orderKey === "totalAmount" ? "monthly" : "created";
+
+  const lastUpdated = useMemo(() => {
+    if (!stats?.lastUpdated) return undefined;
+    const parsed = new Date(stats.lastUpdated);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  }, [stats]);
+
+  type LoadOptions = { skipCache?: boolean };
+  const load = useCallback(
+    async (options?: LoadOptions) => {
+      setLoading(true);
+      try {
+        const response = await fetchProposalStats(activeFilters, {
+          skipCache: options?.skipCache ?? false,
+        });
+        const prevKey = lastStatsKeyRef.current;
+        const prevTotal = lastTotalRef.current;
+
+        if (prevKey && prevKey !== statsKey) {
+          setHasNewData(false);
+        } else if (
+          prevTotal !== null &&
+          response.kpis.totalCount > prevTotal &&
+          !options?.skipCache
+        ) {
+          setHasNewData(true);
+          setTimeout(() => setHasNewData(false), 5000);
+        }
+
+        lastStatsKeyRef.current = statsKey;
+        lastTotalRef.current = response.kpis.totalCount;
+        setStats(response);
+      } catch (error) {
+        setStats(null);
+        const status =
+          error instanceof Error && typeof (error as { status?: unknown }).status === "number"
+            ? (error as { status?: number }).status
+            : undefined;
+        toast.error(toastT(status ? "loadError" : "networkError"));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [activeFilters, statsKey, toastT],
+  );
+
+  const loadBaseStats = useCallback(
+    async (options?: LoadOptions) => {
+      try {
+        const response = await fetchProposalStats(baseFilters, {
+          skipCache: options?.skipCache ?? false,
+        });
+        setBaseStats(response);
+      } catch {
+        setBaseStats(null);
+      }
+    },
+    [baseFilters],
+  );
 
   const handleManualRefresh = useCallback(async () => {
     invalidateProposalsCache();
-    await load({ skipCache: true });
+    await Promise.all([load({ skipCache: true }), loadBaseStats({ skipCache: true })]);
     toast.success(toastT("refreshSuccess") || "Datos actualizados");
-  }, [load, toastT]);
+  }, [load, loadBaseStats, toastT]);
 
-  const openDrillDown = useCallback((
-    title: string,
-    data: Array<Record<string, unknown>>,
-    columns: Array<{ key: string; label: string; format?: (value: unknown) => string }>
-  ) => {
-    setDrillDownData({ title, data, columns });
-    setDrillDownOpen(true);
-  }, []);
+  const openDrillDown = useCallback(
+    async (
+      title: string,
+      filters: ProposalFilters,
+      columns: Array<{ key: string; label: string; format?: (value: unknown) => string }>,
+    ) => {
+      try {
+        const { proposals } = await fetchAllProposals({
+          filters,
+          includeItems: false,
+          sortKey: apiSortKey,
+          sortDir: orderDir,
+          skipCache: true,
+        });
+        setDrillDownData({ title, data: proposals, columns });
+        setDrillDownOpen(true);
+      } catch {
+        toast.error(toastT("loadError"));
+      }
+    },
+    [apiSortKey, orderDir, toastT],
+  );
 
   const handleApplyFilters = useCallback((filters: {
     from?: string;
@@ -287,41 +351,11 @@ export default function Stats({
     if (filters.orderDir) setOrderDir(filters.orderDir as OrderDir);
   }, []);
 
-  const generateSparklineData = useCallback((
-    proposals: ProposalForStats[],
-    days: number = 30,
-    valueExtractor: (p: ProposalForStats) => number = () => 1
-  ): SparklineData => {
-    const now = new Date();
-    now.setHours(23, 59, 59, 999);
-    const msPerDay = 24 * 60 * 60 * 1000;
-    const startTime = now.getTime() - (days * msPerDay);
-    
-    const buckets: Array<{ date: Date; value: number }> = [];
-    const interval = Math.max(1, Math.floor(days / 10));
-    
-    for (let i = 0; i <= days; i += interval) {
-      const bucketStart = new Date(startTime + i * msPerDay);
-      bucketStart.setHours(0, 0, 0, 0);
-      const bucketEnd = new Date(bucketStart);
-      bucketEnd.setHours(23, 59, 59, 999);
-      bucketEnd.setDate(bucketEnd.getDate() + interval - 1);
-      
-      const value = proposals
-        .filter(p => {
-          const created = new Date(p.createdAt);
-          return created >= bucketStart && created <= bucketEnd;
-        })
-        .reduce((sum, p) => sum + valueExtractor(p), 0);
-      
-      buckets.push({ date: new Date(bucketStart), value });
-    }
-    
-    return buckets.map(b => ({
-      value: b.value,
-      label: b.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-    }));
-  }, []);
+  const mapSparkline = useCallback(
+    (points?: Array<{ date: string; value: number }>): SparklineData =>
+      (points ?? []).map((point) => ({ value: point.value, label: point.date })),
+    [],
+  );
 
   const pathname = usePathname();
   useEffect(() => {
@@ -329,26 +363,28 @@ export default function Stats({
   }, [load, pathname]);
 
   useEffect(() => {
+    setHasNewData(false);
+  }, [statsKey]);
+
+  useEffect(() => {
+    setBaseStats(null);
+    loadBaseStats();
+  }, [loadBaseStats]);
+
+  useEffect(() => {
     const onRefresh = () => {
       invalidateProposalsCache();
       load({ skipCache: true });
+      loadBaseStats({ skipCache: true });
     };
     window.addEventListener("proposals:refresh", onRefresh as EventListener);
     return () => window.removeEventListener("proposals:refresh", onRefresh as EventListener);
-  }, [load]);
+  }, [load, loadBaseStats]);
 
-  // emails -> team
   const { users: adminUsers } = useAdminUsers({
     isSuperAdmin,
     isLeader: role === "lider",
   });
-  const emailToTeam = useMemo(() => {
-    const map = new Map<string, string | null>();
-    adminUsers.forEach((u) => {
-      if (u.email) map.set(u.email, u.team);
-    });
-    return map;
-  }, [adminUsers]);
 
   /** Equipos visibles (con al menos 1 integrante) para el select de admin */
   const visibleTeams: string[] = useMemo(() => {
@@ -365,128 +401,60 @@ export default function Stats({
   }, [adminUsers]);
 
   const countryOptions = useMemo(
-    () => Array.from(new Set(all.map((p) => p.country))).sort((a, b) => a.localeCompare(b)),
-    [all]
+    () =>
+      (baseStats?.byCountry ?? stats?.byCountry ?? [])
+        .map((row) => row.country)
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [baseStats, stats],
   );
-  const userOptions = useMemo(
-    () => Array.from(new Set(all.map((p) => p.userEmail).filter(Boolean) as string[])).sort(),
-    [all]
-  );
+  const userOptions = useMemo(() => {
+    const source = baseStats?.byUser ?? stats?.byUser ?? [];
+    return source
+      .map((row) => row.email)
+      .filter((email): email is string => Boolean(email))
+      .sort((a, b) => a.localeCompare(b));
+  }, [baseStats, stats]);
 
-  const subsetRaw = useMemo(() => {
-    return all.filter((p) => {
-      if (isSuperAdmin) {
-        if (teamFilter) {
-          const t = emailToTeam.get(p.userEmail) ?? null;
-          if (t !== teamFilter) return false;
-        }
-      } else if (role === "lider") {
-        const t = emailToTeam.get(p.userEmail) ?? null;
-        if (!leaderTeam || t !== leaderTeam) return false;
-      } else {
-        if (p.userEmail !== currentEmail) return false;
-      }
+  const kpis = stats?.kpis ?? {
+    totalCount: 0,
+    uniqueUsers: 0,
+    uniqueCompanies: 0,
+    totalMonthly: 0,
+    avgPerProposal: 0,
+    wonCount: 0,
+    wonAmount: 0,
+    winRate: 0,
+    wonAvgTicket: 0,
+  };
 
-      const tms = new Date(p.createdAt as unknown as string).getTime();
-      const f = from ? new Date(from).getTime() : -Infinity;
-      const tt = to ? new Date(to).getTime() + 24 * 3600 * 1000 - 1 : Infinity;
-      if (!(tms >= f && tms <= tt)) return false;
+  const totalCount = kpis.totalCount;
+  const uniqueUsers = kpis.uniqueUsers;
+  const uniqueCompanies = kpis.uniqueCompanies;
+  const totalMonthly = kpis.totalMonthly;
+  const avgPerProposal = kpis.avgPerProposal;
+  const wonCount = kpis.wonCount;
+  const wonAmount = kpis.wonAmount;
+  const winRate = kpis.winRate;
+  const wonAvgTicket = kpis.wonAvgTicket;
 
-      if (countryFilter && p.country !== countryFilter) return false;
-      if (userFilter && p.userEmail !== userFilter) return false;
-
-      return true;
-    });
-  }, [
-    all,
-    isSuperAdmin,
-    role,
-    leaderTeam,
-    currentEmail,
-    from,
-    to,
-    teamFilter,
-    countryFilter,
-    userFilter,
-    emailToTeam,
-  ]);
-
-  const subset = useMemo(() => {
-    const arr = [...subsetRaw];
-    return arr.sort((a, b) => {
-      if (orderKey === "createdAt") {
-        const av = new Date(a.createdAt as unknown as string).getTime();
-        const bv = new Date(b.createdAt as unknown as string).getTime();
-        return orderDir === "asc" ? av - bv : bv - av;
-      }
-      const av = Number(a.totalAmount) || 0;
-      const bv = Number(b.totalAmount) || 0;
-      return orderDir === "asc" ? av - bv : bv - av;
-    });
-  }, [subsetRaw, orderKey, orderDir]);
-
-  // KPIs base
-  const uniqueUsers = useMemo(() => new Set(subset.map((p) => p.userEmail)).size, [subset]);
-  const uniqueCompanies = useMemo(() => new Set(subset.map((p) => p.companyName)).size, [subset]);
-  const totalMonthly = useMemo(
-    () => subset.reduce((acc, p) => acc + (Number(p.totalAmount) || 0), 0),
-    [subset]
-  );
-  const avgPerProposal = useMemo(
-    () => (subset.length ? totalMonthly / subset.length : 0),
-    [subset.length, totalMonthly]
-  );
-
-  // KPIs WON
-  const wonRows = useMemo(
-    () => subset.filter((p) => String(p.status || "").toUpperCase() === "WON"),
-    [subset]
-  );
-  const wonCount = wonRows.length;
-  const wonAmount = wonRows.reduce((acc, p) => acc + (Number(p.totalAmount) || 0), 0);
-  const winRate = subset.length ? (wonCount / subset.length) * 100 : 0;
-  const wonAvgTicket = wonCount ? wonAmount / wonCount : 0;
-
-  // agregados
   const bySkuFull: Array<[string, { name: string; qty: number }]> = useMemo(
     () =>
-      Object.entries(
-        subset.reduce<Record<string, { name: string; qty: number }>>((acc, p) => {
-          (p.items ?? []).forEach((it) => {
-            const cur = acc[it.sku] ?? { name: it.name, qty: 0 };
-            cur.qty += it.quantity;
-            cur.name = cur.name || it.name;
-            acc[it.sku] = cur;
-          });
-          return acc;
-        }, {} as Record<string, { name: string; qty: number }>)
-      ).sort((a, b) => b[1].qty - a[1].qty),
-    [subset]
+      (stats?.bySku ?? []).map((row) => [row.sku, { name: row.name, qty: row.qty }]),
+    [stats],
   );
 
   const byCountryFull: Array<[string, number]> = useMemo(
-    () =>
-      Object.entries(
-        subset.reduce<Record<string, number>>((acc, p) => {
-          acc[p.country] = (acc[p.country] ?? 0) + 1;
-          return acc;
-        }, {} as Record<string, number>)
-      ).sort((a, b) => b[1] - a[1]),
-    [subset]
+    () => (stats?.byCountry ?? []).map((row) => [row.country, row.total]),
+    [stats],
   );
 
   const byUserFull: Array<[string, number]> = useMemo(() => {
     const fallbackRaw = tableT("user.fallback");
     const fallbackKey = "proposals.stats.table.user.fallback";
     const fallback = fallbackRaw === fallbackKey ? "(sin email)" : fallbackRaw;
-    return Object.entries(
-      subset.reduce<Record<string, number>>((acc, p) => {
-        const key = p.userEmail || fallback;
-        acc[key] = (acc[key] ?? 0) + 1;
-        return acc;
-      }, {} as Record<string, number>)
-    ).sort((a, b) => b[1] - a[1]);
-  }, [subset, tableT]);
+    return (stats?.byUser ?? []).map((row) => [row.email ?? fallback, row.total]);
+  }, [stats, tableT]);
 
   const bySku = useMemo(
     () => (showAll ? bySkuFull : bySkuFull.slice(0, topN)),
@@ -525,7 +493,7 @@ export default function Stats({
     downloadCsv(csvT("user.fileName"), buildCsv(headers, rows));
     toast.success(toastT("csv.user"));
   };
-  const exportFilteredProposalsCsv = () => {
+  const exportFilteredProposalsCsv = async () => {
     const headers = [
       csvT("filtered.headers.id"),
       csvT("filtered.headers.company"),
@@ -537,19 +505,30 @@ export default function Stats({
       csvT("filtered.headers.created"),
       csvT("filtered.headers.url"),
     ];
-    const rows = subset.map((p) => [
-      p.id,
-      p.companyName,
-      p.country,
-      p.userEmail || "",
-      Number(p.totalAmount || 0).toFixed(2),
-      Number(p.totalHours || 0).toFixed(2),
-      Number(p.oneShot || 0).toFixed(2),
-      formatDateTime(p.createdAt as unknown as string),
-      p.docUrl || "",
-    ]);
-    downloadCsv(csvT("filtered.fileName"), buildCsv(headers, rows));
-    toast.success(toastT("csv.filtered"));
+    try {
+      const { proposals } = await fetchAllProposals({
+        filters: activeFilters,
+        includeItems: false,
+        sortKey: apiSortKey,
+        sortDir: orderDir,
+        skipCache: true,
+      });
+      const rows = proposals.map((p) => [
+        p.id,
+        p.companyName,
+        p.country,
+        p.userEmail || "",
+        Number(p.totalAmount || 0).toFixed(2),
+        Number(p.totalHours || 0).toFixed(2),
+        Number(p.oneShot || 0).toFixed(2),
+        formatDateTime(p.createdAt as unknown as string),
+        p.docUrl || "",
+      ]);
+      downloadCsv(csvT("filtered.fileName"), buildCsv(headers, rows));
+      toast.success(toastT("csv.filtered"));
+    } catch {
+      toast.error(toastT("loadError"));
+    }
   };
 
   const controlClass =
@@ -570,7 +549,7 @@ export default function Stats({
     [],
   );
 
-  const activeFilters = useMemo<ActiveFilterChip[]>(() => {
+  const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
     const chips: ActiveFilterChip[] = [];
     const safeFormat = (value: string) => {
       if (!value) return null;
@@ -651,127 +630,56 @@ export default function Stats({
   ]);
 
   const filtersSummaryText = useMemo(() => {
-    const filteredValue = subset.length.toLocaleString();
-    const totalValue = all.length.toLocaleString();
+    const filteredValue = totalCount.toLocaleString();
+    const baseTotal = baseStats?.kpis.totalCount ?? totalCount;
+    const totalValue = baseTotal.toLocaleString();
     const percentValue = summaryPercentFormatter.format(
-      all.length ? (subset.length / all.length) * 100 : 0,
+      baseTotal ? (totalCount / baseTotal) * 100 : 0,
     );
     return filtersT("summary", {
       filtered: filteredValue,
       total: totalValue,
       percent: percentValue,
     });
-  }, [all.length, filtersT, subset.length, summaryPercentFormatter]);
+  }, [baseStats, filtersT, summaryPercentFormatter, totalCount]);
 
   // Sparklines for all KPIs (30-day rolling window)
-  const sparklineSubsetCount = useMemo(() => generateSparklineData(subset, 30), [subset, generateSparklineData]);
-  const sparklineTotalMonthly = useMemo(() => 
-    generateSparklineData(subset, 30, (p) => Number(p.totalAmount) || 0),
-    [subset, generateSparklineData]
+  const sparklineSubsetCount = useMemo(
+    () => mapSparkline(stats?.sparklines.proposals),
+    [mapSparkline, stats],
   );
-  const sparklineWonCount = useMemo(() => generateSparklineData(wonRows, 30), [wonRows, generateSparklineData]);
-  const sparklineWonAmount = useMemo(() => 
-    generateSparklineData(wonRows, 30, (p) => Number(p.totalAmount) || 0),
-    [wonRows, generateSparklineData]
+  const sparklineTotalMonthly = useMemo(
+    () => mapSparkline(stats?.sparklines.totalMonthly),
+    [mapSparkline, stats],
   );
-  
-  const sparklineUniqueUsers = useMemo(() => {
-    const usersByDay = new Map<string, Set<string>>();
-    subset.forEach((p) => {
-      const date = new Date(p.createdAt).toISOString().split('T')[0];
-      if (!usersByDay.has(date)) usersByDay.set(date, new Set());
-      usersByDay.get(date)!.add(p.userEmail);
-    });
-    const data: { value: number; label?: string }[] = [];
-    const endDate = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(endDate);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      data.push({ value: usersByDay.get(dateStr)?.size || 0, label: dateStr });
-    }
-    return data;
-  }, [subset]);
-  
-  const sparklineUniqueCompanies = useMemo(() => {
-    const companiesByDay = new Map<string, Set<string>>();
-    subset.forEach((p) => {
-      const date = new Date(p.createdAt).toISOString().split('T')[0];
-      if (!companiesByDay.has(date)) companiesByDay.set(date, new Set());
-      companiesByDay.get(date)!.add(p.companyName);
-    });
-    const data: { value: number; label?: string }[] = [];
-    const endDate = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(endDate);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      data.push({ value: companiesByDay.get(dateStr)?.size || 0, label: dateStr });
-    }
-    return data;
-  }, [subset]);
-  
-  const sparklineAvgPerProposal = useMemo(() => {
-    const proposalsByDay = new Map<string, number[]>();
-    subset.forEach((p) => {
-      const date = new Date(p.createdAt).toISOString().split('T')[0];
-      if (!proposalsByDay.has(date)) proposalsByDay.set(date, []);
-      proposalsByDay.get(date)!.push(Number(p.totalAmount) || 0);
-    });
-    const data: { value: number; label?: string }[] = [];
-    const endDate = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(endDate);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      const amounts = proposalsByDay.get(dateStr) || [];
-      const avg = amounts.length > 0 ? amounts.reduce((a, b) => a + b, 0) / amounts.length : 0;
-      data.push({ value: avg, label: dateStr });
-    }
-    return data;
-  }, [subset]);
-  
-  const sparklineWinRate = useMemo(() => {
-    const proposalsByDay = new Map<string, { total: number; won: number }>();
-    subset.forEach((p) => {
-      const date = new Date(p.createdAt).toISOString().split('T')[0];
-      if (!proposalsByDay.has(date)) proposalsByDay.set(date, { total: 0, won: 0 });
-      const stats = proposalsByDay.get(date)!;
-      stats.total++;
-      if (p.status === "WON") stats.won++;
-    });
-    const data: { value: number; label?: string }[] = [];
-    const endDate = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(endDate);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      const stats = proposalsByDay.get(dateStr);
-      const rate = stats && stats.total > 0 ? (stats.won / stats.total) * 100 : 0;
-      data.push({ value: rate, label: dateStr });
-    }
-    return data;
-  }, [subset]);
-  
-  const sparklineWonAvgTicket = useMemo(() => {
-    const wonByDay = new Map<string, number[]>();
-    wonRows.forEach((p) => {
-      const date = new Date(p.createdAt).toISOString().split('T')[0];
-      if (!wonByDay.has(date)) wonByDay.set(date, []);
-      wonByDay.get(date)!.push(Number(p.totalAmount) || 0);
-    });
-    const data: { value: number; label?: string }[] = [];
-    const endDate = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(endDate);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      const amounts = wonByDay.get(dateStr) || [];
-      const avg = amounts.length > 0 ? amounts.reduce((a, b) => a + b, 0) / amounts.length : 0;
-      data.push({ value: avg, label: dateStr });
-    }
-    return data;
-  }, [wonRows]);
+  const sparklineWonCount = useMemo(
+    () => mapSparkline(stats?.sparklines.wonCount),
+    [mapSparkline, stats],
+  );
+  const sparklineWonAmount = useMemo(
+    () => mapSparkline(stats?.sparklines.wonAmount),
+    [mapSparkline, stats],
+  );
+  const sparklineUniqueUsers = useMemo(
+    () => mapSparkline(stats?.sparklines.uniqueUsers),
+    [mapSparkline, stats],
+  );
+  const sparklineUniqueCompanies = useMemo(
+    () => mapSparkline(stats?.sparklines.uniqueCompanies),
+    [mapSparkline, stats],
+  );
+  const sparklineAvgPerProposal = useMemo(
+    () => mapSparkline(stats?.sparklines.avgPerProposal),
+    [mapSparkline, stats],
+  );
+  const sparklineWinRate = useMemo(
+    () => mapSparkline(stats?.sparklines.winRate),
+    [mapSparkline, stats],
+  );
+  const sparklineWonAvgTicket = useMemo(
+    () => mapSparkline(stats?.sparklines.wonAvgTicket),
+    [mapSparkline, stats],
+  );
 
   return (
     <>
@@ -831,8 +739,8 @@ export default function Stats({
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
-                {activeFilters.length ? (
-                  activeFilters.map((filter) => (
+                {activeFilterChips.length ? (
+                  activeFilterChips.map((filter) => (
                     <button
                       key={filter.id}
                       type="button"
@@ -1007,14 +915,21 @@ export default function Stats({
             <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               <EnhancedGlassKpi
                 label={kpisT("generated")}
-                value={String(subset.length)}
+                value={String(totalCount)}
                 sparklineData={sparklineSubsetCount}
                 onClick={() =>
-                  openDrillDown("All Proposals", subset, [
+                  openDrillDown("All Proposals", activeFilters, [
                     { key: "companyName", label: "Company" },
                     { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
                     { key: "status", label: "Status" },
-                    { key: "createdAt", label: "Created", format: (v) => typeof v === 'string' || typeof v === 'number' || v instanceof Date ? new Date(v).toLocaleDateString() : String(v) },
+                    {
+                      key: "createdAt",
+                      label: "Created",
+                      format: (v) =>
+                        typeof v === "string" || typeof v === "number" || v instanceof Date
+                          ? new Date(v).toLocaleDateString()
+                          : String(v),
+                    },
                   ])
                 }
               />
@@ -1047,10 +962,17 @@ export default function Stats({
                 value={String(wonCount)}
                 sparklineData={sparklineWonCount}
                 onClick={() =>
-                  openDrillDown("Won Proposals", wonRows, [
+                  openDrillDown("Won Proposals", { ...activeFilters, status: "WON" }, [
                     { key: "companyName", label: "Company" },
                     { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
-                    { key: "createdAt", label: "Created", format: (v) => typeof v === 'string' || typeof v === 'number' || v instanceof Date ? new Date(v).toLocaleDateString() : String(v) },
+                    {
+                      key: "createdAt",
+                      label: "Created",
+                      format: (v) =>
+                        typeof v === "string" || typeof v === "number" || v instanceof Date
+                          ? new Date(v).toLocaleDateString()
+                          : String(v),
+                    },
                   ])
                 }
               />
@@ -1158,10 +1080,7 @@ export default function Stats({
                         key={sku}
                         className="cursor-pointer transition-colors hover:bg-purple-50"
                         onClick={() => {
-                          const skuProposals = subset.filter((p) =>
-                            p.items?.some((item) => item.itemCode === sku || item.sku === sku) ?? false
-                          );
-                          openDrillDown(`Proposals with SKU: ${sku} (${info.name})`, skuProposals, [
+                          openDrillDown(`Proposals with SKU: ${sku} (${info.name})`, { ...activeFilters, sku }, [
                             { key: "companyName", label: "Company" },
                             { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
                             { key: "country", label: "Country" },
@@ -1222,8 +1141,7 @@ export default function Stats({
                       key={country}
                       className="cursor-pointer transition-colors hover:bg-purple-50"
                       onClick={() => {
-                        const countryProposals = subset.filter((p) => p.country === country);
-                        openDrillDown(`Proposals from ${country}`, countryProposals, [
+                        openDrillDown(`Proposals from ${country}`, { ...activeFilters, country }, [
                           { key: "companyName", label: "Company" },
                           { key: "totalAmount", label: "Amount", format: (v) => formatUSD(Number(v)) },
                           { key: "status", label: "Status" },

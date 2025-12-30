@@ -2,11 +2,12 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { Prisma, ProposalStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import { requireApiSession } from "@/app/api/_utils/require-auth";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 import prisma from "@/lib/prisma";
+import { buildProposalWhere, normalizeProposalStatus } from "./query";
 
 const proposalItemSchema = z.object({
   itemId: z.string().min(1, { message: "itemId requerido" }),
@@ -31,19 +32,46 @@ const proposalPayloadSchema = z.object({
   items: z.array(proposalItemSchema).min(1),
 });
 
-function parseDate(value: string): Date | undefined {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return undefined;
-  return parsed;
+function parseBooleanParam(value: string | null, defaultValue: boolean) {
+  if (value === null) return defaultValue;
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return defaultValue;
 }
 
-function parseEndOfDay(value: string): Date | undefined {
-  const parsed = parseDate(value);
-  if (!parsed) return undefined;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    parsed.setUTCHours(23, 59, 59, 999);
+function resolveOrderBy(
+  sortKey: string | null,
+  sortDir: string | null
+): Prisma.ProposalOrderByWithRelationInput {
+  const dir = sortDir === "asc" ? "asc" : "desc";
+  switch (sortKey) {
+    case "id":
+      return { id: dir };
+    case "company":
+      return { companyName: dir };
+    case "country":
+      return { country: dir };
+    case "email":
+      return { userEmail: dir };
+    case "monthly":
+      return { totalAmount: dir };
+    case "status":
+      return { status: dir };
+    case "created":
+    default:
+      return { createdAt: "desc" };
   }
-  return parsed;
+}
+
+async function fetchCountryFacets(where: Prisma.ProposalWhereInput): Promise<string[]> {
+  const rows = await prisma.proposal.findMany({
+    where,
+    distinct: ["country"],
+    select: { country: true },
+    orderBy: { country: "asc" },
+  });
+  return rows.map((row) => row.country).filter(Boolean);
 }
 
 /** GET /api/proposals */
@@ -53,44 +81,51 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const aggregate = url.searchParams.get("aggregate");
-  const userEmail = url.searchParams.get("userEmail")?.trim();
-  const statusParam = url.searchParams.get("status")?.trim();
-  const fromParam = url.searchParams.get("from")?.trim();
-  const toParam = url.searchParams.get("to")?.trim();
+  const userEmail = url.searchParams.get("userEmail")?.trim() ?? null;
+  const statusParam = url.searchParams.get("status")?.trim() ?? null;
+  const fromParam = url.searchParams.get("from")?.trim() ?? null;
+  const toParam = url.searchParams.get("to")?.trim() ?? null;
+  const idQuery = url.searchParams.get("id")?.trim() ?? null;
+  const companyQuery = url.searchParams.get("company")?.trim() ?? null;
+  const emailQuery = url.searchParams.get("email")?.trim() ?? null;
+  const team = url.searchParams.get("team")?.trim() ?? null;
+  const country = url.searchParams.get("country")?.trim() ?? null;
+  const sku = url.searchParams.get("sku")?.trim() ?? null;
 
-  const where: Prisma.ProposalWhereInput = { deletedAt: null };
-  if (userEmail) {
-    where.userEmail = userEmail;
-  }
+  const includeItems = parseBooleanParam(url.searchParams.get("includeItems"), true);
+  const includeFacets = parseBooleanParam(url.searchParams.get("includeFacets"), false);
 
-  if (statusParam) {
-    const normalizedStatus = statusParam.toUpperCase();
-    const validStatuses = new Set<string>(Object.values(ProposalStatus));
-    if (validStatuses.has(normalizedStatus)) {
-      where.status = normalizedStatus as ProposalStatus;
-    }
-  }
+  const where = await buildProposalWhere({
+    userEmail,
+    status: statusParam,
+    from: fromParam,
+    to: toParam,
+    idQuery,
+    companyQuery,
+    emailQuery,
+    team,
+    country,
+  });
 
-  const createdAtFilter: Prisma.DateTimeFilter = {};
-  if (fromParam) {
-    const fromDate = parseDate(fromParam);
-    if (fromDate) {
-      createdAtFilter.gte = fromDate;
-    }
-  }
-
-  if (toParam) {
-    const toDate = parseEndOfDay(toParam);
-    if (toDate) {
-      createdAtFilter.lte = toDate;
-    }
-  }
-
-  if (Object.keys(createdAtFilter).length > 0) {
-    where.createdAt = createdAtFilter;
+  if (sku) {
+    const andFilters = Array.isArray(where.AND) ? [...where.AND] : [];
+    andFilters.push({
+      items: {
+        some: {
+          item: {
+            sku: { equals: sku, mode: "insensitive" },
+          },
+        },
+      },
+    });
+    where.AND = andFilters;
   }
 
   if (aggregate === "sum") {
+    const normalizedStatus = normalizeProposalStatus(statusParam);
+    if (normalizedStatus) {
+      where.status = normalizedStatus;
+    }
     const aggregateResult = await prisma.proposal.aggregate({
       where,
       _sum: { totalAmount: true },
@@ -120,18 +155,44 @@ export async function GET(request: Request) {
     return NextResponse.json({ activeUsers });
   }
 
-  const orderBy: Prisma.ProposalOrderByWithRelationInput = { createdAt: "desc" };
+  const sortKey = url.searchParams.get("sortKey");
+  const sortDir = url.searchParams.get("sortDir");
+  const orderBy = resolveOrderBy(sortKey, sortDir);
+  const itemSelect = includeItems
+    ? {
+        items: {
+          select: {
+            quantity: true,
+            item: { select: { sku: true, name: true } },
+          },
+        },
+      }
+    : {};
 
   if (!isFeatureEnabled("proposalsPagination")) {
     const rows = await prisma.proposal.findMany({
       where,
       orderBy,
-      include: {
-        items: {
-          include: {
-            item: { select: { sku: true, name: true } },
-          },
-        },
+      select: {
+        id: true,
+        companyName: true,
+        country: true,
+        countryId: true,
+        subsidiary: true,
+        subsidiaryId: true,
+        totalAmount: true,
+        totalHours: true,
+        oneShot: true,
+        docUrl: true,
+        docId: true,
+        userId: true,
+        userEmail: true,
+        createdAt: true,
+        updatedAt: true,
+        status: true,
+        wonAt: true,
+        wonType: true,
+        ...itemSelect,
       },
     });
 
@@ -154,11 +215,15 @@ export async function GET(request: Request) {
       status: p.status,
       wonAt: p.wonAt,
       wonType: p.wonType ?? null,
-      items: p.items.map((pi) => ({
-        sku: pi.item?.sku ?? "",
-        name: pi.item?.name ?? "",
-        quantity: Number(pi.quantity),
-      })),
+      items: includeItems
+        ? (
+            p.items as Array<{ quantity: number; item?: { sku?: string | null; name?: string | null } }>
+          ).map((pi) => ({
+            sku: pi.item?.sku ?? "",
+            name: pi.item?.name ?? "",
+            quantity: Number(pi.quantity),
+          }))
+        : undefined,
     }));
 
     return NextResponse.json(data);
@@ -194,12 +259,7 @@ export async function GET(request: Request) {
         status: true,
         wonAt: true,
         wonType: true,
-        items: {
-          select: {
-            quantity: true,
-            item: { select: { sku: true, name: true } },
-          },
-        },
+        ...itemSelect,
       },
     }),
     prisma.proposal.count({ where }),
@@ -224,12 +284,18 @@ export async function GET(request: Request) {
     status: p.status,
     wonAt: p.wonAt,
     wonType: p.wonType ?? null,
-    items: p.items.map((pi) => ({
-      sku: pi.item?.sku ?? "",
-      name: pi.item?.name ?? "",
-      quantity: Number(pi.quantity),
-    })),
+    items: includeItems
+      ? (
+          p.items as Array<{ quantity: number; item?: { sku?: string | null; name?: string | null } }>
+        ).map((pi) => ({
+          sku: pi.item?.sku ?? "",
+          name: pi.item?.name ?? "",
+          quantity: Number(pi.quantity),
+        }))
+      : undefined,
   }));
+
+  const facets = includeFacets ? { countries: await fetchCountryFacets(where) } : undefined;
 
   return NextResponse.json({
     data,
@@ -239,6 +305,7 @@ export async function GET(request: Request) {
       totalItems,
       totalPages: Math.max(1, Math.ceil(totalItems / pageSize)),
     },
+    ...(facets ? { facets } : {}),
   });
 }
 

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "@/app/LanguageProvider";
 
 import { formatUSD } from "../../lib/format";
-import { priceWhatsApp } from "../../lib/pricingClient";
+import { priceWhatsAppBulk } from "../../lib/pricingClient";
 import type { ProposalErrorCode } from "../../lib/errors";
 
 type CalculatorProps = {
@@ -87,39 +87,14 @@ export default function WhatsAppCalculatorCard({
     setError("");
 
     try {
-      let total = 0;
-
-      if (marketing > 0) {
-        const pricing = await priceWhatsApp({
-          subsidiary,
-          destCountry: targetCountry,
-          kind: "marketing",
-          qty: marketing,
-        });
-        total += pricing.totalAmount;
-      }
-
-      if (utility > 0) {
-        const pricing = await priceWhatsApp({
-          subsidiary,
-          destCountry: targetCountry,
-          kind: "utility",
-          qty: utility,
-        });
-        total += pricing.totalAmount;
-      }
-
-      if (auth > 0) {
-        const pricing = await priceWhatsApp({
-          subsidiary,
-          destCountry: targetCountry,
-          kind: "auth",
-          qty: auth,
-        });
-        total += pricing.totalAmount;
-      }
-
-      setCredit(total);
+      const pricing = await priceWhatsAppBulk({
+        subsidiary,
+        destCountry: targetCountry,
+        marketingQty: marketing,
+        utilityQty: utility,
+        authQty: auth,
+      });
+      setCredit(pricing.totalAmount);
     } catch (err) {
       const message = resolveErrorMessage(err, "pricing.whatsAppFailed");
       setError(message);

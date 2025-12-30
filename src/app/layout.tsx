@@ -55,7 +55,7 @@ export default async function RootLayout({
               <Suspense fallback={null}>
                 <Navbar session={session} />
               </Suspense>
-              <OnboardingTeamModal />
+              <OnboardingTeamModal session={session ?? null} />
               <main className="pt-[var(--nav-h)]">{children}</main>
             </SessionProviderWrapper>
           </LanguageProvider>
@@ -73,7 +73,7 @@ export default async function RootLayout({
             <Suspense fallback={null}>
               <Navbar session={session} />
             </Suspense>
-            <OnboardingTeamModal />
+            <OnboardingTeamModal session={session ?? null} />
             <main className="pt-[var(--nav-h)]">{children}</main>
           </ClientSessionBoundary>
         </LanguageProvider>

@@ -49,7 +49,9 @@ export async function GET(request: Request) {
   });
 
   const payload = rows.map((item) => mapItemToResponse(item, locale));
-  return NextResponse.json(payload);
+  const jsonResponse = NextResponse.json(payload);
+  jsonResponse.headers.set("Cache-Control", "private, max-age=300, stale-while-revalidate=300");
+  return jsonResponse;
 }
 
 export async function POST(request: Request) {
