@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import type { LanguageCode } from "@prisma/client";
 
-import { requireApiSession } from "@/app/api/_utils/require-auth";
+import { ensureSessionRole, requireApiSession } from "@/app/api/_utils/require-auth";
 import { defaultLocale } from "@/lib/i18n/config";
 import prisma from "@/lib/prisma";
 import {
@@ -53,8 +53,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { response } = await requireApiSession();
+  const { session, response } = await requireApiSession();
   if (response) return response;
+
+  const forbidden = ensureSessionRole(session, ["admin"]);
+  if (forbidden) return forbidden;
 
   const locale = getLocaleFromRequest(request);
 
@@ -126,4 +129,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json(mapItemToResponse(created, locale), { status: 201 });
 }
-

@@ -79,6 +79,7 @@ type DealResponse = {
   billedAmount: number;
   pendingAmount: number;
   billingPct: number;
+  handoffCompleted: boolean;
   link: string | null;
   createdAt: string;
   proposalId?: string;
@@ -107,6 +108,7 @@ function buildDealResponse(params: {
   const pendingAmount = Math.max(0, monthlyFee - billedAmount);
   const billingPct = monthlyFee > 0 ? (billedAmount / monthlyFee) * 100 : 0;
   const wonType = params.wonType ?? WonDealType.NEW_CUSTOMER;
+  const handoffCompleted = billedAmount >= monthlyFee && monthlyFee > 0;
   return {
     id: params.id,
     type: params.type,
@@ -115,6 +117,7 @@ function buildDealResponse(params: {
     billedAmount,
     pendingAmount,
     billingPct,
+    handoffCompleted,
     link: params.link ?? null,
     createdAt: params.createdAt.toISOString(),
     proposalId: params.proposalId,
@@ -220,8 +223,8 @@ export async function GET(req: Request) {
   deals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const progress = deals.reduce((sum, deal) => sum + deal.monthlyFee, 0);
-  const totalBilled = deals.reduce((sum, deal) => sum + deal.billedAmount, 0);
-  const totalPending = deals.reduce((sum, deal) => sum + deal.pendingAmount, 0);
+  const totalHandoff = deals.reduce((sum, deal) => sum + (deal.handoffCompleted ? deal.monthlyFee : 0), 0);
+  const totalPending = Math.max(0, progress - totalHandoff);
 
   return NextResponse.json({
     year,
@@ -230,7 +233,7 @@ export async function GET(req: Request) {
     progress,
     totals: {
       monthlyFees: progress,
-      billed: totalBilled,
+      handoff: totalHandoff,
       pending: totalPending,
     },
     deals,

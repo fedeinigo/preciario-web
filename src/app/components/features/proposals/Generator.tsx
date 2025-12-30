@@ -27,8 +27,6 @@ import {
   isWppAuth,
   isWppMarketing,
   isWppUtility,
-  isMinutesIn,
-  isMinutesOut,
   isWiserPro,
 } from "./lib/itemKinds";
 
@@ -40,7 +38,6 @@ import WhatsAppCalculatorCard from "./components/generator/WhatsAppCalculatorCar
 import GeneratorModalStack, {
   type ConfirmResetState,
   type ItemFormState,
-  type MinutesState,
   type ProposalCreatedState,
   type SummaryState,
   type WhatsAppState,
@@ -53,7 +50,6 @@ import useCatalogData from "./hooks/useCatalogData";
 import { useGlossary } from "./hooks/useGlossary";
 import { useProposalTotals } from "./hooks/useProposalTotals";
 import { useWhatsAppModal } from "./hooks/useWhatsAppModal";
-import { useMinutesModal } from "./hooks/useMinutesModal";
 import { useWiserModal } from "./hooks/useWiserModal";
 import { toast } from "@/app/components/ui/toast";
 import {
@@ -62,7 +58,6 @@ import {
   type ProposalErrorCode,
 } from "./lib/errors";
 import type { WppKind } from "./components/WhatsAppModal";
-import type { MinutesKind } from "./components/MinutesModal";
 
 function extractDealIdFromLink(s: string): string | null {
   if (!s) return null;
@@ -244,14 +239,6 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
     close: closeWhatsAppModal,
     submit: submitWhatsAppModal,
   } = useWhatsAppModal({ resolveErrorMessage: resolveProposalErrorMessage });
-
-  const {
-    state: minutesModalState,
-    start: openMinutesModal,
-    updateForm: updateMinutesForm,
-    close: closeMinutesModal,
-    submit: submitMinutesModal,
-  } = useMinutesModal({ resolveErrorMessage: resolveProposalErrorMessage });
 
   const {
     state: wiserModalState,
@@ -640,33 +627,6 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
     }
   }, [country, setItems, submitWhatsAppModal, subsidiary, toastT]);
 
-  const applyMinutes = React.useCallback(async () => {
-    try {
-      const result = await submitMinutesModal({ subsidiary, country });
-      if (!result) return;
-      const { itemId, pricing } = result;
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === itemId
-            ? {
-                ...i,
-                selected: true,
-                quantity: pricing.totalQty,
-                unitPrice: pricing.unitPrice,
-                devHours: 0,
-                discountPct: 0,
-              }
-            : i
-        )
-      );
-      toast.success(toastT("minutesApplied"));
-    } catch (message) {
-      if (message) {
-        toast.error(String(message));
-      }
-    }
-  }, [country, setItems, submitMinutesModal, subsidiary, toastT]);
-
   const applyWiser = React.useCallback(() => {
     const itemId = confirmWiserModal();
     if (!itemId) return;
@@ -704,11 +664,6 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
         openWhatsAppModal(item.id, nextKind, country || "");
         return;
       }
-      if (isMinutesOut(item.name) || isMinutesIn(item.name)) {
-        const nextKind: MinutesKind = isMinutesOut(item.name) ? "out" : "in";
-        openMinutesModal(item.id, nextKind, country || "");
-        return;
-      }
       if (isWiserPro(item.name)) {
         openWiserModal(item.id);
         return;
@@ -717,7 +672,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
         prev.map((i) => (i.id === item.id ? { ...i, selected: true } : i))
       );
     },
-    [country, openMinutesModal, openWhatsAppModal, openWiserModal, setItems]
+    [country, openWhatsAppModal, openWiserModal, setItems]
   );
 
   const onDeleteItem = React.useCallback(
@@ -828,18 +783,6 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
     onClose: closeWhatsAppModal,
     error: whatsappModalState.error,
     applying: whatsappModalState.applying,
-  };
-
-  const minutesState: MinutesState = {
-    open: minutesModalState.open,
-    kind: minutesModalState.kind,
-    form: minutesModalState.form,
-    billingSubsidiary: subsidiary,
-    onChange: updateMinutesForm,
-    onApply: applyMinutes,
-    onClose: closeMinutesModal,
-    error: minutesModalState.error,
-    applying: minutesModalState.applying,
   };
 
   const wiserState: WiserState = {
@@ -1016,7 +959,6 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
               summary={summaryState}
               confirmReset={confirmResetState}
               whatsapp={whatsappState}
-              minutes={minutesState}
               wiser={wiserState}
               itemForm={itemFormState}
               showItemForm={isAdmin}
