@@ -3,7 +3,6 @@ import ItemForm, { type ItemFormData } from "@/app/components/ui/ItemForm";
 
 import ProposalCreatedModal from "../ProposalCreatedModal";
 import { SummaryModal } from "../SummaryModal";
-import { MinutesModal, type MinutesKind, type MinForm } from "../MinutesModal";
 import { WhatsAppModal, type WppForm, type WppKind } from "../WhatsAppModal";
 import { WiserModal } from "../WiserModal";
 
@@ -51,18 +50,6 @@ export interface WhatsAppState {
   applying: boolean;
 }
 
-export interface MinutesState {
-  open: boolean;
-  kind: MinutesKind;
-  form: MinForm;
-  billingSubsidiary: string;
-  onChange: (update: Partial<MinForm>) => void;
-  onApply: () => void;
-  onClose: () => void;
-  error: string;
-  applying: boolean;
-}
-
 export interface WiserState {
   open: boolean;
   onConfirm: () => void;
@@ -88,7 +75,6 @@ export interface GeneratorModalStackProps {
   summary: SummaryState;
   confirmReset: ConfirmResetState;
   whatsapp: WhatsAppState;
-  minutes: MinutesState;
   wiser: WiserState;
   itemForm?: ItemFormState;
   showItemForm: boolean;
@@ -99,7 +85,6 @@ export default function GeneratorModalStack({
   summary,
   confirmReset,
   whatsapp,
-  minutes,
   wiser,
   itemForm,
   showItemForm,
@@ -128,7 +113,6 @@ export default function GeneratorModalStack({
       </Modal>
 
       <WhatsAppModal {...whatsapp} />
-      <MinutesModal {...minutes} />
       <WiserModal {...wiser} />
 
       {showItemForm && itemForm ? <ItemForm {...itemForm} /> : null}
