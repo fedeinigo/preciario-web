@@ -4,7 +4,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { Session } from "next-auth";
 import {
@@ -61,8 +61,8 @@ type AnyRole =
   | string
   | undefined;
 
-type NavbarAppearance = "dark" | "light" | "mapache" | "direct" | "marketing";
-type PortalLauncherVariant = "dark" | "light" | "mapache" | "direct" | "marketing";
+type NavbarAppearance = "dark" | "light" | "mapache" | "direct";
+type PortalLauncherVariant = "dark" | "light" | "mapache" | "direct";
 
 type NavTheme = {
   surface: string;
@@ -108,31 +108,20 @@ function TabBtn({
   active,
   href,
   Icon,
-  variant = "default",
 }: {
   label: string;
   active: boolean;
   href: string;
   Icon: React.ComponentType<{ className?: string }>;
-  variant?: "default" | "marketing";
 }) {
-  const marketingActive = "bg-white text-[rgb(var(--marketing-primary))] border-transparent shadow-sm";
-  const marketingInactive =
-    "bg-[rgb(var(--marketing-primary))] text-white border-transparent shadow-[0_8px_24px_rgba(32,94,179,0.35)]";
-
   const normalActive = "bg-white text-[#1f2937] border-transparent";
   const normalInactive = "bg-transparent text-white/90 border-white/20 hover:bg-white/10";
-
-  const activeClass =
-    variant === "marketing" ? marketingActive : normalActive;
-  const inactiveClass =
-    variant === "marketing" ? marketingInactive : normalInactive;
 
   return (
     <Link
       href={href}
       className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-[13.5px] border transition whitespace-nowrap shrink-0
-        ${active ? activeClass : inactiveClass}`}
+        ${active ? normalActive : normalInactive}`}
       aria-current={active ? "page" : undefined}
     >
       <Icon className="h-4 w-4" />
@@ -175,17 +164,6 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const normalizedPath =
     normalizedPathRaw.length > 1 ? normalizedPathRaw.replace(/\/+$/, "") : normalizedPathRaw;
   const isHomePath = normalizedPath === "/home";
-  const isPartnerPortal =
-    normalizedPath.startsWith("/partner-portal") || normalizedPath.startsWith("/portal/partner");
-  const searchParams = useSearchParams();
-  const isMarketingPortal =
-    normalizedPath.startsWith("/marketing-portal") || normalizedPath.startsWith("/portal/marketing");
-  const marketingView =
-    isMarketingPortal &&
-    (normalizedPath.startsWith("/portal/marketing/history") ||
-      (normalizedPath.startsWith("/marketing-portal") && searchParams?.get("view") === "history"))
-      ? "history"
-      : "generator";
   const { locale, setLocale } = useLanguage();
   const t = useTranslations("navbar");
   const tabsT = useTranslations("navbar.tabs");
@@ -254,58 +232,19 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const showLegacyTabs =
     status === "authenticated" &&
     !isMapachePortal &&
-    !isMarketingPortal &&
     navbarVariant === "default";
   const showAuthActions = status === "authenticated";
   const showPortalSwitcher = showAuthActions && navbarVariant !== "home";
 
   const navbarAppearance: NavbarAppearance = isMapachePortal
     ? "mapache"
-    : isMarketingPortal
-      ? "marketing"
-      : navbarVariant === "direct" || navbarVariant === "config" || navbarVariant === "home"
-        ? "direct"
-        : "dark";
+    : navbarVariant === "direct" || navbarVariant === "config" || navbarVariant === "home"
+      ? "direct"
+      : "dark";
 
-  React.useEffect(() => {
-  if (typeof document === "undefined") return;
-  const html = document.documentElement;
-  const body = document.body;
-  if (isMarketingPortal) {
-    html.classList.add("marketing-theme");
-    body.classList.add("marketing-theme");
-    return () => {
-      html.classList.remove("marketing-theme");
-      body.classList.remove("marketing-theme");
-    };
-  }
-  html.classList.remove("marketing-theme");
-  body.classList.remove("marketing-theme");
-}, [isMarketingPortal]);
-
-  const logoSrc = isMarketingPortal ? "/logo_color.png" : "/logo.png";
+  const logoSrc = "/logo.png";
 
   const navTheme = React.useMemo<NavTheme>(() => {
-    if (navbarAppearance === "marketing") {
-      return {
-        surface:
-          "border-b border-[#cde6ff] bg-white/90 text-[#0f406d] backdrop-blur supports-[backdrop-filter]:bg-opacity-80 shadow-[0_6px_24px_rgba(15,76,139,0.08)]",
-        configButton: (active: boolean) =>
-          `inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-[13px] transition ${
-            active
-              ? "border-transparent bg-[#1d6ee3] text-white shadow"
-              : "border-[#cce8ff] bg-white/80 text-[#0f406d] hover:bg-[#ecf5ff]"
-          }`,
-        profileButton:
-          "inline-flex items-center rounded-full border border-[#cce8ff] bg-white px-3 py-1.5 text-[13px] text-[#0f406d] hover:bg-[#ecf5ff] transition",
-        languageSelect:
-          "rounded-md border border-[#cce8ff] bg-white px-2 py-1 text-sm text-[#0f406d] focus:border-[#1d6ee3] focus:outline-none focus:ring-2 focus:ring-[#1d6ee3]/30",
-        signOutButton:
-          "inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-[13.5px] font-medium bg-[#1d6ee3] text-white hover:bg-[#1452c5]",
-        portalVariant: "marketing",
-        profileAppearance: "light",
-      };
-    }
     const isMapacheTheme = navbarAppearance === "mapache";
     if (isMapacheTheme) {
       return {
@@ -379,8 +318,6 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     (navbarVariant === "direct" || navbarVariant === "home");
   const userPortals = session?.user?.portals ?? ["direct"];
   const canOpenMapachePortal = userPortals.includes("mapache");
-  const canAccessPartnerPortal = userPortals.includes("partner");
-  const canAccessMarketingPortal = userPortals.includes("marketing");
   const canSeeUsers = isAdminRole;
 
   // ---- Tabs del portal directo (navegaci├│n nueva) ----
@@ -652,10 +589,6 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     [isMapachePortal, pathname, router],
   );
 
-  if (isPartnerPortal) {
-    return null;
-  }
-
   return (
     <nav
       role="navigation"
@@ -678,8 +611,6 @@ export default function NavbarClient({ session }: NavbarClientProps) {
           {showPortalSwitcher ? (
             <PortalLauncher
               canAccessMapache={canOpenMapachePortal}
-              canAccessPartner={canAccessPartnerPortal}
-              canAccessMarketing={canAccessMarketingPortal}
               variant={navTheme.portalVariant}
               onMapacheNavigate={beginMapacheTransition}
             />
@@ -706,23 +637,6 @@ export default function NavbarClient({ session }: NavbarClientProps) {
                 label={mapacheSectionsT("generator")}
                 active={mapacheSection === "generator"}
                 onClick={handleMapacheSectionChange}
-              />
-            </div>
-          ) : isMarketingPortal ? (
-            <div className="flex items-center gap-2">
-              <TabBtn
-                label={tabsT("generator")}
-                Icon={LayoutGrid}
-                href="/portal/marketing/generator"
-                active={marketingView === "generator"}
-                variant="marketing"
-              />
-              <TabBtn
-                label={tabsT("history")}
-                Icon={Clock}
-                href="/portal/marketing/history"
-                active={marketingView === "history"}
-                variant="marketing"
               />
             </div>
           ) : showDirectTabs ? (

@@ -1,6 +1,6 @@
 // src/app/home/page.tsx
 import Link from "next/link";
-import { Lock, FileText, Users, Megaphone, Handshake, Sparkles } from "lucide-react";
+import { Lock, FileText, Users, Sparkles } from "lucide-react";
 
 import AuthLoginCard from "@/app/components/AuthLoginCard";
 import { auth } from "@/lib/auth";
@@ -34,24 +34,6 @@ const PORTAL_CARDS: PortalCard[] = [
     icon: Users,
     gradient: "from-blue-500/10 via-blue-600/5 to-transparent",
     glowColor: "shadow-blue-500/20 hover:shadow-blue-500/40",
-  },
-  {
-    id: "marketing",
-    title: "Portal Marketing",
-    description: "Materiales y reportes para el equipo de marketing.",
-    href: "/portal/marketing",
-    icon: Megaphone,
-    gradient: "from-pink-500/10 via-pink-600/5 to-transparent",
-    glowColor: "shadow-pink-500/20 hover:shadow-pink-500/40",
-  },
-  {
-    id: "partner",
-    title: "Portal Partner",
-    description: "Recursos exclusivos para partners y alianzas.",
-    href: "/portal/partner",
-    icon: Handshake,
-    gradient: "from-emerald-500/10 via-emerald-600/5 to-transparent",
-    glowColor: "shadow-emerald-500/20 hover:shadow-emerald-500/40",
   },
 ];
 

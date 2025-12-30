@@ -7,30 +7,26 @@ import { usePathname, useRouter } from "next/navigation";
 
 import Modal from "@/app/components/ui/Modal";
 import { useTranslations } from "@/app/LanguageProvider";
-import type { PortalAccessId } from "@/constants/portals";
-
 type PortalLauncherProps = {
   canAccessMapache: boolean;
-  canAccessPartner: boolean;
-  canAccessMarketing: boolean;
   onMapacheNavigate?: () => void;
   className?: string;
   buttonClassName?: string;
-  variant?: "dark" | "light" | "mapache" | "direct" | "marketing";
+  variant?: "dark" | "light" | "mapache" | "direct";
 };
 
+type PortalOptionId = "direct" | "mapache";
+
 type PortalOption = {
-  id: PortalAccessId;
+  id: PortalOptionId;
   label: string;
   description: string;
   href: string;
 };
 
-const PORTAL_ROUTES: Record<PortalAccessId, string> = {
+const PORTAL_ROUTES: Record<PortalOptionId, string> = {
   direct: "/portal/directo",
   mapache: "/portal/mapache/generator",
-  partner: "/partner-portal",
-  marketing: "/portal/marketing/generator",
 };
 
 type PortalLauncherVariant = NonNullable<PortalLauncherProps["variant"]>;
@@ -133,32 +129,10 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
     overlayText: "text-slate-900",
     backdrop: "bg-black/30",
   },
-  marketing: {
-    trigger:
-      "inline-flex items-center gap-2 rounded-full border border-[#b8dcff] bg-white px-3 py-1.5 text-[13px] font-semibold text-[#0f406d] shadow-sm transition hover:bg-[#ecf5ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#93c5fd]",
-    panel:
-      "rounded-[32px] border border-[#cce8ff] bg-white shadow-[0_45px_130px_rgba(15,23,42,0.18)]",
-    header: "bg-white border-b border-[#cce8ff] px-6 py-4",
-    title: "text-lg font-semibold",
-    description: "text-sm",
-    descriptionColor: "#475569",
-    card:
-      "flex items-center justify-between gap-4 rounded-2xl border border-[#cce8ff] bg-[#f5fbff] px-4 py-3 shadow-sm transition hover:shadow-md",
-    cardTitleColor: "#0f172a",
-    cardDescriptionColor: "#64748b",
-    action:
-      "rounded-full border border-transparent bg-[#1d6ee3] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-[#1452c5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#93c5fd]",
-    overlay: "bg-white/95 text-[#0f406d]",
-    overlaySpinner: "text-[#1d6ee3]",
-    overlayText: "text-[#0f406d]",
-    backdrop: "bg-black/30",
-  },
 };
 
 export default function PortalLauncher({
   canAccessMapache,
-  canAccessPartner,
-  canAccessMarketing,
   onMapacheNavigate,
   className = "",
   buttonClassName = "",
@@ -283,26 +257,8 @@ export default function PortalLauncher({
       });
     }
 
-    if (canAccessPartner) {
-      list.push({
-        id: "partner",
-        label: portalOptionsText("partner.label"),
-        description: portalOptionsText("partner.description"),
-        href: PORTAL_ROUTES.partner,
-      });
-    }
-
-    if (canAccessMarketing) {
-      list.push({
-        id: "marketing",
-        label: portalOptionsText("marketing.label"),
-        description: portalOptionsText("marketing.description"),
-        href: PORTAL_ROUTES.marketing,
-      });
-    }
-
     return list;
-  }, [canAccessMapache, canAccessMarketing, canAccessPartner, portalOptionsText]);
+  }, [canAccessMapache, portalOptionsText]);
 
   if (options.length <= 1) {
     return null;
