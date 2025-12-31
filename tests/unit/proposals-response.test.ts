@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 
 import {
   fetchAllProposals,
-  fetchWonProposalsTotal,
   parseProposalsListResponse,
 } from "../../src/app/components/features/proposals/lib/proposals-response";
 import type { ProposalRecord } from "../../src/lib/types";
@@ -133,61 +132,6 @@ test("fetchAllProposals fetches remaining pages in parallel and preserves order"
     assert.equal(meta?.pageSize, 2);
     assert.equal(meta?.totalItems, 6);
     assert.equal(meta?.totalPages, 3);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("fetchWonProposalsTotal requests the aggregate endpoint with no-store caching", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{ url: string; init?: RequestInit }> = [];
-
-  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === "string" ? input : input.toString();
-    calls.push({ url, init });
-    return Promise.resolve({
-      ok: true,
-      status: 200,
-      json: async () => ({ totalAmount: 3500, count: 2 }),
-    } as Response);
-  }) as typeof fetch;
-
-  try {
-    const total = await fetchWonProposalsTotal({
-      userEmail: "user@example.com",
-      from: "2024-01-01",
-      to: "2024-03-31",
-    });
-
-    assert.equal(total, 3500);
-    const [call] = calls;
-    assert.ok(call, "fetch should be called");
-    assert.equal(
-      call.url,
-      "/api/proposals?aggregate=sum&status=WON&userEmail=user%40example.com&from=2024-01-01&to=2024-03-31",
-    );
-    assert.equal(call.init?.cache, "no-store");
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("fetchWonProposalsTotal throws when the response is not ok", async () => {
-  const originalFetch = globalThis.fetch;
-
-  globalThis.fetch = ((input: RequestInfo | URL) => {
-    const url = typeof input === "string" ? input : input.toString();
-    return Promise.resolve({
-      ok: false,
-      status: 500,
-      json: async () => ({ message: "error", url }),
-    } as Response);
-  }) as typeof fetch;
-
-  try {
-    await assert.rejects(() =>
-      fetchWonProposalsTotal({ userEmail: "user@example.com", from: "2024-01-01", to: "2024-03-31" }),
-    );
   } finally {
     globalThis.fetch = originalFetch;
   }

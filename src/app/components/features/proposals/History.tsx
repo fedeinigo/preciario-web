@@ -24,7 +24,6 @@ import { toast } from "@/app/components/ui/toast";
 import { useTranslations } from "@/app/LanguageProvider";
 import {
   fetchAllProposals,
-  fetchProposalsFacets,
   fetchProposalsPage,
   invalidateProposalsCache,
   type ProposalsListMeta,
@@ -101,6 +100,7 @@ export default function History({
   const [loading, setLoading] = useState(true);
   const [remoteMeta, setRemoteMeta] = useState<ProposalsListMeta | undefined>();
   const [countryOptions, setCountryOptions] = useState<string[]>([]);
+  const facetsLoadedRef = React.useRef(false);
 
   // Aux
   const { users: adminUsers } = useAdminUsers({
@@ -124,22 +124,6 @@ export default function History({
       .sort((a, b) => a.localeCompare(b));
     setTeams(visible);
   }, [adminUsers, isSuperAdmin]);
-
-  useEffect(() => {
-    let active = true;
-    fetchProposalsFacets({})
-      .then((facets) => {
-        if (!active) return;
-        setCountryOptions(facets.countries);
-      })
-      .catch(() => {
-        if (!active) return;
-        setCountryOptions([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   // filtros
   const [teamFilter, setTeamFilter] = useState<string>("");
@@ -167,7 +151,8 @@ export default function History({
         isSuperAdmin ? teamFilter : role === "lider" ? leaderTeam || "__none__" : undefined;
       const effectiveUserEmail = role === "usuario" ? currentEmail : undefined;
       try {
-        const { proposals, meta } = await fetchProposalsPage(
+        const includeFacets = !facetsLoadedRef.current;
+        const { proposals, meta, facets } = await fetchProposalsPage(
           {
             from,
             to,
@@ -182,6 +167,7 @@ export default function History({
             page,
             pageSize,
             includeItems: false,
+            includeFacets,
             sortKey,
             sortDir,
             skipCache: options?.skipCache ?? false,
@@ -190,6 +176,10 @@ export default function History({
         );
         setRows(proposals);
         setRemoteMeta(meta);
+        if (includeFacets && facets) {
+          setCountryOptions(facets.countries);
+          facetsLoadedRef.current = true;
+        }
       } catch {
         if (options?.signal?.aborted) return;
         setRows([]);
@@ -356,26 +346,29 @@ export default function History({
   };
 
   return (
-    <div className="p-4">
-      <div className="card border-2 overflow-hidden">
-        <div className="heading-bar-sm flex items-center justify-between">
-          <span>{t("title")}</span>
-          <div className="flex items-center gap-2">
-            <button
-              className="btn-bar"
-              onClick={downloadCurrentCsv}
-              title={t("actions.downloadCsvTitle")}
-            >
-              {t("actions.downloadCsv")}
-            </button>
-            <button className="btn-bar" onClick={manualRefresh} title={t("actions.refreshTitle")}>
-              {t("actions.refresh")}
-            </button>
+    <div className="relative min-h-[calc(100vh-var(--nav-h))] overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 via-white to-purple-50/40 p-4 sm:p-6">
+      <div className="pointer-events-none absolute -top-24 right-0 h-64 w-64 rounded-full bg-purple-200/50 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 left-10 h-72 w-72 rounded-full bg-indigo-200/40 blur-3xl" />
+      <div className="relative z-10 mx-auto max-w-[1600px]">
+        <div className="card rounded-2xl border border-slate-200/80 shadow-[0_20px_60px_rgba(76,29,149,0.12)] overflow-hidden">
+          <div className="heading-bar-sm flex items-center justify-between">
+            <span>{t("title")}</span>
+            <div className="flex items-center gap-2">
+              <button
+                className="btn-bar"
+                onClick={downloadCurrentCsv}
+                title={t("actions.downloadCsvTitle")}
+              >
+                {t("actions.downloadCsv")}
+              </button>
+              <button className="btn-bar" onClick={manualRefresh} title={t("actions.refreshTitle")}>
+                {t("actions.refresh")}
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="p-3">
-          <QuickRanges setFrom={setFrom} setTo={setTo} />
+          <div className="p-4 sm:p-5">
+            <QuickRanges setFrom={setFrom} setTo={setTo} />
 
           {(isSuperAdmin || role === "lider") && (
             <div className="mb-3 grid grid-cols-1 md:grid-cols-6 gap-3">
@@ -475,8 +468,8 @@ export default function History({
             <div className="hidden md:block" />
           </div>
 
-          <div className="overflow-x-auto rounded-md border-2">
-            <table className="min-w-full bg-white text-sm">
+          <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-white/90 shadow-sm">
+            <table className="min-w-full text-sm">
               <thead className="sticky top-0 z-10">
                 <tr>
                   {(
@@ -627,7 +620,7 @@ export default function History({
           </div>
 
           {!loading && totalItems > 0 && (
-            <div className="mt-3 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-2">
               <div className="text-sm text-gray-600">
                 {paginationT("display", {
                   start: totalItems === 0 ? 0 : pageStart + 1,
@@ -673,8 +666,9 @@ export default function History({
               </div>
             </div>
           )}
+        </div>
       </div>
-    </div>
+      </div>
 
       <Modal
         open={!!confirmId}

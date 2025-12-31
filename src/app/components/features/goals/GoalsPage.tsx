@@ -113,6 +113,8 @@ export default function GoalsPage({
   });
   const [lastSyncedAt, setLastSyncedAt] = React.useState<Date | null>(null);
   const [loadingDeals, setLoadingDeals] = React.useState<boolean>(false);
+  const winsAbortRef = React.useRef<AbortController | null>(null);
+  const winsRequestIdRef = React.useRef(0);
   const [manualDialogTarget, setManualDialogTarget] = React.useState<
     { userId?: string; email?: string | null; name?: string | null } | null
   >(null);
@@ -124,6 +126,13 @@ export default function GoalsPage({
     () => `goals:pipedrive:${currentEmail || "unknown"}:${year}:Q${quarter}`,
     [currentEmail, quarter, year]
   );
+
+  React.useEffect(() => {
+    return () => {
+      winsAbortRef.current?.abort();
+      teamAbortRef.current?.abort();
+    };
+  }, []);
 
   const resolveHandoff = React.useCallback((deal: UserWonDeal): boolean => {
     const billed = Number(deal.billedAmount ?? 0);
@@ -210,24 +219,43 @@ export default function GoalsPage({
 
   const loadMyWins = React.useCallback(
     async (options?: { force?: boolean }) => {
+      const requestId = ++winsRequestIdRef.current;
+      winsAbortRef.current?.abort();
+      const controller = new AbortController();
+      winsAbortRef.current = controller;
+      const isStale = () => controller.signal.aborted || requestId !== winsRequestIdRef.current;
+
       const shouldUseCacheOnly = winsSource === "pipedrive" && !options?.force;
       if (shouldUseCacheOnly) {
         const restored = loadWinsFromCache();
-        if (restored) return;
+        if (restored) {
+          if (!isStale()) {
+            setLoadingDeals(false);
+          }
+          return;
+        }
+        if (isStale()) return;
         setLastSyncedAt(null);
         setMyDeals([]);
         setMyProgress(0);
         setMyMonthlyProgress(0);
         setMyTotals({ monthlyFees: 0, handoff: 0, pending: 0 });
+        setLoadingDeals(false);
         return;
       }
       setLoadingDeals(true);
       try {
         if (winsSource === "pipedrive") {
           const modeQuery = pipedriveMode === "owner" ? "?mode=owner" : "";
-          const response = await fetch(`/api/pipedrive/deals${modeQuery}` as const, { cache: "no-store" });
+          const forceQuery = options?.force ? `${modeQuery ? "&" : "?"}force=1` : "";
+          const response = await fetch(`/api/pipedrive/deals${modeQuery}${forceQuery}` as const, {
+            cache: "no-store",
+            signal: controller.signal,
+          });
+          if (isStale()) return;
           if (!response.ok) throw new Error("Failed to load wins");
           const payload = (await response.json()) as { ok: boolean; deals?: Array<{ [key: string]: unknown }> };
+          if (isStale()) return;
           if (!payload.ok || !Array.isArray(payload.deals)) throw new Error("Invalid deals payload");
           const filteredDeals = payload.deals.filter((deal) => {
             const status = String((deal as { status?: string }).status ?? "").toLowerCase();
@@ -292,13 +320,18 @@ export default function GoalsPage({
         }
 
       const params = new URLSearchParams({ year: String(year), quarter: String(quarter) });
-      const response = await fetch(`/api/goals/wins?${params.toString()}`, { cache: "no-store" });
+      const response = await fetch(`/api/goals/wins?${params.toString()}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (isStale()) return;
       if (!response.ok) throw new Error("Failed to load wins");
       const payload = (await response.json()) as {
         progress?: number;
         deals?: Array<UserWonDeal>;
         totals?: { monthlyFees?: number; handoff?: number; pending?: number };
       };
+      if (isStale()) return;
       const normalizedDeals = (payload.deals ?? []).map((deal) => {
         const wonType: "NEW_CUSTOMER" | "UPSELL" = deal.wonType === "UPSELL" ? "UPSELL" : "NEW_CUSTOMER";
         return {
@@ -333,12 +366,18 @@ export default function GoalsPage({
         pending: Number.isFinite(payload.totals?.pending ?? NaN) ? Number(payload.totals?.pending) : totals.pending,
       });
     } catch {
+      if (isStale()) return;
       setMyProgress(0);
       setMyDeals([]);
       setMyMonthlyProgress(0);
       setMyTotals({ monthlyFees: 0, handoff: 0, pending: 0 });
     } finally {
-      setLoadingDeals(false);
+      if (!isStale()) {
+        setLoadingDeals(false);
+        if (winsAbortRef.current === controller) {
+          winsAbortRef.current = null;
+        }
+      }
     }
   }, [computeTotals, loadWinsFromCache, persistWinsCache, quarter, winsSource, year, pipedriveMode]);
 
@@ -393,9 +432,8 @@ export default function GoalsPage({
   const [teamGoal, setTeamGoal] = React.useState<number>(0);
   const [teamProgress, setTeamProgress] = React.useState<number>(0);
   const [teamProgressRaw, setTeamProgressRaw] = React.useState<number>(0);
-  const [teamMonthlyProgressRaw, setTeamMonthlyProgressRaw] = React.useState<number>(0);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [teamMonthlyProgress, setTeamMonthlyProgress] = React.useState<number>(0);
+  const teamAbortRef = React.useRef<AbortController | null>(null);
+  const teamRequestIdRef = React.useRef(0);
   const [teamDealsByUser, setTeamDealsByUser] = React.useState<Record<string, UserWonDeal[]>>({});
   const [teamDealsBaseMap, setTeamDealsBaseMap] = React.useState<Record<string, UserWonDeal[]>>({});
   const [rows, setRows] = React.useState<TeamGoalRow[]>([]);
@@ -422,10 +460,8 @@ export default function GoalsPage({
         teamGoal?: number;
         teamProgress?: number;
         teamProgressRaw?: number;
-        teamMonthlyProgressRaw?: number;
         rows?: TeamGoalRow[];
         baseRows?: TeamGoalRow[];
-        teamMonthlyProgress?: number;
         teamDealsByUser?: Record<string, UserWonDeal[]>;
         teamDealsBaseMap?: Record<string, UserWonDeal[]>;
         lastSyncedAt?: string | null;
@@ -435,8 +471,6 @@ export default function GoalsPage({
       setTeamGoal(Number(parsed.teamGoal ?? 0));
       setTeamProgress(Number(parsed.teamProgress ?? 0));
       setTeamProgressRaw(Number(parsed.teamProgressRaw ?? 0));
-      setTeamMonthlyProgressRaw(Number(parsed.teamMonthlyProgressRaw ?? 0));
-      setTeamMonthlyProgress(Number(parsed.teamMonthlyProgress ?? 0));
       setTeamDealsByUser(parsed.teamDealsByUser ?? {});
       setTeamDealsBaseMap(parsed.teamDealsBaseMap ?? {});
       setRows(parsed.rows);
@@ -453,8 +487,6 @@ export default function GoalsPage({
       teamGoal: number;
       teamProgress: number;
       teamProgressRaw: number;
-      teamMonthlyProgress: number;
-      teamMonthlyProgressRaw: number;
       rows: TeamGoalRow[];
       baseRows: TeamGoalRow[];
       teamDealsByUser: Record<string, UserWonDeal[]>;
@@ -486,14 +518,12 @@ export default function GoalsPage({
       incomingRows: TeamGoalRow[],
       incomingProgress: number,
       incomingDealsMap: Record<string, UserWonDeal[]> = {},
-      incomingMonthlyProgress = 0,
     ) => {
       if (winsSource !== "pipedrive") {
         return {
           rows: incomingRows,
           teamProgress: incomingProgress,
           dealsMap: incomingDealsMap,
-          teamMonthlyProgress: incomingMonthlyProgress,
         };
       }
 
@@ -504,20 +534,11 @@ export default function GoalsPage({
         return (viewerId && row.userId === viewerId) || (!!normalizedEmail && rowEmail === normalizedEmail);
       });
 
-      const currentMapMonthly = (userId: string) =>
-        (incomingDealsMap[userId] ?? []).reduce((acc, deal) => {
-          const date = new Date(deal.createdAt);
-          return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
-            ? acc + deal.monthlyFee
-            : acc;
-        }, 0);
-
       if (matchIndex === -1) {
         return {
           rows: incomingRows,
           teamProgress: incomingProgress,
           dealsMap: incomingDealsMap,
-          teamMonthlyProgress: incomingMonthlyProgress,
         };
       }
 
@@ -526,8 +547,6 @@ export default function GoalsPage({
       if (matched.userId) {
         nextDealsMap[matched.userId] = myDeals;
       }
-
-      const replacedMonthly = matched.userId ? currentMapMonthly(matched.userId) : 0;
 
       const updatedRows = incomingRows.map((row, idx) =>
         idx === matchIndex
@@ -541,65 +560,72 @@ export default function GoalsPage({
       );
 
       const adjustedTeamProgress = incomingProgress - matched.progress + myProgress;
-      const adjustedMonthly = incomingMonthlyProgress - replacedMonthly + myMonthlyProgress;
 
       return {
         rows: updatedRows,
         teamProgress: adjustedTeamProgress,
         dealsMap: nextDealsMap,
-        teamMonthlyProgress: adjustedMonthly,
       };
     },
-    [currentEmail, myDeals, myMonthlyProgress, myProgress, now, viewerId, winsSource]
+    [currentEmail, myDeals, myProgress, viewerId, winsSource]
   );
 
   const loadTeam = React.useCallback(async (options?: { force?: boolean }) => {
+    const requestId = ++teamRequestIdRef.current;
+    teamAbortRef.current?.abort();
+    const controller = new AbortController();
+    teamAbortRef.current = controller;
+    const isStale = () => controller.signal.aborted || requestId !== teamRequestIdRef.current;
+
     const canSelectTeam = isSuperAdmin || role === "admin";
     if (!canSelectTeam && !effectiveTeam) {
+      if (isStale()) return;
       setRows([]);
       setTeamGoal(0);
       setTeamProgress(0);
       setTeamProgressRaw(0);
-      setTeamMonthlyProgressRaw(0);
-      setTeamMonthlyProgress(0);
       setTeamDealsByUser({});
       setTeamDealsBaseMap({});
+      setLoadingTeam(false);
       return;
     }
     if (canSelectTeam && !effectiveTeam) {
+      if (isStale()) return;
       setRows([]);
       setTeamGoal(0);
       setTeamProgress(0);
       setTeamProgressRaw(0);
-      setTeamMonthlyProgressRaw(0);
-      setTeamMonthlyProgress(0);
       setTeamDealsByUser({});
       setTeamDealsBaseMap({});
+      setLoadingTeam(false);
       return;
     }
     const shouldUseCacheOnly = winsSource === "pipedrive" && !options?.force;
     if (shouldUseCacheOnly) {
       const restored = loadTeamFromCache();
       if (restored) return;
+      if (isStale()) return;
       setTeamGoal(0);
       setTeamProgress(0);
       setRows([]);
       setBaseRows([]);
       setTeamProgressRaw(0);
-      setTeamMonthlyProgressRaw(0);
-      setTeamMonthlyProgress(0);
       setTeamDealsByUser({});
       setTeamDealsBaseMap({});
       setLastSyncedAt(null);
+      setLoadingTeam(false);
       return;
     }
     setLoadingTeam(true);
     try {
       const r = await fetch(
-        `/api/goals/team?year=${year}&quarter=${quarter}&team=${encodeURIComponent(effectiveTeam)}`
+        `/api/goals/team?year=${year}&quarter=${quarter}&team=${encodeURIComponent(effectiveTeam)}`,
+        { signal: controller.signal },
       );
+      if (isStale()) return;
       if (!r.ok) throw new Error("team");
       const j = await r.json();
+      if (isStale()) return;
       setTeamGoal(Number(j.teamGoal || 0));
       setTeamProgress(Number(j.teamProgress || 0));
       const members = (Array.isArray(j.members) ? j.members : []) as TeamMemberResponse[];
@@ -629,7 +655,6 @@ export default function GoalsPage({
       let resolvedRows = normalizedRows;
       let resolvedProgress = normalizedRows.reduce((acc, row) => acc + row.progress, 0);
       const resolvedDealsMap: Record<string, UserWonDeal[]> = {};
-      let resolvedMonthlyProgress = 0;
 
       if (winsSource === "pipedrive") {
         const memberIdentifiers =
@@ -641,13 +666,17 @@ export default function GoalsPage({
         try {
           if (memberIdentifiers.length > 0) {
             const modeQuery = pipedriveMode === "owner" ? "?mode=owner" : "";
-            const pdRes = await fetch(`/api/pipedrive/team-deals${modeQuery}` as const, {
+            const forceQuery = options?.force ? `${modeQuery ? "&" : "?"}force=1` : "";
+            const pdRes = await fetch(`/api/pipedrive/team-deals${modeQuery}${forceQuery}` as const, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ names: memberIdentifiers }),
+              signal: controller.signal,
             });
+            if (isStale()) return;
             if (!pdRes.ok) throw new Error(`team-deals-${pdRes.status}`);
             const pdPayload = (await pdRes.json()) as { ok?: boolean; deals?: Array<{ [key: string]: unknown }> };
+            if (isStale()) return;
             if (!pdPayload.ok || !Array.isArray(pdPayload.deals)) throw new Error("team-deals-invalid");
 
             const filteredDeals = pdPayload.deals.filter((deal) => {
@@ -702,15 +731,7 @@ export default function GoalsPage({
               });
               const progress = deals.reduce((acc, deal) => acc + Number(deal.monthlyFee ?? 0), 0);
               const memberDeals = deals.map((deal) => deal.deal);
-              const monthlySum = memberDeals.reduce((acc, deal) => {
-                const createdAt = new Date(deal.createdAt);
-                if (createdAt.getMonth() === now.getMonth() && createdAt.getFullYear() === now.getFullYear()) {
-                  return acc + deal.monthlyFee;
-                }
-                return acc;
-              }, 0);
               resolvedDealsMap[row.userId] = memberDeals;
-              resolvedMonthlyProgress += monthlySum;
               return {
                 ...row,
                 progress,
@@ -726,8 +747,8 @@ export default function GoalsPage({
         }
       }
 
+      if (isStale()) return;
       setTeamDealsBaseMap(resolvedDealsMap);
-      setTeamMonthlyProgressRaw(resolvedMonthlyProgress);
 
       setBaseRows(resolvedRows);
       setTeamProgressRaw(resolvedProgress);
@@ -735,12 +756,10 @@ export default function GoalsPage({
         resolvedRows,
         resolvedProgress,
         resolvedDealsMap,
-        resolvedMonthlyProgress,
       );
       setRows(merged.rows);
       setTeamProgress(merged.teamProgress);
       setTeamDealsByUser(merged.dealsMap);
-      setTeamMonthlyProgress(merged.teamMonthlyProgress);
       const syncMoment = new Date();
       if (winsSource === "pipedrive") {
         setLastSyncedAt(syncMoment);
@@ -748,8 +767,6 @@ export default function GoalsPage({
           teamGoal: Number(j.teamGoal || 0),
           teamProgress: merged.teamProgress,
           teamProgressRaw: resolvedProgress,
-          teamMonthlyProgressRaw: resolvedMonthlyProgress,
-          teamMonthlyProgress: merged.teamMonthlyProgress,
           rows: merged.rows,
           baseRows: resolvedRows,
           teamDealsByUser: merged.dealsMap,
@@ -777,9 +794,15 @@ export default function GoalsPage({
         }
       }
     } catch {
-      setTeamGoal(0); setTeamProgress(0); setRows([]); setBaseRows([]); setTeamProgressRaw(0); setTeamMonthlyProgressRaw(0); setTeamMonthlyProgress(0); setTeamDealsByUser({}); setTeamDealsBaseMap({});
+      if (isStale()) return;
+      setTeamGoal(0); setTeamProgress(0); setRows([]); setBaseRows([]); setTeamProgressRaw(0); setTeamDealsByUser({}); setTeamDealsBaseMap({});
     } finally {
-      setLoadingTeam(false);
+      if (!isStale()) {
+        setLoadingTeam(false);
+        if (teamAbortRef.current === controller) {
+          teamAbortRef.current = null;
+        }
+      }
     }
   }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName, loadTeamFromCache, persistTeamCache, pipedriveMode, now]);
 
@@ -792,13 +815,11 @@ export default function GoalsPage({
       baseRows,
       teamProgressRaw,
       teamDealsBaseMap,
-      teamMonthlyProgressRaw,
     );
     setRows(merged.rows);
     setTeamProgress(merged.teamProgress);
     setTeamDealsByUser(merged.dealsMap);
-    setTeamMonthlyProgress(merged.teamMonthlyProgress);
-  }, [baseRows, mergePipedriveSelfProgress, teamProgressRaw, winsSource, teamDealsBaseMap, teamMonthlyProgressRaw]);
+  }, [baseRows, mergePipedriveSelfProgress, teamProgressRaw, winsSource, teamDealsBaseMap]);
 
   React.useEffect(() => {
     const handleRefresh = () => {
@@ -1051,8 +1072,8 @@ export default function GoalsPage({
 
   const isMapache = theme === "mapache";
   const containerBg = isMapache
-    ? "min-h-screen bg-gradient-to-b from-[#0a0a0f] via-[#0e0e14] to-[#11111a] px-4 sm:px-6 lg:px-8 py-8"
-    : "min-h-screen bg-gradient-to-br from-slate-50 via-slate-100/50 to-purple-50/30 px-4 sm:px-6 lg:px-8 py-8";
+    ? "relative min-h-screen overflow-hidden rounded-3xl bg-gradient-to-b from-[#0a0a0f] via-[#0e0e14] to-[#11111a] px-4 sm:px-6 lg:px-8 py-8"
+    : "relative min-h-screen overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 via-slate-100/50 to-purple-50/30 px-4 sm:px-6 lg:px-8 py-8";
   const headerBg = isMapache
     ? "bg-gradient-to-r from-[#0c0c14] via-[#11111c] to-[#161626] px-6 sm:px-8 py-6"
     : "bg-gradient-to-r from-[#311160] via-[#4c1d95] to-[#5b21b6] px-6 sm:px-8 py-6";
@@ -1076,7 +1097,17 @@ export default function GoalsPage({
 
   return (
     <div className={containerBg}>
-      <div className="max-w-[1600px] mx-auto space-y-8">
+      <div
+        className={`pointer-events-none absolute -top-24 right-0 h-72 w-72 rounded-full blur-3xl ${
+          isMapache ? "bg-purple-500/25" : "bg-purple-200/45"
+        }`}
+      />
+      <div
+        className={`pointer-events-none absolute -bottom-24 left-6 h-80 w-80 rounded-full blur-3xl ${
+          isMapache ? "bg-cyan-500/15" : "bg-indigo-200/45"
+        }`}
+      />
+      <div className="relative z-10 max-w-[1600px] mx-auto space-y-8">
         
         {/* Modern Header with KPIs */}
         <div className={overviewCardClass}>

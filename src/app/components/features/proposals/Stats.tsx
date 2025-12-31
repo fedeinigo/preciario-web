@@ -691,8 +691,10 @@ export default function Stats({
         columns={drillDownData?.columns || []}
       />
       
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-slate-50 p-6">
-        <div className="mx-auto max-w-[1600px] space-y-6">
+      <div className="relative min-h-screen overflow-hidden rounded-3xl bg-gradient-to-br from-purple-50 via-white to-slate-50 p-6">
+        <div className="pointer-events-none absolute -top-28 right-0 h-72 w-72 rounded-full bg-purple-200/45 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 left-10 h-80 w-80 rounded-full bg-indigo-200/40 blur-3xl" />
+        <div className="relative z-10 mx-auto max-w-[1600px] space-y-6">
           
           {/* ==================== TIER 1: FILTERS ==================== */}
           <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur-sm">

@@ -605,11 +605,6 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
             .filter((l) => l.sku && l.quantity > 0);
 
           if (pipedriveItems.length > 0 && docUrl) {
-            console.log("[sync] items ->", {
-              len: pipedriveItems.length,
-              sample: pipedriveItems.slice(0, 3),
-            });
-
             const syncRes = await fetch("/api/pipedrive/sync", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -973,8 +968,10 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-slate-50 p-6">
-      <div className="mx-auto max-w-[1800px]">
+    <div className="relative min-h-screen overflow-hidden rounded-3xl bg-gradient-to-br from-purple-50 via-white to-slate-50 p-6">
+      <div className="pointer-events-none absolute -top-24 left-10 h-64 w-64 rounded-full bg-purple-200/40 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 right-10 h-72 w-72 rounded-full bg-indigo-200/40 blur-3xl" />
+      <div className="relative z-10 mx-auto max-w-[1800px]">
         <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)_300px] gap-6">
           <aside className="hidden xl:block">
             <div className="space-y-6">

@@ -173,7 +173,6 @@ type FetchStatsOptions = {
 };
 
 type CachedEntry<T> = {
-  key: string;
   expiresAt: number;
   promise: Promise<T>;
 };
@@ -204,7 +203,6 @@ function setCached<T>(
   ttl: number,
 ) {
   const entry: CachedEntry<T> = {
-    key,
     expiresAt: Date.now() + ttl,
     promise,
   };
@@ -316,16 +314,6 @@ export async function fetchProposalsPage(
   }
 
   return fetchPromise;
-}
-
-export async function fetchProposalsFacets(filters: ProposalFilters): Promise<ProposalFacets> {
-  const result = await fetchProposalsPage(filters, {
-    page: 1,
-    pageSize: 1,
-    includeItems: false,
-    includeFacets: true,
-  });
-  return result.facets ?? { countries: [] };
 }
 
 export async function fetchAllProposals(options?: FetchAllOptions): Promise<ProposalsListResult> {
@@ -455,61 +443,4 @@ export async function fetchProposalStats(
   }
 
   return fetchPromise;
-}
-
-export async function fetchActiveUsersCount(
-  range: { from: string; to: string },
-  init?: RequestInit,
-): Promise<number> {
-  const baseInit: RequestInit = { ...(init ?? {}), cache: init?.cache ?? "no-store" };
-  const params = new URLSearchParams({ aggregate: "activeUsers", from: range.from, to: range.to });
-  const response = await fetch(`/api/proposals?${params.toString()}`, baseInit);
-
-  if (!response.ok) {
-    const error = new Error("Failed to fetch active proposal users") as FetchError;
-    error.status = response.status;
-    throw error;
-  }
-
-  const payload = (await response.json()) as unknown;
-  const count = isRecord(payload) ? toNumber(payload.activeUsers ?? payload.count) : undefined;
-
-  if (typeof count !== "number") {
-    throw new Error("Invalid response for active users aggregate");
-  }
-
-  return count;
-}
-
-export async function fetchWonProposalsTotal(
-  params: { userEmail: string; from: string; to: string },
-  init?: RequestInit,
-): Promise<number> {
-  const baseInit: RequestInit = { ...(init ?? {}), cache: init?.cache ?? "no-store" };
-  const searchParams = new URLSearchParams({
-    aggregate: "sum",
-    status: "WON",
-    userEmail: params.userEmail,
-    from: params.from,
-    to: params.to,
-  });
-
-  const response = await fetch(`/api/proposals?${searchParams.toString()}`, baseInit);
-
-  if (!response.ok) {
-    const error = new Error("Failed to fetch won proposals total") as FetchError;
-    error.status = response.status;
-    throw error;
-  }
-
-  const payload = (await response.json()) as unknown;
-  const total = isRecord(payload)
-    ? toNumber(payload.totalAmount ?? payload.total ?? payload.sum ?? payload.value)
-    : undefined;
-
-  if (typeof total !== "number") {
-    throw new Error("Invalid response for won proposals aggregate");
-  }
-
-  return total;
 }

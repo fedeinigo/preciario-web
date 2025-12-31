@@ -98,7 +98,7 @@ export default function MapachePortalPipedrivePage() {
     if (isLoading) return;
     setIsLoading(true);
     try {
-      const response = await fetch("/api/pipedrive/deals");
+      const response = await fetch("/api/pipedrive/deals?force=1");
       const payload = (await response.json()) as ApiResponse;
       if (!response.ok) {
         throw new Error("Error de red");
@@ -406,24 +406,26 @@ export default function MapachePortalPipedrivePage() {
     }
   }, [assignLink, handleRefresh]);
 
-  const totalValue = React.useMemo(() => 
-    filteredDeals.reduce((sum, deal) => sum + (deal.value ?? 0), 0), 
-    [filteredDeals]
-  );
-  
-  const wonDealsCount = React.useMemo(() => 
-    filteredDeals.filter(d => d.status === "won").length, 
-    [filteredDeals]
-  );
-  
-  const wonDealsValue = React.useMemo(() => 
-    filteredDeals.filter(d => d.status === "won").reduce((sum, deal) => sum + (deal.value ?? 0), 0), 
-    [filteredDeals]
-  );
+  const { totalValue, wonDealsCount, wonDealsValue } = React.useMemo(() => {
+    let total = 0;
+    let wonCount = 0;
+    let wonValue = 0;
+    for (const deal of filteredDeals) {
+      const value = deal.value ?? 0;
+      total += value;
+      if (deal.status === "won") {
+        wonCount += 1;
+        wonValue += value;
+      }
+    }
+    return { totalValue: total, wonDealsCount: wonCount, wonDealsValue: wonValue };
+  }, [filteredDeals]);
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-[#0a0a0f] via-[#0e0e14] to-[#11111a] px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mx-auto max-w-[1600px] space-y-6">
+    <div className="relative min-h-screen w-full overflow-hidden rounded-3xl bg-gradient-to-b from-[#0a0a0f] via-[#0e0e14] to-[#11111a] px-4 sm:px-6 lg:px-8 py-8">
+      <div className="pointer-events-none absolute -top-16 right-8 h-72 w-72 rounded-full bg-purple-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 left-6 h-80 w-80 rounded-full bg-cyan-500/15 blur-3xl" />
+      <div className="relative z-10 mx-auto max-w-[1600px] space-y-6">
         
         {/* Header Card with KPIs */}
         <div className="rounded-3xl border border-white/10 bg-[#0f0f17] shadow-[0_20px_50px_rgba(0,0,0,0.45)] overflow-hidden">

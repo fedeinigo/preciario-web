@@ -35,8 +35,6 @@ type ConfigurationsPageClientProps = {
   isAdmin: boolean;
 };
 
-let teamFetchCount = 0;
-
 const teamsStore = {
   state: {
     teams: [] as TeamRow[],
@@ -58,9 +56,6 @@ async function refreshTeamsData() {
   teamsStore.state.loading = true;
   teamsStore.state.error = null;
   notifyTeamsSubscribers();
-
-  teamFetchCount += 1;
-  console.debug("[TeamsStore] fetching teams (#" + teamFetchCount + ")");
 
   const promise = (async () => {
     try {
@@ -117,12 +112,7 @@ function useTeamsData() {
     loading: state.loading,
     error: state.error,
     refresh: refreshTeamsData,
-    fetchCount: teamFetchCount,
   };
-}
-
-export function getTeamsFetchCount() {
-  return teamFetchCount;
 }
 
 export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPageClientProps) {
@@ -141,6 +131,7 @@ export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPage
       description: configT("teamPanel.header.description"),
       Icon: Users2,
       gradient: "from-blue-500/10 to-blue-600/5",
+      glowColor: "shadow-blue-500/10 hover:shadow-blue-500/20",
       stat: loadingTeams ? "..." : teams.length.toString(),
       statLabel: "equipos activos",
     },
@@ -151,60 +142,74 @@ export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPage
       description: configT("userPanel.header.description"),
       Icon: ShieldCheck,
       gradient: "from-purple-500/10 to-purple-600/5",
+      glowColor: "shadow-purple-500/10 hover:shadow-purple-500/20",
       stat: loadingUsers ? "..." : users.length.toString(),
       statLabel: "usuarios registrados",
     },
   ] as const;
 
   return (
-    <div className="space-y-8">
-      <div className="mx-auto max-w-2xl">
-        <div className="overflow-hidden rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-lg">
-          <div className="px-8 py-6 text-center">
-            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-purple-800">
-              Configuraciones del Sistema
-            </h1>
-            <p className="mt-2 text-sm text-slate-600">
-              Gestiona equipos, usuarios y permisos de acceso desde un solo lugar.
-            </p>
+    <ConfigPageShell>
+      <div className="space-y-8">
+        <div className="mx-auto max-w-3xl">
+          <div className="overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-purple-50 shadow-[0_18px_40px_rgba(76,29,149,0.12)]">
+            <div className="px-8 py-7 text-center">
+              <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-purple-800">
+                Configuraciones del Sistema
+              </h1>
+              <p className="mt-2 text-sm text-slate-600">
+                Gestiona equipos, usuarios y permisos de acceso desde un solo lugar.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {summarySections.map(({ id, href, title, description: desc, Icon, stat, statLabel }) => (
-          <Link
-            key={id}
-            href={href}
-            className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white p-6 text-left shadow-sm transition-all duration-200 hover:border-purple-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
-          >
-            <div className="flex items-start gap-4">
-              <div className="rounded-lg bg-purple-100 p-3 transition-colors group-hover:bg-purple-200">
-                <Icon className="h-6 w-6 text-purple-600" aria-hidden="true" />
-              </div>
-              
-              <div className="flex-1 space-y-3">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-                    <p className="mt-1 text-sm text-slate-600">{desc}</p>
+        <div className="grid gap-4 md:grid-cols-2">
+          {summarySections.map(
+            ({ id, href, title, description: desc, Icon, gradient, glowColor, stat, statLabel }) => (
+              <Link
+                key={id}
+                href={href}
+                className={[
+                  "group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition-all duration-200 hover:border-purple-300 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2",
+                  glowColor,
+                ].join(" ")}
+              >
+                <div
+                  className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 transition-opacity duration-300 group-hover:opacity-100`}
+                />
+                <div className="relative z-10 flex items-start gap-4">
+                  <div className="rounded-2xl bg-purple-100 p-3 transition-colors group-hover:bg-purple-200">
+                    <Icon className="h-6 w-6 text-purple-600" aria-hidden="true" />
                   </div>
-                  <div className="flex flex-col items-end text-right">
-                    <div className="text-2xl font-bold text-slate-900">{stat}</div>
-                    <div className="text-xs text-slate-500">{statLabel}</div>
+
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+                        <p className="mt-1 text-sm text-slate-600">{desc}</p>
+                      </div>
+                      <div className="flex flex-col items-end text-right">
+                        <div className="text-2xl font-bold text-slate-900">{stat}</div>
+                        <div className="text-xs text-slate-500">{statLabel}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center text-sm font-semibold text-purple-600">
+                      {sectionsT("visit")}
+                      <ArrowRight
+                        className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1"
+                        aria-hidden="true"
+                      />
+                    </div>
                   </div>
                 </div>
-
-                <div className="flex items-center text-sm font-semibold text-purple-600">
-                  {sectionsT("visit")}
-                  <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
-                </div>
-              </div>
-            </div>
-          </Link>
-        ))}
+              </Link>
+            ),
+          )}
+        </div>
       </div>
-    </div>
+    </ConfigPageShell>
   );
 }
 
@@ -222,20 +227,22 @@ export function TeamManagementPageClient({ isAdmin }: ConfigurationsPageClientPr
   } = useAdminUsers({ isSuperAdmin: isAdmin });
 
   return (
-    <SectionPageShell
-      title={configT("tabs.teams")}
-      description={configT("teamPanel.header.description")}
-    >
-      <TeamManagementPanel
-        isAdmin={isAdmin}
-        teams={teams}
-        loadingTeams={loadingTeams}
-        refreshTeams={refreshTeams}
-        teamsError={teamsError}
-        users={users}
-        reloadUsers={reloadAdminUsers}
-      />
-    </SectionPageShell>
+    <ConfigPageShell>
+      <SectionPageShell
+        title={configT("tabs.teams")}
+        description={configT("teamPanel.header.description")}
+      >
+        <TeamManagementPanel
+          isAdmin={isAdmin}
+          teams={teams}
+          loadingTeams={loadingTeams}
+          refreshTeams={refreshTeams}
+          teamsError={teamsError}
+          users={users}
+          reloadUsers={reloadAdminUsers}
+        />
+      </SectionPageShell>
+    </ConfigPageShell>
   );
 }
 
@@ -249,12 +256,29 @@ export function UserManagementPageClient({ isAdmin }: ConfigurationsPageClientPr
   } = useAdminUsers({ isSuperAdmin: isAdmin });
 
   return (
-    <SectionPageShell
-      title={configT("tabs.users")}
-      description={configT("userPanel.header.description")}
-    >
-      <UserManagementPanel teams={teams} users={users} loadingUsers={loadingUsers || loadingTeams} reloadUsers={reloadAdminUsers} />
-    </SectionPageShell>
+    <ConfigPageShell>
+      <SectionPageShell
+        title={configT("tabs.users")}
+        description={configT("userPanel.header.description")}
+      >
+        <UserManagementPanel
+          teams={teams}
+          users={users}
+          loadingUsers={loadingUsers || loadingTeams}
+          reloadUsers={reloadAdminUsers}
+        />
+      </SectionPageShell>
+    </ConfigPageShell>
+  );
+}
+
+function ConfigPageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative min-h-[calc(100vh-var(--nav-h))] overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 via-white to-purple-50/40 p-4 sm:p-6">
+      <div className="pointer-events-none absolute -top-24 right-0 h-64 w-64 rounded-full bg-purple-200/45 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 left-8 h-72 w-72 rounded-full bg-indigo-200/40 blur-3xl" />
+      <div className="relative z-10 mx-auto max-w-[1500px]">{children}</div>
+    </div>
   );
 }
 
@@ -269,13 +293,11 @@ function SectionPageShell({
 }) {
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 via-white to-purple-50 px-6 py-4 shadow-sm">
+      <div className="rounded-2xl border border-purple-200 bg-gradient-to-r from-purple-50 via-white to-purple-50 px-6 py-5 shadow-[0_14px_30px_rgba(76,29,149,0.08)]">
         <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-slate-700">
           {title}
         </h1>
-        {description && (
-          <p className="mt-2 text-sm text-slate-600">{description}</p>
-        )}
+        {description && <p className="mt-2 text-sm text-slate-600">{description}</p>}
       </div>
       {children}
     </div>

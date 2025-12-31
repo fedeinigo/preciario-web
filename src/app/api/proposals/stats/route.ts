@@ -104,6 +104,7 @@ export async function GET(request: Request) {
     country,
   });
 
+  const hasUserEmailFilter = typeof where.userEmail !== "undefined";
   const [aggregateAll, uniqueCompaniesRows, uniqueUsersRows, wonAggregate] = await Promise.all([
     prisma.proposal.aggregate({
       where,
@@ -115,11 +116,13 @@ export async function GET(request: Request) {
       distinct: ["companyName"],
       select: { companyName: true },
     }),
-    prisma.proposal.findMany({
-      where,
-      distinct: ["userEmail"],
-      select: { userEmail: true },
-    }),
+    hasUserEmailFilter
+      ? Promise.resolve([] as Array<{ userEmail: string | null }>)
+      : prisma.proposal.findMany({
+          where,
+          distinct: ["userEmail"],
+          select: { userEmail: true },
+        }),
     prisma.proposal.aggregate({
       where: { ...where, status: ProposalStatus.WON },
       _sum: { totalAmount: true },
@@ -130,7 +133,7 @@ export async function GET(request: Request) {
   const totalCount = aggregateAll._count?._all ?? 0;
   const totalMonthly = Number(aggregateAll._sum?.totalAmount ?? 0);
   const uniqueCompanies = uniqueCompaniesRows.length;
-  const uniqueUsers = uniqueUsersRows.length;
+  const uniqueUsers = hasUserEmailFilter ? (totalCount > 0 ? 1 : 0) : uniqueUsersRows.length;
 
   const wonCount = wonAggregate._count?._all ?? 0;
   const wonAmount = Number(wonAggregate._sum?.totalAmount ?? 0);

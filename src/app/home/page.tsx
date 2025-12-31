@@ -52,47 +52,53 @@ export default async function HomePage() {
   const userName = session.user?.name?.split(" ")[0] || "Usuario";
 
   return (
-    <section className="min-h-[calc(100vh-var(--nav-h))] bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-8 flex items-center justify-between">
+    <section className="relative min-h-[calc(100vh-var(--nav-h))] overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 via-white to-purple-50/40 px-4 py-10">
+      <div className="pointer-events-none absolute -top-24 right-6 h-72 w-72 rounded-full bg-purple-200/45 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 left-6 h-80 w-80 rounded-full bg-indigo-200/35 blur-3xl" />
+      <div className="relative z-10 mx-auto max-w-6xl">
+        <div className="mb-10 flex items-center justify-between">
           <div>
-            <div className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-purple-600">
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-purple-200 bg-white/70 px-3 py-1 text-sm font-medium text-purple-700 shadow-sm">
               <Sparkles className="h-4 w-4" />
               Hola, {userName}
             </div>
-            <h1 className="text-3xl font-bold text-slate-900">
-              Selecciona tu Portal
-            </h1>
+            <h1 className="text-3xl font-bold text-slate-900">Selecciona tu Portal</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Acceso rapido a tus tableros y herramientas del dia a dia.
+            </p>
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           {PORTAL_CARDS.map((portal) => {
             const isEnabled = accessiblePortals.has(portal.id);
             const Icon = portal.icon;
-            
+            const accent =
+              portal.id === "mapache"
+                ? { container: "bg-blue-100 group-hover:bg-blue-200", icon: "text-blue-600", text: "text-blue-600" }
+                : { container: "bg-purple-100 group-hover:bg-purple-200", icon: "text-purple-600", text: "text-purple-600" };
+
             const card = (
               <div
-                className={`group relative overflow-hidden rounded-xl border transition-all duration-200 ${
+                className={`group relative overflow-hidden rounded-2xl border transition-all duration-200 ${
                   isEnabled
-                    ? "border-slate-200 bg-white shadow-sm hover:border-purple-300 hover:shadow-md"
+                    ? `border-slate-200 bg-white shadow-sm hover:border-purple-300 hover:shadow-xl ${portal.glowColor}`
                     : "border-slate-200 bg-slate-50 opacity-50"
                 }`}
               >
-                <div className="p-5">
+                <div
+                  className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${portal.gradient} opacity-0 transition-opacity duration-300 group-hover:opacity-100`}
+                />
+                <div className="relative z-10 p-6">
                   <div className="mb-4 flex items-center justify-between">
-                    <div className={`rounded-lg p-2.5 ${
-                      isEnabled 
-                        ? "bg-purple-100 group-hover:bg-purple-200" 
-                        : "bg-slate-200"
-                    }`}>
-                      <Icon className={`h-5 w-5 ${isEnabled ? "text-purple-600" : "text-slate-400"}`} />
+                    <div className={`rounded-2xl p-3 ${isEnabled ? accent.container : "bg-slate-200"}`}>
+                      <Icon className={`h-5 w-5 ${isEnabled ? accent.icon : "text-slate-400"}`} />
                     </div>
                     {!isEnabled && <Lock className="h-4 w-4 text-slate-400" />}
                   </div>
 
                   <div className="space-y-2">
-                    <h3 className={`text-base font-bold ${isEnabled ? "text-slate-900" : "text-slate-500"}`}>
+                    <h3 className={`text-lg font-bold ${isEnabled ? "text-slate-900" : "text-slate-500"}`}>
                       {portal.title}
                     </h3>
                     <p className={`text-sm leading-snug ${isEnabled ? "text-slate-600" : "text-slate-400"}`}>
@@ -101,9 +107,14 @@ export default async function HomePage() {
                   </div>
 
                   {isEnabled && (
-                    <div className="mt-4 flex items-center text-sm font-semibold text-purple-600">
+                    <div className={`mt-4 inline-flex items-center text-sm font-semibold ${accent.text}`}>
                       Acceder
-                      <svg className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg
+                        className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </div>
@@ -128,9 +139,9 @@ export default async function HomePage() {
           })}
         </div>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
-          ¿Necesitas acceso a más portales? Contacta al administrador de tu equipo.
-        </p>
+        <div className="mt-8 rounded-2xl border border-dashed border-purple-200 bg-white/70 px-6 py-4 text-center text-sm text-slate-600 shadow-sm">
+          Necesitas acceso a mas portales? Contacta al administrador de tu equipo.
+        </div>
       </div>
     </section>
   );
