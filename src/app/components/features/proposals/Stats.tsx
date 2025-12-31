@@ -738,7 +738,7 @@ export default function Stats({
                 </div>
 
                 {/* Quick KPI Summary */}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
                     <div className="flex items-center gap-2">
                       <BarChart3 className="h-4 w-4 text-purple-200" />
@@ -752,20 +752,6 @@ export default function Stats({
                       <p className="text-xs font-medium uppercase tracking-wide text-purple-200">Facturacion</p>
                     </div>
                     <p className="mt-1 text-2xl font-bold text-white">{formatUSD(totalMonthly)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
-                    <div className="flex items-center gap-2">
-                      <Trophy className="h-4 w-4 text-emerald-300" />
-                      <p className="text-xs font-medium uppercase tracking-wide text-emerald-200">Ganadas</p>
-                    </div>
-                    <p className="mt-1 text-2xl font-bold text-white">{wonCount}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-emerald-300" />
-                      <p className="text-xs font-medium uppercase tracking-wide text-emerald-200">Win Rate</p>
-                    </div>
-                    <p className="mt-1 text-2xl font-bold text-white">{winRate.toFixed(1)}%</p>
                   </div>
                 </div>
               </div>
@@ -1028,24 +1014,6 @@ export default function Stats({
               />
             </div>
 
-            {/* Row 3: 3 Won Metrics */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <EnhancedGlassKpi
-                label={kpisT("wonAmount")}
-                value={formatUSD(wonAmount)}
-                sparklineData={sparklineWonAmount}
-              />
-              <EnhancedGlassKpi
-                label={kpisT("winRate")}
-                value={`${winRate.toFixed(1)}%`}
-                sparklineData={sparklineWinRate}
-              />
-              <EnhancedGlassKpi
-                label={kpisT("wonAverageTicket")}
-                value={formatUSD(wonAvgTicket)}
-                sparklineData={sparklineWonAvgTicket}
-              />
-            </div>
             </div>
           </section>
 

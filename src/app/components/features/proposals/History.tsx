@@ -31,7 +31,7 @@ import {
 import { useAdminUsers } from "./hooks/useAdminUsers";
 import { usePathname } from "next/navigation";
 
-type SortKey = "id" | "company" | "country" | "email" | "monthly" | "created" | "status";
+type SortKey = "id" | "company" | "country" | "email" | "monthly" | "created";
 type SortDir = "asc" | "desc";
 function QuickRanges({
   setFrom,
@@ -94,7 +94,6 @@ export default function History({
   const modalT = useTranslations("proposals.history.deleteModal");
   const toastT = useTranslations("proposals.history.toast");
   const csvT = useTranslations("proposals.history.csv");
-  const statusT = useTranslations("proposals.history.table.statusLabels");
 
   const [rows, setRows] = useState<ProposalRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -271,13 +270,6 @@ export default function History({
     }
   }, [page, totalPages]);
 
-  const translateStatus = (status: string | null | undefined) => {
-    const normalized = String(status ?? "open").toLowerCase();
-    const key = `proposals.history.table.statusLabels.${normalized}`;
-    const translated = statusT(normalized);
-    return translated === key ? status ?? "OPEN" : translated;
-  };
-
   const downloadCurrentCsv = async () => {
     const headers = [
       csvT("headers.id"),
@@ -286,7 +278,6 @@ export default function History({
       csvT("headers.email"),
       csvT("headers.monthly"),
       csvT("headers.created"),
-      csvT("headers.status"),
       csvT("headers.url"),
     ];
     const effectiveTeam =
@@ -316,7 +307,6 @@ export default function History({
         p.userEmail || "",
         Number(p.totalAmount).toFixed(2),
         formatDateTime(p.createdAt as unknown as string),
-        translateStatus(p.status ?? "OPEN"),
         p.docUrl || "",
       ]);
       const csv = buildCsv(headers, data);
@@ -480,7 +470,6 @@ export default function History({
                       ["email", tableT("headers.email")],
                       ["monthly", tableT("headers.monthly")],
                       ["created", tableT("headers.created")],
-                      ["status", tableT("headers.status")],
                       ["", tableT("headers.actions")],
                     ] as Array<[SortKey | "", string]>
                   ).map(([k, label], idx) => {
@@ -502,7 +491,7 @@ export default function History({
               </thead>
 
               {loading ? (
-                <TableSkeletonRows rows={6} cols={8} />
+                <TableSkeletonRows rows={6} cols={7} />
               ) : (
                 <tbody>
                   {paged.map((p, i) => (
@@ -532,41 +521,6 @@ export default function History({
                       </td>
                       <td className="table-td whitespace-nowrap" title={tableT("createdTitle")}>
                         {formatDateTime(p.createdAt as unknown as string)}
-                      </td>
-                      <td className="table-td">
-                        <div className="flex flex-col gap-1">
-                          <span
-                            className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${
-                              p.status === "WON"
-                                ? "bg-green-100 text-green-700"
-                                : p.status === "LOST"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-gray-100 text-gray-700"
-                            }`}
-                            title={
-                              p.status === "WON"
-                                ? tableT("statusBadges.won")
-                                : p.status === "LOST"
-                                ? tableT("statusBadges.lost")
-                                : tableT("statusBadges.open")
-                            }
-                          >
-                            {translateStatus(p.status)}
-                          </span>
-                          {p.status === "WON" && (
-                            <span
-                              className={`inline-block rounded px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                                p.wonType === "UPSELL"
-                                  ? "bg-amber-100 text-amber-700"
-                                  : "bg-blue-100 text-blue-700"
-                              }`}
-                            >
-                              {p.wonType === "UPSELL"
-                                ? tableT("wonTypeBadges.upsell")
-                                : tableT("wonTypeBadges.newCustomer")}
-                            </span>
-                          )}
-                        </div>
                       </td>
                       <td className="table-td">
                         <div className="flex items-center gap-2 justify-end">
