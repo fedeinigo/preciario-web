@@ -1,18 +1,20 @@
 // src/constants/portals.ts
 
-export type PortalAccessId = "direct" | "mapache" | "partner" | "marketing";
+export type PortalAccessId = "direct" | "mapache" | "partner" | "marketing" | "analytics";
 
 export const ORDERED_PORTAL_ACCESS: readonly PortalAccessId[] = [
   "direct",
   "mapache",
   "partner",
   "marketing",
+  "analytics",
 ];
 
 export const MUTABLE_PORTAL_ACCESS = [
   "mapache",
   "partner",
   "marketing",
+  "analytics",
 ] as const satisfies readonly PortalAccessId[];
 
 export function includeDefaultPortal(
