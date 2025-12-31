@@ -716,12 +716,6 @@ export default function NavbarClient({ session }: NavbarClientProps) {
                     active={analyticsActiveTab === "reuniones-directo"}
                     href={ANALYTICS_PORTAL_TAB_ROUTES["reuniones-directo"]}
                   />
-                  <TabBtn
-                    label={analyticsTabsT("configuracion")}
-                    Icon={Settings}
-                    active={analyticsActiveTab === "configuracion"}
-                    href={ANALYTICS_PORTAL_TAB_ROUTES.configuracion}
-                  />
                 </div>
               </div>
             </div>
