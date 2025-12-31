@@ -16,6 +16,7 @@ const DB_PORTAL_TO_ID: Record<DbPortalKey, PortalAccessId> = {
   [DbPortalKey.MAPACHE]: "mapache",
   [DbPortalKey.PARTNER]: "partner",
   [DbPortalKey.MARKETING]: "marketing",
+  [DbPortalKey.ANALYTICS]: "analytics",
 };
 
 function resolvePortalAccess({
