@@ -758,180 +758,185 @@ export default function Stats({
             </div>
 
             {/* Filters Section */}
-            <div className="bg-gradient-to-br from-purple-50/80 via-white to-slate-50/50 p-5 sm:p-6">
-              <div className="mb-4">
-                <QuickRanges from={from} to={to} setFrom={setFrom} setTo={setTo} />
+            <div className="space-y-4 bg-gradient-to-br from-purple-50/80 via-white to-slate-50/50 p-5 sm:p-6">
+              {/* Row 1: Quick Ranges + Active Filters */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <QuickRanges from={from} to={to} setFrom={setFrom} setTo={setTo} />
+                </div>
+                <span className="text-xs text-slate-500" aria-live="polite">
+                  {filtersSummaryText}
+                </span>
               </div>
-              
-              <div className="mb-4 rounded-xl border border-purple-200/50 bg-white/80 p-4 shadow-sm backdrop-blur-sm">
-                <div className="flex items-center justify-between">
+
+              {/* Active Filter Chips */}
+              {activeFilterChips.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-purple-200/60 bg-purple-50/50 px-3 py-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600">
                     {filtersT("active.title")}
                   </span>
-                  <span className="text-xs text-slate-500" aria-live="polite">
-                    {filtersSummaryText}
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                {activeFilterChips.length ? (
-                  activeFilterChips.map((filter) => (
+                  {activeFilterChips.map((filter) => (
                     <button
                       key={filter.id}
                       type="button"
                       onClick={filter.onClear}
-                      className="group inline-flex items-center gap-2 rounded-full border border-purple-300 bg-purple-50 px-3 py-1 text-xs font-medium text-purple-700 transition hover:border-purple-400 hover:bg-purple-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/40"
+                      className="group inline-flex items-center gap-1.5 rounded-full border border-purple-300 bg-white px-2.5 py-0.5 text-xs font-medium text-purple-700 transition hover:border-purple-400 hover:bg-purple-100"
                       aria-label={`${filtersT("active.clear")} ${filter.label}`}
                     >
                       <span>{filter.label}</span>
-                      <X
-                        className="h-3.5 w-3.5 text-purple-500 transition group-hover:text-purple-700"
-                        aria-hidden="true"
-                      />
+                      <X className="h-3 w-3 text-purple-400 group-hover:text-purple-600" aria-hidden="true" />
                     </button>
-                  ))
-                ) : (
-                  <span className="text-xs text-slate-500">{filtersT("active.none")}</span>
-                )}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
-                  {filtersT("from")}
-                </label>
-                <input
-                  type="date"
-                  className={controlClass}
-                  value={from}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFrom(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
-                  {filtersT("to")}
-                </label>
-                <input
-                  type="date"
-                  className={controlClass}
-                  value={to}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTo(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
-                  {filtersT("orderBy.label")}
-                </label>
-                <select
-                  className={controlClass}
-                  value={orderKey}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                    setOrderKey(e.target.value as OrderKey)
-                  }
-                >
-                  <option value="createdAt">{filtersT("orderBy.createdAt")}</option>
-                  <option value="totalAmount">{filtersT("orderBy.totalAmount")}</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
-                  {filtersT("direction.label")}
-                </label>
-                <select
-                  className={controlClass}
-                  value={orderDir}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                    setOrderDir(e.target.value as OrderDir)
-                  }
-                >
-                  <option value="desc">{filtersT("direction.desc")}</option>
-                  <option value="asc">{filtersT("direction.asc")}</option>
-                </select>
-              </div>
-              {isSuperAdmin ? (
-                <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
-                    {filtersT("team.label")}
-                  </label>
-                  <select
-                    className={controlClass}
-                    value={teamFilter}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTeamFilter(e.target.value)}
-                  >
-                    <option value="">{filtersT("team.all")}</option>
-                    {visibleTeams.map((team) => (
-                      <option key={team} value={team}>
-                        {team}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
-                  {filtersT("country.label")}
-                </label>
-                <select
-                  className={controlClass}
-                  value={countryFilter}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCountryFilter(e.target.value)}
-                >
-                  <option value="">{filtersT("country.all")}</option>
-                  {countryOptions.map((country) => (
-                    <option key={country} value={country}>
-                      {country}
-                    </option>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-brand-primary/80">
-                  {filtersT("user.label")}
-                </label>
-                <select
-                  className={controlClass}
-                  value={userFilter}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setUserFilter(e.target.value)}
-                  disabled={role === "usuario"}
-                >
-                  <option value="">
-                    {role === "usuario" ? currentEmail : filtersT("user.all")}
-                  </option>
-                  {(role === "usuario" ? [currentEmail] : userOptions).map((email) =>
-                    email ? (
-                      <option key={email} value={email}>
-                        {email}
-                      </option>
-                    ) : null,
+                </div>
+              )}
+
+              {/* Filter Controls Grid */}
+              <div className="rounded-xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
+                {/* Row: Date Range */}
+                <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      {filtersT("from")}
+                    </label>
+                    <input
+                      type="date"
+                      className={controlClass}
+                      value={from}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFrom(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      {filtersT("to")}
+                    </label>
+                    <input
+                      type="date"
+                      className={controlClass}
+                      value={to}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTo(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      {filtersT("orderBy.label")}
+                    </label>
+                    <select
+                      className={controlClass}
+                      value={orderKey}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                        setOrderKey(e.target.value as OrderKey)
+                      }
+                    >
+                      <option value="createdAt">{filtersT("orderBy.createdAt")}</option>
+                      <option value="totalAmount">{filtersT("orderBy.totalAmount")}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      {filtersT("direction.label")}
+                    </label>
+                    <select
+                      className={controlClass}
+                      value={orderDir}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                        setOrderDir(e.target.value as OrderDir)
+                      }
+                    >
+                      <option value="desc">{filtersT("direction.desc")}</option>
+                      <option value="asc">{filtersT("direction.asc")}</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Row: Team, Country, User + Actions */}
+                <div className="flex flex-wrap items-end gap-4">
+                  {isSuperAdmin && (
+                    <div className="min-w-[160px] flex-1">
+                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        {filtersT("team.label")}
+                      </label>
+                      <select
+                        className={controlClass}
+                        value={teamFilter}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTeamFilter(e.target.value)}
+                      >
+                        <option value="">{filtersT("team.all")}</option>
+                        {visibleTeams.map((team) => (
+                          <option key={team} value={team}>
+                            {team}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   )}
-                </select>
-              </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-end xl:col-span-2">
-                  <button
-                    type="button"
-                    className={secondaryButtonClass}
-                    onClick={() => {
-                      setFrom("");
-                      setTo("");
-                      setTeamFilter("");
-                      setCountryFilter("");
-                      setUserFilter("");
-                      setOrderKey("createdAt");
-                      setOrderDir("desc");
-                      setTopN(20);
-                      setShowAll(false);
-                      toast.info(toastT("reset"));
-                    }}
-                  >
-                    {actionsT("reset")}
-                  </button>
-                  <button
-                    type="button"
-                    className={primaryButtonClass}
-                    onClick={exportFilteredProposalsCsv}
-                  >
-                    {actionsT("exportFiltered")}
-                  </button>
+                  <div className="min-w-[140px] flex-1">
+                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      {filtersT("country.label")}
+                    </label>
+                    <select
+                      className={controlClass}
+                      value={countryFilter}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCountryFilter(e.target.value)}
+                    >
+                      <option value="">{filtersT("country.all")}</option>
+                      {countryOptions.map((country) => (
+                        <option key={country} value={country}>
+                          {country}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="min-w-[180px] flex-1">
+                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      {filtersT("user.label")}
+                    </label>
+                    <select
+                      className={controlClass}
+                      value={userFilter}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setUserFilter(e.target.value)}
+                      disabled={role === "usuario"}
+                    >
+                      <option value="">
+                        {role === "usuario" ? currentEmail : filtersT("user.all")}
+                      </option>
+                      {(role === "usuario" ? [currentEmail] : userOptions).map((email) =>
+                        email ? (
+                          <option key={email} value={email}>
+                            {email}
+                          </option>
+                        ) : null,
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Action Buttons - Always aligned right */}
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      type="button"
+                      className={secondaryButtonClass}
+                      onClick={() => {
+                        setFrom("");
+                        setTo("");
+                        setTeamFilter("");
+                        setCountryFilter("");
+                        setUserFilter("");
+                        setOrderKey("createdAt");
+                        setOrderDir("desc");
+                        setTopN(20);
+                        setShowAll(false);
+                        toast.info(toastT("reset"));
+                      }}
+                    >
+                      {actionsT("reset")}
+                    </button>
+                    <button
+                      type="button"
+                      className={primaryButtonClass}
+                      onClick={exportFilteredProposalsCsv}
+                    >
+                      {actionsT("exportFiltered")}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
