@@ -266,6 +266,20 @@ const messages: DeepRecord = {
 
       },
 
+      analyticsPortalTabs: {
+
+        dashboard: "Dashboard",
+
+        equipos: "Equipes",
+
+        regiones: "Regiões",
+
+        reuniones: "Reuniões",
+
+        configuracion: "Config",
+
+      },
+
       portalSwitcher: {
 
         button: "Portal",

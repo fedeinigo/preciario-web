@@ -180,6 +180,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const profileT = useTranslations("navbar.profile");
   const fallbacksT = useTranslations("navbar.fallbacks");
   const mapacheSectionsT = useTranslations("navbar.mapachePortalSections");
+  const analyticsTabsT = useTranslations("navbar.analyticsPortalTabs");
   const languageT = useTranslations("common.language");
   const configurationsT = useTranslations("configurations");
   const configurationsLabel = configurationsT("title");
@@ -692,31 +693,31 @@ export default function NavbarClient({ session }: NavbarClientProps) {
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div className="pointer-events-auto flex items-center gap-2">
                   <TabBtn
-                    label="Dashboard"
+                    label={analyticsTabsT("dashboard")}
                     Icon={LayoutGrid}
                     active={analyticsActiveTab === "dashboard"}
                     href={ANALYTICS_PORTAL_TAB_ROUTES.dashboard}
                   />
                   <TabBtn
-                    label="Equipos"
+                    label={analyticsTabsT("equipos")}
                     Icon={Users}
                     active={analyticsActiveTab === "equipos"}
                     href={ANALYTICS_PORTAL_TAB_ROUTES.equipos}
                   />
                   <TabBtn
-                    label="Regiones"
+                    label={analyticsTabsT("regiones")}
                     Icon={Globe}
                     active={analyticsActiveTab === "regiones"}
                     href={ANALYTICS_PORTAL_TAB_ROUTES.regiones}
                   />
                   <TabBtn
-                    label="Reuniones"
+                    label={analyticsTabsT("reuniones")}
                     Icon={Calendar}
                     active={analyticsActiveTab === "reuniones-directo"}
                     href={ANALYTICS_PORTAL_TAB_ROUTES["reuniones-directo"]}
                   />
                   <TabBtn
-                    label="Config"
+                    label={analyticsTabsT("configuracion")}
                     Icon={Settings}
                     active={analyticsActiveTab === "configuracion"}
                     href={ANALYTICS_PORTAL_TAB_ROUTES.configuracion}
