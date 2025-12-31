@@ -12,8 +12,7 @@ export const ORDERED_PORTAL_ACCESS: readonly PortalAccessId[] = [
 
 export const MUTABLE_PORTAL_ACCESS = [
   "mapache",
-  "partner",
-  "marketing",
+  "analytics",
 ] as const satisfies readonly PortalAccessId[];
 
 export function includeDefaultPortal(

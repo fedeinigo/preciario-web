@@ -21,12 +21,12 @@ const DB_TO_PORTAL: Record<DbPortalKey, PortalAccessId> = {
   [DbPortalKey.MAPACHE]: "mapache",
   [DbPortalKey.PARTNER]: "partner",
   [DbPortalKey.MARKETING]: "marketing",
+  [DbPortalKey.ANALYTICS]: "analytics",
 };
 
 const PORTAL_TO_DB: Record<(typeof MUTABLE_PORTAL_ACCESS)[number], DbPortalKey> = {
   mapache: DbPortalKey.MAPACHE,
-  partner: DbPortalKey.PARTNER,
-  marketing: DbPortalKey.MARKETING,
+  analytics: DbPortalKey.ANALYTICS,
 };
 
 function portalsFromDb(

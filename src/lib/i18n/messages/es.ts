@@ -326,6 +326,14 @@ const messages: DeepRecord = {
 
           },
 
+          analytics: {
+
+            label: "Portal Analitico",
+
+            description: "Dashboard de metricas y rendimiento",
+
+          },
+
         },
 
       },

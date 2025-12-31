@@ -334,6 +334,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     (navbarVariant === "direct" || navbarVariant === "home");
   const userPortals = session?.user?.portals ?? ["direct"];
   const canOpenMapachePortal = userPortals.includes("mapache");
+  const canOpenAnalyticsPortal = isAdminRole || userPortals.includes("analytics");
   const canSeeUsers = isAdminRole;
 
   // ---- Tabs del portal directo (navegaci├│n nueva) ----
@@ -635,6 +636,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
           {showPortalSwitcher ? (
             <PortalLauncher
               canAccessMapache={canOpenMapachePortal}
+              canAccessAnalytics={canOpenAnalyticsPortal}
               variant={navTheme.portalVariant}
               onMapacheNavigate={beginMapacheTransition}
             />

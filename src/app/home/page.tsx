@@ -80,7 +80,10 @@ export default async function HomePage() {
     );
   }
 
-  const accessiblePortals = new Set<PortalAccessId>(session.user?.portals ?? ["direct"]);
+  const isAdmin = session.user?.role === "admin";
+  const accessiblePortals = isAdmin
+    ? new Set<PortalAccessId>(["direct", "mapache", "partner", "marketing", "analytics"])
+    : new Set<PortalAccessId>(session.user?.portals ?? ["direct"]);
   const userName = session.user?.name?.split(" ")[0] || "Usuario";
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? "Buenos dias" : currentHour < 19 ? "Buenas tardes" : "Buenas noches";

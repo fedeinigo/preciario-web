@@ -9,13 +9,14 @@ import Modal from "@/app/components/ui/Modal";
 import { useTranslations } from "@/app/LanguageProvider";
 type PortalLauncherProps = {
   canAccessMapache: boolean;
+  canAccessAnalytics?: boolean;
   onMapacheNavigate?: () => void;
   className?: string;
   buttonClassName?: string;
   variant?: "dark" | "light" | "mapache" | "direct";
 };
 
-type PortalOptionId = "direct" | "mapache";
+type PortalOptionId = "direct" | "mapache" | "analytics";
 
 type PortalOption = {
   id: PortalOptionId;
@@ -27,6 +28,7 @@ type PortalOption = {
 const PORTAL_ROUTES: Record<PortalOptionId, string> = {
   direct: "/portal/directo",
   mapache: "/portal/mapache",
+  analytics: "/portal/analytics",
 };
 
 type PortalLauncherVariant = NonNullable<PortalLauncherProps["variant"]>;
@@ -133,6 +135,7 @@ const launcherThemes: Record<PortalLauncherVariant, LauncherTheme> = {
 
 export default function PortalLauncher({
   canAccessMapache,
+  canAccessAnalytics = false,
   onMapacheNavigate,
   className = "",
   buttonClassName = "",
@@ -257,8 +260,17 @@ export default function PortalLauncher({
       });
     }
 
+    if (canAccessAnalytics) {
+      list.push({
+        id: "analytics",
+        label: portalOptionsText("analytics.label"),
+        description: portalOptionsText("analytics.description"),
+        href: PORTAL_ROUTES.analytics,
+      });
+    }
+
     return list;
-  }, [canAccessMapache, portalOptionsText]);
+  }, [canAccessMapache, canAccessAnalytics, portalOptionsText]);
 
   if (options.length <= 1) {
     return null;
