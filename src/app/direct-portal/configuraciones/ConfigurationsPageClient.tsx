@@ -150,58 +150,58 @@ export default function ConfigurationsPageClient({ isAdmin }: ConfigurationsPage
 
   return (
     <ConfigPageShell>
-      <div className="space-y-8">
-        <div className="mx-auto max-w-3xl">
-          <div className="overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-purple-50 shadow-[0_18px_40px_rgba(76,29,149,0.12)]">
-            <div className="px-8 py-7 text-center">
-              <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-purple-800">
-                Configuraciones del Sistema
-              </h1>
-              <p className="mt-2 text-sm text-slate-600">
-                Gestiona equipos, usuarios y permisos de acceso desde un solo lugar.
-              </p>
+      <div className="space-y-10">
+        <header className="text-center">
+          <div className="mx-auto max-w-2xl">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-purple-200/60 bg-white/80 px-4 py-2 text-sm font-medium text-purple-700 shadow-sm backdrop-blur-sm">
+              <ShieldCheck className="h-4 w-4 text-purple-500" />
+              Panel de Administracion
             </div>
+            <h1 className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl">
+              Configuraciones
+            </h1>
+            <p className="mx-auto mt-4 max-w-md text-base text-slate-600">
+              Gestiona equipos, usuarios y permisos de acceso desde un solo lugar.
+            </p>
           </div>
-        </div>
+        </header>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
           {summarySections.map(
             ({ id, href, title, description: desc, Icon, gradient, glowColor, stat, statLabel }) => (
               <Link
                 key={id}
                 href={href}
                 className={[
-                  "group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition-all duration-200 hover:border-purple-300 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2",
+                  "group relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 p-8 text-left shadow-lg shadow-slate-200/50 backdrop-blur-sm transition-all duration-300 hover:border-purple-300 hover:shadow-2xl hover:shadow-purple-500/10 hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2",
                   glowColor,
                 ].join(" ")}
               >
                 <div
-                  className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 transition-opacity duration-300 group-hover:opacity-100`}
+                  className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 transition-opacity duration-500 group-hover:opacity-100`}
                 />
-                <div className="relative z-10 flex items-start gap-4">
-                  <div className="rounded-2xl bg-purple-100 p-3 transition-colors group-hover:bg-purple-200">
-                    <Icon className="h-6 w-6 text-purple-600" aria-hidden="true" />
+                <div className="relative z-10">
+                  <div className="mb-6 flex items-start justify-between">
+                    <div className="rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 p-4 shadow-lg">
+                      <Icon className="h-6 w-6 text-white" aria-hidden="true" />
+                    </div>
+                    <div className="text-right">
+                      <div className="text-3xl font-bold text-slate-900">{stat}</div>
+                      <div className="text-xs font-medium text-slate-500">{statLabel}</div>
+                    </div>
                   </div>
 
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-                        <p className="mt-1 text-sm text-slate-600">{desc}</p>
-                      </div>
-                      <div className="flex flex-col items-end text-right">
-                        <div className="text-2xl font-bold text-slate-900">{stat}</div>
-                        <div className="text-xs text-slate-500">{statLabel}</div>
-                      </div>
-                    </div>
+                  <div className="space-y-2">
+                    <h2 className="text-xl font-bold text-slate-900">{title}</h2>
+                    <p className="text-sm leading-relaxed text-slate-600">{desc}</p>
+                  </div>
 
-                    <div className="flex items-center text-sm font-semibold text-purple-600">
-                      {sectionsT("visit")}
-                      <ArrowRight
-                        className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1"
-                        aria-hidden="true"
-                      />
-                    </div>
+                  <div className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-purple-600">
+                    {sectionsT("visit")}
+                    <ArrowRight
+                      className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1"
+                      aria-hidden="true"
+                    />
                   </div>
                 </div>
               </Link>
@@ -274,9 +274,10 @@ export function UserManagementPageClient({ isAdmin }: ConfigurationsPageClientPr
 
 function ConfigPageShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-[calc(100vh-var(--nav-h))] overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 via-white to-purple-50/40 p-4 sm:p-6">
-      <div className="pointer-events-none absolute -top-24 right-0 h-64 w-64 rounded-full bg-purple-200/45 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-24 left-8 h-72 w-72 rounded-full bg-indigo-200/40 blur-3xl" />
+    <div className="relative min-h-[calc(100vh-var(--nav-h))] overflow-hidden bg-gradient-to-br from-slate-50 via-white to-purple-50/30 p-4 sm:p-6 lg:p-8">
+      <div className="pointer-events-none absolute -top-32 right-0 h-[400px] w-[400px] rounded-full bg-gradient-to-br from-purple-200/50 via-violet-200/30 to-transparent blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 left-0 h-[350px] w-[350px] rounded-full bg-gradient-to-tr from-indigo-200/40 via-blue-200/20 to-transparent blur-3xl" />
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-100/30 blur-3xl" />
       <div className="relative z-10 mx-auto max-w-[1500px]">{children}</div>
     </div>
   );
@@ -292,12 +293,14 @@ function SectionPageShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-purple-200 bg-gradient-to-r from-purple-50 via-white to-purple-50 px-6 py-5 shadow-[0_14px_30px_rgba(76,29,149,0.08)]">
-        <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-slate-700">
+    <div className="space-y-8">
+      <div className="overflow-hidden rounded-3xl border border-purple-200/60 bg-white/80 px-8 py-7 shadow-lg shadow-purple-500/5 backdrop-blur-sm">
+        <h1 className="bg-gradient-to-r from-purple-600 via-violet-600 to-purple-800 bg-clip-text text-3xl font-bold tracking-tight text-transparent">
           {title}
         </h1>
-        {description && <p className="mt-2 text-sm text-slate-600">{description}</p>}
+        {description && (
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600">{description}</p>
+        )}
       </div>
       {children}
     </div>
