@@ -5,7 +5,6 @@ import {
   Users,
   Globe,
   Calendar,
-  Settings,
   ArrowRight,
   BarChart3,
 } from "lucide-react";
@@ -53,14 +52,6 @@ const QUICK_ACCESS_CARDS: QuickAccessCard[] = [
     icon: Calendar,
     gradient: "from-amber-500/10 to-orange-500/10",
     iconBg: "bg-gradient-to-br from-amber-500 to-orange-600",
-  },
-  {
-    title: "Configuracion",
-    description: "Gestion de equipos y asignacion de personas",
-    href: "/portal/analytics/configuracion",
-    icon: Settings,
-    gradient: "from-slate-500/10 to-gray-500/10",
-    iconBg: "bg-gradient-to-br from-slate-500 to-gray-600",
   },
 ];
 
