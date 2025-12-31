@@ -328,10 +328,7 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const team = normalizeProfileText(rawTeam) || fallbacksT("team");
   const name = normalizeProfileText(session?.user?.name) || fallbacksT("name");
   const isAdminRole = ADMIN_ROLES.has(appRole);
-  const showConfigurationsShortcut =
-    showAuthActions &&
-    isAdminRole &&
-    (navbarVariant === "direct" || navbarVariant === "home");
+  const showConfigurationsShortcut = showAuthActions && isAdminRole;
   const userPortals = session?.user?.portals ?? ["direct"];
   const canOpenMapachePortal = userPortals.includes("mapache");
   const canOpenAnalyticsPortal = isAdminRole || userPortals.includes("analytics");
