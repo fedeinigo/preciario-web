@@ -144,9 +144,9 @@ function MapacheSectionBtn({
     <button
       type="button"
       onClick={() => onClick(id)}
-      className={`inline-flex items-center gap-2 rounded-md px-3.5 py-2 text-[13px] font-semibold transition border focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f6e8ff]/60 ${
+      className={`inline-flex items-center gap-2 rounded-md px-3.5 py-2 text-[13px] font-semibold transition border focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
         active
-          ? "bg-gradient-to-r from-[#f9e8ff] to-[#f7d7ff] text-[#3b0764] border-transparent shadow-sm"
+          ? "bg-white text-[#1f2937] border-transparent shadow-sm"
           : "border-white/25 text-white/85 hover:bg-white/10"
       }`}
       aria-pressed={active}
