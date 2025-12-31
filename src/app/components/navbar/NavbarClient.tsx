@@ -18,6 +18,8 @@ import {
   Loader2,
   Settings,
   Home,
+  Globe,
+  Calendar,
 } from "lucide-react";
 
 import { normalizeProfileText } from "@/app/components/navbar/profile-format";
@@ -42,6 +44,7 @@ export type NavbarClientProps = {
 
 // ---- Tipos de tabs ----
 type DirectTab = "generator" | "history" | "stats" | "goals";
+type AnalyticsTab = "dashboard" | "equipos" | "regiones" | "reuniones-directo" | "configuracion";
 type LegacyTab = DirectTab | "teams" | "users";
 
 type ViewTransition = {
@@ -100,6 +103,14 @@ const DIRECT_PORTAL_TAB_ROUTES: Record<DirectTab, string> = {
 const MAPACHE_SECTION_ROUTES: Record<MapachePortalSection, string> = {
   pipedrive: "/portal/mapache/pipedrive",
   goals: "/portal/mapache/goals",
+};
+
+const ANALYTICS_PORTAL_TAB_ROUTES: Record<AnalyticsTab, string> = {
+  dashboard: "/portal/analytics/dashboard",
+  equipos: "/portal/analytics/equipos",
+  regiones: "/portal/analytics/regiones",
+  "reuniones-directo": "/portal/analytics/reuniones-directo",
+  configuracion: "/portal/analytics/configuracion",
 };
 
 function TabBtn({
@@ -216,28 +227,33 @@ export default function NavbarClient({ session }: NavbarClientProps) {
   const isDirectPortalNew = normalizedPath.startsWith("/portal/directo");
   const isDirectPortalLegacy = normalizedPath.startsWith("/direct-portal");
   const isDirectPortal = isDirectPortalNew || isDirectPortalLegacy;
+  const isAnalyticsPortal = normalizedPath.startsWith("/portal/analytics");
   const isConfigurationsPath = normalizedPath.startsWith("/configuraciones");
-  type NavbarVariant = "home" | "direct" | "config" | "default";
+  type NavbarVariant = "home" | "direct" | "config" | "analytics" | "default";
   const navbarVariant: NavbarVariant = isConfigurationsPath
     ? "config"
     : isDirectPortal
       ? "direct"
-      : isHomePath
-        ? "home"
-        : "default";
+      : isAnalyticsPortal
+        ? "analytics"
+        : isHomePath
+          ? "home"
+          : "default";
   const status = session ? "authenticated" : "unauthenticated";
   const showDirectTabs = status === "authenticated" && navbarVariant === "direct";
+  const showAnalyticsTabs = status === "authenticated" && navbarVariant === "analytics";
   const showConfigTabs = status === "authenticated" && navbarVariant === "config";
   const showLegacyTabs =
     status === "authenticated" &&
     !isMapachePortal &&
+    !isAnalyticsPortal &&
     navbarVariant === "default";
   const showAuthActions = status === "authenticated";
   const showPortalSwitcher = showAuthActions && navbarVariant !== "home";
 
   const navbarAppearance: NavbarAppearance = isMapachePortal
     ? "mapache"
-    : navbarVariant === "direct" || navbarVariant === "config" || navbarVariant === "home"
+    : navbarVariant === "direct" || navbarVariant === "config" || navbarVariant === "home" || navbarVariant === "analytics"
       ? "direct"
       : "dark";
 
@@ -330,6 +346,18 @@ export default function NavbarClient({ session }: NavbarClientProps) {
     if (normalizedPath.startsWith(`${base}/goals`)) return "goals";
     return "generator";
   }, [navbarVariant, isDirectPortalNew, normalizedPath]);
+
+  // ---- Tabs del portal analytics ----
+  const analyticsActiveTab = React.useMemo<AnalyticsTab | null>(() => {
+    if (navbarVariant !== "analytics") {
+      return null;
+    }
+    if (normalizedPath.startsWith("/portal/analytics/equipos")) return "equipos";
+    if (normalizedPath.startsWith("/portal/analytics/regiones")) return "regiones";
+    if (normalizedPath.startsWith("/portal/analytics/reuniones-directo")) return "reuniones-directo";
+    if (normalizedPath.startsWith("/portal/analytics/configuracion")) return "configuracion";
+    return "dashboard";
+  }, [navbarVariant, normalizedPath]);
 
   // ---- Tabs legacy (incluye teams/users) ----
   const readLegacyTab = React.useCallback((): LegacyTab => {
@@ -655,6 +683,43 @@ export default function NavbarClient({ session }: NavbarClientProps) {
                     Icon={Target}
                     active={directActiveTab === "goals"}
                     href={DIRECT_PORTAL_TAB_ROUTES.goals}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : showAnalyticsTabs ? (
+            <div className="relative hidden w-full md:block">
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="pointer-events-auto flex items-center gap-2">
+                  <TabBtn
+                    label="Dashboard"
+                    Icon={LayoutGrid}
+                    active={analyticsActiveTab === "dashboard"}
+                    href={ANALYTICS_PORTAL_TAB_ROUTES.dashboard}
+                  />
+                  <TabBtn
+                    label="Equipos"
+                    Icon={Users}
+                    active={analyticsActiveTab === "equipos"}
+                    href={ANALYTICS_PORTAL_TAB_ROUTES.equipos}
+                  />
+                  <TabBtn
+                    label="Regiones"
+                    Icon={Globe}
+                    active={analyticsActiveTab === "regiones"}
+                    href={ANALYTICS_PORTAL_TAB_ROUTES.regiones}
+                  />
+                  <TabBtn
+                    label="Reuniones"
+                    Icon={Calendar}
+                    active={analyticsActiveTab === "reuniones-directo"}
+                    href={ANALYTICS_PORTAL_TAB_ROUTES["reuniones-directo"]}
+                  />
+                  <TabBtn
+                    label="Config"
+                    Icon={Settings}
+                    active={analyticsActiveTab === "configuracion"}
+                    href={ANALYTICS_PORTAL_TAB_ROUTES.configuracion}
                   />
                 </div>
               </div>

@@ -52,6 +52,21 @@ const PORTAL_CARDS: PortalCard[] = [
     hoverBorder: "hover:border-cyan-300",
     glowColor: "group-hover:shadow-cyan-500/25",
   },
+  {
+    id: "analytics",
+    title: "Portal Analitico",
+    subtitle: "Business Intelligence",
+    description: "Dashboard de metricas comerciales y analisis de rendimiento.",
+    href: "/portal/analytics",
+    icon: BarChart3,
+    features: ["Dashboard KPIs", "Equipos", "Regiones", "Reuniones"],
+    accentFrom: "from-indigo-600",
+    accentTo: "to-purple-600",
+    iconBg: "bg-gradient-to-br from-indigo-500 to-purple-600",
+    iconColor: "text-white",
+    hoverBorder: "hover:border-indigo-300",
+    glowColor: "group-hover:shadow-indigo-500/25",
+  },
 ];
 
 export default async function HomePage() {
@@ -90,7 +105,7 @@ export default async function HomePage() {
           </p>
         </header>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {PORTAL_CARDS.map((portal) => {
             const isEnabled = accessiblePortals.has(portal.id);
             const Icon = portal.icon;
