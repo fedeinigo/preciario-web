@@ -6,11 +6,60 @@ import type { PipedriveDealSummary } from "@/types/pipedrive";
 const CACHE_KEY = "analytics_deals_cache";
 const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
+export type Quarter = "Q1" | "Q2" | "Q3" | "Q4";
+
+export type AnalyticsFilters = {
+  year: number;
+  quarter: Quarter;
+};
+
 type CachedData = {
   deals: PipedriveDealSummary[];
   syncedAt: string;
   expiresAt: number;
 };
+
+function getCurrentQuarter(): Quarter {
+  const month = new Date().getMonth();
+  if (month < 3) return "Q1";
+  if (month < 6) return "Q2";
+  if (month < 9) return "Q3";
+  return "Q4";
+}
+
+function getCurrentYear(): number {
+  return new Date().getFullYear();
+}
+
+export function getDefaultFilters(): AnalyticsFilters {
+  return {
+    year: getCurrentYear(),
+    quarter: getCurrentQuarter(),
+  };
+}
+
+export function getQuarterDateRange(year: number, quarter: Quarter): { from: Date; to: Date } {
+  const quarterIndex = (["Q1", "Q2", "Q3", "Q4"] as Quarter[]).indexOf(quarter);
+  const startMonth = quarterIndex * 3;
+  const endMonth = startMonth + 2;
+  
+  const from = new Date(year, startMonth, 1, 0, 0, 0, 0);
+  const to = new Date(year, endMonth + 1, 0, 23, 59, 59, 999);
+  
+  return { from, to };
+}
+
+function filterDealsByQuarter(deals: PipedriveDealSummary[], filters: AnalyticsFilters): PipedriveDealSummary[] {
+  const { from, to } = getQuarterDateRange(filters.year, filters.quarter);
+  
+  return deals.filter((deal) => {
+    const dateStr = deal.createdAt || deal.wonAt;
+    if (!dateStr) return false;
+    
+    const dealDate = new Date(dateStr);
+    return dealDate >= from && dealDate <= to;
+  });
+}
 
 type AnalyticsStats = {
   totalRevenue: number;
@@ -313,18 +362,20 @@ function computeStats(deals: PipedriveDealSummary[]): AnalyticsStats {
   };
 }
 
-export function useAnalyticsData() {
-  const [deals, setDeals] = useState<PipedriveDealSummary[]>([]);
+export function useAnalyticsData(filters?: AnalyticsFilters) {
+  const [allDeals, setAllDeals] = useState<PipedriveDealSummary[]>([]);
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cacheError, setCacheError] = useState<string | null>(null);
 
+  const activeFilters = filters ?? getDefaultFilters();
+
   useEffect(() => {
     const cached = getFromCache();
     if (cached) {
-      setDeals(cached.deals);
+      setAllDeals(cached.deals);
       setSyncedAt(cached.syncedAt);
     }
   }, []);
@@ -342,7 +393,7 @@ export function useAnalyticsData() {
         throw new Error(data.error || "Error al sincronizar");
       }
 
-      setDeals(data.deals);
+      setAllDeals(data.deals);
       setSyncedAt(data.syncedAt);
       
       const saved = saveToCache(data.deals, data.syncedAt);
@@ -359,7 +410,7 @@ export function useAnalyticsData() {
   const loadInitial = useCallback(async () => {
     const cached = getFromCache();
     if (cached) {
-      setDeals(cached.deals);
+      setAllDeals(cached.deals);
       setSyncedAt(cached.syncedAt);
       return;
     }
@@ -369,10 +420,16 @@ export function useAnalyticsData() {
     setIsLoading(false);
   }, [sync]);
 
+  const deals = useMemo(
+    () => filterDealsByQuarter(allDeals, activeFilters),
+    [allDeals, activeFilters]
+  );
+
   const stats = useMemo(() => computeStats(deals), [deals]);
 
   return {
     deals,
+    allDeals,
     stats,
     syncedAt,
     isLoading,
@@ -382,6 +439,7 @@ export function useAnalyticsData() {
     sync,
     loadInitial,
     hasData: deals.length > 0,
+    totalDealsInCache: allDeals.length,
   };
 }
 

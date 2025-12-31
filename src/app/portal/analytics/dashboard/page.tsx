@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   DollarSign,
   Target,
@@ -15,10 +15,13 @@ import {
   ArrowUpCircle,
   Loader2,
 } from "lucide-react";
-import { useAnalyticsData } from "@/hooks/useAnalyticsData";
+import { useAnalyticsData, getDefaultFilters, type AnalyticsFilters } from "@/hooks/useAnalyticsData";
 import { SyncButton } from "../components/SyncButton";
+import { AnalyticsFilters as FiltersComponent } from "../components/AnalyticsFilters";
 
 export default function AnalyticsDashboardPage() {
+  const [filters, setFilters] = useState<AnalyticsFilters>(getDefaultFilters);
+
   const {
     stats,
     syncedAt,
@@ -29,7 +32,7 @@ export default function AnalyticsDashboardPage() {
     sync,
     loadInitial,
     hasData,
-  } = useAnalyticsData();
+  } = useAnalyticsData(filters);
 
   useEffect(() => {
     loadInitial();
@@ -97,6 +100,8 @@ export default function AnalyticsDashboardPage() {
             />
           </div>
         </div>
+
+        <FiltersComponent value={filters} onChange={setFilters} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           <KPICard

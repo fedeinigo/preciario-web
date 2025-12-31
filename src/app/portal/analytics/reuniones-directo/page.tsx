@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Calendar,
   DollarSign,
@@ -10,10 +10,13 @@ import {
   Zap,
   Loader2,
 } from "lucide-react";
-import { useAnalyticsData, getWeeklyData } from "@/hooks/useAnalyticsData";
+import { useAnalyticsData, getWeeklyData, getDefaultFilters, type AnalyticsFilters } from "@/hooks/useAnalyticsData";
 import { SyncButton } from "../components/SyncButton";
+import { AnalyticsFilters as FiltersComponent } from "../components/AnalyticsFilters";
 
 export default function AnalyticsReunionesDirectoPage() {
+  const [filters, setFilters] = useState<AnalyticsFilters>(getDefaultFilters);
+
   const {
     deals,
     stats,
@@ -25,7 +28,7 @@ export default function AnalyticsReunionesDirectoPage() {
     sync,
     loadInitial,
     hasData,
-  } = useAnalyticsData();
+  } = useAnalyticsData(filters);
 
   useEffect(() => {
     loadInitial();
@@ -110,6 +113,8 @@ export default function AnalyticsReunionesDirectoPage() {
             />
           </div>
         </div>
+
+        <FiltersComponent value={filters} onChange={setFilters} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard

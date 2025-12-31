@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Globe,
   TrendingUp,
@@ -8,8 +8,9 @@ import {
   MapPin,
   Loader2,
 } from "lucide-react";
-import { useAnalyticsData } from "@/hooks/useAnalyticsData";
+import { useAnalyticsData, getDefaultFilters, type AnalyticsFilters } from "@/hooks/useAnalyticsData";
 import { SyncButton } from "../components/SyncButton";
+import { AnalyticsFilters as FiltersComponent } from "../components/AnalyticsFilters";
 
 const REGION_COLORS: Record<string, string> = {
   Colombia: "#3b82f6",
@@ -34,6 +35,8 @@ const REGION_BG_COLORS: Record<string, string> = {
 };
 
 export default function AnalyticsRegionesPage() {
+  const [filters, setFilters] = useState<AnalyticsFilters>(getDefaultFilters);
+
   const {
     stats,
     deals,
@@ -45,7 +48,7 @@ export default function AnalyticsRegionesPage() {
     sync,
     loadInitial,
     hasData,
-  } = useAnalyticsData();
+  } = useAnalyticsData(filters);
 
   useEffect(() => {
     loadInitial();
@@ -155,6 +158,8 @@ export default function AnalyticsRegionesPage() {
             />
           </div>
         </div>
+
+        <FiltersComponent value={filters} onChange={setFilters} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">

@@ -11,12 +11,14 @@ import {
   ArrowUpDown,
   Loader2,
 } from "lucide-react";
-import { useAnalyticsData } from "@/hooks/useAnalyticsData";
+import { useAnalyticsData, getDefaultFilters, type AnalyticsFilters } from "@/hooks/useAnalyticsData";
 import { SyncButton } from "../components/SyncButton";
+import { AnalyticsFilters as FiltersComponent } from "../components/AnalyticsFilters";
 
 type SortKey = "revenue" | "won" | "closureRate" | "avgTicket" | "funnel";
 
 export default function AnalyticsEquiposPage() {
+  const [filters, setFilters] = useState<AnalyticsFilters>(getDefaultFilters);
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("revenue");
   const [sortAsc, setSortAsc] = useState(false);
@@ -31,7 +33,7 @@ export default function AnalyticsEquiposPage() {
     sync,
     loadInitial,
     hasData,
-  } = useAnalyticsData();
+  } = useAnalyticsData(filters);
 
   useEffect(() => {
     loadInitial();
@@ -152,6 +154,8 @@ export default function AnalyticsEquiposPage() {
             />
           </div>
         </div>
+
+        <FiltersComponent value={filters} onChange={setFilters} />
 
         <div className="flex flex-col md:flex-row gap-6 items-end">
           <div className="flex flex-col gap-4 w-[180px] flex-shrink-0">
