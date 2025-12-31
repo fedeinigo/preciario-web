@@ -155,10 +155,10 @@ function MapacheSectionBtn({
     <button
       type="button"
       onClick={() => onClick(id)}
-      className={`inline-flex items-center gap-2 rounded-md px-3.5 py-2 text-[13px] font-semibold transition border focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+      className={`inline-flex items-center gap-2 rounded-md px-3.5 py-2 text-[13px] font-semibold transition border focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 ${
         active
-          ? "bg-white text-[#1f2937] border-transparent shadow-sm"
-          : "border-white/25 text-white/85 hover:bg-white/10"
+          ? "bg-cyan-500 text-white border-transparent shadow-md shadow-cyan-500/30"
+          : "border-white/25 bg-white/5 text-white/85 hover:bg-white/10"
       }`}
       aria-pressed={active}
     >

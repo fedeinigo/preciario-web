@@ -73,7 +73,7 @@ export default async function MapachePortalLobbyPage() {
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-var(--nav-h))] px-4 pb-16 sm:px-6 lg:px-8 pt-8">
+    <div className="relative min-h-[calc(100vh-var(--nav-h))] px-4 pb-16 sm:px-6 lg:px-8 pt-12">
       <MapachePortalReadySignal />
 
       <div className="pointer-events-none absolute -top-20 right-0 h-[400px] w-[400px] rounded-full bg-gradient-to-br from-purple-500/30 via-violet-500/20 to-transparent blur-3xl" />
