@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
-import { X } from "lucide-react";
+import { X, BarChart3, TrendingUp, Trophy, DollarSign } from "lucide-react";
 import type { AppRole } from "@/constants/teams";
 import { countryIdFromName } from "./lib/catalogs";
 import { buildCsv, downloadCsv } from "./lib/csv";
@@ -696,42 +696,88 @@ export default function Stats({
         <div className="pointer-events-none absolute -bottom-32 left-10 h-80 w-80 rounded-full bg-indigo-200/40 blur-3xl" />
         <div className="relative z-10 mx-auto max-w-[1600px] space-y-6">
           
-          {/* ==================== TIER 1: FILTERS ==================== */}
-          <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur-sm">
-            <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h1 className="bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-2xl font-bold tracking-tight text-transparent">
-                  {t("title")}
-                </h1>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <SavedFiltersManager
-                  currentFilters={{
-                    from,
-                    to,
-                    teamFilter,
-                    countryFilter,
-                    userFilter,
-                    orderKey,
-                    orderDir,
-                  }}
-                  onApplyFilter={handleApplyFilters}
-                  userEmail={currentEmail}
-                />
-                <RefreshIndicator
-                  onRefresh={handleManualRefresh}
-                  lastUpdated={lastUpdated}
-                  hasNewData={hasNewData}
-                />
+          {/* ==================== TIER 1: HEADER & FILTERS ==================== */}
+          <section className="overflow-hidden rounded-3xl border border-slate-200/60 bg-white shadow-xl shadow-purple-500/5">
+            {/* Hero Header with KPIs */}
+            <div className="bg-gradient-to-r from-[#311160] via-[#4c1d95] to-[#5b21b6] px-6 py-6 sm:px-8">
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/10 shadow-lg backdrop-blur-sm">
+                      <BarChart3 className="h-7 w-7 text-white" />
+                    </div>
+                    <div>
+                      <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                        {t("title")}
+                      </h1>
+                      <p className="mt-0.5 text-sm text-white/70">
+                        {from && to ? `${from} - ${to}` : "Todos los periodos"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <SavedFiltersManager
+                      currentFilters={{
+                        from,
+                        to,
+                        teamFilter,
+                        countryFilter,
+                        userFilter,
+                        orderKey,
+                        orderDir,
+                      }}
+                      onApplyFilter={handleApplyFilters}
+                      userEmail={currentEmail}
+                    />
+                    <RefreshIndicator
+                      onRefresh={handleManualRefresh}
+                      lastUpdated={lastUpdated}
+                      hasNewData={hasNewData}
+                    />
+                  </div>
+                </div>
+
+                {/* Quick KPI Summary */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-purple-200" />
+                      <p className="text-xs font-medium uppercase tracking-wide text-purple-200">Propuestas</p>
+                    </div>
+                    <p className="mt-1 text-2xl font-bold text-white">{totalCount.toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-purple-200" />
+                      <p className="text-xs font-medium uppercase tracking-wide text-purple-200">Facturacion</p>
+                    </div>
+                    <p className="mt-1 text-2xl font-bold text-white">{formatUSD(totalMonthly)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
+                    <div className="flex items-center gap-2">
+                      <Trophy className="h-4 w-4 text-emerald-300" />
+                      <p className="text-xs font-medium uppercase tracking-wide text-emerald-200">Ganadas</p>
+                    </div>
+                    <p className="mt-1 text-2xl font-bold text-white">{wonCount}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-emerald-300" />
+                      <p className="text-xs font-medium uppercase tracking-wide text-emerald-200">Win Rate</p>
+                    </div>
+                    <p className="mt-1 text-2xl font-bold text-white">{winRate.toFixed(1)}%</p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50/50 to-white p-5">
+            {/* Filters Section */}
+            <div className="bg-gradient-to-br from-purple-50/80 via-white to-slate-50/50 p-5 sm:p-6">
               <div className="mb-4">
                 <QuickRanges from={from} to={to} setFrom={setFrom} setTo={setTo} />
               </div>
               
-              <div className="mb-4 rounded-xl border border-purple-200/40 bg-white p-4 shadow-sm">
+              <div className="mb-4 rounded-xl border border-purple-200/50 bg-white/80 p-4 shadow-sm backdrop-blur-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600">
                     {filtersT("active.title")}
@@ -747,12 +793,12 @@ export default function Stats({
                       key={filter.id}
                       type="button"
                       onClick={filter.onClear}
-                      className="group inline-flex items-center gap-2 rounded-full border border-brand-primary/30 bg-white px-3 py-1 text-xs font-medium text-brand-primary transition hover:border-brand-primary/60 hover:bg-brand-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
+                      className="group inline-flex items-center gap-2 rounded-full border border-purple-300 bg-purple-50 px-3 py-1 text-xs font-medium text-purple-700 transition hover:border-purple-400 hover:bg-purple-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/40"
                       aria-label={`${filtersT("active.clear")} ${filter.label}`}
                     >
                       <span>{filter.label}</span>
                       <X
-                        className="h-3.5 w-3.5 text-brand-primary/60 transition group-hover:text-brand-primary"
+                        className="h-3.5 w-3.5 text-purple-500 transition group-hover:text-purple-700"
                         aria-hidden="true"
                       />
                     </button>
@@ -906,12 +952,14 @@ export default function Stats({
           </section>
 
           {/* ==================== TIER 2: KEY METRICS ==================== */}
-          <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur-sm">
-            <div className="mb-5">
-              <h2 className="bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-lg font-bold uppercase tracking-wide text-transparent">
+          <section className="overflow-hidden rounded-3xl border border-slate-200/60 bg-white/95 shadow-lg shadow-purple-500/5 backdrop-blur-sm">
+            <div className="border-b border-slate-200/60 bg-gradient-to-r from-purple-50 via-white to-purple-50/50 px-6 py-4">
+              <h2 className="bg-gradient-to-r from-purple-600 via-violet-600 to-purple-800 bg-clip-text text-lg font-bold uppercase tracking-wide text-transparent">
                 {kpisT("title") || "Key Metrics"}
               </h2>
+              <p className="mt-1 text-xs text-slate-500">Analisis detallado con graficos de tendencia</p>
             </div>
+            <div className="p-6">
 
             {/* Row 1: 3 Primary KPIs */}
             <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -998,18 +1046,20 @@ export default function Stats({
                 sparklineData={sparklineWonAvgTicket}
               />
             </div>
-            </section>
+            </div>
+          </section>
 
           {/* ==================== TIER 3: DEEP DIVE ANALYSIS ==================== */}
-          <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-lg backdrop-blur-sm">
-            <div className="mb-5">
-              <h2 className="bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-lg font-bold uppercase tracking-wide text-transparent">
+          <section className="overflow-hidden rounded-3xl border border-slate-200/60 bg-white/95 shadow-lg shadow-purple-500/5 backdrop-blur-sm">
+            <div className="border-b border-slate-200/60 bg-gradient-to-r from-purple-50 via-white to-purple-50/50 px-6 py-4">
+              <h2 className="bg-gradient-to-r from-purple-600 via-violet-600 to-purple-800 bg-clip-text text-lg font-bold uppercase tracking-wide text-transparent">
                 {sectionsT("deepDive") || "Deep Dive Analysis"}
               </h2>
+              <p className="mt-1 text-xs text-slate-500">Desglose por SKU, usuario y empresa</p>
             </div>
 
             {/* FULL WIDTH: Tables stacked vertically */}
-            <div className="space-y-6">
+            <div className="space-y-6 p-6">
           <TableCard
             title={sectionsT("bySku.title")}
             actions={
