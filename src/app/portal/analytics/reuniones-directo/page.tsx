@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
   Calendar,
   DollarSign,
@@ -8,49 +8,62 @@ import {
   Users,
   Target,
   Zap,
-  ArrowRight,
   Loader2,
 } from "lucide-react";
+import { useAnalyticsData, getWeeklyData } from "@/hooks/useAnalyticsData";
+import { SyncButton } from "../components/SyncButton";
 
 export default function AnalyticsReunionesDirectoPage() {
-  const [isLoading] = useState(false);
+  const {
+    deals,
+    stats,
+    syncedAt,
+    isLoading,
+    isSyncing,
+    error,
+    cacheError,
+    sync,
+    loadInitial,
+    hasData,
+  } = useAnalyticsData();
 
-  const totals = {
-    meetings: 156,
-    value: 245000,
-    funnelActual: 180000,
-    avgTicket: 4250,
-  };
+  useEffect(() => {
+    loadInitial();
+  }, [loadInitial]);
 
-  const weeklyData = [
-    { week: "S1", count: 18, value: 32000 },
-    { week: "S2", count: 22, value: 38000 },
-    { week: "S3", count: 15, value: 28000 },
-    { week: "S4", count: 28, value: 45000 },
-    { week: "S5", count: 25, value: 42000 },
-    { week: "S6", count: 20, value: 35000 },
-  ];
+  const totals = useMemo(() => ({
+    meetings: stats.totalDeals,
+    value: stats.wonRevenue,
+    funnelActual: stats.openRevenue,
+    avgTicket: Math.round(stats.avgTicket),
+  }), [stats]);
 
-  const sdrSummary = [
-    { sdr: "Pablo Torres", totalDeals: 28 },
-    { sdr: "Laura Mendez", totalDeals: 24 },
-    { sdr: "Diego Ruiz", totalDeals: 22 },
-    { sdr: "Carmen Diaz", totalDeals: 18 },
-    { sdr: "Roberto Silva", totalDeals: 15 },
-  ];
+  const weeklyData = useMemo(() => getWeeklyData(deals), [deals]);
 
-  const bdrSummary = [
-    { bdr: "Juan Perez", totalDeals: 32 },
-    { bdr: "Maria Garcia", totalDeals: 28 },
-    { bdr: "Carlos Rodriguez", totalDeals: 25 },
-    { bdr: "Ana Martinez", totalDeals: 20 },
-    { bdr: "Luis Fernandez", totalDeals: 18 },
-  ];
+  const { sdrSummary, bdrSummary } = useMemo(() => {
+    const ownerCounts = new Map<string, { name: string; count: number }>();
+
+    for (const deal of deals) {
+      const ownerName = deal.ownerName || "Sin asignar";
+      const current = ownerCounts.get(ownerName) || { name: ownerName, count: 0 };
+      ownerCounts.set(ownerName, { name: ownerName, count: current.count + 1 });
+    }
+
+    const sorted = Array.from(ownerCounts.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    const mid = Math.ceil(sorted.length / 2);
+    const sdrs = sorted.slice(0, mid).map(o => ({ sdr: o.name, totalDeals: o.count }));
+    const bdrs = sorted.slice(mid).map(o => ({ bdr: o.name, totalDeals: o.count }));
+
+    return { sdrSummary: sdrs, bdrSummary: bdrs };
+  }, [deals]);
 
   const maxSdrDeals = Math.max(...sdrSummary.map((s) => s.totalDeals), 1);
   const maxBdrDeals = Math.max(...bdrSummary.map((b) => b.totalDeals), 1);
 
-  if (isLoading) {
+  if (isLoading && !hasData) {
     return (
       <div className="min-h-[calc(100vh-var(--nav-h))] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -61,23 +74,40 @@ export default function AnalyticsReunionesDirectoPage() {
     );
   }
 
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+
   return (
     <div className="min-h-[calc(100vh-var(--nav-h))] px-4 pb-16 sm:px-6 lg:px-8 pt-8">
       <div className="mx-auto max-w-7xl space-y-8">
         <div className="relative rounded-xl bg-gradient-to-br from-purple-500/5 via-transparent to-purple-500/10 p-4 sm:p-6 border border-slate-200/50">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-purple-100 rounded-xl">
-              <Zap className="w-6 h-6 text-purple-600" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-purple-100 rounded-xl">
+                <Zap className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                  Reuniones Directo
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Analisis de deals de origen directo (Pipeline 1 - Directo +
+                  Inbound + Outbound)
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                Reuniones Directo
-              </h2>
-              <p className="text-sm text-slate-500 mt-1">
-                Analisis de deals de origen directo (Pipeline 1 - Directo +
-                Inbound + Outbound)
-              </p>
-            </div>
+            <SyncButton
+              syncedAt={syncedAt}
+              isSyncing={isSyncing}
+              onSync={sync}
+              error={error}
+              cacheError={cacheError}
+            />
           </div>
         </div>
 
@@ -91,19 +121,19 @@ export default function AnalyticsReunionesDirectoPage() {
           <KPICard
             icon={DollarSign}
             title="Valor Total"
-            value={`$${totals.value.toLocaleString()}`}
+            value={formatCurrency(totals.value)}
             borderColor="border-l-emerald-500"
           />
           <KPICard
             icon={Target}
             title="Funnel Actual"
-            value={`$${totals.funnelActual.toLocaleString()}`}
+            value={formatCurrency(totals.funnelActual)}
             borderColor="border-l-violet-500"
           />
           <KPICard
             icon={TrendingUp}
             title="Ticket Promedio"
-            value={`$${totals.avgTicket.toLocaleString()}`}
+            value={formatCurrency(totals.avgTicket)}
             borderColor="border-l-amber-500"
           />
         </div>
@@ -202,21 +232,30 @@ export default function AnalyticsReunionesDirectoPage() {
               Evolucion semanal de reuniones
             </p>
             <div className="space-y-3">
-              {weeklyData.map((w) => (
-                <div key={w.week} className="flex items-center gap-3">
-                  <span className="text-sm text-slate-600 w-8">{w.week}</span>
-                  <div className="flex-1 h-6 bg-slate-100 rounded overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500 rounded flex items-center justify-end px-2"
-                      style={{ width: `${(w.count / 30) * 100}%` }}
-                    >
-                      <span className="text-[10px] text-white font-medium">
-                        {w.count}
-                      </span>
+              {weeklyData.length > 0 ? (
+                weeklyData.map((w) => {
+                  const maxCount = Math.max(...weeklyData.map(x => x.count), 1);
+                  return (
+                    <div key={w.week} className="flex items-center gap-3">
+                      <span className="text-sm text-slate-600 w-8">{w.week}</span>
+                      <div className="flex-1 h-6 bg-slate-100 rounded overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 rounded flex items-center justify-end px-2"
+                          style={{ width: `${(w.count / maxCount) * 100}%` }}
+                        >
+                          <span className="text-[10px] text-white font-medium">
+                            {w.count}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })
+              ) : (
+                <p className="text-sm text-slate-400 text-center py-4">
+                  Sin datos disponibles
+                </p>
+              )}
             </div>
           </div>
 
@@ -231,21 +270,30 @@ export default function AnalyticsReunionesDirectoPage() {
               Evolucion del valor en USD
             </p>
             <div className="space-y-3">
-              {weeklyData.map((w) => (
-                <div key={w.week} className="flex items-center gap-3">
-                  <span className="text-sm text-slate-600 w-8">{w.week}</span>
-                  <div className="flex-1 h-6 bg-slate-100 rounded overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-500 rounded flex items-center justify-end px-2"
-                      style={{ width: `${(w.value / 50000) * 100}%` }}
-                    >
-                      <span className="text-[10px] text-white font-medium">
-                        ${(w.value / 1000).toFixed(0)}k
-                      </span>
+              {weeklyData.length > 0 ? (
+                weeklyData.map((w) => {
+                  const maxValue = Math.max(...weeklyData.map(x => x.value), 1);
+                  return (
+                    <div key={w.week} className="flex items-center gap-3">
+                      <span className="text-sm text-slate-600 w-8">{w.week}</span>
+                      <div className="flex-1 h-6 bg-slate-100 rounded overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 rounded flex items-center justify-end px-2"
+                          style={{ width: `${(w.value / maxValue) * 100}%` }}
+                        >
+                          <span className="text-[10px] text-white font-medium">
+                            ${(w.value / 1000).toFixed(0)}k
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })
+              ) : (
+                <p className="text-sm text-slate-400 text-center py-4">
+                  Sin datos disponibles
+                </p>
+              )}
             </div>
           </div>
         </div>

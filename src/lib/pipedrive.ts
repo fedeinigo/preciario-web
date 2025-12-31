@@ -940,3 +940,41 @@ function resolveComparisonName(primary: string | null, fallback: string | null) 
   const normalizedFallback = fallback ? normalizeForComparison(fallback) : null;
   return normalizedPrimary || normalizedFallback;
 }
+
+export async function fetchAllDealsForAnalytics(
+  statuses: DealStatus[] = ["open", "won", "lost"],
+) {
+  const mapacheOptions = await ensureMapacheFieldOptions();
+  const [stageNames, deals] = await Promise.all([
+    ensureStageNameMap(),
+    fetchDealsWithMapacheFields(statuses),
+  ]);
+
+  const ownerIds = Array.from(
+    new Set(
+      deals
+        .map((deal) => ensureNumber(deal.owner_id))
+        .filter((id): id is number => typeof id === "number" && Number.isFinite(id)),
+    ),
+  );
+  const ownerInfos = await resolveOwnerInfos(ownerIds);
+
+  const summaries = deals.map((deal) => {
+    const stageId = ensureNumber(deal.stage_id);
+    const stageName = stageId !== null ? stageNames.get(stageId) ?? null : null;
+    const ownerId = ensureNumber(deal.owner_id);
+    const ownerInfo = ownerId !== null ? ownerInfos.get(ownerId) ?? null : null;
+
+    return normalizeDealSummary({
+      deal,
+      stageName,
+      ownerName: ownerInfo?.name ?? null,
+      ownerEmail: ownerInfo?.email ?? null,
+      mapacheOptions,
+    });
+  });
+
+  log.info("pipedrive.analytics_fetch", { totalDeals: summaries.length });
+
+  return summaries;
+}

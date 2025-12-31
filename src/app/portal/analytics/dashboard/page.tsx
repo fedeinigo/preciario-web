@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import {
   DollarSign,
   Target,
@@ -14,13 +14,28 @@ import {
   UserPlus,
   ArrowUpCircle,
   Loader2,
-  Database,
 } from "lucide-react";
+import { useAnalyticsData } from "@/hooks/useAnalyticsData";
+import { SyncButton } from "../components/SyncButton";
 
 export default function AnalyticsDashboardPage() {
-  const [isLoading] = useState(false);
+  const {
+    stats,
+    syncedAt,
+    isLoading,
+    isSyncing,
+    error,
+    cacheError,
+    sync,
+    loadInitial,
+    hasData,
+  } = useAnalyticsData();
 
-  if (isLoading) {
+  useEffect(() => {
+    loadInitial();
+  }, [loadInitial]);
+
+  if (isLoading && !hasData) {
     return (
       <div className="min-h-[calc(100vh-var(--nav-h))] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -30,6 +45,30 @@ export default function AnalyticsDashboardPage() {
       </div>
     );
   }
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const topOwners = Array.from(stats.byOwner.entries())
+    .sort((a, b) => b[1].revenue - a[1].revenue)
+    .slice(0, 3)
+    .map(([, s]) => s.name);
+
+  const topSources = Array.from(stats.bySource.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([name]) => name);
+
+  const topRegions = Array.from(stats.byRegion.entries())
+    .sort((a, b) => b[1].revenue - a[1].revenue)
+    .slice(0, 3)
+    .map(([name]) => name);
 
   return (
     <div className="min-h-[calc(100vh-var(--nav-h))] px-4 pb-16 sm:px-6 lg:px-8 pt-8">
@@ -49,16 +88,20 @@ export default function AnalyticsDashboardPage() {
                 </p>
               </div>
             </div>
-            <button className="bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium shadow-md shadow-purple-500/20 hover:bg-purple-700 cursor-pointer transition-colors">
-              Exportar Reporte
-            </button>
+            <SyncButton
+              syncedAt={syncedAt}
+              isSyncing={isSyncing}
+              onSync={sync}
+              error={error}
+              cacheError={cacheError}
+            />
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           <KPICard
             title="Revenue Total"
-            value="$125,430"
+            value={formatCurrency(stats.wonRevenue)}
             change={12.5}
             trend="up"
             icon={DollarSign}
@@ -66,35 +109,35 @@ export default function AnalyticsDashboardPage() {
           />
           <KPICard
             title="Tasa de Cierre"
-            value="24.5%"
+            value={`${stats.closureRate.toFixed(1)}%`}
             change={3.2}
             trend="up"
             icon={Target}
           />
           <KPICard
             title="Reuniones NC"
-            value="156"
+            value={stats.ncMeetings.toString()}
             change={-2.1}
             trend="down"
             icon={CalendarCheck}
           />
           <KPICard
             title="Logos Ganados"
-            value="28"
+            value={stats.wonDeals.toString()}
             change={8.0}
             trend="up"
             icon={Briefcase}
           />
           <KPICard
             title="Ciclo de Ventas"
-            value="45 dias"
+            value={`${stats.avgCycleDays || 45} dias`}
             change={-5.0}
             trend="up"
             icon={Clock}
           />
           <KPICard
             title="Ticket Promedio"
-            value="$4,479"
+            value={formatCurrency(stats.avgTicket)}
             change={15.3}
             trend="up"
             icon={Banknote}
@@ -104,14 +147,14 @@ export default function AnalyticsDashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
           <KPICard
             title="Total New Customers"
-            value="$89,250"
+            value={formatCurrency(stats.ncRevenue)}
             change={18.5}
             trend="up"
             icon={UserPlus}
           />
           <KPICard
             title="Total Upselling"
-            value="$36,180"
+            value={formatCurrency(stats.upsellingRevenue)}
             change={22.1}
             trend="up"
             icon={ArrowUpCircle}
@@ -137,9 +180,18 @@ export default function AnalyticsDashboardPage() {
             Rankings de Rendimiento
           </h3>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-            <RankingCard title="Top Equipos" items={["Aguilas", "Halcones", "Panteras"]} />
-            <RankingCard title="Top Personas" items={["Juan P.", "Maria G.", "Carlos R."]} />
-            <RankingCard title="Top Sources" items={["Inbound", "Referral", "Outbound"]} />
+            <RankingCard
+              title="Top Equipos"
+              items={topRegions.length > 0 ? topRegions : ["--", "--", "--"]}
+            />
+            <RankingCard
+              title="Top Personas"
+              items={topOwners.length > 0 ? topOwners : ["--", "--", "--"]}
+            />
+            <RankingCard
+              title="Top Sources"
+              items={topSources.length > 0 ? topSources : ["--", "--", "--"]}
+            />
           </div>
         </div>
       </div>
@@ -218,7 +270,7 @@ function RankingCard({ title, items }: { title: string; items: string[] }) {
       <div className="space-y-2">
         {items.map((item, idx) => (
           <div
-            key={item}
+            key={`${item}-${idx}`}
             className="flex items-center justify-between p-2 rounded-lg bg-slate-50"
           >
             <div className="flex items-center gap-2">
@@ -235,7 +287,6 @@ function RankingCard({ title, items }: { title: string; items: string[] }) {
               </span>
               <span className="text-sm font-medium text-slate-700">{item}</span>
             </div>
-            <span className="text-xs text-slate-400">--</span>
           </div>
         ))}
       </div>

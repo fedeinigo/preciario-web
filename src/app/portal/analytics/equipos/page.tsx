@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Users,
   DollarSign,
@@ -11,27 +11,102 @@ import {
   ArrowUpDown,
   Loader2,
 } from "lucide-react";
+import { useAnalyticsData } from "@/hooks/useAnalyticsData";
+import { SyncButton } from "../components/SyncButton";
+
+type SortKey = "revenue" | "won" | "closureRate" | "avgTicket" | "funnel";
 
 export default function AnalyticsEquiposPage() {
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
-  const [isLoading] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("revenue");
+  const [sortAsc, setSortAsc] = useState(false);
 
-  const teams = [
-    { id: "all", name: "Todos los Equipos" },
-    { id: "1", name: "Aguilas" },
-    { id: "2", name: "Halcones" },
-    { id: "3", name: "Panteras" },
-  ];
+  const {
+    stats,
+    syncedAt,
+    isLoading,
+    isSyncing,
+    error,
+    cacheError,
+    sync,
+    loadInitial,
+    hasData,
+  } = useAnalyticsData();
 
-  const executives = [
-    { name: "Juan Perez", team: "Aguilas", revenue: 45000, won: 12, closureRate: 28, avgTicket: 3750, funnel: 25000 },
-    { name: "Maria Garcia", team: "Halcones", revenue: 38000, won: 10, closureRate: 24, avgTicket: 3800, funnel: 18000 },
-    { name: "Carlos Rodriguez", team: "Panteras", revenue: 32000, won: 8, closureRate: 22, avgTicket: 4000, funnel: 15000 },
-    { name: "Ana Martinez", team: "Aguilas", revenue: 28000, won: 7, closureRate: 20, avgTicket: 4000, funnel: 12000 },
-    { name: "Luis Fernandez", team: "Halcones", revenue: 25000, won: 6, closureRate: 18, avgTicket: 4166, funnel: 10000 },
-  ];
+  useEffect(() => {
+    loadInitial();
+  }, [loadInitial]);
 
-  if (isLoading) {
+  const teams = useMemo(() => {
+    const uniqueTeams = new Set<string>();
+    for (const [, s] of stats.byOwner) {
+      if (s.team) {
+        uniqueTeams.add(s.team);
+      }
+    }
+    return [
+      { id: "all", name: "Todos los Equipos" },
+      ...Array.from(uniqueTeams).sort().map((t) => ({ id: t, name: t })),
+    ];
+  }, [stats.byOwner]);
+
+  const executives = useMemo(() => {
+    const list = Array.from(stats.byOwner.entries()).map(([key, s]) => ({
+      name: s.name,
+      email: key,
+      team: s.team || "General",
+      revenue: s.revenue,
+      won: s.won,
+      closureRate: Math.round(s.closureRate),
+      avgTicket: Math.round(s.avgTicket),
+      funnel: s.funnel,
+    }));
+
+    const filtered =
+      selectedTeam === "all"
+        ? list
+        : list.filter((e) => e.team === selectedTeam);
+
+    return filtered.sort((a, b) => {
+      const diff = b[sortKey] - a[sortKey];
+      return sortAsc ? -diff : diff;
+    });
+  }, [stats.byOwner, selectedTeam, sortKey, sortAsc]);
+
+  const totals = useMemo(() => {
+    return executives.reduce(
+      (acc, e) => ({
+        revenue: acc.revenue + e.revenue,
+        logos: acc.logos + e.won,
+        closure:
+          executives.length > 0
+            ? Math.round(
+                executives.reduce((s, x) => s + x.closureRate, 0) /
+                  executives.length
+              )
+            : 0,
+        avgTicket:
+          executives.length > 0
+            ? Math.round(
+                executives.reduce((s, x) => s + x.avgTicket, 0) /
+                  executives.length
+              )
+            : 0,
+      }),
+      { revenue: 0, logos: 0, closure: 0, avgTicket: 0 }
+    );
+  }, [executives]);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortKey(key);
+      setSortAsc(false);
+    }
+  };
+
+  if (isLoading && !hasData) {
     return (
       <div className="min-h-[calc(100vh-var(--nav-h))] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -42,22 +117,39 @@ export default function AnalyticsEquiposPage() {
     );
   }
 
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+
   return (
     <div className="min-h-[calc(100vh-var(--nav-h))] px-4 pb-16 sm:px-6 lg:px-8 pt-8">
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="relative rounded-xl bg-gradient-to-br from-purple-500/5 via-transparent to-purple-500/10 p-4 sm:p-6 border border-slate-200/50">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-purple-100 rounded-xl">
-              <Users className="w-6 h-6 text-purple-600" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-purple-100 rounded-xl">
+                <Users className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                  Equipos
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Rendimiento por ejecutivo y equipo comercial
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                Equipos
-              </h2>
-              <p className="text-sm text-slate-500 mt-1">
-                Rendimiento por ejecutivo y equipo comercial
-              </p>
-            </div>
+            <SyncButton
+              syncedAt={syncedAt}
+              isSyncing={isSyncing}
+              onSync={sync}
+              error={error}
+              cacheError={cacheError}
+            />
           </div>
         </div>
 
@@ -66,7 +158,7 @@ export default function AnalyticsEquiposPage() {
             <div className="flex items-center justify-center w-[180px] h-[180px] rounded-xl border border-slate-200/50 bg-gradient-to-br from-slate-50 to-purple-50/30 overflow-hidden">
               <div className="flex flex-col items-center gap-2 text-slate-400">
                 <Users className="w-12 h-12 opacity-30" />
-                <span className="text-xs">Selecciona un equipo</span>
+                <span className="text-xs">{executives.length} ejecutivos</span>
               </div>
             </div>
             <div>
@@ -88,10 +180,26 @@ export default function AnalyticsEquiposPage() {
           </div>
 
           <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-3">
-            <MiniKPI icon={DollarSign} title="Revenue" value="$168,000" />
-            <MiniKPI icon={Trophy} title="Logos" value="43" />
-            <MiniKPI icon={Target} title="Closure" value="23%" />
-            <MiniKPI icon={Briefcase} title="Ticket Prom." value="$3,906" />
+            <MiniKPI
+              icon={DollarSign}
+              title="Revenue"
+              value={formatCurrency(totals.revenue)}
+            />
+            <MiniKPI
+              icon={Trophy}
+              title="Logos"
+              value={totals.logos.toString()}
+            />
+            <MiniKPI
+              icon={Target}
+              title="Closure"
+              value={`${totals.closure}%`}
+            />
+            <MiniKPI
+              icon={Briefcase}
+              title="Ticket Prom."
+              value={formatCurrency(totals.avgTicket)}
+            />
           </div>
         </div>
 
@@ -116,33 +224,57 @@ export default function AnalyticsEquiposPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
                       Ejecutivo
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                      Equipo
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100">
+                    <th
+                      className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort("revenue")}
+                    >
                       <div className="flex items-center justify-end gap-1">
                         Revenue
                         <ArrowUpDown className="w-3 h-3" />
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">
-                      Won
+                    <th
+                      className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort("won")}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        Won
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">
-                      Closure
+                    <th
+                      className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort("closureRate")}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        Closure
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">
-                      Ticket
+                    <th
+                      className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort("avgTicket")}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        Ticket
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">
-                      Funnel
+                    <th
+                      className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100"
+                      onClick={() => handleSort("funnel")}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        Funnel
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {executives.map((exec, idx) => (
+                  {executives.slice(0, 10).map((exec, idx) => (
                     <tr
-                      key={exec.name}
+                      key={exec.email}
                       className="border-t border-slate-100 hover:bg-slate-50"
                     >
                       <td className="px-4 py-3">
@@ -165,13 +297,8 @@ export default function AnalyticsEquiposPage() {
                       <td className="px-4 py-3 text-sm font-medium text-slate-900">
                         {exec.name}
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
-                          {exec.team}
-                        </span>
-                      </td>
                       <td className="px-4 py-3 text-right text-sm font-medium text-slate-900">
-                        ${exec.revenue.toLocaleString()}
+                        {formatCurrency(exec.revenue)}
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-slate-600">
                         {exec.won}
@@ -190,10 +317,10 @@ export default function AnalyticsEquiposPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-slate-600">
-                        ${exec.avgTicket.toLocaleString()}
+                        {formatCurrency(exec.avgTicket)}
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-slate-600">
-                        ${exec.funnel.toLocaleString()}
+                        {formatCurrency(exec.funnel)}
                       </td>
                     </tr>
                   ))}
@@ -213,7 +340,7 @@ export default function AnalyticsEquiposPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {executives.slice(0, 4).map((exec) => (
                 <div
-                  key={exec.name}
+                  key={exec.email}
                   className="rounded-lg border border-slate-200 p-3 hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-center justify-between mb-2">
@@ -241,8 +368,8 @@ export default function AnalyticsEquiposPage() {
                     </div>
                   </div>
                   <div className="h-16 rounded bg-slate-50 flex items-center justify-center">
-                    <span className="text-[10px] text-slate-400">
-                      Grafico mini
+                    <span className="text-xs text-slate-500 font-medium">
+                      {formatCurrency(exec.funnel)}
                     </span>
                   </div>
                 </div>

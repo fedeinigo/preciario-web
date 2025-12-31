@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
   Globe,
   TrendingUp,
@@ -8,6 +8,8 @@ import {
   MapPin,
   Loader2,
 } from "lucide-react";
+import { useAnalyticsData } from "@/hooks/useAnalyticsData";
+import { SyncButton } from "../components/SyncButton";
 
 const REGION_COLORS: Record<string, string> = {
   Colombia: "#3b82f6",
@@ -15,6 +17,8 @@ const REGION_COLORS: Record<string, string> = {
   Mexico: "#f59e0b",
   Brasil: "#ef4444",
   España: "#8b5cf6",
+  Chile: "#0ea5e9",
+  Peru: "#f97316",
   "Rest Latam": "#6b7280",
 };
 
@@ -24,31 +28,88 @@ const REGION_BG_COLORS: Record<string, string> = {
   Mexico: "bg-amber-50 border-amber-200",
   Brasil: "bg-red-50 border-red-200",
   España: "bg-violet-50 border-violet-200",
+  Chile: "bg-sky-50 border-sky-200",
+  Peru: "bg-orange-50 border-orange-200",
   "Rest Latam": "bg-gray-50 border-gray-200",
 };
 
 export default function AnalyticsRegionesPage() {
-  const [isLoading] = useState(false);
+  const {
+    stats,
+    deals,
+    syncedAt,
+    isLoading,
+    isSyncing,
+    error,
+    cacheError,
+    sync,
+    loadInitial,
+    hasData,
+  } = useAnalyticsData();
 
-  const regions = [
-    { region: "Colombia", meetings: 45, logos: 12, revenue: 48000, avgDays: 38 },
-    { region: "Argentina", meetings: 38, logos: 10, revenue: 42000, avgDays: 42 },
-    { region: "Mexico", meetings: 32, logos: 8, revenue: 35000, avgDays: 45 },
-    { region: "Brasil", meetings: 28, logos: 6, revenue: 28000, avgDays: 52 },
-    { region: "España", meetings: 22, logos: 5, revenue: 22000, avgDays: 48 },
-    { region: "Rest Latam", meetings: 18, logos: 4, revenue: 15000, avgDays: 55 },
-  ];
+  useEffect(() => {
+    loadInitial();
+  }, [loadInitial]);
 
-  const topOriginsByRegion = [
-    { region: "Colombia", origins: [{ origin: "Inbound", revenue: 18000 }, { origin: "Referral", revenue: 15000 }, { origin: "Outbound", revenue: 10000 }] },
-    { region: "Argentina", origins: [{ origin: "Partner", revenue: 16000 }, { origin: "Inbound", revenue: 14000 }, { origin: "Events", revenue: 8000 }] },
-    { region: "Mexico", origins: [{ origin: "Outbound", revenue: 15000 }, { origin: "Inbound", revenue: 12000 }, { origin: "Referral", revenue: 5000 }] },
-    { region: "Brasil", origins: [{ origin: "Partner", revenue: 12000 }, { origin: "Inbound", revenue: 10000 }, { origin: "Events", revenue: 4000 }] },
-    { region: "España", origins: [{ origin: "Inbound", revenue: 10000 }, { origin: "Partner", revenue: 8000 }, { origin: "Referral", revenue: 3000 }] },
-    { region: "Rest Latam", origins: [{ origin: "Partner", revenue: 8000 }, { origin: "Inbound", revenue: 5000 }, { origin: "Outbound", revenue: 2000 }] },
-  ];
+  const regions = useMemo(() => {
+    return Array.from(stats.byRegion.entries())
+      .map(([region, data]) => ({
+        region,
+        meetings: data.meetings,
+        logos: data.logos,
+        revenue: data.revenue,
+        avgDays: data.avgDays || 45,
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [stats.byRegion]);
 
-  if (isLoading) {
+  const topOriginsByRegion = useMemo(() => {
+    const originsByRegion = new Map<string, Map<string, number>>();
+
+    for (const deal of deals) {
+      const title = deal.title.toLowerCase();
+      let region = "Rest Latam";
+      if (title.includes("colombia") || title.includes("col")) region = "Colombia";
+      else if (title.includes("argentina") || title.includes("arg")) region = "Argentina";
+      else if (title.includes("mexico") || title.includes("mex") || title.includes("méxico")) region = "Mexico";
+      else if (title.includes("brasil") || title.includes("brazil") || title.includes("br")) region = "Brasil";
+      else if (title.includes("españa") || title.includes("spain") || title.includes("esp")) region = "España";
+      else if (title.includes("chile") || title.includes("cl")) region = "Chile";
+      else if (title.includes("peru") || title.includes("perú")) region = "Peru";
+
+      if (!originsByRegion.has(region)) {
+        originsByRegion.set(region, new Map());
+      }
+
+      const stageName = deal.stageName?.toLowerCase() ?? "";
+      let source = "Otros";
+      if (stageName.includes("inbound")) source = "Inbound";
+      else if (stageName.includes("outbound")) source = "Outbound";
+      else if (stageName.includes("referral") || stageName.includes("referido")) source = "Referral";
+      else if (stageName.includes("partner")) source = "Partner";
+      else if (stageName.includes("marketing")) source = "Marketing";
+
+      const sourceMap = originsByRegion.get(region)!;
+      sourceMap.set(source, (sourceMap.get(source) ?? 0) + (deal.value ?? 0));
+    }
+
+    return Array.from(originsByRegion.entries())
+      .map(([region, sources]) => ({
+        region,
+        origins: Array.from(sources.entries())
+          .map(([origin, revenue]) => ({ origin, revenue }))
+          .sort((a, b) => b.revenue - a.revenue)
+          .slice(0, 3),
+      }))
+      .sort((a, b) => {
+        const aTotal = a.origins.reduce((s, o) => s + o.revenue, 0);
+        const bTotal = b.origins.reduce((s, o) => s + o.revenue, 0);
+        return bTotal - aTotal;
+      })
+      .slice(0, 6);
+  }, [deals]);
+
+  if (isLoading && !hasData) {
     return (
       <div className="min-h-[calc(100vh-var(--nav-h))] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -59,22 +120,39 @@ export default function AnalyticsRegionesPage() {
     );
   }
 
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+
   return (
     <div className="min-h-[calc(100vh-var(--nav-h))] px-4 pb-16 sm:px-6 lg:px-8 pt-8">
       <div className="mx-auto max-w-7xl space-y-8">
         <div className="relative rounded-xl bg-gradient-to-br from-purple-500/5 via-transparent to-purple-500/10 p-4 sm:p-6 border border-slate-200/50">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-purple-100 rounded-xl">
-              <Globe className="w-6 h-6 text-purple-600" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-purple-100 rounded-xl">
+                <Globe className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                  Regiones Estrategicas
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Analisis de rendimiento por region geografica
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                Regiones Estrategicas
-              </h2>
-              <p className="text-sm text-slate-500 mt-1">
-                Analisis de rendimiento por region geografica
-              </p>
-            </div>
+            <SyncButton
+              syncedAt={syncedAt}
+              isSyncing={isSyncing}
+              onSync={sync}
+              error={error}
+              cacheError={cacheError}
+            />
           </div>
         </div>
 
@@ -87,13 +165,34 @@ export default function AnalyticsRegionesPage() {
               </h3>
             </div>
             <p className="text-xs text-slate-500 mb-4">
-              Evolucion de ingresos por region
+              Ingresos totales por region
             </p>
-            <div className="h-[250px] rounded-lg bg-gradient-to-br from-slate-50 to-purple-50/30 flex items-center justify-center">
-              <div className="text-center">
-                <TrendingUp className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-xs text-slate-400">Grafico de lineas</p>
-              </div>
+            <div className="space-y-3">
+              {regions.slice(0, 6).map((r) => {
+                const maxRevenue = Math.max(...regions.map((x) => x.revenue), 1);
+                return (
+                  <div key={r.region} className="flex items-center gap-3">
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: REGION_COLORS[r.region] || "#6b7280" }}
+                    />
+                    <span className="text-sm text-slate-700 w-24">{r.region}</span>
+                    <div className="flex-1 h-4 bg-slate-100 rounded overflow-hidden">
+                      <div
+                        className="h-full rounded flex items-center justify-end px-2"
+                        style={{
+                          backgroundColor: REGION_COLORS[r.region] || "#6b7280",
+                          width: `${(r.revenue / maxRevenue) * 100}%`,
+                        }}
+                      >
+                        <span className="text-[10px] text-white font-medium">
+                          {formatCurrency(r.revenue)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -108,18 +207,18 @@ export default function AnalyticsRegionesPage() {
               Promedio de dias para cerrar (deals ganados)
             </p>
             <div className="space-y-3">
-              {regions.map((r) => (
+              {regions.slice(0, 6).map((r) => (
                 <div key={r.region} className="flex items-center gap-3">
                   <div
                     className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: REGION_COLORS[r.region] }}
+                    style={{ backgroundColor: REGION_COLORS[r.region] || "#6b7280" }}
                   />
                   <span className="text-sm text-slate-700 w-24">{r.region}</span>
                   <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full"
                       style={{
-                        backgroundColor: REGION_COLORS[r.region],
+                        backgroundColor: REGION_COLORS[r.region] || "#6b7280",
                         width: `${(r.avgDays / 60) * 100}%`,
                       }}
                     />
@@ -138,7 +237,7 @@ export default function AnalyticsRegionesPage() {
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-purple-600" />
               <h3 className="text-base font-semibold text-slate-800">
-                Top 5 Origenes por Region
+                Top Origenes por Region
               </h3>
             </div>
             <p className="text-xs text-slate-500 mt-1">
@@ -150,12 +249,12 @@ export default function AnalyticsRegionesPage() {
               {topOriginsByRegion.map((r) => (
                 <div
                   key={r.region}
-                  className={`rounded-lg border p-3 ${REGION_BG_COLORS[r.region]}`}
+                  className={`rounded-lg border p-3 ${REGION_BG_COLORS[r.region] || "bg-gray-50 border-gray-200"}`}
                 >
                   <div className="flex items-center gap-2 mb-3 pb-2 border-b border-current/10">
                     <div
                       className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: REGION_COLORS[r.region] }}
+                      style={{ backgroundColor: REGION_COLORS[r.region] || "#6b7280" }}
                     />
                     <h4 className="font-semibold text-sm text-slate-800">
                       {r.region}
@@ -171,7 +270,7 @@ export default function AnalyticsRegionesPage() {
                           {origin.origin}
                         </span>
                         <span className="font-semibold text-slate-800 whitespace-nowrap">
-                          ${origin.revenue.toLocaleString()}
+                          {formatCurrency(origin.revenue)}
                         </span>
                       </div>
                     ))}
@@ -222,7 +321,7 @@ export default function AnalyticsRegionesPage() {
                       <div className="flex items-center gap-2">
                         <div
                           className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: REGION_COLORS[r.region] }}
+                          style={{ backgroundColor: REGION_COLORS[r.region] || "#6b7280" }}
                         />
                         <span className="text-sm font-medium text-slate-800">
                           {r.region}
@@ -236,7 +335,7 @@ export default function AnalyticsRegionesPage() {
                       {r.logos}
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-medium text-emerald-600">
-                      ${r.revenue.toLocaleString()}
+                      {formatCurrency(r.revenue)}
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-slate-600">
                       {r.avgDays}
