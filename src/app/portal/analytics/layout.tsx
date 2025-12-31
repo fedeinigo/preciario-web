@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { PortalThemeProvider } from "@/app/components/theme/PortalThemeProvider";
+import PortalThemeProvider from "@/app/components/theme/PortalThemeProvider";
 
 export default async function AnalyticsPortalLayout({
   children,

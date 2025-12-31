@@ -14,7 +14,6 @@ export const MUTABLE_PORTAL_ACCESS = [
   "mapache",
   "partner",
   "marketing",
-  "analytics",
 ] as const satisfies readonly PortalAccessId[];
 
 export function includeDefaultPortal(
