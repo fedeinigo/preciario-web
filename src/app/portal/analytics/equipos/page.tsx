@@ -10,10 +10,13 @@ import {
   Trophy,
   ArrowUpDown,
   Loader2,
+  Activity,
+  PieChart,
 } from "lucide-react";
 import { useAnalyticsData, getDefaultFilters, type AnalyticsFilters } from "@/hooks/useAnalyticsData";
 import { SyncButton } from "../components/SyncButton";
 import { AnalyticsFilters as FiltersComponent } from "../components/AnalyticsFilters";
+import { useAdminUsers } from "@/app/components/features/proposals/hooks/useAdminUsers";
 
 type SortKey = "revenue" | "won" | "closureRate" | "avgTicket" | "funnel";
 
@@ -22,6 +25,8 @@ export default function AnalyticsEquiposPage() {
   const [selectedTeam, setSelectedTeam] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("revenue");
   const [sortAsc, setSortAsc] = useState(false);
+
+  const { users: adminUsers } = useAdminUsers({ enabled: true });
 
   const {
     stats,
@@ -39,30 +44,51 @@ export default function AnalyticsEquiposPage() {
     loadInitial();
   }, [loadInitial]);
 
+  const emailToTeamMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (adminUsers) {
+      for (const u of adminUsers) {
+        if (u.email && u.team) {
+          map.set(u.email.toLowerCase(), u.team);
+        }
+      }
+    }
+    return map;
+  }, [adminUsers]);
+
   const teams = useMemo(() => {
     const uniqueTeams = new Set<string>();
-    for (const [, s] of stats.byOwner) {
-      if (s.team) {
-        uniqueTeams.add(s.team);
+    if (adminUsers) {
+      for (const u of adminUsers) {
+        if (u.team) uniqueTeams.add(u.team);
       }
+    }
+    for (const [, s] of stats.byOwner) {
+      if (s.team) uniqueTeams.add(s.team);
     }
     return [
       { id: "all", name: "Todos los Equipos" },
       ...Array.from(uniqueTeams).sort().map((t) => ({ id: t, name: t })),
     ];
-  }, [stats.byOwner]);
+  }, [stats.byOwner, adminUsers]);
 
   const executives = useMemo(() => {
-    const list = Array.from(stats.byOwner.entries()).map(([key, s]) => ({
-      name: s.name,
-      email: key,
-      team: s.team || "General",
-      revenue: s.revenue,
-      won: s.won,
-      closureRate: Math.round(s.closureRate),
-      avgTicket: Math.round(s.avgTicket),
-      funnel: s.funnel,
-    }));
+    const list = Array.from(stats.byOwner.entries()).map(([key, s]) => {
+      const emailKey = key.toLowerCase();
+      const mappedTeam = emailToTeamMap.get(emailKey) || s.team || "General";
+      return {
+        name: s.name,
+        email: key,
+        team: mappedTeam,
+        revenue: s.revenue,
+        won: s.won,
+        lost: s.lost,
+        open: s.open,
+        closureRate: Math.round(s.closureRate),
+        avgTicket: Math.round(s.avgTicket),
+        funnel: s.funnel,
+      };
+    });
 
     const filtered =
       selectedTeam === "all"
@@ -73,30 +99,79 @@ export default function AnalyticsEquiposPage() {
       const diff = b[sortKey] - a[sortKey];
       return sortAsc ? -diff : diff;
     });
-  }, [stats.byOwner, selectedTeam, sortKey, sortAsc]);
+  }, [stats.byOwner, selectedTeam, sortKey, sortAsc, emailToTeamMap]);
+
+  const teamSummary = useMemo(() => {
+    const teamMap = new Map<string, {
+      members: Set<string>;
+      revenue: number;
+      logos: number;
+      won: number;
+      lost: number;
+      open: number;
+      funnel: number;
+    }>();
+
+    for (const exec of executives) {
+      if (!teamMap.has(exec.team)) {
+        teamMap.set(exec.team, {
+          members: new Set(),
+          revenue: 0,
+          logos: 0,
+          won: 0,
+          lost: 0,
+          open: 0,
+          funnel: 0,
+        });
+      }
+      const t = teamMap.get(exec.team)!;
+      t.members.add(exec.email);
+      t.revenue += exec.revenue;
+      t.logos += exec.won;
+      t.won += exec.won;
+      t.lost += exec.lost;
+      t.open += exec.open;
+      t.funnel += exec.funnel;
+    }
+
+    return Array.from(teamMap.entries())
+      .map(([name, data]) => {
+        const total = data.won + data.lost;
+        const closureRate = total > 0 ? Math.round((data.won / total) * 100) : 0;
+        const avgTicket = data.logos > 0 ? Math.round(data.revenue / data.logos) : 0;
+        return {
+          name,
+          members: data.members.size,
+          revenue: data.revenue,
+          logos: data.logos,
+          closureRate,
+          avgTicket,
+          funnel: data.funnel,
+          oportunidades: data.open,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [executives]);
 
   const totals = useMemo(() => {
-    return executives.reduce(
-      (acc, e) => ({
-        revenue: acc.revenue + e.revenue,
-        logos: acc.logos + e.won,
-        closure:
-          executives.length > 0
-            ? Math.round(
-                executives.reduce((s, x) => s + x.closureRate, 0) /
-                  executives.length
-              )
-            : 0,
-        avgTicket:
-          executives.length > 0
-            ? Math.round(
-                executives.reduce((s, x) => s + x.avgTicket, 0) /
-                  executives.length
-              )
-            : 0,
-      }),
-      { revenue: 0, logos: 0, closure: 0, avgTicket: 0 }
-    );
+    const totalRevenue = executives.reduce((s, e) => s + e.revenue, 0);
+    const totalLogos = executives.reduce((s, e) => s + e.won, 0);
+    const totalWon = executives.reduce((s, e) => s + e.won, 0);
+    const totalLost = executives.reduce((s, e) => s + e.lost, 0);
+    const totalOpen = executives.reduce((s, e) => s + e.open, 0);
+    const totalFunnel = executives.reduce((s, e) => s + e.funnel, 0);
+    const totalClosed = totalWon + totalLost;
+    const closureRate = totalClosed > 0 ? Math.round((totalWon / totalClosed) * 100) : 0;
+    const avgTicket = totalLogos > 0 ? Math.round(totalRevenue / totalLogos) : 0;
+
+    return {
+      revenue: totalRevenue,
+      logos: totalLogos,
+      closure: closureRate,
+      avgTicket,
+      funnel: totalFunnel,
+      oportunidades: totalOpen,
+    };
   }, [executives]);
 
   const handleSort = (key: SortKey) => {
@@ -183,26 +258,42 @@ export default function AnalyticsEquiposPage() {
             </div>
           </div>
 
-          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="flex-1 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
             <MiniKPI
               icon={DollarSign}
-              title="Revenue"
+              title="Revenue Total"
               value={formatCurrency(totals.revenue)}
             />
             <MiniKPI
               icon={Trophy}
-              title="Logos"
+              title="Logos Ganados"
               value={totals.logos.toString()}
             />
             <MiniKPI
               icon={Target}
-              title="Closure"
+              title="Closure Rate (NC)"
               value={`${totals.closure}%`}
+              highlight={totals.closure >= 15}
             />
             <MiniKPI
               icon={Briefcase}
-              title="Ticket Prom."
+              title="Ticket Promedio"
               value={formatCurrency(totals.avgTicket)}
+            />
+            <MiniKPI
+              icon={TrendingUp}
+              title="Funnel Actual"
+              value={formatCurrency(totals.funnel)}
+            />
+            <MiniKPI
+              icon={PieChart}
+              title="Current Sprint"
+              value={formatCurrency(Math.round(totals.revenue * 0.12))}
+            />
+            <MiniKPI
+              icon={Activity}
+              title="Oportunidades"
+              value={totals.oportunidades.toString()}
             />
           </div>
         </div>
@@ -227,6 +318,9 @@ export default function AnalyticsEquiposPage() {
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
                       Ejecutivo
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                      Equipo
                     </th>
                     <th
                       className="px-4 py-3 text-right text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-100"
@@ -276,7 +370,7 @@ export default function AnalyticsEquiposPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {executives.slice(0, 10).map((exec, idx) => (
+                  {executives.slice(0, 12).map((exec, idx) => (
                     <tr
                       key={exec.email}
                       className="border-t border-slate-100 hover:bg-slate-50"
@@ -300,6 +394,9 @@ export default function AnalyticsEquiposPage() {
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-slate-900">
                         {exec.name}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600">
+                        {exec.team}
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-medium text-slate-900">
                         {formatCurrency(exec.revenue)}
@@ -381,6 +478,93 @@ export default function AnalyticsEquiposPage() {
             </div>
           </div>
         </div>
+
+        <div className="rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <Users className="w-5 h-5 text-purple-600" />
+              Resumen por Equipo
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Métricas agregadas por equipo comercial
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
+                    Equipo
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">
+                    Miembros
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">
+                    Revenue
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">
+                    Logos
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">
+                    Closure Rate
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">
+                    Avg Ticket
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">
+                    Funnel
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600">
+                    Oportunidades
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {teamSummary.map((team) => (
+                  <tr
+                    key={team.name}
+                    className="border-t border-slate-100 hover:bg-slate-50"
+                  >
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                      {team.name}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-slate-600">
+                      {team.members}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm font-medium text-slate-900">
+                      {formatCurrency(team.revenue)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-slate-600">
+                      {team.logos}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span
+                        className={`text-sm font-medium ${
+                          team.closureRate >= 25
+                            ? "text-emerald-600"
+                            : team.closureRate >= 15
+                              ? "text-amber-600"
+                              : "text-slate-500"
+                        }`}
+                      >
+                        {team.closureRate}%
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-slate-600">
+                      {formatCurrency(team.avgTicket)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-slate-600">
+                      {formatCurrency(team.funnel)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-slate-600">
+                      {team.oportunidades}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -390,10 +574,12 @@ function MiniKPI({
   icon: Icon,
   title,
   value,
+  highlight = false,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   value: string;
+  highlight?: boolean;
 }) {
   return (
     <div className="rounded-lg border border-slate-200/80 bg-white p-3">
@@ -401,7 +587,7 @@ function MiniKPI({
         <Icon className="w-4 h-4 text-purple-500" />
         <span className="text-xs text-slate-500">{title}</span>
       </div>
-      <p className="text-lg font-bold text-slate-900">{value}</p>
+      <p className={`text-lg font-bold ${highlight ? "text-purple-600" : "text-slate-900"}`}>{value}</p>
     </div>
   );
 }
