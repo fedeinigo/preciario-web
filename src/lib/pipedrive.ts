@@ -27,12 +27,19 @@ const FIELD_TECH_SALE_SCOPE =
   process.env.PIPEDRIVE_FIELD_TECH_SALE_SCOPE ??
   "9ee77b4dd02806af96053ef2f30a76ebd98208c6";
 
+const FIELD_TYPE_OF_DEAL = "a7ab0c5cfbfd5a57ce6531b4aa0a74b317c4b657";
+const FIELD_COUNTRY = "f7c43d98b4ef75192ee0798b360f2076754981b9";
+const FIELD_ORIGEN = "a9241093db8147d20f4c1c7f6c1998477f819ef4";
+
 const CUSTOM_FIELD_KEYS = [
   FIELD_MAPACHE_ASSIGNED,
   FIELD_FEE_MENSUAL,
   FIELD_PROPOSAL_URL,
   FIELD_DOC_CONTEXT_DEAL,
   FIELD_TECH_SALE_SCOPE,
+  FIELD_TYPE_OF_DEAL,
+  FIELD_COUNTRY,
+  FIELD_ORIGEN,
 ].filter(Boolean).join(",");
 
 type MapacheFieldOptions = {
@@ -179,6 +186,7 @@ type PdDealRecord = {
   value?: number | string | null;
   add_time?: string | null;
   won_time?: string | null;
+  lost_time?: string | null;
   stage_id?: number | null;
   owner_id?: number | null;
   owner_name?: string | null;
@@ -815,12 +823,30 @@ function normalizeDealSummary({
   const mapacheAssigned =
     mapacheOptionId !== null ? mapacheOptions.optionById.get(mapacheOptionId) ?? null : null;
 
+  const addTimeStr = extractString(deal.add_time);
+  const wonTimeStr = extractString(deal.won_time);
+  const lostTimeStr = extractString(deal.lost_time);
+  
+  let salesCycleDays: number | null = null;
+  if (addTimeStr && wonTimeStr && deal.status === "won") {
+    const addTime = new Date(addTimeStr).getTime();
+    const wonTime = new Date(wonTimeStr).getTime();
+    if (!isNaN(addTime) && !isNaN(wonTime)) {
+      salesCycleDays = Math.round((wonTime - addTime) / (1000 * 60 * 60 * 24));
+    }
+  }
+
+  const dealType = getCustomFieldString(customFields, FIELD_TYPE_OF_DEAL);
+  const country = getCustomFieldString(customFields, FIELD_COUNTRY);
+  const origin = getCustomFieldString(customFields, FIELD_ORIGEN);
+
   return {
     id: deal.id,
     title: extractString(deal.title) ?? "",
     value: ensureNumber(deal.value),
-    createdAt: extractString(deal.add_time),
-    wonAt: extractString(deal.won_time),
+    createdAt: addTimeStr,
+    wonAt: wonTimeStr,
+    lostAt: lostTimeStr,
     wonQuarter: determineQuarter(deal.won_time),
     stageId: ensureNumber(deal.stage_id),
     stageName,
@@ -834,6 +860,10 @@ function normalizeDealSummary({
     docContextDeal: getCustomFieldString(customFields, FIELD_DOC_CONTEXT_DEAL),
     techSaleScopeUrl: getCustomFieldString(customFields, FIELD_TECH_SALE_SCOPE),
     dealUrl: buildDealUrl(deal.id),
+    dealType,
+    country,
+    origin,
+    salesCycleDays,
   };
 }
 

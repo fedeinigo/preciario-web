@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { PipedriveDealSummary } from "@/types/pipedrive";
+import { DEAL_TYPES, PROPOSAL_STAGES, COUNTRY_OPTIONS, ORIGEN_OPTIONS } from "@/types/pipedrive";
 
 const CACHE_KEY = "analytics_deals_cache";
 const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -79,6 +80,15 @@ type AnalyticsStats = {
   ncMeetings: number;
   upsellingRevenue: number;
   ncRevenue: number;
+  ncWonDeals: number;
+  upsellingWonDeals: number;
+  ncClosureRate: number;
+  ncAvgTicket: number;
+  ncAvgCycleDays: number;
+  ncLogosWon: number;
+  funnelReuniones: number;
+  funnelPropuestas: number;
+  funnelCierres: number;
 };
 
 type OwnerStats = {
@@ -143,59 +153,29 @@ function saveToCache(deals: PipedriveDealSummary[], syncedAt: string): boolean {
 }
 
 function extractRegion(deal: PipedriveDealSummary): string {
-  const title = (deal.title || "").toLowerCase();
-  const ownerName = (deal.ownerName || "").toLowerCase();
-  const combined = `${title} ${ownerName}`;
-  
-  if (combined.includes("colombia") || combined.includes(" col ") || combined.includes("bogota") || combined.includes("medellin")) return "Colombia";
-  if (combined.includes("argentina") || combined.includes(" arg ") || combined.includes("buenos aires")) return "Argentina";
-  if (combined.includes("mexico") || combined.includes(" mex ") || combined.includes("méxico") || combined.includes("cdmx")) return "Mexico";
-  if (combined.includes("brasil") || combined.includes("brazil") || combined.includes(" br ") || combined.includes("sao paulo")) return "Brasil";
-  if (combined.includes("españa") || combined.includes("spain") || combined.includes(" esp ") || combined.includes("madrid")) return "España";
-  if (combined.includes("chile") || combined.includes(" cl ") || combined.includes("santiago")) return "Chile";
-  if (combined.includes("peru") || combined.includes("perú") || combined.includes("lima")) return "Peru";
-  if (combined.includes("ecuador") || combined.includes("quito")) return "Ecuador";
-  if (combined.includes("uruguay")) return "Uruguay";
+  if (deal.country && COUNTRY_OPTIONS[deal.country]) {
+    return COUNTRY_OPTIONS[deal.country];
+  }
   return "Rest Latam";
 }
 
 function extractSource(deal: PipedriveDealSummary): string {
-  const stageName = (deal.stageName || "").toLowerCase();
-  const title = (deal.title || "").toLowerCase();
-  const combined = `${stageName} ${title}`;
-  
-  if (combined.includes("inbound")) return "Inbound";
-  if (combined.includes("outbound")) return "Outbound";
-  if (combined.includes("referral") || combined.includes("referido")) return "Referral";
-  if (combined.includes("partner")) return "Partner";
-  if (combined.includes("marketing") || combined.includes("evento") || combined.includes("event")) return "Marketing";
-  return "Directo";
+  if (deal.origin && ORIGEN_OPTIONS[deal.origin]) {
+    return ORIGEN_OPTIONS[deal.origin];
+  }
+  return "Otros";
 }
 
 function isUpsellingDeal(deal: PipedriveDealSummary): boolean {
-  const title = (deal.title || "").toLowerCase();
-  const stageName = (deal.stageName || "").toLowerCase();
-  const combined = `${title} ${stageName}`;
-  
-  return combined.includes("upsell") || 
-         combined.includes("expansion") || 
-         combined.includes("upgrade") ||
-         combined.includes("cross-sell") ||
-         combined.includes("ampliacion") ||
-         combined.includes("renovacion");
+  return deal.dealType === DEAL_TYPES.UPSELLING;
 }
 
-function isNCMeeting(deal: PipedriveDealSummary): boolean {
-  const stageName = (deal.stageName || "").toLowerCase();
-  const title = (deal.title || "").toLowerCase();
-  
-  return stageName.includes("nc") || 
-         stageName.includes("new customer") || 
-         stageName.includes("first meeting") ||
-         stageName.includes("demo") ||
-         stageName.includes("discovery") ||
-         title.includes("nc ") ||
-         title.includes("new customer");
+function isNCDeal(deal: PipedriveDealSummary): boolean {
+  return deal.dealType === DEAL_TYPES.NEW_CUSTOMER;
+}
+
+function isInProposalStage(deal: PipedriveDealSummary): boolean {
+  return deal.stageId !== null && PROPOSAL_STAGES.includes(deal.stageId);
 }
 
 function calculateDaysBetween(start: string | null, end: string | null): number | null {
@@ -235,9 +215,19 @@ function computeStats(deals: PipedriveDealSummary[]): AnalyticsStats {
   let lostDeals = 0;
   let totalCycleDays = 0;
   let cycleCount = 0;
-  let ncMeetings = 0;
   let upsellingRevenue = 0;
   let ncRevenue = 0;
+  
+  let ncWonDeals = 0;
+  let ncLostDeals = 0;
+  let upsellingWonDeals = 0;
+  let ncCycleDaysTotal = 0;
+  let ncCycleCount = 0;
+
+  const ncDeals = deals.filter(isNCDeal);
+  const ncMeetings = ncDeals.length;
+  const funnelPropuestas = ncDeals.filter(d => isInProposalStage(d) || d.status === "won").length;
+  const funnelCierres = ncDeals.filter(d => d.status === "won").length;
 
   for (const deal of deals) {
     const value = deal.value ?? 0;
@@ -282,10 +272,6 @@ function computeStats(deals: PipedriveDealSummary[]): AnalyticsStats {
     const source = extractSource(deal);
     bySource.set(source, (bySource.get(source) ?? 0) + value);
 
-    if (isNCMeeting(deal)) {
-      ncMeetings++;
-    }
-
     if (deal.status === "won") {
       wonRevenue += value;
       wonDeals++;
@@ -296,8 +282,8 @@ function computeStats(deals: PipedriveDealSummary[]): AnalyticsStats {
       regionStats.logos++;
       regionStats.revenue += value;
       
-      const cycleDays = calculateDaysBetween(deal.createdAt, deal.wonAt);
-      if (cycleDays !== null) {
+      const cycleDays = deal.salesCycleDays ?? calculateDaysBetween(deal.createdAt, deal.wonAt);
+      if (cycleDays !== null && cycleDays >= 0) {
         totalCycleDays += cycleDays;
         cycleCount++;
         regionStats.cycleDaysTotal += cycleDays;
@@ -306,8 +292,14 @@ function computeStats(deals: PipedriveDealSummary[]): AnalyticsStats {
 
       if (isUpsellingDeal(deal)) {
         upsellingRevenue += value;
-      } else {
+        upsellingWonDeals++;
+      } else if (isNCDeal(deal)) {
         ncRevenue += value;
+        ncWonDeals++;
+        if (cycleDays !== null && cycleDays >= 0) {
+          ncCycleDaysTotal += cycleDays;
+          ncCycleCount++;
+        }
       }
     } else if (deal.status === "open") {
       openRevenue += value;
@@ -317,6 +309,9 @@ function computeStats(deals: PipedriveDealSummary[]): AnalyticsStats {
     } else if (deal.status === "lost") {
       lostDeals++;
       ownerStats.lost++;
+      if (isNCDeal(deal)) {
+        ncLostDeals++;
+      }
     }
   }
 
@@ -341,6 +336,11 @@ function computeStats(deals: PipedriveDealSummary[]): AnalyticsStats {
   const avgTicket = wonDeals > 0 ? wonRevenue / wonDeals : 0;
   const avgCycleDays = cycleCount > 0 ? Math.round(totalCycleDays / cycleCount) : 0;
 
+  const ncClosedDeals = ncWonDeals + ncLostDeals;
+  const ncClosureRate = ncClosedDeals > 0 ? (ncWonDeals / ncClosedDeals) * 100 : 0;
+  const ncAvgTicket = ncWonDeals > 0 ? ncRevenue / ncWonDeals : 0;
+  const ncAvgCycleDays = ncCycleCount > 0 ? Math.round(ncCycleDaysTotal / ncCycleCount) : 0;
+
   return {
     totalRevenue,
     wonRevenue,
@@ -359,6 +359,15 @@ function computeStats(deals: PipedriveDealSummary[]): AnalyticsStats {
     ncMeetings,
     upsellingRevenue,
     ncRevenue,
+    ncWonDeals,
+    upsellingWonDeals,
+    ncClosureRate,
+    ncAvgTicket,
+    ncAvgCycleDays,
+    ncLogosWon: ncWonDeals,
+    funnelReuniones: ncMeetings,
+    funnelPropuestas,
+    funnelCierres,
   };
 }
 

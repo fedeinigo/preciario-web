@@ -105,65 +105,89 @@ export default function AnalyticsDashboardPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           <KPICard
-            title="Revenue Total"
+            title="Dólares Conseguidos"
             value={formatCurrency(stats.wonRevenue)}
-            change={12.5}
-            trend="up"
+            subtitle="MRR Neto"
             icon={DollarSign}
             className="border-l-4 border-l-purple-500"
           />
           <KPICard
-            title="Tasa de Cierre"
-            value={`${stats.closureRate.toFixed(1)}%`}
-            change={3.2}
-            trend="up"
+            title="Tasa de Cierre (NC)"
+            value={`${stats.ncClosureRate.toFixed(1)}%`}
+            subtitle="Solo New Customers"
             icon={Target}
           />
           <KPICard
             title="Reuniones NC"
-            value={stats.ncMeetings.toString()}
-            change={-2.1}
-            trend="down"
+            value={stats.ncMeetings.toLocaleString()}
+            subtitle="Solo New Customers"
             icon={CalendarCheck}
           />
           <KPICard
-            title="Logos Ganados"
-            value={stats.wonDeals.toString()}
-            change={8.0}
-            trend="up"
+            title="Logos Conseguidos"
+            value={stats.ncLogosWon.toString()}
+            subtitle="Período actual"
             icon={Briefcase}
           />
           <KPICard
-            title="Ciclo de Ventas"
-            value={`${stats.avgCycleDays || 45} dias`}
-            change={-5.0}
-            trend="up"
+            title="Ciclo de Venta (NC)"
+            value={`${stats.ncAvgCycleDays || 0} días`}
+            subtitle="Solo New Customers"
             icon={Clock}
           />
           <KPICard
-            title="Ticket Promedio"
-            value={formatCurrency(stats.avgTicket)}
-            change={15.3}
-            trend="up"
+            title="Ticket Promedio (NC)"
+            value={formatCurrency(stats.ncAvgTicket)}
+            subtitle="Solo New Customers"
             icon={Banknote}
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
           <KPICard
-            title="Total New Customers"
+            title="Revenue New Customers"
             value={formatCurrency(stats.ncRevenue)}
-            change={18.5}
-            trend="up"
+            subtitle={`${stats.ncWonDeals} deals ganados`}
             icon={UserPlus}
           />
           <KPICard
-            title="Total Upselling"
+            title="Revenue Upselling"
             value={formatCurrency(stats.upsellingRevenue)}
-            change={22.1}
-            trend="up"
+            subtitle={`${stats.upsellingWonDeals} deals ganados`}
             icon={ArrowUpCircle}
           />
+        </div>
+
+        <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2 mb-4">
+            <TrendingUp className="w-5 h-5 text-purple-600" />
+            Funnel de Conversión
+          </h3>
+          <p className="text-xs text-slate-500 mb-4">
+            Tarjetas New Customer: Reuniones → Propuestas → Cierres
+          </p>
+          <div className="flex items-center justify-between gap-4">
+            <FunnelStep
+              label="Reuniones"
+              count={stats.funnelReuniones}
+              percentage={100}
+              color="bg-purple-600"
+            />
+            <div className="text-slate-400">→</div>
+            <FunnelStep
+              label="Propuestas"
+              count={stats.funnelPropuestas}
+              percentage={stats.funnelReuniones > 0 ? Math.round((stats.funnelPropuestas / stats.funnelReuniones) * 100) : 0}
+              color="bg-purple-500"
+            />
+            <div className="text-slate-400">→</div>
+            <FunnelStep
+              label="Cierres"
+              count={stats.funnelCierres}
+              percentage={stats.funnelReuniones > 0 ? Math.round((stats.funnelCierres / stats.funnelReuniones) * 100) : 0}
+              color="bg-emerald-500"
+            />
+          </div>
         </div>
 
         <div>
@@ -204,7 +228,62 @@ export default function AnalyticsDashboardPage() {
   );
 }
 
+function FunnelStep({
+  label,
+  count,
+  percentage,
+  color,
+}: {
+  label: string;
+  count: number;
+  percentage: number;
+  color: string;
+}) {
+  return (
+    <div className="flex-1 text-center">
+      <div className={`inline-flex items-center justify-center w-16 h-16 rounded-xl ${color} text-white font-bold text-lg mb-2`}>
+        {count}
+      </div>
+      <p className="text-sm font-medium text-slate-900">{label}</p>
+      <p className="text-xs text-slate-500">{percentage}% del total</p>
+    </div>
+  );
+}
+
 function KPICard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  className = "",
+}: {
+  title: string;
+  value: string;
+  subtitle?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`relative rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm hover:shadow-md transition-shadow ${className}`}
+    >
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-medium text-slate-500">{title}</p>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
+          {subtitle && (
+            <p className="text-xs text-slate-400 mt-1">{subtitle}</p>
+          )}
+        </div>
+        <div className="rounded-lg bg-purple-50 p-2">
+          <Icon className="h-5 w-5 text-purple-600" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KPICardOld({
   title,
   value,
   change,
