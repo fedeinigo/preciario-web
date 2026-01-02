@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { searchDealsByMapacheAssigned, searchDealsByOwnerEmails } from "@/lib/pipedrive";
+import { searchWonDealsByMapacheAssigned, searchWonDealsByOwnerEmail } from "@/lib/pipedrive";
 import logger from "@/lib/logger";
 
 const log = logger.child({ route: "api/goals/sync-user" });
@@ -100,20 +100,15 @@ export async function POST(req: Request) {
   });
 
   try {
-    const deals = syncMode === "mapache"
-      ? await searchDealsByMapacheAssigned(searchName)
-      : await searchDealsByOwnerEmails([searchEmail]);
+    // Use optimized functions that only fetch "won" deals with date filters
+    const searchOptions = { year, quarter };
+    const wonDeals = syncMode === "mapache"
+      ? await searchWonDealsByMapacheAssigned(searchName, searchOptions)
+      : await searchWonDealsByOwnerEmail(searchEmail, searchOptions);
 
-    log.info("sync_user_deals_fetched", {
-      syncMode,
-      searchIdentifier: syncMode === "mapache" ? searchName : searchEmail,
-      totalDeals: deals.length,
-    });
-
-    const wonDeals = deals.filter((deal) => {
-      const status = String(deal.status ?? "").toLowerCase();
-      if (status !== "won") return false;
-
+    // Additional client-side filter to ensure won_time is within the quarter
+    // (update_time filter is approximate, won_time is authoritative)
+    const filteredWonDeals = wonDeals.filter((deal) => {
       const wonAt = deal.wonAt ?? null;
       const wonDate = wonAt ? new Date(wonAt) : null;
       const wonYear = wonDate?.getFullYear() ?? null;
@@ -124,14 +119,14 @@ export async function POST(req: Request) {
     });
 
     log.info("sync_user_won_deals_filtered", {
-      totalDeals: deals.length,
-      wonDealsCount: wonDeals.length,
+      fetchedDeals: wonDeals.length,
+      filteredDeals: filteredWonDeals.length,
       currentYear: year,
       currentQuarter: quarter,
     });
 
     let progressAmount = 0;
-    for (const deal of wonDeals) {
+    for (const deal of filteredWonDeals) {
       const feeMensual = Number(deal.feeMensual ?? 0);
       const value = Number(deal.value ?? 0);
       const monthlyFee = Number.isFinite(feeMensual) && feeMensual > 0 ? feeMensual : value;
@@ -151,7 +146,7 @@ export async function POST(req: Request) {
 
     const goalAmount = Number(goal?.amount ?? 0);
     const pct = goalAmount > 0 ? Math.round((progressAmount / goalAmount) * 100) : 0;
-    const dealsCount = wonDeals.length;
+    const dealsCount = filteredWonDeals.length;
     const lastSyncedAt = now.toISOString();
 
     await prisma.goalsProgressSnapshot.upsert({
@@ -184,7 +179,7 @@ export async function POST(req: Request) {
     log.info("sync_user_complete", {
       targetUserId,
       syncMode,
-      dealsFound: deals.length,
+      dealsFound: wonDeals.length,
       wonDealsCount: dealsCount,
       progressAmount,
       goalAmount,

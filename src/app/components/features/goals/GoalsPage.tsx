@@ -672,21 +672,19 @@ export default function GoalsPage({
           if (memberIdentifiers.length > 0) {
             const modeQuery = pipedriveMode === "owner" ? "?mode=owner" : "";
             const forceQuery = options?.force ? `${modeQuery ? "&" : "?"}force=1` : "";
-            const pdRes = await fetch(`/api/pipedrive/team-deals${modeQuery}${forceQuery}` as const, {
+            const pdRes = await fetch(`/api/goals/team-sync${modeQuery}${forceQuery}` as const, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ names: memberIdentifiers }),
+              body: JSON.stringify({ names: memberIdentifiers, year, quarter }),
               signal: controller.signal,
             });
             if (isStale()) return;
-            if (!pdRes.ok) throw new Error(`team-deals-${pdRes.status}`);
+            if (!pdRes.ok) throw new Error(`team-sync-${pdRes.status}`);
             const pdPayload = (await pdRes.json()) as { ok?: boolean; deals?: Array<{ [key: string]: unknown }> };
             if (isStale()) return;
-            if (!pdPayload.ok || !Array.isArray(pdPayload.deals)) throw new Error("team-deals-invalid");
+            if (!pdPayload.ok || !Array.isArray(pdPayload.deals)) throw new Error("team-sync-invalid");
 
             const filteredDeals = pdPayload.deals.filter((deal) => {
-              const status = String((deal as { status?: string | null }).status ?? "").toLowerCase();
-              if (status !== "won") return false;
               const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
               const wonDate = wonAt ? new Date(wonAt) : null;
               const wonYear = wonDate?.getFullYear() ?? null;

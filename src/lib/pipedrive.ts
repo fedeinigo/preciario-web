@@ -667,9 +667,20 @@ export async function searchDealsByOwnerNames(ownerNames: string[]) {
   return summaries;
 }
 
+type FetchDealsOptions = {
+  statuses?: DealStatus[];
+  updateTimeFrom?: string; // ISO date string e.g. "2026-01-01"
+  updateTimeUntil?: string; // ISO date string e.g. "2026-03-31"
+};
+
 async function fetchDealsWithMapacheFields(
-  statuses: DealStatus[] = ["open"],
+  statusesOrOptions: DealStatus[] | FetchDealsOptions = ["open"],
 ) {
+  const options: FetchDealsOptions = Array.isArray(statusesOrOptions)
+    ? { statuses: statusesOrOptions }
+    : statusesOrOptions;
+  
+  const statuses = options.statuses ?? ["open"];
   const results: PdDealRecord[] = [];
   const limit = 100;
 
@@ -687,6 +698,13 @@ async function fetchDealsWithMapacheFields(
       }
       if (CUSTOM_FIELD_KEYS) {
         payload.custom_fields = CUSTOM_FIELD_KEYS;
+      }
+      // Add date filters if provided (reduces API response size significantly)
+      if (options.updateTimeFrom) {
+        payload.update_time_from = options.updateTimeFrom;
+      }
+      if (options.updateTimeUntil) {
+        payload.update_time_until = options.updateTimeUntil;
       }
       const url = `${BASE_URL}/api/v2/deals?${q(payload)}`;
       const json = await rawFetch<PdDealsListResponse>(url, { method: "GET" });
@@ -1005,6 +1023,336 @@ export async function fetchAllDealsForAnalytics(
   });
 
   log.info("pipedrive.analytics_fetch", { totalDeals: summaries.length });
+
+  return summaries;
+}
+
+// =============================================================================
+// OPTIMIZED FUNCTIONS FOR GOALS (only fetches "won" deals with date filters)
+// =============================================================================
+
+function getQuarterDateRange(year: number, quarter: number): { start: string; end: string } {
+  const quarterStartMonth = (quarter - 1) * 3;
+  const startDate = new Date(Date.UTC(year, quarterStartMonth, 1));
+  const endDate = new Date(Date.UTC(year, quarterStartMonth + 3, 0, 23, 59, 59));
+  return {
+    start: startDate.toISOString().split("T")[0],
+    end: endDate.toISOString().split("T")[0],
+  };
+}
+
+export type GoalsSearchOptions = {
+  year: number;
+  quarter: number;
+};
+
+export async function searchWonDealsByMapacheAssigned(
+  mapacheName: string,
+  options: GoalsSearchOptions,
+) {
+  const normalizedName = normalizeForComparison(mapacheName);
+  if (!normalizedName) {
+    return [];
+  }
+
+  if (!FIELD_MAPACHE_ASSIGNED) {
+    throw new Error("Falta PIPEDRIVE_FIELD_MAPACHE_ASSIGNED en config");
+  }
+
+  const mapacheOptions = await ensureMapacheFieldOptions();
+  const optionId = mapacheOptions.optionIdByName.get(normalizedName);
+  if (typeof optionId !== "number") {
+    log.warn("pipedrive.goals_mapache_not_found", { mapache: normalizedName });
+    return [];
+  }
+
+  const { start, end } = getQuarterDateRange(options.year, options.quarter);
+  
+  const [stageNames, deals] = await Promise.all([
+    ensureStageNameMap(),
+    fetchDealsWithMapacheFields({
+      statuses: ["won"],
+      updateTimeFrom: start,
+      updateTimeUntil: end,
+    }),
+  ]);
+
+  const filtered = deals.filter((deal) => {
+    const stageId = ensureNumber(deal.stage_id);
+    const stageName =
+      stageId !== null ? stageNames.get(stageId)?.trim().toLowerCase() ?? null : null;
+    if (stageName === "qualified - sql") {
+      return false;
+    }
+    const value = getCustomFieldValue(deal.custom_fields, FIELD_MAPACHE_ASSIGNED);
+    const numericValue = ensureNumber(value);
+    return numericValue !== null && numericValue === optionId;
+  });
+
+  const ownerIds = Array.from(
+    new Set(
+      filtered
+        .map((deal) => ensureNumber(deal.owner_id))
+        .filter((id): id is number => typeof id === "number" && Number.isFinite(id)),
+    ),
+  );
+  const ownerInfos = await resolveOwnerInfos(ownerIds);
+
+  const summaries = filtered.map((deal) => {
+    const stageId = ensureNumber(deal.stage_id);
+    const stageName = stageId !== null ? stageNames.get(stageId) ?? null : null;
+    const ownerId = ensureNumber(deal.owner_id);
+    const ownerInfo = ownerId !== null ? ownerInfos.get(ownerId) ?? null : null;
+
+    return normalizeDealSummary({
+      deal,
+      stageName,
+      ownerName: ownerInfo?.name ?? null,
+      ownerEmail: ownerInfo?.email ?? null,
+      mapacheOptions,
+    });
+  });
+
+  log.info("pipedrive.goals_mapache_search", {
+    mapache: normalizedName,
+    year: options.year,
+    quarter: options.quarter,
+    hits: summaries.length,
+  });
+
+  return summaries;
+}
+
+export async function searchWonDealsByOwnerEmail(
+  ownerEmail: string,
+  options: GoalsSearchOptions,
+) {
+  const normalizedEmail = ownerEmail?.trim().toLowerCase();
+  if (!normalizedEmail) {
+    return [];
+  }
+
+  const mapacheOptions = await ensureMapacheFieldOptions();
+  const { start, end } = getQuarterDateRange(options.year, options.quarter);
+
+  const [stageNames, deals] = await Promise.all([
+    ensureStageNameMap(),
+    fetchDealsWithMapacheFields({
+      statuses: ["won"],
+      updateTimeFrom: start,
+      updateTimeUntil: end,
+    }),
+  ]);
+
+  const ownerIds = Array.from(
+    new Set(
+      deals
+        .map((deal) => ensureNumber(deal.owner_id))
+        .filter((id): id is number => typeof id === "number" && Number.isFinite(id)),
+    ),
+  );
+  const ownerInfos = await resolveOwnerInfos(ownerIds);
+
+  const summaries = deals
+    .filter((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId)?.trim().toLowerCase() ?? null : null;
+      if (stageName === "qualified - sql") {
+        return false;
+      }
+      const ownerId = ensureNumber(deal.owner_id);
+      const resolvedEmail = ownerId !== null ? ownerInfos.get(ownerId)?.email ?? null : null;
+      const normalizedResolvedEmail = resolvedEmail?.trim().toLowerCase() ?? null;
+      return normalizedResolvedEmail === normalizedEmail;
+    })
+    .map((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId) ?? null : null;
+      const ownerId = ensureNumber(deal.owner_id);
+      const owner = ownerId !== null ? ownerInfos.get(ownerId) ?? null : null;
+
+      return normalizeDealSummary({
+        deal,
+        stageName,
+        ownerName: owner?.name ?? null,
+        ownerEmail: owner?.email ?? null,
+        mapacheOptions,
+      });
+    });
+
+  log.info("pipedrive.goals_owner_search", {
+    owner: normalizedEmail,
+    year: options.year,
+    quarter: options.quarter,
+    hits: summaries.length,
+  });
+
+  return summaries;
+}
+
+export async function searchWonDealsByMapacheAssignedMany(
+  mapacheNames: string[],
+  options: GoalsSearchOptions,
+) {
+  const normalizedNames = Array.from(
+    new Set(
+      mapacheNames
+        .map((name) => normalizeForComparison(name || ""))
+        .filter((name) => !!name),
+    ),
+  );
+
+  if (normalizedNames.length === 0) {
+    return [];
+  }
+
+  if (!FIELD_MAPACHE_ASSIGNED) {
+    throw new Error("Falta PIPEDRIVE_FIELD_MAPACHE_ASSIGNED en config");
+  }
+
+  const mapacheOptions = await ensureMapacheFieldOptions();
+
+  const requestedOptionIds = normalizedNames
+    .map((name) => mapacheOptions.optionIdByName.get(name))
+    .filter((id): id is number => typeof id === "number" && Number.isFinite(id));
+
+  if (requestedOptionIds.length === 0) {
+    log.warn("pipedrive.goals_mapache_options_not_found", { mapaches: normalizedNames });
+    return [];
+  }
+
+  const optionSet = new Set(requestedOptionIds);
+  const { start, end } = getQuarterDateRange(options.year, options.quarter);
+
+  const [stageNames, deals] = await Promise.all([
+    ensureStageNameMap(),
+    fetchDealsWithMapacheFields({
+      statuses: ["won"],
+      updateTimeFrom: start,
+      updateTimeUntil: end,
+    }),
+  ]);
+
+  const filtered = deals.filter((deal) => {
+    const stageId = ensureNumber(deal.stage_id);
+    const stageName =
+      stageId !== null ? stageNames.get(stageId)?.trim().toLowerCase() ?? null : null;
+    if (stageName === "qualified - sql") {
+      return false;
+    }
+    const value = getCustomFieldValue(deal.custom_fields, FIELD_MAPACHE_ASSIGNED);
+    const numericValue = ensureNumber(value);
+    return numericValue !== null && optionSet.has(numericValue);
+  });
+
+  const ownerIds = Array.from(
+    new Set(
+      filtered
+        .map((deal) => ensureNumber(deal.owner_id))
+        .filter((id): id is number => typeof id === "number" && Number.isFinite(id)),
+    ),
+  );
+  const ownerInfos = await resolveOwnerInfos(ownerIds);
+
+  const summaries = filtered.map((deal) => {
+    const stageId = ensureNumber(deal.stage_id);
+    const stageName = stageId !== null ? stageNames.get(stageId) ?? null : null;
+    const ownerId = ensureNumber(deal.owner_id);
+    const ownerInfo = ownerId !== null ? ownerInfos.get(ownerId) ?? null : null;
+
+    return normalizeDealSummary({
+      deal,
+      stageName,
+      ownerName: ownerInfo?.name ?? null,
+      ownerEmail: ownerInfo?.email ?? null,
+      mapacheOptions,
+    });
+  });
+
+  log.info("pipedrive.goals_mapache_team_search", {
+    mapaches: normalizedNames,
+    year: options.year,
+    quarter: options.quarter,
+    hits: summaries.length,
+  });
+
+  return summaries;
+}
+
+export async function searchWonDealsByOwnerEmailsMany(
+  ownerEmails: string[],
+  options: GoalsSearchOptions,
+) {
+  const normalizedEmails = Array.from(
+    new Set(
+      ownerEmails
+        .map((email) => email?.trim().toLowerCase())
+        .filter((email): email is string => !!email),
+    ),
+  );
+
+  if (normalizedEmails.length === 0) {
+    return [];
+  }
+
+  const mapacheOptions = await ensureMapacheFieldOptions();
+  const { start, end } = getQuarterDateRange(options.year, options.quarter);
+
+  const [stageNames, deals] = await Promise.all([
+    ensureStageNameMap(),
+    fetchDealsWithMapacheFields({
+      statuses: ["won"],
+      updateTimeFrom: start,
+      updateTimeUntil: end,
+    }),
+  ]);
+
+  const ownerIds = Array.from(
+    new Set(
+      deals
+        .map((deal) => ensureNumber(deal.owner_id))
+        .filter((id): id is number => typeof id === "number" && Number.isFinite(id)),
+    ),
+  );
+  const ownerInfos = await resolveOwnerInfos(ownerIds);
+  const emailSet = new Set(normalizedEmails);
+
+  const summaries = deals
+    .filter((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId)?.trim().toLowerCase() ?? null : null;
+      if (stageName === "qualified - sql") {
+        return false;
+      }
+      const ownerId = ensureNumber(deal.owner_id);
+      const resolvedEmail = ownerId !== null ? ownerInfos.get(ownerId)?.email ?? null : null;
+      const normalizedResolvedEmail = resolvedEmail?.trim().toLowerCase() ?? null;
+      if (!normalizedResolvedEmail) {
+        return false;
+      }
+      return emailSet.has(normalizedResolvedEmail);
+    })
+    .map((deal) => {
+      const stageId = ensureNumber(deal.stage_id);
+      const stageName = stageId !== null ? stageNames.get(stageId) ?? null : null;
+      const ownerId = ensureNumber(deal.owner_id);
+      const owner = ownerId !== null ? ownerInfos.get(ownerId) ?? null : null;
+
+      return normalizeDealSummary({
+        deal,
+        stageName,
+        ownerName: owner?.name ?? null,
+        ownerEmail: owner?.email ?? null,
+        mapacheOptions,
+      });
+    });
+
+  log.info("pipedrive.goals_owner_team_search", {
+    owners: normalizedEmails,
+    year: options.year,
+    quarter: options.quarter,
+    hits: summaries.length,
+  });
 
   return summaries;
 }
