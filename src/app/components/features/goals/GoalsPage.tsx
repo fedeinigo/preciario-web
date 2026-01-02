@@ -263,9 +263,12 @@ export default function GoalsPage({
       setLoadingDeals(true);
       try {
         if (winsSource === "pipedrive") {
-          const modeQuery = pipedriveMode === "owner" ? "?mode=owner" : "";
-          const forceQuery = options?.force ? `${modeQuery ? "&" : "?"}force=1` : "";
-          const response = await fetch(`/api/pipedrive/deals${modeQuery}${forceQuery}` as const, {
+          const modeQuery = pipedriveMode === "owner" ? "mode=owner" : "";
+          const yearQuery = `year=${year}`;
+          const quarterQuery = `quarter=${quarter}`;
+          const forceQuery = options?.force ? "force=1" : "";
+          const queryParams = [modeQuery, yearQuery, quarterQuery, forceQuery].filter(Boolean).join("&");
+          const response = await fetch(`/api/goals/my-deals?${queryParams}` as const, {
             cache: "no-store",
             signal: controller.signal,
           });
@@ -274,14 +277,7 @@ export default function GoalsPage({
           const payload = (await response.json()) as { ok: boolean; deals?: Array<{ [key: string]: unknown }> };
           if (isStale()) return;
           if (!payload.ok || !Array.isArray(payload.deals)) throw new Error("Invalid deals payload");
-          const filteredDeals = payload.deals.filter((deal) => {
-            const status = String((deal as { status?: string }).status ?? "").toLowerCase();
-            if (status !== "won") return false;
-            const wonQuarter = Number((deal as { wonQuarter?: number | null }).wonQuarter ?? null);
-            const wonAt = (deal as { wonAt?: string | null }).wonAt ?? null;
-            const wonYear = wonAt ? new Date(wonAt).getFullYear() : null;
-            return wonQuarter === quarter && wonYear === year;
-          });
+          const filteredDeals = payload.deals;
           const normalizedDeals: UserWonDeal[] = filteredDeals.map((deal) => {
             const feeMensual = Number((deal as { feeMensual?: number | null }).feeMensual ?? 0);
             const value = Number((deal as { value?: number | null }).value ?? 0);
