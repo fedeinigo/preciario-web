@@ -48,7 +48,7 @@ export default async function MapachePortalSectionsLayout({
   return (
     <MapachePortalQueryProvider>
       <MapachePortalReadySignal />
-      <div className="space-y-6 px-4 pb-10 -mt-[var(--nav-h)] pt-[var(--nav-h)]">
+      <div className="space-y-6 px-4 pb-10 pt-6">
         {children}
       </div>
     </MapachePortalQueryProvider>

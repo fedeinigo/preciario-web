@@ -30,6 +30,23 @@ const isCacheFresh = (timestamp?: string | null) => {
   return Date.now() - parsed.getTime() <= PIPEDRIVE_CACHE_TTL_MS;
 };
 
+const formatTimeAgo = (date: Date | null): string => {
+  if (!date) return "";
+  const now = Date.now();
+  const diffMs = now - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Hace menos de 1 minuto";
+  if (diffMins === 1) return "Hace 1 minuto";
+  if (diffMins < 60) return `Hace ${diffMins} minutos`;
+  if (diffHours === 1) return "Hace 1 hora";
+  if (diffHours < 24) return `Hace ${diffHours} horas`;
+  if (diffDays === 1) return "Hace 1 día";
+  return `Hace ${diffDays} días`;
+};
+
 type Props = {
   role: AppRole;
   currentEmail: string;
@@ -1114,22 +1131,26 @@ export default function GoalsPage({
                   </div>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap justify-end">
-                  {winsSource === "pipedrive" && (
-                    <div className="text-xs font-medium text-white/80">
-                      {lastSyncedAt
-                        ? `Última sincronización: ${lastSyncedAt.toLocaleString("es-AR")}`
-                        : "Aún no sincronizaste"}
-                    </div>
-                  )}
                   <QuarterPicker year={year} quarter={quarter} onYear={setYear} onQuarter={setQuarter} />
                   {winsSource === "pipedrive" && (
-                    <button
-                      className="inline-flex items-center justify-center rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition hover:bg-white/20 hover:scale-[1.01]"
-                      onClick={handleSync}
-                      disabled={loadingDeals}
-                    >
-                      {loadingDeals ? "Sincronizando..." : "Sincronizar"}
-                    </button>
+                    <div className="flex flex-col items-end gap-1">
+                      <button
+                        className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                          loadingDeals || loadingTeam
+                            ? "border-white/15 bg-white/5 text-white/50 cursor-not-allowed"
+                            : "border-white/25 bg-white/10 text-white hover:bg-white/20 hover:scale-[1.01]"
+                        }`}
+                        onClick={handleSync}
+                        disabled={loadingDeals || loadingTeam}
+                      >
+                        {loadingDeals || loadingTeam ? "Sincronizando..." : "Sincronizar"}
+                      </button>
+                      <div className="text-[10px] font-medium text-white/60">
+                        {lastSyncedAt
+                          ? formatTimeAgo(lastSyncedAt)
+                          : "Aún no sincronizaste"}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
