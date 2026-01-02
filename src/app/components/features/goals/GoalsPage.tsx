@@ -658,7 +658,9 @@ export default function GoalsPage({
       let resolvedProgress = normalizedRows.reduce((acc, row) => acc + row.progress, 0);
       const resolvedDealsMap: Record<string, UserWonDeal[]> = {};
 
-      if (winsSource === "pipedrive") {
+      // Only call Pipedrive team-sync when explicitly forced (user clicked Sincronizar)
+      const shouldSyncPipedrive = winsSource === "pipedrive" && options?.force;
+      if (shouldSyncPipedrive) {
         const memberIdentifiers =
           pipedriveMode === "owner"
             ? normalizedRows
@@ -806,7 +808,13 @@ export default function GoalsPage({
     }
   }, [effectiveTeam, isSuperAdmin, role, year, quarter, emailToAdminUser, viewerId, viewerImage, mergePipedriveSelfProgress, winsSource, normalizeName, loadTeamFromCache, persistTeamCache, pipedriveMode, now]);
 
-  React.useEffect(() => { loadTeam(); }, [loadTeam]);
+  // Load team data when year/quarter changes - but only from cache/snapshots, never auto-sync
+  const loadTeamRef = React.useRef(loadTeam);
+  loadTeamRef.current = loadTeam;
+  React.useEffect(() => {
+    // This effect runs on year/quarter changes - only load cached data, no force sync
+    loadTeamRef.current();
+  }, [year, quarter, effectiveTeam]);
 
   React.useEffect(() => {
     if (winsSource !== "pipedrive") return;

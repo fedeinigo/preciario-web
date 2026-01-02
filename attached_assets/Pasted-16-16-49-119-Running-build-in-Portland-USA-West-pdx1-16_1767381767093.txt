@@ -1,0 +1,178 @@
+16:16:49.119 Running build in Portland, USA (West) – pdx1
+16:16:49.120 Build machine configuration: 2 cores, 8 GB
+16:16:49.385 Cloning github.com/fedeinigo/preciario-web (Branch: codex, Commit: 4880672)
+16:16:52.510 Cloning completed: 3.125s
+16:16:52.833 Restored build cache from previous deployment (5pex4oXv4z756ZSQSunMHX4LVuUt)
+16:16:53.645 Running "vercel build"
+16:16:54.040 Vercel CLI 50.1.3
+16:16:54.368 Installing dependencies...
+16:16:55.700 
+16:16:55.701 > preciario-web@0.1.0 postinstall
+16:16:55.701 > prisma generate
+16:16:55.702 
+16:16:56.753 Prisma schema loaded from prisma/schema.prisma
+16:16:57.459 
+16:16:57.459 ✔ Generated Prisma Client (v6.18.0) to ./node_modules/@prisma/client in 407ms
+16:16:57.460 
+16:16:57.460 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+16:16:57.460 
+16:16:57.460 Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+16:16:57.460 
+16:16:57.479 
+16:16:57.480 up to date in 3s
+16:16:57.480 
+16:16:57.480 195 packages are looking for funding
+16:16:57.480   run `npm fund` for details
+16:16:57.508 Detected Next.js version: 15.5.9
+16:16:57.509 Running "npm run vercel-build"
+16:16:57.612 
+16:16:57.612 > preciario-web@0.1.0 vercel-build
+16:16:57.612 > prisma generate && next build
+16:16:57.612 
+16:16:58.383 Prisma schema loaded from prisma/schema.prisma
+16:16:59.008 ┌─────────────────────────────────────────────────────────┐
+16:16:59.009 │  Update available 6.18.0 -> 7.2.0                       │
+16:16:59.009 │                                                         │
+16:16:59.009 │  This is a major update - please follow the guide at    │
+16:16:59.010 │  https://pris.ly/d/major-version-upgrade                │
+16:16:59.010 │                                                         │
+16:16:59.010 │  Run the following to update                            │
+16:16:59.010 │    npm i --save-dev prisma@latest                       │
+16:16:59.010 │    npm i @prisma/client@latest                          │
+16:16:59.010 └─────────────────────────────────────────────────────────┘
+16:16:59.011 
+16:16:59.011 ✔ Generated Prisma Client (v6.18.0) to ./node_modules/@prisma/client in 392ms
+16:16:59.011 
+16:16:59.011 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+16:16:59.011 
+16:16:59.012 Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+16:16:59.012 
+16:17:00.024    ▲ Next.js 15.5.9
+16:17:00.025 
+16:17:00.104    Creating an optimized production build ...
+16:17:13.921  ✓ Compiled successfully in 11.3s
+16:17:13.926    Linting and checking validity of types ...
+16:17:25.660 
+16:17:25.660 ./src/app/api/goals/team-sync/route.ts
+16:17:25.661 28:10  Warning: 'getQuarterDateRange' is defined but never used.  @typescript-eslint/no-unused-vars
+16:17:25.661 
+16:17:25.661 ./src/app/components/features/goals/GoalsPage.tsx
+16:17:25.661 807:6  Warning: React Hook React.useCallback has an unnecessary dependency: 'now'. Either exclude it or remove the dependency array.  react-hooks/exhaustive-deps
+16:17:25.661 999:5  Warning: React Hook React.useCallback has missing dependencies: 'lastSyncedAt', 'persistWinsCache', and 'winsSource'. Either include them or remove the dependency array. If 'setMyDeals' needs the current value of 'winsSource', you can also switch to useReducer instead of useState and read 'winsSource' in the reducer.  react-hooks/exhaustive-deps
+16:17:25.661 
+16:17:25.661 ./src/app/components/features/proposals/Generator.tsx
+16:17:25.661 192:15  Warning: 'unitPrice' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:17:25.661 192:26  Warning: 'devHours' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:17:25.661 200:25  Warning: '_removed' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:17:25.661 
+16:17:25.661 ./src/app/components/features/proposals/History.tsx
+16:17:25.661 4:41  Warning: 'useMemo' is defined but never used.  @typescript-eslint/no-unused-vars
+16:17:25.661 
+16:17:25.661 ./src/app/components/features/proposals/Stats.tsx
+16:17:25.662 5:24  Warning: 'TrendingUp' is defined but never used.  @typescript-eslint/no-unused-vars
+16:17:25.662 5:36  Warning: 'Trophy' is defined but never used.  @typescript-eslint/no-unused-vars
+16:17:25.662 437:9  Warning: 'wonAmount' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:17:25.662 438:9  Warning: 'winRate' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:17:25.662 439:9  Warning: 'wonAvgTicket' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:17:25.662 659:9  Warning: 'sparklineWonAmount' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:17:25.662 675:9  Warning: 'sparklineWinRate' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:17:25.662 679:9  Warning: 'sparklineWonAvgTicket' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:17:25.662 
+16:17:25.662 ./src/app/home/page.tsx
+16:17:25.662 2:66  Warning: 'Target' is defined but never used.  @typescript-eslint/no-unused-vars
+16:17:25.662 
+16:17:25.662 ./src/app/portal/analytics/dashboard/page.tsx
+16:17:25.670 286:10  Warning: 'KPICardOld' is defined but never used.  @typescript-eslint/no-unused-vars
+16:17:25.670 
+16:17:25.670 info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+16:17:44.738    Collecting page data ...
+16:17:49.116    Generating static pages (0/60) ...
+16:17:54.294    Generating static pages (15/60) 
+16:17:54.295    Generating static pages (30/60) 
+16:17:54.295    Generating static pages (45/60) 
+16:17:54.295  ✓ Generating static pages (60/60)
+16:17:57.203    Finalizing page optimization ...
+16:17:57.204    Collecting build traces ...
+16:18:04.075 
+16:18:04.079 Route (app)                                             Size  First Load JS
+16:18:04.080 ┌ ƒ /                                                  234 B         102 kB
+16:18:04.080 ├ ƒ /_not-found                                        999 B         103 kB
+16:18:04.080 ├ ƒ /api/admin/users                                   234 B         102 kB
+16:18:04.080 ├ ƒ /api/analytics/deals                               234 B         102 kB
+16:18:04.081 ├ ƒ /api/auth/[...nextauth]                            234 B         102 kB
+16:18:04.081 ├ ƒ /api/filiales                                      234 B         102 kB
+16:18:04.081 ├ ƒ /api/filiales/[id]                                 234 B         102 kB
+16:18:04.081 ├ ƒ /api/filiales/[id]/countries                       234 B         102 kB
+16:18:04.081 ├ ƒ /api/glossary                                      234 B         102 kB
+16:18:04.081 ├ ƒ /api/glossary/[id]                                 234 B         102 kB
+16:18:04.081 ├ ƒ /api/goals/my-deals                                234 B         102 kB
+16:18:04.081 ├ ƒ /api/goals/snapshot                                234 B         102 kB
+16:18:04.081 ├ ƒ /api/goals/sync-user                               234 B         102 kB
+16:18:04.081 ├ ƒ /api/goals/team                                    234 B         102 kB
+16:18:04.081 ├ ƒ /api/goals/team-snapshots                          234 B         102 kB
+16:18:04.081 ├ ƒ /api/goals/team-sync                               234 B         102 kB
+16:18:04.081 ├ ƒ /api/goals/user                                    234 B         102 kB
+16:18:04.081 ├ ƒ /api/goals/wins                                    234 B         102 kB
+16:18:04.081 ├ ƒ /api/items                                         234 B         102 kB
+16:18:04.081 ├ ƒ /api/items/[id]                                    234 B         102 kB
+16:18:04.081 ├ ƒ /api/items/categories                              234 B         102 kB
+16:18:04.081 ├ ƒ /api/items/popularity                              234 B         102 kB
+16:18:04.081 ├ ƒ /api/my-team                                       234 B         102 kB
+16:18:04.081 ├ ƒ /api/pipedrive/assign                              234 B         102 kB
+16:18:04.081 ├ ƒ /api/pipedrive/deals                               234 B         102 kB
+16:18:04.081 ├ ƒ /api/pipedrive/sync                                234 B         102 kB
+16:18:04.081 ├ ƒ /api/pipedrive/team-deals                          234 B         102 kB
+16:18:04.081 ├ ƒ /api/pipedrive/tech-sale-scope                     234 B         102 kB
+16:18:04.081 ├ ƒ /api/pricing                                       234 B         102 kB
+16:18:04.081 ├ ƒ /api/proposals                                     234 B         102 kB
+16:18:04.081 ├ ƒ /api/proposals/[id]                                234 B         102 kB
+16:18:04.082 ├ ƒ /api/proposals/create                              234 B         102 kB
+16:18:04.082 ├ ƒ /api/proposals/stats                               234 B         102 kB
+16:18:04.082 ├ ƒ /api/teams                                         234 B         102 kB
+16:18:04.082 ├ ƒ /configuraciones                                   187 B         148 kB
+16:18:04.082 ├ ƒ /configuraciones/team-management                   188 B         148 kB
+16:18:04.082 ├ ƒ /configuraciones/user-management                   188 B         148 kB
+16:18:04.082 ├ ƒ /direct-portal                                     234 B         102 kB
+16:18:04.082 ├ ƒ /direct-portal/configuraciones                     234 B         102 kB
+16:18:04.082 ├ ƒ /direct-portal/configuraciones/user-management     234 B         102 kB
+16:18:04.082 ├ ƒ /direct-portal/generator                           138 B         170 kB
+16:18:04.082 ├ ƒ /direct-portal/goals                             1.75 kB         160 kB
+16:18:04.082 ├ ƒ /direct-portal/history                             138 B         144 kB
+16:18:04.082 ├ ƒ /direct-portal/stats                               138 B         150 kB
+16:18:04.082 ├ ƒ /home                                            1.75 kB         137 kB
+16:18:04.082 ├ ƒ /mapache-portal                                    234 B         102 kB
+16:18:04.082 ├ ƒ /mapache-portal/goals                              176 B         150 kB
+16:18:04.082 ├ ƒ /mapache-portal/pipedrive                          161 B         113 kB
+16:18:04.082 ├ ƒ /portal/analytics                                  488 B         106 kB
+16:18:04.082 ├ ƒ /portal/analytics/dashboard                      3.22 kB         111 kB
+16:18:04.082 ├ ƒ /portal/analytics/equipos                        4.57 kB         112 kB
+16:18:04.082 ├ ƒ /portal/analytics/regiones                       2.89 kB         111 kB
+16:18:04.082 ├ ƒ /portal/analytics/reuniones-directo              2.78 kB         111 kB
+16:18:04.082 ├ ƒ /portal/directo                                    234 B         102 kB
+16:18:04.082 ├ ƒ /portal/directo/configuraciones                    234 B         102 kB
+16:18:04.082 ├ ƒ /portal/directo/configuraciones/user-management    234 B         102 kB
+16:18:04.082 ├ ƒ /portal/directo/generator                          138 B         170 kB
+16:18:04.082 ├ ƒ /portal/directo/goals                            1.75 kB         160 kB
+16:18:04.082 ├ ƒ /portal/directo/history                            138 B         144 kB
+16:18:04.082 ├ ƒ /portal/directo/stats                              138 B         150 kB
+16:18:04.082 ├ ƒ /portal/mapache                                    677 B         106 kB
+16:18:04.082 ├ ƒ /portal/mapache/goals                              176 B         150 kB
+16:18:04.082 └ ƒ /portal/mapache/pipedrive                          162 B         113 kB
+16:18:04.082 + First Load JS shared by all                         102 kB
+16:18:04.082   ├ chunks/1255-9494d7e861e97d68.js                  45.9 kB
+16:18:04.082   ├ chunks/4bd1b696-f785427dddbba9fb.js              54.2 kB
+16:18:04.082   └ other shared chunks (total)                      2.01 kB
+16:18:04.082 
+16:18:04.083 
+16:18:04.083 ƒ  (Dynamic)  server-rendered on demand
+16:18:04.087 
+16:18:04.306 Traced Next.js server files in: 58.322ms
+16:18:04.780 Created all serverless functions in: 473.913ms
+16:18:04.800 Collected static files (public/, static/, .next/static): 16.097ms
+16:18:04.928 Build Completed in /vercel/output [1m]
+16:18:05.255 Deploying outputs...
+16:18:14.493 Deployment completed
+16:18:15.415 Creating build cache...
+16:18:42.257 Created build cache: 26.837s
+16:18:42.258 Uploading build cache [302.18 MB]
+16:18:45.360 Build cache uploaded: 3.107s

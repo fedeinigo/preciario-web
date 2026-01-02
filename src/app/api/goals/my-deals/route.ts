@@ -79,9 +79,24 @@ export async function GET(req: Request) {
     }
 
     const searchOptions: GoalsSearchOptions = { year, quarter };
-    const deals = mode === "owner"
-      ? await searchWonDealsByOwnerEmail(userEmail, searchOptions)
-      : await searchWonDealsByMapacheAssigned(userName, searchOptions);
+    let deals;
+    try {
+      deals = mode === "owner"
+        ? await searchWonDealsByOwnerEmail(userEmail, searchOptions)
+        : await searchWonDealsByMapacheAssigned(userName, searchOptions);
+    } catch (pipedriveError) {
+      const errorMsg = pipedriveError instanceof Error ? pipedriveError.message : String(pipedriveError);
+      log.error("pipedrive_fetch_failed", { error: errorMsg, mode, year, quarter });
+      return NextResponse.json(
+        { ok: false, error: `Error fetching from Pipedrive: ${errorMsg}` },
+        { status: 502 },
+      );
+    }
+
+    if (!Array.isArray(deals)) {
+      log.warn("pipedrive_invalid_response", { mode, year, quarter, dealsType: typeof deals });
+      deals = [];
+    }
 
     const filteredDeals = deals.filter((deal) => {
       const wonAt = deal.wonAt ?? null;
