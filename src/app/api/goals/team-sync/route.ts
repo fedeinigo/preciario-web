@@ -4,7 +4,7 @@ import { requireApiSession } from "@/app/api/_utils/require-auth";
 
 const log = logger.child({ route: "api/goals/team-sync" });
 
-const CACHE_TTL_MS = 60_000;
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const dealsCache = new Map<string, { expiresAt: number; deals: Array<{ [key: string]: unknown }> }>();
 
 function parseBooleanParam(value: string | null): boolean {

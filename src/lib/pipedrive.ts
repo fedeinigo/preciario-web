@@ -676,6 +676,7 @@ type FetchDealsOptions = {
 async function fetchDealsWithMapacheFields(
   statusesOrOptions: DealStatus[] | FetchDealsOptions = ["open"],
 ) {
+  const startTime = Date.now();
   const options: FetchDealsOptions = Array.isArray(statusesOrOptions)
     ? { statuses: statusesOrOptions }
     : statusesOrOptions;
@@ -683,10 +684,12 @@ async function fetchDealsWithMapacheFields(
   const statuses = options.statuses ?? ["open"];
   const results: PdDealRecord[] = [];
   const limit = 100;
+  let pageCount = 0;
 
   for (const status of statuses) {
     let cursor: string | null = null;
     do {
+      pageCount++;
       const payload: Record<string, string | number> = {
         api_token: API_TOKEN,
         status,
@@ -699,7 +702,6 @@ async function fetchDealsWithMapacheFields(
       if (CUSTOM_FIELD_KEYS) {
         payload.custom_fields = CUSTOM_FIELD_KEYS;
       }
-      // Add date filters if provided (reduces API response size significantly)
       if (options.updateTimeFrom) {
         payload.update_time_from = options.updateTimeFrom;
       }
@@ -718,6 +720,16 @@ async function fetchDealsWithMapacheFields(
       cursor = json.additional_data?.next_cursor ?? null;
     } while (cursor);
   }
+
+  const elapsed = Date.now() - startTime;
+  log.info("pipedrive.fetch_deals_complete", {
+    statuses,
+    updateTimeFrom: options.updateTimeFrom,
+    updateTimeUntil: options.updateTimeUntil,
+    pageCount,
+    totalDeals: results.length,
+    elapsedMs: elapsed,
+  });
 
   return results;
 }

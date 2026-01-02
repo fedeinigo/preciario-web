@@ -5,7 +5,7 @@ import { searchWonDealsByMapacheAssigned, searchWonDealsByOwnerEmail, type Goals
 
 const log = logger.child({ route: "api/goals/my-deals" });
 
-const CACHE_TTL_MS = 60_000;
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const dealsCache = new Map<string, { expiresAt: number; deals: Array<{ [key: string]: unknown }> }>();
 
 function parseBooleanParam(value: string | null): boolean {

@@ -619,10 +619,11 @@ export default function GoalsPage({
     }
     setLoadingTeam(true);
     try {
-      const r = await fetch(
-        `/api/goals/team?year=${year}&quarter=${quarter}&team=${encodeURIComponent(effectiveTeam)}`,
-        { signal: controller.signal },
-      );
+      const useSnapshotsFirst = winsSource === "pipedrive" && !options?.force;
+      const apiUrl = useSnapshotsFirst
+        ? `/api/goals/team-snapshots?year=${year}&quarter=${quarter}&team=${encodeURIComponent(effectiveTeam)}`
+        : `/api/goals/team?year=${year}&quarter=${quarter}&team=${encodeURIComponent(effectiveTeam)}`;
+      const r = await fetch(apiUrl, { signal: controller.signal });
       if (isStale()) return;
       if (!r.ok) throw new Error("team");
       const j = await r.json();
