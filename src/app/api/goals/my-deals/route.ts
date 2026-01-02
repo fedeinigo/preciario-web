@@ -79,7 +79,7 @@ export async function GET(req: Request) {
     }
 
     const searchOptions: GoalsSearchOptions = { year, quarter };
-    let deals;
+    let deals: Array<{ [key: string]: unknown }> = [];
     try {
       deals = mode === "owner"
         ? await searchWonDealsByOwnerEmail(userEmail, searchOptions)
@@ -99,7 +99,7 @@ export async function GET(req: Request) {
     }
 
     const filteredDeals = deals.filter((deal) => {
-      const wonAt = deal.wonAt ?? null;
+      const wonAt = (deal.wonAt as string | null) ?? null;
       const wonDate = wonAt ? new Date(wonAt) : null;
       const wonYear = wonDate?.getFullYear() ?? null;
       const wonQuarter = deal.wonQuarter ?? null;

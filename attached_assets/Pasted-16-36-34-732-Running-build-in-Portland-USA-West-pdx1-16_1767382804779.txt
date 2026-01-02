@@ -1,0 +1,101 @@
+16:36:34.732 Running build in Portland, USA (West) – pdx1
+16:36:34.733 Build machine configuration: 2 cores, 8 GB
+16:36:34.856 Cloning github.com/fedeinigo/preciario-web (Branch: codex, Commit: d4bcfb8)
+16:36:37.340 Cloning completed: 2.484s
+16:36:37.469 Restored build cache from previous deployment (bDGTaNuvF35zeuCPaf7mbRFuhJyU)
+16:36:38.237 Running "vercel build"
+16:36:38.664 Vercel CLI 50.1.3
+16:36:39.040 Installing dependencies...
+16:36:40.472 
+16:36:40.473 > preciario-web@0.1.0 postinstall
+16:36:40.473 > prisma generate
+16:36:40.473 
+16:36:41.446 Prisma schema loaded from prisma/schema.prisma
+16:36:42.204 
+16:36:42.205 ✔ Generated Prisma Client (v6.18.0) to ./node_modules/@prisma/client in 451ms
+16:36:42.205 
+16:36:42.205 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+16:36:42.205 
+16:36:42.205 Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+16:36:42.205 
+16:36:42.227 
+16:36:42.228 up to date in 3s
+16:36:42.229 
+16:36:42.229 195 packages are looking for funding
+16:36:42.229   run `npm fund` for details
+16:36:42.257 Detected Next.js version: 15.5.9
+16:36:42.258 Running "npm run vercel-build"
+16:36:42.372 
+16:36:42.372 > preciario-web@0.1.0 vercel-build
+16:36:42.372 > prisma generate && next build
+16:36:42.373 
+16:36:43.195 Prisma schema loaded from prisma/schema.prisma
+16:36:43.868 ┌─────────────────────────────────────────────────────────┐
+16:36:43.868 │  Update available 6.18.0 -> 7.2.0                       │
+16:36:43.869 │                                                         │
+16:36:43.869 │  This is a major update - please follow the guide at    │
+16:36:43.869 │  https://pris.ly/d/major-version-upgrade                │
+16:36:43.869 │                                                         │
+16:36:43.869 │  Run the following to update                            │
+16:36:43.869 │    npm i --save-dev prisma@latest                       │
+16:36:43.870 │    npm i @prisma/client@latest                          │
+16:36:43.870 └─────────────────────────────────────────────────────────┘
+16:36:43.870 
+16:36:43.870 ✔ Generated Prisma Client (v6.18.0) to ./node_modules/@prisma/client in 415ms
+16:36:43.870 
+16:36:43.871 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+16:36:43.871 
+16:36:43.871 Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+16:36:43.871 
+16:36:44.922    ▲ Next.js 15.5.9
+16:36:44.923 
+16:36:45.009    Creating an optimized production build ...
+16:37:01.175  ✓ Compiled successfully in 13.4s
+16:37:01.180    Linting and checking validity of types ...
+16:37:13.810 
+16:37:13.810 ./src/app/api/goals/team-sync/route.ts
+16:37:13.810 28:10  Warning: 'getQuarterDateRange' is defined but never used.  @typescript-eslint/no-unused-vars
+16:37:13.810 
+16:37:13.810 ./src/app/components/features/goals/GoalsPage.tsx
+16:37:13.810 809:6  Warning: React Hook React.useCallback has an unnecessary dependency: 'now'. Either exclude it or remove the dependency array.  react-hooks/exhaustive-deps
+16:37:13.810 1007:5  Warning: React Hook React.useCallback has missing dependencies: 'lastSyncedAt', 'persistWinsCache', and 'winsSource'. Either include them or remove the dependency array. If 'setMyDeals' needs the current value of 'winsSource', you can also switch to useReducer instead of useState and read 'winsSource' in the reducer.  react-hooks/exhaustive-deps
+16:37:13.811 
+16:37:13.811 ./src/app/components/features/proposals/Generator.tsx
+16:37:13.811 192:15  Warning: 'unitPrice' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:37:13.811 192:26  Warning: 'devHours' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:37:13.811 200:25  Warning: '_removed' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:37:13.811 
+16:37:13.811 ./src/app/components/features/proposals/History.tsx
+16:37:13.811 4:41  Warning: 'useMemo' is defined but never used.  @typescript-eslint/no-unused-vars
+16:37:13.811 
+16:37:13.811 ./src/app/components/features/proposals/Stats.tsx
+16:37:13.811 5:24  Warning: 'TrendingUp' is defined but never used.  @typescript-eslint/no-unused-vars
+16:37:13.811 5:36  Warning: 'Trophy' is defined but never used.  @typescript-eslint/no-unused-vars
+16:37:13.812 437:9  Warning: 'wonAmount' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:37:13.812 438:9  Warning: 'winRate' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:37:13.812 439:9  Warning: 'wonAvgTicket' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:37:13.812 659:9  Warning: 'sparklineWonAmount' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:37:13.812 675:9  Warning: 'sparklineWinRate' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:37:13.813 679:9  Warning: 'sparklineWonAvgTicket' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+16:37:13.813 
+16:37:13.813 ./src/app/home/page.tsx
+16:37:13.813 2:66  Warning: 'Target' is defined but never used.  @typescript-eslint/no-unused-vars
+16:37:13.815 
+16:37:13.815 ./src/app/portal/analytics/dashboard/page.tsx
+16:37:13.815 286:10  Warning: 'KPICardOld' is defined but never used.  @typescript-eslint/no-unused-vars
+16:37:13.815 
+16:37:13.815 info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+16:37:33.823 Failed to compile.
+16:37:33.823 
+16:37:33.823 ./src/app/api/goals/my-deals/route.ts:82:9
+16:37:33.823 Type error: Variable 'deals' implicitly has type 'any[]' in some locations where its type cannot be determined.
+16:37:33.823 
+16:37:33.823 [0m [90m 80 |[39m
+16:37:33.823  [90m 81 |[39m     [36mconst[39m searchOptions[33m:[39m [33mGoalsSearchOptions[39m [33m=[39m { year[33m,[39m quarter }[33m;[39m
+16:37:33.823 [31m[1m>[22m[39m[90m 82 |[39m     [36mlet[39m deals[33m;[39m
+16:37:33.823  [90m    |[39m         [31m[1m^[22m[39m
+16:37:33.823  [90m 83 |[39m     [36mtry[39m {
+16:37:33.823  [90m 84 |[39m       deals [33m=[39m mode [33m===[39m [32m"owner"[39m
+16:37:33.823  [90m 85 |[39m         [33m?[39m [36mawait[39m searchWonDealsByOwnerEmail(userEmail[33m,[39m searchOptions)[0m
+16:37:33.915 Next.js build worker exited with code: 1 and signal: null
+16:37:33.939 Error: Command "npm run vercel-build" exited with 1
