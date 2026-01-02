@@ -600,21 +600,9 @@ export default function GoalsPage({
       setLoadingTeam(false);
       return;
     }
-    const shouldUseCacheOnly = winsSource === "pipedrive" && !options?.force;
-    if (shouldUseCacheOnly) {
+    if (winsSource === "pipedrive" && !options?.force) {
       const restored = loadTeamFromCache();
       if (restored) return;
-      if (isStale()) return;
-      setTeamGoal(0);
-      setTeamProgress(0);
-      setRows([]);
-      setBaseRows([]);
-      setTeamProgressRaw(0);
-      setTeamDealsByUser({});
-      setTeamDealsBaseMap({});
-      setLastSyncedAt(null);
-      setLoadingTeam(false);
-      return;
     }
     setLoadingTeam(true);
     try {
