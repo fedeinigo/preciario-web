@@ -20,6 +20,7 @@ import {
   updateCatalogItem,
   deleteCatalogItem,
 } from "./lib/items";
+import { buildCsv, downloadCsv } from "./lib/csv";
 import { locales, defaultLocale, type Locale } from "@/lib/i18n/config";
 import { normalizeSearchText } from "@/lib/normalize-search-text";
 
@@ -105,6 +106,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
   const orderT = useTranslations("proposals.generator.order");
   const actionsT = useTranslations("proposals.generator.actions");
   const totalsT = useTranslations("proposals.generator.totals");
+  const csvT = useTranslations("proposals.generator.csv");
   const pipedriveExample = pipedriveT("exampleLink");
   const emptyValue = generatorT("emptyValue");
   const countryMessages = useTranslations("proposals.countries");
@@ -738,6 +740,28 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
     setPage(next);
   }, []);
 
+  const handleDownloadCatalogCsv = React.useCallback(() => {
+    const headers = [
+      csvT("headers.sku"),
+      csvT("headers.name"),
+      csvT("headers.description"),
+      csvT("headers.category"),
+      csvT("headers.devHours"),
+      csvT("headers.unitPrice"),
+    ];
+    const rows = items.map((item) => [
+      item.sku,
+      item.name,
+      item.description,
+      item.category,
+      item.devHours,
+      item.unitPrice,
+    ]);
+    const csv = buildCsv(headers, rows);
+    downloadCsv(csvT("fileName"), csv);
+    toast.success(toastT("csvExported"));
+  }, [csvT, items, toastT]);
+
   const requestReset = React.useCallback(() => {
     setConfirmReset(true);
   }, []);
@@ -874,7 +898,9 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
         onAddItem: openCreateForm,
         onGenerate: generate,
         onReset: requestReset,
+        onDownloadCsv: handleDownloadCatalogCsv,
         disabled: catalogLoading || pipedriveMode === "create",
+        csvDisabled: catalogLoading,
         actionsT,
         filtersT,
         orderT,
@@ -901,6 +927,7 @@ export default function Generator({ isAdmin, canViewSku, userId, userEmail, onSa
       filtersT,
       generate,
       generatorT,
+      handleDownloadCatalogCsv,
       handleCategoryChange,
       handleCountryChange,
       handlePipedriveChange,

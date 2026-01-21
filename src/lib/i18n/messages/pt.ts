@@ -2596,6 +2596,8 @@ const messages: DeepRecord = {
 
           generate: "Gerar proposta",
 
+          exportCsv: "Baixar CSV",
+
           reset: "Redefinir",
 
         },
@@ -2661,6 +2663,30 @@ const messages: DeepRecord = {
           itemDeleteError: "Não foi possível excluir o item: {message}",
 
           proposalCreated: "Proposta registrada",
+
+          csvExported: "Catálogo exportado",
+
+        },
+
+        csv: {
+
+          fileName: "catalogo_produtos.csv",
+
+          headers: {
+
+            sku: "SKU",
+
+            name: "Nome",
+
+            description: "Descrição",
+
+            category: "Categoria",
+
+            devHours: "Horas de desenvolvimento",
+
+            unitPrice: "Preço unitário",
+
+          },
 
         },
 
