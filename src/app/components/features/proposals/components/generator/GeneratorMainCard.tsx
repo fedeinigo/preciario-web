@@ -45,7 +45,9 @@ export interface GeneratorMainCardProps {
     onAddItem: () => void;
     onGenerate: () => void;
     onReset: () => void;
+    onDownloadCsv: () => void;
     disabled?: boolean;
+    csvDisabled?: boolean;
     actionsT: TranslateFn;
     filtersT: TranslateFn;
     orderT: TranslateFn;
@@ -122,7 +124,9 @@ export default function GeneratorMainCard({
           onAddItem={toolbar.onAddItem}
           onGenerate={toolbar.onGenerate}
           onReset={toolbar.onReset}
+          onDownloadCsv={toolbar.onDownloadCsv}
           disabled={toolbar.disabled}
+          csvDisabled={toolbar.csvDisabled}
           actionsT={toolbar.actionsT}
           filtersT={toolbar.filtersT}
           orderT={toolbar.orderT}

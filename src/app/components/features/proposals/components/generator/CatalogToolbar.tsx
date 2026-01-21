@@ -16,7 +16,9 @@ interface CatalogToolbarProps {
   onAddItem: () => void;
   onGenerate: () => void;
   onReset: () => void;
+  onDownloadCsv: () => void;
   disabled?: boolean;
+  csvDisabled?: boolean;
   actionsT: (key: string) => string;
   filtersT: (key: string) => string;
   orderT: (key: string) => string;
@@ -86,7 +88,9 @@ function CatalogToolbar({
   onAddItem,
   onGenerate,
   onReset,
+  onDownloadCsv,
   disabled = false,
+  csvDisabled = false,
   actionsT,
   filtersT,
   orderT,
@@ -147,6 +151,15 @@ function CatalogToolbar({
           disabled={disabled}
         >
           {actionsT("generate")}
+        </button>
+        <button
+          onClick={onDownloadCsv}
+          style={secondaryButtonStyles}
+          className="transition hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          title={actionsT("exportCsv")}
+          disabled={csvDisabled}
+        >
+          {actionsT("exportCsv")}
         </button>
         <button 
           onClick={onReset} 

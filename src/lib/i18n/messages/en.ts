@@ -2606,6 +2606,8 @@ const messages: DeepRecord = {
 
           generate: "Generate proposal",
 
+          exportCsv: "Download CSV",
+
           reset: "Reset",
 
         },
@@ -2669,6 +2671,30 @@ const messages: DeepRecord = {
           itemDeleteError: "Could not delete the item: {message}",
 
           proposalCreated: "Proposal saved",
+
+          csvExported: "Catalog exported",
+
+        },
+
+        csv: {
+
+          fileName: "product_catalog.csv",
+
+          headers: {
+
+            sku: "SKU",
+
+            name: "Name",
+
+            description: "Description",
+
+            category: "Category",
+
+            devHours: "Development hours",
+
+            unitPrice: "Unit price",
+
+          },
 
         },
 
