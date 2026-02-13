@@ -24,9 +24,10 @@ Estas variables son utilizadas por la aplicación. Los nuevos flags se introduce
 
 - **Desarrollo local:** `http://localhost:3000`
 - **Preview de Vercel:** `https://<branch>-preciario-web.vercel.app`
-- **Producción:** `https://preciario.wisecx.com`
+- **Producción:** `https://preciario-web.vercel.app` (o el dominio canónico configurado en Vercel)
 
 Asegúrate de registrar estos dominios en Google Cloud OAuth y de actualizar `NEXTAUTH_URL`/`AUTH_URL` según el entorno donde se despliegue la app.
+> Importante: `NEXTAUTH_URL` debe coincidir exactamente con el dominio donde está abierto el navegador al iniciar sesión. Si usas `preciario-web.vercel.app`, también debes registrar `https://preciario-web.vercel.app/api/auth/callback/google` en Google Cloud OAuth.
 
 ## Migraciones de base de datos
 
