@@ -5,6 +5,8 @@ import MapachePortalReadySignal from "../MapachePortalReadySignal";
 import { auth } from "@/lib/auth";
 import { MapachePortalQueryProvider } from "../context/query-client";
 
+const FULL_ACCESS_EMAILS = new Set(["federico.i@wisecx.com"]);
+
 function UnauthorizedNotice() {
   return (
     <>
@@ -38,10 +40,12 @@ export default async function MapachePortalSectionsLayout({
   const { user } = session;
   const role = user.role ?? "";
   const team = user.team ?? null;
+  const email = user.email?.trim().toLowerCase() ?? "";
   const isAdmin = role === "admin";
   const isMapache = team === "Mapaches";
+  const hasFullAccess = FULL_ACCESS_EMAILS.has(email);
 
-  if (!isAdmin && !isMapache) {
+  if (!isAdmin && !isMapache && !hasFullAccess) {
     return <UnauthorizedNotice />;
   }
 
