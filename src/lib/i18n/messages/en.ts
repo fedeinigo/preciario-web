@@ -152,6 +152,12 @@ const messages: DeepRecord = {
 
         disclaimer: "By continuing you accept Wise CX internal policies.",
 
+        errors: {
+          accessDenied: "Your account does not have permission to access this portal.",
+          callback: "We could not finish Google sign-in. Verify NEXTAUTH_URL and the authorized callback URI exactly match this domain.",
+          configuration: "Authentication configuration is incomplete. Review environment variables in Vercel.",
+          generic: "We could not sign you in. Please try again or contact support.",
+        },
       },
 
     },

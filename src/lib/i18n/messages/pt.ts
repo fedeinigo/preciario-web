@@ -152,6 +152,12 @@ const messages: DeepRecord = {
 
         disclaimer: "Ao continuar, você aceita as políticas internas da Wise CX.",
 
+        errors: {
+          accessDenied: "Sua conta não tem permissão para acessar este portal.",
+          callback: "Não foi possível concluir o login com o Google. Verifique se NEXTAUTH_URL e a URI de callback autorizada correspondem exatamente a este domínio.",
+          configuration: "A configuração de autenticação está incompleta. Revise as variáveis de ambiente na Vercel.",
+          generic: "Não foi possível iniciar sessão. Tente novamente ou contate o suporte.",
+        },
       },
 
     },

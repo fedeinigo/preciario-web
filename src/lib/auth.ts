@@ -58,6 +58,10 @@ function resolvePortalAccess({
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
   session: { strategy: "jwt" },
+  pages: {
+    signIn: "/auth/signin",
+    error: "/auth/signin",
+  },
 
   // GOOGLE con scopes necesarios:
   // - drive.file: crear/editar archivos que crea la app

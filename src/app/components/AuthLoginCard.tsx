@@ -3,17 +3,35 @@
 import * as React from "react";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 import LanguageSelector from "@/app/components/LanguageSelector";
 import { useTranslations } from "@/app/LanguageProvider";
 
 export default function AuthLoginCard() {
   const t = useTranslations("auth.login");
-  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams?.get("callbackUrl") ?? pathname ?? "/";
+  const callbackUrl = searchParams?.get("callbackUrl") ?? "/";
+  const authError = searchParams?.get("error") ?? "";
   const [isSigningIn, setIsSigningIn] = React.useState(false);
+
+  const errorMessage = React.useMemo(() => {
+    if (!authError) return null;
+
+    if (authError === "AccessDenied") {
+      return t("errors.accessDenied");
+    }
+
+    if (authError === "Callback" || authError === "OAuthCallback") {
+      return t("errors.callback");
+    }
+
+    if (authError === "Configuration") {
+      return t("errors.configuration");
+    }
+
+    return t("errors.generic");
+  }, [authError, t]);
 
   const handleGoogleSignIn = () => {
     if (isSigningIn) return;
@@ -47,6 +65,12 @@ export default function AuthLoginCard() {
           </div>
 
           <div className="px-8 sm:px-12 pt-8 pb-8">
+            {errorMessage ? (
+              <p className="mb-4 rounded-lg border border-red-300/60 bg-red-500/15 px-3 py-2 text-center text-sm text-red-100">
+                {errorMessage}
+              </p>
+            ) : null}
+
             <button
               onClick={handleGoogleSignIn}
               className="group w-full rounded-xl border border-white/20 bg-white text-[15px] sm:text-base font-semibold text-gray-800 hover:bg-white transition-all duration-300 inline-flex items-center justify-center gap-3 px-5 py-3.5 shadow-lg hover:shadow-2xl hover:shadow-purple-500/20 hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden disabled:cursor-wait disabled:opacity-70"
