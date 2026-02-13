@@ -18,15 +18,24 @@ const DB_PORTAL_TO_ID: Record<DbPortalKey, PortalAccessId> = {
   [DbPortalKey.MARKETING]: "marketing",
 };
 
+const FULL_ACCESS_EMAILS = new Set(["federico.i@wisecx.com"]);
+
 function resolvePortalAccess({
   portalAccesses,
   role,
   team,
+  email,
 }: {
   portalAccesses: { portal: DbPortalKey }[] | null | undefined;
   role: DbRole;
   team: string | null | undefined;
+  email: string | null | undefined;
 }): PortalAccessId[] {
+  const normalizedEmail = email?.trim().toLowerCase() ?? "";
+  if (FULL_ACCESS_EMAILS.has(normalizedEmail)) {
+    return includeDefaultPortal(["direct", "mapache", "partner", "marketing"]);
+  }
+
   const manual = portalAccesses ?? [];
   if (manual.length > 0) {
     const keys = manual.map((entry) => DB_PORTAL_TO_ID[entry.portal]);
@@ -148,6 +157,7 @@ export const authOptions: NextAuthOptions = {
             portalAccesses: dbUser.portalAccesses,
             role: dbUser.role,
             team: dbUser.team,
+            email: dbUser.email,
           });
           const resolvedImage = dbUser.image ?? (token.picture as string | undefined) ?? null;
           token.picture = resolvedImage;
@@ -185,6 +195,7 @@ export const authOptions: NextAuthOptions = {
             portalAccesses: dbUser.portalAccesses,
             role: dbUser.role,
             team: dbUser.team,
+            email: token.email as string | null | undefined,
           });
           const resolvedImage = dbUser.image ?? (token.picture as string | undefined) ?? null;
           token.picture = resolvedImage;
